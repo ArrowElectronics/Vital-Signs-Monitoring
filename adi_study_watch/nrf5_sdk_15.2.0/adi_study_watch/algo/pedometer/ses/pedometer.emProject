@@ -1,0 +1,47 @@
+<!DOCTYPE CrossStudio_Project_File>
+<solution Name="pedometer" target="8" version="2">
+  <project Name="pedometer">
+    <configuration
+      Name="Common"
+      arm_core_type="Cortex-M4"
+      c_user_include_directories="..\\;..\\algorithm;..\\..\\..\\drivers\\adxl362"
+      project_directory=""
+      project_type="Library" />
+    <folder Name="algorithm">
+      <file file_name="../algorithm/hip_algorithm.c" />
+    </folder>
+    <configuration
+      Name="Debug"
+      arm_architecture="v7EM"
+      arm_fp_abi="SoftFP"
+      arm_fpu_type="FPv4-SP-D16"
+      build_output_directory="../package/$(Configuration)"
+      build_output_file_name="../package/$(Configuration)/lib_pedometer_debug$(LIB)"
+      build_remove_unused_symbols="No"
+      gcc_enable_all_warnings="Yes"
+      post_build_command=""
+      post_build_command_control="Run When Build Has Occurred" />
+    <configuration
+      Name="Release"
+      arm_architecture="v7EM"
+      arm_fp_abi="SoftFP"
+      arm_fpu_type="FPv4-SP-D16"
+      build_debug_information="No"
+      build_output_directory="../package/$(Configuration)"
+      build_output_file_name="../package/$(Configuration)/lib_pedometer_release$(LIB)"
+      gcc_enable_all_warnings="Yes"
+      gcc_optimization_level="Optimize For Size" />
+    <file file_name="../pedometer.c" />
+  </project>
+  <configuration
+    Name="Debug"
+    c_preprocessor_definitions="DEBUG"
+    gcc_debugging_level="Level 3"
+    gcc_optimization_level="None" />
+  <configuration
+    Name="Release"
+    c_preprocessor_definitions="NDEBUG"
+    gcc_debugging_level="None"
+    gcc_omit_frame_pointer="Yes"
+    gcc_optimization_level="Level 1" />
+</solution>

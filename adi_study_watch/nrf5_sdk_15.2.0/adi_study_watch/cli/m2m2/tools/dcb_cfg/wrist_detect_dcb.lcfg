@@ -1,0 +1,5 @@
+#wrist_detect_dcb.lcfg
+00 1B58 #ONWR_TIME hex value in ms;    7000ms = 0x1B58
+01 1388 #OFFWR_TIME hex value in ms;   5000ms = 0x1388
+02 0573 #AIR_CAP_VAL hex value in uF;
+03 0550 #SKIN_CAP_VAL hex value in uF;

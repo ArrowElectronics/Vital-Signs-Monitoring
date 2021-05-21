@@ -1,0 +1,1 @@
+This folder contains configurations specific to different variants of boards like watch_board_evt.c/watch_board_dvt.c/watch_board_pvt.c

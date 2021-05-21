@@ -1,0 +1,25 @@
+node ("FORK_SYNC"){
+    stage ("SCM_Checkout") {
+        checkout scm
+    }
+    stage ("Upstream_Merge") {
+        bat label: 'Upstream_Merge', script: '''git merge upstream/%FORK_BRANCH%
+                exit %errorlevel%'''
+    }
+    def builder
+    def system_build
+    def robot_tests
+    def test_tags = ""
+    builder = load "jenkins/ses_build.groovy"
+    system_build = load "jenkins/fork_sync_sys_build.groovy"
+    robot_tests = load "jenkins/fork_sync_robot_tests.groovy"
+    system_build(builder, params.BUILD_MODE)
+    
+    if (params.RUN_REGRESSION == true) {
+        robot_tests(test_tags, params.BUILD_MODE)
+    }
+    stage ("Origin_Push") {
+        bat label: 'Origin_Push', script: '''git push -u origin master
+                exit %errorlevel%'''
+    }
+}

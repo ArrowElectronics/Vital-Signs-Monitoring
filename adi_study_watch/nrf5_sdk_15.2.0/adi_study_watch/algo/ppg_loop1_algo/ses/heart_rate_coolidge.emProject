@@ -1,0 +1,75 @@
+<!DOCTYPE CrossStudio_Project_File>
+<solution Name="HeartRateCoolidge" target="8" version="2">
+  <project Name="HeartRateCoolidge">
+    <configuration
+      Name="Common"
+      arm_core_type="Cortex-M4"
+      c_preprocessor_definitions="NRF52840_XXAA;NRF_LOG"
+      c_user_include_directories="..\\..\\..\\app\\nrf52840_app\\;..\\..\\..\\..\\components\\libraries\\log;..\\..\\..\\..\\components\\libraries\\util;..\\..\\..\\..\\components\\softdevice\\s140\\headers;..\\..\\..\\..\\modules\\nrfx\\mdk;..\\..\\..\\..\\components\\libraries\\experimental_section_vars;..\\..\\..\\..\\components\\toolchain\\cmsis\\include;..\\..\\..\\..\\components\\libraries\\log\\src;..\\..\\..\\..\\components\\libraries\\memobj;..\\..\\..\\..\\components\\libraries\\balloc;..\\..\\..\\..\\components\\libraries\\strerror"
+      project_directory=""
+      project_type="Library" />
+    <folder Name="algorithm">
+      <folder Name="ADI">
+        <file file_name="../../ppg_motion_reject_algo/adi_fixed_point_algo.c" />
+      </folder>
+    </folder>
+    <folder Name="ppg_lib">
+      <file file_name="../api_in_out.c" />
+      <file file_name="../dark_offset.c" />
+      <file file_name="../detect_motion.c" />
+      <file file_name="../detect_off.c" />
+      <file file_name="../detect_on_green.c" />
+      <file file_name="../detect_on_ir.c" />
+      <file file_name="../get_ctr_value.c" />
+      <file file_name="../heart_rate.c" />
+      <file file_name="../optimization_108.c" />
+      <file file_name="../optimization_ac.c" />
+      <file file_name="../state_machine.c" />
+      <file file_name="../utility.c" />
+    </folder>
+    <configuration
+      Name="Debug"
+      arm_architecture="v7EM"
+      arm_fp_abi="SoftFP"
+      arm_fpu_type="FPv4-SP-D16"
+      build_output_directory="../package/$(Configuration)"
+      build_output_file_name="../package/$(Configuration)/lib_adpd_m4$(LIB)"
+      build_remove_unused_symbols="No"
+      build_treat_warnings_as_errors="No"
+      c_preprocessor_definitions="ADUCM3029;DETECTION_GREEN_LED;HRMPLUS;STATIC_AGC"
+      c_user_include_directories="..\\..\\..\\drivers\\adpd4000;..\\;..\\ppg_motion_reject_algo"
+      gcc_enable_all_warnings="Yes"
+      gcc_optimization_level="None"
+      post_build_command="cmd /c cd $(ProjectDir)\..\package &amp; makelib_ses.cmd debug lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a &amp; del $(Configuration)\lib_adpd_m4.a"
+      post_build_command_control="Always Run"
+      pre_build_command="cmd /c cp $(ProjectDir)\..\adpd400x_lib.h $(ProjectDir)\..\package\adpd400x_lib.h"
+      pre_build_command_control="Always Run" />
+    <configuration
+      Name="Release"
+      arm_architecture="v7EM"
+      arm_fp_abi="SoftFP"
+      arm_fpu_type="FPv4-SP-D16"
+      build_debug_information="No"
+      build_output_directory="../package/$(Configuration)"
+      build_output_file_name="../package/$(Configuration)/lib_adpd_m4$(LIB)"
+      build_treat_warnings_as_errors="No"
+      c_preprocessor_definitions="ADUCM3029;DETECTION_GREEN_LED;HRMPLUS;STATIC_AGC"
+      c_user_include_directories="..\\..\\..\\drivers\\adpd4000;..\\;..\\ppg_motion_reject_algo"
+      gcc_enable_all_warnings="Yes"
+      gcc_optimization_level="Optimize For Size"
+      post_build_command="cmd /c cd $(ProjectDir)\..\package &amp; makelib_ses.cmd release lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a &amp; del $(Configuration)\lib_adpd_m4.a"
+      post_build_command_control="Always Run"
+      pre_build_command="cmd /c cp $(ProjectDir)\..\adpd400x_lib.h $(ProjectDir)\..\package\adpd400x_lib.h" />
+  </project>
+  <configuration
+    Name="Debug"
+    c_preprocessor_definitions="DEBUG"
+    gcc_debugging_level="Level 3"
+    gcc_optimization_level="None" />
+  <configuration
+    Name="Release"
+    c_preprocessor_definitions="NDEBUG"
+    gcc_debugging_level="None"
+    gcc_omit_frame_pointer="Yes"
+    gcc_optimization_level="Level 1" />
+</solution>

@@ -1,0 +1,628 @@
+<!DOCTYPE CrossStudio_Project_File>
+<solution Name="Solution &#xe2;&#x80;&#x98;watchv4_nrf52840" target="8" version="2">
+  <configuration
+    Name="Release"
+    c_preprocessor_definitions="NDEBUG"
+    gcc_optimization_level="Optimize For Size" />
+  <configuration
+    Name="Debug"
+    c_preprocessor_definitions="DEBUG; DEBUG_NRF"
+    gcc_optimization_level="None" />
+  <import file_name="../../../algo/ppg_loop1_algo/ses/heart_rate_coolidge.emProject" />
+  <configuration
+    Name="Common"
+    c_user_include_directories="..\\..\\components\\libraries\\queue\\" />
+  <import file_name="../../../algo/pedometer/ses/Pedometer.emProject" />
+  <project Name="watchv4_nrf52840">
+    <configuration
+      Name="Common"
+      arm_architecture="v7EM"
+      arm_core_type="Cortex-M4"
+      arm_endian="Little"
+      arm_fp_abi="SoftFP"
+      arm_fpu_type="FPv4-SP-D16"
+      arm_linker_heap_size="21504"
+      arm_linker_process_stack_size="0"
+      arm_linker_stack_size="12288"
+      arm_linker_treat_warnings_as_errors="No"
+      arm_simulator_memory_simulation_parameter="RWX 00000000,00100000,FFFFFFFF;RWX 20000000,00040000,CDCDCDCD"
+      arm_target_device_name="nRF52840_xxAA"
+      arm_target_interface_type="SWD"
+      c_preprocessor_definitions="BOARD_PCA10056;CONFIG_GPIO_AS_PINRESET;FLOAT_ABI_HARD;NRF52840_XXAA;SOFTDEVICE_PRESENT;FREERTOS;NRF_SD_BLE_API_VERSION=6;S140;NRF52840_SPI_FIX;INITIALIZE_USER_SECTIONS ;NO_VTOR_CONFIG;USE_USB_READ_ANY;ALGO_ADI;EVTBOARD;USE_FS;CHIPSEL_594X;CONFIG_NFCT_PINS_AS_GPIOS;DCB;PCBA;DVT;IMPEDANCE_CARTESIAN_FORM;LOW_TOUCH_FEATURE;ENABLE_PPG_APP;ENABLE_PEDO_APP;ENABLE_SQI_APP;ENABLE_TEMPERATURE_APP;ENABLE_ECG_APP;ECG_HR_ALGO;ENABLE_EDA_APP;ENABLE_BCM_APP;ENABLE_WATCH_DISPLAY"
+      c_user_include_directories="..\\ ;..\\..\\..\\..\\components\\boards;..\\..\\..\\..\\components\\libraries\\block_dev\\;..\\..\\..\\..\\components\\libraries\\atomic;..\\..\\..\\..\\components\\libraries\\balloc;..\\..\\..\\..\\components\\libraries\\bsp;..\\..\\..\\..\\components\\libraries\\fds;..\\..\\..\\..\\components\\libraries\\delay;..\\..\\..\\..\\components\\libraries\\memobj;..\\..\\..\\..\\components\\libraries\\ringbuf;..\\..\\..\\..\\components\\libraries\\strerror;..\\..\\..\\..\\components\\libraries\\util;..\\..\\..\\..\\components\\libraries\\log;..\\..\\..\\..\\components\\libraries\\pwm;..\\..\\..\\..\\components\\libraries\\log\\src;..\\..\\..\\..\\components\\libraries\\experimental_section_vars;..\\..\\..\\..\\integration\\nrfx;..\\..\\..\\..\\integration\\nrfx\\legacy;..\\..\\..\\..\\modules\\nrfx;..\\..\\..\\..\\modules\\nrfx\\drivers\\include;..\\..\\..\\..\\modules\\nrfx\\hal;..\\..\\..\\..\\modules\\nrfx\\mdk;..\\..\\..\\..\\components\\toolchain\\cmsis\\include;..\\..\\..\\..\\components\\ble\\common;..\\..\\..\\..\\components\\ble\\ble_advertising;..\\..\\..\\..\\components\\ble\\ble_link_ctx_manager;..\\..\\..\\..\\components\\ble\\nrf_ble_gatt;..\\..\\..\\..\\components\\ble\\peer_manager;..\\..\\..\\..\\components\\softdevice\\s140\\headers;..\\..\\..\\..\\components\\libraries\\atomic_flags;..\\..\\..\\..\\components\\softdevice\\common;..\\..\\..\\..\\components\\ble\\ble_services\\ble_nus;..\\..\\..\\..\\components\\drivers_nrf\\usbd;..\\..\\..\\..\\components\\libraries\\fifo;..\\..\\..\\..\\components\\libraries\\timer;..\\..\\..\\..\\components\\libraries\\uart;..\\..\\..\\..\\components\\libraries\\usbd;..\\..\\..\\..\\components\\libraries\\usbd\\class\\cdc;..\\..\\..\\..\\components\\libraries\\usbd\\class\\cdc\\acm;..\\..\\..\\..\\components\\libraries\\timer;..\\..\\..\\..\\components\\libraries\\pwr_mgmt;..\\..\\..\\..\\components\\libraries\\atomic_fifo;..\\..\\..\\..\\external\\utf_converter;..\\..\\..\\..\\components\\libraries\\mutex;..\\..\\..\\..\\components\\libraries\\button;..\\..\\..\\..\\components\\libraries\\fstorage;..\\..\\..\\..\\external\\fprintf;..\\..\\..\\..\\external\\freertos\\source\\include;..\\..\\..\\..\\external\\freertos\\portable\\GCC\\nrf52;..\\..\\..\\..\\external\\freertos\\portable\\CMSIS\\nrf52;..\\..\\..\\modules\\adpd4000;..\\..\\..\\modules\\adpd4000_ppg;..\\..\\..\\modules\\adxl362;..\\..\\..\\modules\\ad5940_ecg;..\\..\\..\\modules\\adxl362_pedo;..\\..\\..\\modules\\system;..\\..\\..\\modules\\system\\osal\\free_rtos\\ports;..\\..\\..\\modules\\system\\osal\\free_rtos\\src;..\\..\\..\\cli\\m2m2\\inc\\c;..\\..\\..\\drivers\\ad5940;..\\..\\..\\drivers\\adpd4000;..\\..\\..\\drivers\\adxl362;..\\..\\..\\drivers\\adp5360;..\\..\\..\\drivers\\ad7156;..\\..\\..\\drivers\\button;..\\..\\..\\drivers\\display;..\\..\\..\\modules\\touch;..\\..\\..\\drivers\\rtc;..\\..\\..\\drivers\\wdt;..\\..\\..\\drivers\\pwm_reset;..\\..\\..\\utilities\\circular_buffer;..\\..\\..\\utilities\\mem_pool;..\\..\\..\\utilities\\memory_management;..\\..\\..\\utilities\\power_manager;..\\..\\..\\utilities\\lygl\\font;..\\..\\..\\utilities\\lygl;..\\..\\..\\hal;..\\..\\..\\modules\\ad5940_eda;..\\..\\..\\algo\\pedometer;..\\..\\..\\modules\\ad5940_bcm;..\\..\\..\\modules\\test_task;..\\..\\..\\configurations;..\\..\\..\\app\\nRF52840_app;..\\..\\..\\..\\external\\segger_rtt;..\\display;..\\display\\logical;..\\..\\..\\..\\components\\libraries\\crc16;..\\..\\..\\utilities\\lfs;..\\..\\..\\tst\\lfs;..\\..\\..\\modules\\ad7156_lt;..\\..\\..\\algo\\ppg_loop1_algo;..\\..\\..\\test_code;..\\..\\..\\modules\\adpd4000_sqi;..\\..\\..\\algo\\sqi\\package;..\\..\\..\\algo\\ecg\\package;..\\..\\..\\..\\components\\ble\\ble_services\\ble_bas;..\\..\\..\\..\\components\\ble\\ble_services\\ble_dis;..\\..\\..\\..\\components\\ble\\ble_services\\ble_hrs;..\\..\\..\\..\\components\\ble\\nrf_ble_qwr;..\\..\\..\\modules\\system\\ble_custom_profile1"
+      debug_additional_load_file="..\..\..\..\components/softdevice/s140/hex/s140_nrf52_6.1.0_softdevice.hex"
+      debug_register_definition_file="..\..\..\..\modules/nrfx/mdk/nrf52840.svd"
+      debug_start_from_entry_point_symbol="No"
+      debug_target_connection="J-Link"
+      gcc_debugging_level="Level 3"
+      gcc_entry_point="Reset_Handler"
+      linker_output_format="hex"
+      linker_printf_fmt_level="long"
+      linker_printf_width_precision_supported="Yes"
+      linker_section_placement_file="flash_placement.xml"
+      linker_section_placement_macros="FLASH_PH_START=0x0;FLASH_PH_SIZE=0x100000;RAM_PH_START=0x20000000;RAM_PH_SIZE=0x40000;FLASH_START=0x26000;FLASH_SIZE=0xca000;RAM_START=0x20005AD0;RAM_SIZE=0x3A530"
+      linker_section_placements_segments="FLASH RX 0x0 0x100000;RAM RWX 0x20000000 0x40000"
+      macros="CMSIS_CONFIG_TOOL=../../../../external_tools/cmsisconfig/CMSIS_Configuration_Wizard.jar"
+      project_dependencies="HeartRateCoolidge(HeartRateCoolidge);pedometer(pedometer)"
+      project_directory=""
+      project_type="Executable"
+      speed="4000"
+      supplyPower="Yes" />
+    <folder Name="Application">
+      <file file_name="..\..\..\modules\adpd4000\adpd4000_task.c" />
+      <file file_name="..\..\..\modules\system\usbd_task.c" />
+      <file file_name="..\..\..\modules\system\system_task.c" />
+      <file file_name="../../..\modules\system\ble_task.c" />
+      <file file_name="../../..\modules\adpd4000_ppg\ppg_application_task.c" />
+      <file file_name="../../../modules/adpd4000_temp/temperature_task.c" />
+      <folder Name="display">
+        <folder Name="image">
+          <file file_name="../display/image_declare.h" />
+          <file file_name="../display/image/_hr_ico.c" />
+          <file file_name="../display/image/_setting_ico.c" />
+          <file file_name="../display/image/_waveform_ico.c" />
+          <file file_name="../display/image/_memory_ico.c" />
+          <file file_name="../display/image/_battery_level_ico.c" />
+          <file file_name="../display/image/_memory_usage_ico.c" />
+          <file file_name="../display/image/_arrows_down_ico.c" />
+          <file file_name="../display/image/_arrows_up_ico.c" />
+          <file file_name="../display/image/_hr_icon_small.c" />
+          <file file_name="../display/image/_hr_waveform_icon.c" />
+          <file file_name="../display/image/_memory_store_failure.c" />
+          <file file_name="../display/image/_memory_store_success.c" />
+          <file file_name="../display/image/_memory_turn_off_ico.c" />
+          <file file_name="../display/image/_memory_turn_on_ico.c" />
+          <file file_name="../display/image/_setting_battery_level_ico.c" />
+          <file file_name="../display/image/_setting_blue_address_ico.c" />
+          <file file_name="../display/image/_setting_brightness_adjustment_ico.c" />
+          <file file_name="../display/image/_setting_factory_reset_ico.c" />
+          <file file_name="../display/image/_setting_firmware_version_ico.c" />
+          <file file_name="../display/image/_setting_memory_usage_ico.c" />
+          <file file_name="../display/image/_waveform_guide_ico.c" />
+          <file file_name="../display/image/_power_on_ico.c" />
+          <file file_name="../display/image/_setting_power_off.c" />
+          <file file_name="../display/image/_memory_error_ico.c" />
+          <file file_name="../display/image/_setting_memory_error_ico.c" />
+          <file file_name="../display/image/_setting_temp_ico.c" />
+          <configuration Name="Release" build_exclude_from_build="No" />
+          <configuration Name="Debug" build_exclude_from_build="No" />
+          <file file_name="../display/image/_waveform_small_ico.c" />
+          <file file_name="../display/image/_low_touch_ico.c" />
+          <file file_name="../display/image/_memory_progress bar.c" />
+          <file file_name="../display/image/_logging_ico.c" />
+          <file file_name="../display/image/_about_ce_ico.c" />
+          <file file_name="../display/image/_about_ico.c" />
+          <file file_name="../display/image/_about_rl_ico.c" />
+          <file file_name="../display/image/_about_weee_ico.c" />
+          <file file_name="../display/image/_fcc_id_ico.c" />
+        </folder>
+        <folder Name="page">
+          <file file_name="../display/page/page_hr.c" />
+          <file file_name="../display/page/page_menu.c" />
+          <file file_name="../display/page/page_task_info.c">
+            <configuration Name="Release" build_exclude_from_build="Yes" />
+            <configuration Name="Debug" build_exclude_from_build="Yes" />
+          </file>
+          <file file_name="../display/page/page_setting.c" />
+          <file file_name="../display/page/page_waveform.c" />
+          <folder Name="heart_rate">
+            <file file_name="../display/page/heart_rate/page_bpm.c" />
+          </folder>
+          <folder Name="setting">
+            <file file_name="../display/page/setting/page_battery_level.c" />
+            <file file_name="../display/page/setting/page_blue_address.c" />
+            <file file_name="../display/page/setting/page_brightness_switch.c" />
+            <file file_name="../display/page/setting/page_memory_usage.c" />
+            <file file_name="../display/page/setting/page_power_off.c" />
+            <file file_name="../display/page/setting/page_shipment_mode.c" />
+            <file file_name="../display/page/setting/page_power_off_confirm.c" />
+            <file file_name="../display/page/setting/page_shipment_mode_confirm.c" />
+            <file file_name="../display/page/setting/page_ble_hr_service.c" />
+          </folder>
+          <folder Name="waveform">
+            <file file_name="../display/page/waveform/page_ecg.c" />
+            <file file_name="../display/page/waveform/page_ppg.c" />
+            <file file_name="../display/page/waveform/page_skin_temp.c" />
+            <file file_name="../display/page/waveform/page_ecg_title.c">
+              <configuration Name="Release" build_exclude_from_build="No" />
+            </file>
+            <file file_name="../display/page/waveform/page_ppg_title.c" />
+            <file file_name="../display/page/waveform/page_skin_temp_tile.c" />
+          </folder>
+          <file file_name="../display/page/page_power_on.c" />
+          <file file_name="../display/display_app.h" />
+          <folder Name="ble_peer">
+            <file file_name="../display/page/ble_peer/page_ble_peer_key.c" />
+            <file file_name="../display/page/ble_peer/page_ble_peer_request.c" />
+          </folder>
+          <folder Name="test">
+            <file file_name="../display/page/test/page_test_touch.c" />
+            <file file_name="../display/page/test/page_test_backlight.c" />
+            <file file_name="../display/page/test/page_test_lt.c" />
+          </folder>
+          <folder Name="temp_protect">
+            <file file_name="../display/page/tmp_protect/page_tmp_high_alarm.c" />
+            <file file_name="../display/page/tmp_protect/page_tmp_low_alarm.c" />
+          </folder>
+          <folder Name="low_voltage_protect">
+            <file file_name="../display/page/low_voltage_protect/page_low_voltage_alarm.c" />
+          </folder>
+          <folder Name="low_touch_logging">
+            <file file_name="../display/page/low_touch_logging/page_low_touch_config.c" />
+            <file file_name="../display/page/low_touch_logging/page_low_touch_logging_status.c" />
+            <file file_name="../display/page/low_touch_logging/page_low_touch_enable.c" />
+          </folder>
+          <file file_name="../display/page/page_low_touch_logging.c" />
+          <folder Name="error_alarm">
+            <file file_name="../display/page/error_alarm/page_low_touch_error.c" />
+            <file file_name="../display/page/error_alarm/page_max_file_alarm.c" />
+            <file file_name="../display/page/error_alarm/page_no_battery_error.c" />
+          </folder>
+          <folder Name="about">
+            <file file_name="../display/page/about/page_device_name.c" />
+            <file file_name="../display/page/about/page_fcc_info.c" />
+            <file file_name="../display/page/about/page_firmware_version.c" />
+            <file file_name="../display/page/about/page_made_country.c" />
+            <file file_name="../display/page/about/page_manufacture_date.c" />
+            <file file_name="../display/page/about/page_trade_mark.c" />
+          </folder>
+          <file file_name="../display/page/page_about.c" />
+        </folder>
+        <file file_name="../display/display_app.c" />
+        <configuration Name="Debug" build_exclude_from_build="No" />
+        <folder Name="logical">
+          <file file_name="../display/logical/display_m2m2_protocol.c" />
+        </folder>
+      </folder>
+      <file file_name="../../../modules/system/file_system_task.c">
+        <configuration Name="Debug" build_exclude_from_build="No" />
+      </file>
+      <file file_name="../../../modules/system/logger_task.c" />
+      <file file_name="../../../modules/adxl362/adxl_task.c" />
+      <file file_name="../../../modules/ad5940_eda/eda_application_task.c">
+        <configuration
+          Name="Release"
+          gcc_optimization_level="Optimize For Size" />
+      </file>
+      <file file_name="../../../modules/ad5940_bcm/bcm_application_task.c" />
+      <folder Name="test_items">
+        <file file_name="../../../modules/test_task/touch_test.c" />
+        <file file_name="../../../modules/test_task/key_test.c" />
+      </folder>
+      <file file_name="../../../modules/adxl362_pedo/pedometer_task.c" />
+      <folder Name="touch">
+        <file file_name="../../../modules/touch/touch_detect.c" />
+      </folder>
+      <folder Name="low_touch_app">
+        <file file_name="../../../modules/ad7156_lt/dcb_general_block.c" />
+        <file file_name="../../../modules/ad7156_lt/low_touch_task.c" />
+        <file file_name="../../../modules/ad7156_lt/wrist_detect_block.c" />
+      </folder>
+      <file file_name="../../../modules/system/watch_dog_task.c" />
+      <file file_name="../../../modules/ad5940_ecg/ecg_application_task.c">
+        <configuration Name="Debug" build_exclude_from_build="No" />
+      </file>
+      <file file_name="../../../modules/system/post_office.c" />
+      <file file_name="../main_freertos.c" />
+      <file file_name="../../../modules/system/system_version.c">
+        <configuration Name="Common" build_always_rebuild="Yes" />
+      </file>
+      <file file_name="../../../modules/adpd4000/agc.c" />
+      <folder Name="test_code">
+        <file file_name="../../../test_code/us_tick.c">
+          <configuration Name="Release" build_exclude_from_build="No" />
+          <configuration Name="Debug" build_exclude_from_build="No" />
+        </file>
+        <file file_name="../../../test_code/rtos_test.c" />
+        <configuration Name="Release" build_exclude_from_build="Yes" />
+      </folder>
+      <file file_name="../../../modules/adpd4000/agc.h" />
+      <file file_name="../../../modules/adpd4000_sqi/sqi_task.c" />
+      <file file_name="../../../modules/adpd4000_sqi/adi_vsm_cycle_count.c" />
+      <file file_name="../../../modules/system/ble_services_m2m2_protocol.c" />
+    </folder>
+    <folder Name="Middleware">
+      <folder Name="FreeRTOS">
+        <folder Name="Portable">
+          <folder Name="CMSIS">
+            <file file_name="..\..\..\..\external\freertos\portable\CMSIS\nrf52\port_cmsis.c" />
+            <file file_name="..\..\..\..\external\freertos\portable\CMSIS\nrf52\port_cmsis_systick.c" />
+          </folder>
+          <folder Name="MemMgmt">
+            <file file_name="..\..\..\..\external\freertos\source\portable\MemMang\heap_1.c" />
+          </folder>
+          <file file_name="../../../../external/freertos/portable/GCC/nrf52/port.c" />
+        </folder>
+        <folder Name="Source">
+          <file file_name="..\..\..\..\external\freertos\source\croutine.c" />
+          <file file_name="..\..\..\..\external\freertos\source\event_groups.c" />
+          <file file_name="..\..\..\..\external\freertos\source\list.c" />
+          <file file_name="..\..\..\..\external\freertos\source\queue.c" />
+          <file file_name="..\..\..\..\external\freertos\source\stream_buffer.c" />
+          <file file_name="..\..\..\..\external\freertos\source\tasks.c" />
+          <file file_name="..\..\..\..\external\freertos\source\timers.c" />
+        </folder>
+      </folder>
+      <folder Name="Mailbox">
+        <file file_name="..\..\..\modules\system\mail_box.c" />
+      </folder>
+      <folder Name="MemMgmt">
+        <file file_name="..\..\..\utilities\memory_management\memory_management.c" />
+      </folder>
+      <folder Name="OSAL">
+        <folder Name="PORTS">
+          <file file_name="..\..\..\modules\system\osal\free_rtos\ports\adi_osal_arch_c.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\ports\adi_osal_arch_int_table.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\ports\adi_osal_free_rtos_arch_c.c" />
+          <configuration Name="Debug" build_exclude_from_build="Yes" />
+          <configuration Name="Release" build_exclude_from_build="Yes" />
+        </folder>
+        <folder Name="SOURCE">
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_critical.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_event.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_init.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_message.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_mutex.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_rtl_lock.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_sem.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_thread.c">
+            <configuration Name="Debug" build_exclude_from_build="No" />
+          </file>
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_thread_queue.c">
+            <configuration Name="Debug" build_exclude_from_build="Yes" />
+            <configuration Name="Release" build_exclude_from_build="Yes" />
+          </file>
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_timing.c" />
+          <file file_name="..\..\..\modules\system\osal\free_rtos\src\adi_osal_freertos_tls.c" />
+        </folder>
+      </folder>
+      <folder Name="PPG">
+        <file file_name="..\..\..\modules\adpd4000_ppg\app_common.c" />
+        <file file_name="..\..\..\modules\adpd4000_ppg\app_sync.c" />
+        <file file_name="..\..\..\modules\adpd4000_ppg\mw_ppg.c" />
+        <file file_name="..\..\..\modules\adpd4000_ppg\struct_operations.c" />
+        <file file_name="..\..\..\modules\adpd4000_ppg\sync_data_buffering.c" />
+      </folder>
+    </folder>
+    <folder Name="nRF_BLE">
+      <file file_name="..\..\..\..\components\ble\common\ble_advdata.c" />
+      <file file_name="..\..\..\..\components\ble\ble_advertising\ble_advertising.c" />
+      <file file_name="..\..\..\..\components\ble\common\ble_conn_params.c" />
+      <file file_name="..\..\..\..\components\ble\common\ble_conn_state.c" />
+      <file file_name="..\..\..\..\components\ble\ble_link_ctx_manager\ble_link_ctx_manager.c" />
+      <file file_name="..\..\..\..\components\ble\common\ble_srv_common.c" />
+      <file file_name="..\..\..\..\components\ble\nrf_ble_gatt\nrf_ble_gatt.c" />
+      <file file_name="../../../../components/ble/nrf_ble_qwr/nrf_ble_qwr.c" />
+    </folder>
+    <folder Name="nRF_BLE_Services">
+      <file file_name="..\..\..\..\components\ble\ble_services\ble_nus\ble_nus.c" />
+      <file file_name="../../../../components/ble/ble_services/ble_bas/ble_bas.c" />
+      <file file_name="../../../../components/ble/ble_services/ble_hrs/ble_hrs.c" />
+      <file file_name="../../../../components/ble/ble_services/ble_dis/ble_dis.c" />
+      <file file_name="../../../modules/system/ble_custom_profile1/ble_cus1.c" />
+      <file file_name="../../../modules/system/ble_custom_profile1/ble_cus2.c" />
+      <file file_name="../../../modules/system/ble_custom_profile1/ble_cus3.c" />
+    </folder>
+    <folder Name="nRF_Drivers">
+      <file file_name="..\..\..\..\integration\nrfx\legacy\nrf_drv_clock.c" />
+      <file file_name="..\..\..\..\integration\nrfx\legacy\nrf_drv_power.c" />
+      <file file_name="..\..\..\..\integration\nrfx\legacy\nrf_drv_spi.c" />
+      <file file_name="..\..\..\..\integration\nrfx\legacy\nrf_drv_twi.c" />
+      <file file_name="..\..\..\..\components\drivers_nrf\usbd\nrf_drv_usbd.c" />
+      <file file_name="..\..\..\..\components\libraries\fstorage\nrf_fstorage.c">
+        <configuration Name="Debug" build_exclude_from_build="No" />
+        <configuration Name="Release" build_exclude_from_build="No" />
+      </file>
+      <file file_name="..\..\..\..\components\libraries\fstorage\nrf_fstorage_sd.c">
+        <configuration Name="Debug" build_exclude_from_build="No" />
+        <configuration Name="Release" build_exclude_from_build="No" />
+      </file>
+      <file file_name="..\..\..\..\modules\nrfx\drivers\src\nrfx_clock.c" />
+      <file file_name="..\..\..\..\modules\nrfx\drivers\src\nrfx_gpiote.c" />
+      <file file_name="..\..\..\..\modules\nrfx\drivers\src\nrfx_power.c" />
+      <file file_name="..\..\..\..\modules\nrfx\drivers\src\nrfx_power_clock.c" />
+      <file file_name="..\..\..\..\modules\nrfx\drivers\src\prs\nrfx_prs.c">
+        <configuration Name="Debug" build_exclude_from_build="No" />
+      </file>
+      <file file_name="..\..\..\..\modules\nrfx\drivers\src\nrfx_spi.c" />
+      <file file_name="..\..\..\..\modules\nrfx\drivers\src\nrfx_spim.c" />
+      <file file_name="..\..\..\..\modules\nrfx\drivers\src\nrfx_twi.c" />
+      <file file_name="..\..\..\..\modules\nrfx\drivers\src\nrfx_twim.c" />
+      <file file_name="../../../../modules/nrfx/drivers/src/nrfx_timer.c" />
+      <file file_name="../../../../components/libraries/block_dev/qspi/nrf_block_dev_qspi.c" />
+      <file file_name="../../../../modules/nrfx/drivers/src/nrfx_qspi.c" />
+      <file file_name="../../../../modules/nrfx/drivers/src/nrfx_rtc.c" />
+      <file file_name="../../../../modules/nrfx/drivers/src/nrfx_wdt.c" />
+      <file file_name="../../../../components/libraries/fds/fds.c" />
+      <file file_name="../../../../modules/nrfx/drivers/src/nrfx_pwm.c" />
+    </folder>
+    <folder Name="nRF_Log">
+      <file file_name="..\..\..\..\components\libraries\log\src\nrf_log_backend_serial.c" />
+      <file file_name="..\..\..\..\components\libraries\log\src\nrf_log_default_backends.c" />
+      <file file_name="..\..\..\..\components\libraries\log\src\nrf_log_frontend.c" />
+      <file file_name="..\..\..\..\components\libraries\log\src\nrf_log_str_formatter.c" />
+      <file file_name="../../../../components/libraries/log/src/nrf_log_backend_rtt.c">
+        <configuration Name="Release" build_exclude_from_build="Yes" />
+      </file>
+    </folder>
+    <folder Name="nRF_SoftDevice">
+      <file file_name="..\..\..\..\components\softdevice\common\nrf_sdh.c" />
+      <file file_name="..\..\..\..\components\softdevice\common\nrf_sdh_ble.c" />
+      <file file_name="..\..\..\..\components\softdevice\common\nrf_sdh_freertos.c" />
+      <file file_name="..\..\..\..\components\softdevice\common\nrf_sdh_soc.c" />
+    </folder>
+    <folder Name="Segger Startup Files">
+      <file file_name="$(StudioDir)/source/thumb_crt0.s" />
+    </folder>
+    <folder Name="Startup">
+      <file file_name="..\system_nrf52840.c" />
+      <file file_name="ses_startup_nrf_common.s" />
+      <file file_name="ses_startup_nrf52840.s" />
+    </folder>
+    <folder Name="SensorDrivers">
+      <folder Name="ADPD4000">
+        <file file_name="..\..\..\drivers\adpd4000\adpd4000_buffering.c" />
+        <file file_name="..\..\..\drivers\adpd4000\adpd4000_dcfg.c" />
+        <file file_name="..\..\..\drivers\adpd4000\adpd400x_drv.c" />
+        <file file_name="../../../drivers/adpd4000/lcm.c" />
+      </folder>
+      <folder Name="ADP5360">
+        <file file_name="..\..\..\drivers\adp5360\adp5360.c" />
+        <file file_name="../../../drivers/adp5360/battery_temp_detect.c" />
+        <file file_name="../../../drivers/adp5360/low_voltage_protect.c" />
+      </folder>
+      <folder Name="LFS">
+        <file file_name="../../../utilities/lfs/nand_cmd.c" />
+        <file file_name="../../../utilities/lfs/nand_functions.c" />
+      </folder>
+      <folder Name="button_display">
+        <file file_name="../../../drivers/button/key_detect.c" />
+        <file file_name="../../../drivers/display/lcd_driver.c" />
+        <configuration Name="Debug" build_exclude_from_build="No" />
+      </folder>
+      <folder Name="AD5940">
+        <file file_name="../../../drivers/ad5940/ad5940.c" />
+        <file file_name="../../../drivers/ad5940/ad5940_buffering.c" />
+        <configuration Name="Debug" build_exclude_from_build="No" />
+      </folder>
+      <folder Name="rtc">
+        <file file_name="../../../drivers/rtc/rtc.c" />
+        <file file_name="../../../hal/adi_calendar.c" />
+        <file file_name="../../../drivers/rtc/m_time.c" />
+      </folder>
+      <folder Name="pwm_reset">
+        <file file_name="../../../drivers/pwm_reset/pwm_reset.c">
+          <configuration Name="Debug" build_exclude_from_build="Yes" />
+        </file>
+        <configuration Name="Release" build_exclude_from_build="Yes" />
+      </folder>
+      <folder Name="ADXL">
+        <file file_name="../../../drivers/adxl362/adxl_buffering.c" />
+        <file file_name="../../../drivers/adxl362/adxl_dcfg.c" />
+        <file file_name="../../../drivers/adxl362/adxl_drv.c" />
+        <file file_name="../../../drivers/adxl362/adxl362.c" />
+      </folder>
+      <folder Name="wdt">
+        <file file_name="../../../drivers/wdt/wdt.c" />
+      </folder>
+      <folder Name="AD7156">
+        <file file_name="../../../drivers/ad7156/ad7156.c" />
+        <file file_name="../../../drivers/ad7156/ad7156_dcfg.c" />
+      </folder>
+      <folder Name="adi_fds">
+        <file file_name="../../../modules/system/fds_drv.c" />
+      </folder>
+    </folder>
+    <folder Name="UTF8/UTF16 converter">
+      <file file_name="..\..\..\..\external\utf_converter\utf.c">
+        <configuration Name="Debug" build_exclude_from_build="No" />
+      </file>
+    </folder>
+    <folder Name="Utilities">
+      <folder Name="ADPD4000">
+        <file file_name="..\..\..\modules\adpd4000\clock_calibration.c" />
+        <file file_name="..\..\..\modules\adpd4000\dark_offset.c">
+          <configuration Name="Debug" build_exclude_from_build="Yes" />
+          <configuration Name="Release" build_exclude_from_build="Yes" />
+        </file>
+        <file file_name="..\..\..\modules\adpd4000\float_mode.c">
+          <configuration Name="Debug" build_exclude_from_build="Yes" />
+          <configuration Name="Release" build_exclude_from_build="Yes" />
+        </file>
+        <file file_name="..\..\..\modules\adpd4000\get_ctr_value.c">
+          <configuration Name="Debug" build_exclude_from_build="Yes" />
+          <configuration Name="Release" build_exclude_from_build="Yes" />
+        </file>
+        <file file_name="..\..\..\modules\adpd4000\normal_mode.c">
+          <configuration Name="Debug" build_exclude_from_build="Yes" />
+          <configuration Name="Release" build_exclude_from_build="Yes" />
+        </file>
+        <file file_name="..\..\..\modules\adpd4000\utility.c">
+          <configuration Name="Debug" build_exclude_from_build="Yes" />
+          <configuration Name="Release" build_exclude_from_build="Yes" />
+        </file>
+      </folder>
+      <folder Name="CircularBuffer">
+        <file file_name="..\..\..\utilities\circular_buffer\circular_buffer.c" />
+      </folder>
+      <folder Name="DCB">
+        <configuration Name="Debug" build_exclude_from_build="No" />
+        <configuration Name="Release" build_exclude_from_build="No" />
+        <file file_name="../../../modules/system/adi_dcb_config.c" />
+      </folder>
+      <folder Name="MemPool">
+        <file file_name="..\..\..\utilities\mem_pool\mem_pool.c" />
+      </folder>
+      <folder Name="Power">
+        <file file_name="..\..\..\utilities\power_manager\power_manager.c" />
+        <file file_name="../../../utilities/power_manager/power_on_detect.c" />
+      </folder>
+      <file file_name="..\..\..\modules\system\printf.c" />
+      <folder Name="LFS">
+        <file file_name="../../../utilities/lfs/file_system_utils.c" />
+        <file file_name="../../../utilities/lfs/light_fs.c" />
+      </folder>
+      <folder Name="lygl">
+        <folder Name="font">
+          <file file_name="../../../utilities/lygl/font/lygl_font_16.c" />
+          <file file_name="../../../utilities/lygl/font/lygl_font_24.c" />
+          <file file_name="../../../utilities/lygl/font/lygl_font_32.c" />
+          <file file_name="../../../utilities/lygl/font/lygl_font_47.c" />
+          <file file_name="../../../utilities/lygl/font/lygl_font_48.c" />
+          <file file_name="../../../utilities/lygl/font/lygl_font_62.c" />
+        </folder>
+        <file file_name="../../../utilities/lygl/lygl_common.c" />
+        <file file_name="../../../utilities/lygl/lygl_text.c" />
+        <file file_name="../../../utilities/lygl/lygl_image.c" />
+        <file file_name="../../../utilities/lygl/lygl_graph.c" />
+        <configuration Name="Debug" build_exclude_from_build="No" />
+        <file file_name="../../../utilities/lygl/lygl_battry_level.c" />
+        <file file_name="../../../utilities/lygl/lygl_process_bar.c" />
+        <configuration Name="Release" build_exclude_from_build="No" />
+      </folder>
+      <folder Name="Tracealyser">
+        <file file_name="../../../utilities/tracealyser/trace_recorder/config_ses/trcConfig.h" />
+        <file file_name="../../../utilities/tracealyser/trace_recorder/config_ses/trcSnapshotConfig.h" />
+        <file file_name="../../../utilities/tracealyser/trace_recorder/config_ses/trcStreamingConfig.h" />
+        <file file_name="../../../utilities/tracealyser/trace_recorder/include/trcHardwarePort.h" />
+        <file file_name="../../../utilities/tracealyser/trace_recorder/include/trcKernelPort.h" />
+        <file file_name="../../../utilities/tracealyser/trace_recorder/include/trcPortDefines.h" />
+        <file file_name="../../../utilities/tracealyser/trace_recorder/include/trcRecorder.h" />
+        <file file_name="../../../utilities/tracealyser/trace_recorder/streamports/Jlink_RTT/trcStreamingPort.c" />
+        <file file_name="../../../utilities/tracealyser/trace_recorder/trcKernelPort.c" />
+        <file file_name="../../../utilities/tracealyser/trace_recorder/trcSnapshotRecorder.c" />
+        <file file_name="../../../utilities/tracealyser/trace_recorder/trcStreamingRecorder.c" />
+        <configuration Name="Release" build_exclude_from_build="Yes" />
+        <configuration Name="Debug" build_exclude_from_build="Yes" />
+      </folder>
+      <file file_name="../../../modules/ad5940_ecg/adi_ad5940_main.c" />
+      <file file_name="../../../modules/ad5940_ecg/adi_ecg.c" />
+      <folder Name="manufacture_date">
+        <file file_name="../../../modules/system/manufacture_date.c" />
+      </folder>
+    </folder>
+    <configuration
+      Name="Release"
+      arm_fpu_type="FPv4-SP-D16"
+      arm_linker_heap_size="23552"
+      build_remove_unused_symbols="No"
+      build_treat_warnings_as_errors="Yes"
+      c_preprocessor_definitions="HIBERNATE_MD_EN;TEMP_PROTECT_FUNC_EN"
+      c_user_include_directories="..\\..\\..\\modules\\adpd4000_temp."
+      gcc_optimization_level="Optimize For Size"
+      linker_pre_build_command="cmd /c cd $(ProjectDir)\..\..\..\algo\ppg_loop1_algo\package &amp; makelib_ses.cmd release lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a"
+      post_build_command="cmd /c cd $(ProjectDir)\..\..\..\algo\ppg_loop1_algo\package &amp; del $(Configuration)\lib_adpd_m4.a"
+      pre_build_command="cmd /c cd $(ProjectDir)&amp;&amp;$(ProjectDir)\..\..\..\utilities\git_utils\git_versioner.bat $(ProjectDir)\..\..\..\modules\system\system_version.c &quot;Rl&quot;"
+      pre_build_command_control="Always Run"
+      project_dependencies="HeartRateCoolidge(HeartRateCoolidge);pedometer(pedometer)" />
+    <configuration
+      Name="Debug"
+      arm_additional_mkld_options=""
+      arm_architecture="v7EM"
+      arm_fp_abi="SoftFP"
+      arm_fpu_type="FPv4-SP-D16"
+      arm_linker_heap_size="23552"
+      build_remove_unused_symbols="No"
+      build_treat_warnings_as_errors="Yes"
+      c_preprocessor_definitions="DEBUG;ENAB_RTT_LOGGING;NRF_LOG_ENABLED=1"
+      c_user_include_directories="..\\..\\..\\modules\\adpd4000_temp;..\\..\\..\\utilities\\tracealyser\\trace_recorder\\config_ses;..\\..\\..\\utilities\\tracealyser\\trace_recorder\\include;..\\..\\..\\utilities\\tracealyser\\trace_recorder\\streamports\\Jlink_RTT\\include"
+      compile_post_build_command=""
+      gcc_optimization_level="Debug"
+      linker_additional_files=""
+      linker_pre_build_command="cmd /c cd $(ProjectDir)\..\..\..\algo\ppg_loop1_algo\package &amp; makelib_ses.cmd debug lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a"
+      post_build_command="cmd /c cd $(ProjectDir)\..\..\..\algo\ppg_loop1_algo\package &amp; del $(Configuration)\lib_adpd_m4.a"
+      pre_build_command="cmd /c cd $(ProjectDir)&amp;&amp;$(ProjectDir)\..\..\..\utilities\git_utils\git_versioner.bat $(ProjectDir)\..\..\..\modules\system\system_version.c &quot;Dg&quot;"
+      pre_build_command_control="Always Run"
+      project_dependencies="HeartRateCoolidge(HeartRateCoolidge);pedometer(pedometer)" />
+    <file file_name="../../../algo/ppg_loop1_algo/package/debug/lib_adpd_m4_debug.a">
+      <configuration Name="Release" build_exclude_from_build="Yes" />
+      <configuration Name="Debug" build_exclude_from_build="No" />
+    </file>
+    <file file_name="../../../algo/ppg_loop1_algo/package/release/lib_adpd_m4_release.a">
+      <configuration Name="Release" build_exclude_from_build="No" />
+      <configuration Name="Debug" build_exclude_from_build="Yes" />
+    </file>
+    <folder Name="nRF_Segger_RTT">
+      <file file_name="../../../../external/segger_rtt/SEGGER_RTT.c">
+        <configuration Name="Debug" build_exclude_from_build="No" />
+      </file>
+      <file file_name="../../../../external/segger_rtt/SEGGER_RTT_printf.c" />
+      <file file_name="../../../../external/segger_rtt/SEGGER_RTT_Syscalls_SES.c" />
+      <configuration Name="Release" build_exclude_from_build="No" />
+      <file file_name="../../../utilities/tracealyser/trace_recorder/streamports/Jlink_RTT/SEGGER_RTT_tracealyser.c" />
+    </folder>
+    <folder Name="nRF_Libraries">
+      <file file_name="..\..\..\..\components\libraries\util\app_error.c" />
+      <file file_name="..\..\..\..\components\libraries\util\app_error_weak.c" />
+      <file file_name="..\..\..\..\components\libraries\fifo\app_fifo.c">
+        <configuration Name="Debug" build_exclude_from_build="Yes" />
+      </file>
+      <file file_name="..\..\..\..\components\libraries\timer\app_timer_freertos.c" />
+      <file file_name="..\..\..\..\components\libraries\usbd\app_usbd.c" />
+      <file file_name="..\..\..\..\components\libraries\usbd\class\cdc\acm\app_usbd_cdc_acm.c" />
+      <file file_name="..\..\..\..\components\libraries\usbd\app_usbd_core.c" />
+      <file file_name="..\..\..\..\components\libraries\usbd\app_usbd_serial_num.c" />
+      <file file_name="..\..\..\..\components\libraries\usbd\app_usbd_string_desc.c" />
+      <file file_name="..\..\..\..\components\libraries\util\app_util_platform.c" />
+      <file file_name="..\..\..\..\components\libraries\atomic_fifo\nrf_atfifo.c" />
+      <file file_name="..\..\..\..\components\libraries\atomic_flags\nrf_atflags.c" />
+      <file file_name="..\..\..\..\components\libraries\atomic\nrf_atomic.c" />
+      <file file_name="..\..\..\..\components\libraries\balloc\nrf_balloc.c" />
+      <file file_name="..\..\..\..\external\fprintf\nrf_fprintf.c" />
+      <file file_name="..\..\..\..\external\fprintf\nrf_fprintf_format.c" />
+      <file file_name="..\..\..\..\components\libraries\memobj\nrf_memobj.c" />
+      <file file_name="..\..\..\..\components\libraries\pwr_mgmt\nrf_pwr_mgmt.c" />
+      <file file_name="..\..\..\..\components\libraries\ringbuf\nrf_ringbuf.c" />
+      <file file_name="..\..\..\..\components\libraries\experimental_section_vars\nrf_section_iter.c" />
+      <file file_name="..\..\..\..\components\libraries\strerror\nrf_strerror.c" />
+      <file file_name="../../../../components/libraries/util/app_error_handler_gcc.c" />
+      <file file_name="../../../../components/libraries/block_dev/qspi/nrf_serial_flash_params.c" />
+      <file file_name="../../../../components/libraries/crc16/crc16.c" />
+    </folder>
+    <file file_name="../../../algo/pedometer/package/Debug/lib_pedometer_debug.a">
+      <configuration Name="Release" build_exclude_from_build="Yes" />
+    </file>
+    <file file_name="../../../algo/pedometer/package/Release/lib_pedometer_release.a">
+      <configuration Name="Debug" build_exclude_from_build="Yes" />
+    </file>
+    <folder Name="nRF_BLE_Peer_Manager">
+      <file file_name="../../../../components/ble/peer_manager/auth_status_tracker.c" />
+      <file file_name="../../../../components/ble/peer_manager/gatt_cache_manager.c" />
+      <file file_name="../../../../components/ble/peer_manager/gatts_cache_manager.c" />
+      <file file_name="../../../../components/ble/peer_manager/id_manager.c" />
+      <file file_name="../../../../components/ble/peer_manager/nrf_ble_lesc.c" />
+      <file file_name="../../../../components/ble/peer_manager/peer_data_storage.c" />
+      <file file_name="../../../../components/ble/peer_manager/peer_database.c" />
+      <file file_name="../../../../components/ble/peer_manager/peer_id.c" />
+      <file file_name="../../../../components/ble/peer_manager/peer_manager.c" />
+      <file file_name="../../../../components/ble/peer_manager/peer_manager_handler.c" />
+      <file file_name="../../../../components/ble/peer_manager/pm_buffer.c" />
+      <file file_name="../../../../components/ble/peer_manager/security_dispatcher.c" />
+      <file file_name="../../../../components/ble/peer_manager/security_manager.c" />
+      <configuration Name="Common" build_exclude_from_build="Yes" />
+      <configuration Name="Debug" build_exclude_from_build="Yes" />
+      <configuration Name="Release" build_exclude_from_build="Yes" />
+    </folder>
+    <folder Name="HWIF">
+      <file file_name="..\..\..\hal\hal_gpio.c" />
+      <file file_name="..\..\..\hal\hal_i2c.c">
+        <configuration Name="Debug" build_exclude_from_build="No" />
+      </file>
+      <file file_name="..\..\..\hal\hal_spi.c" />
+      <file file_name="../../../hal/hal_twi0.c" />
+    </folder>
+    <file file_name="../../../algo/sqi/package/Debug/libadi_vsm_sqi_m4f_Debug.a">
+      <configuration Name="Release" build_exclude_from_build="Yes" />
+    </file>
+    <file file_name="../../../algo/sqi/package/Release/libadi_vsm_sqi_m4f_Release.a">
+      <configuration Name="Debug" build_exclude_from_build="Yes" />
+    </file>
+    <file file_name="../../../algo/ecg/package/Debug/lib_QRSDetector_debug.a">
+      <configuration Name="Release" build_exclude_from_build="Yes" />
+    </file>
+    <file file_name="../../../algo/ecg/package/Release/lib_QRSDetector_release.a">
+      <configuration Name="Debug" build_exclude_from_build="Yes" />
+    </file>
+  </project>
+</solution>

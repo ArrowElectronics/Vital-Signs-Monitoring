@@ -1,0 +1,2 @@
+copy ..\ses\Output\Release\Exe\ADI_bootloader.hex ./ADI_bootloader.hex
+nrfutil pkg generate --hw-version 52 --sd-req 0xAE --bootloader-version 0xff --bootloader ADI_bootloader.hex --key-file private.pem ADI_bootloader.zip

@@ -1,0 +1,18 @@
+#!/usr/bin/env groovy
+gitlabCommitStatus("Jenkins - Nightly") {
+  def builder
+  def system_build
+  node ("COVERITY"){
+    checkout scm
+    builder = load "jenkins/ses_build_coverity.groovy"
+    system_build = load "jenkins/system_build_coverity.groovy"
+
+    system_build(builder, "release", "SES")
+  }
+
+  if (currentBuild.result != 'SUCCESS') {
+    error("The build failed!")
+  }
+
+}
+

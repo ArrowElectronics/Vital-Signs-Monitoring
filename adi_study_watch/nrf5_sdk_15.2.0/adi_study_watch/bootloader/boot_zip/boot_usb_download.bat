@@ -1,0 +1,1 @@
+nrfutil dfu usb-serial -pkg ADI_bootloader.zip -p COM64

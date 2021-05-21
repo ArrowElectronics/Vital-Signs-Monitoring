@@ -1,0 +1,4 @@
+#BCM_DCB_LCFG
+
+00 0014  # ODR default ODR as 20Hz
+01 0000  # Default Gain Factor 1

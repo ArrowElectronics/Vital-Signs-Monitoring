@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE coverity SYSTEM "coverity_config.dtd">
+<coverity>
+<!-- Version 2019.03 -->
+    <cit_version>1</cit_version>
+    <config>
+      <include>$CONFIGDIR$\template-segger-config-0\coverity_config.xml</include>
+      <include>$CONFIGDIR$\template-segger++-config-0\coverity_config.xml</include>
+    </config>
+</coverity>
+

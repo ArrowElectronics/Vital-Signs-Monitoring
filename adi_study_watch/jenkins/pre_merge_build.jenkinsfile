@@ -1,0 +1,32 @@
+#!/usr/bin/env groovy
+node("server") {
+  def builder
+  def system_build
+  def fw_regression
+  def test_tags = ""
+  checkout scm
+  stage ("Builder_Check") {
+    try {
+      if (params.builder == "IAR") {
+          builder = load "jenkins/iar_build.groovy"
+          builder_type = "IAR"
+      } else {
+          builder = load "jenkins/ses_build.groovy"
+          builder_type = "SES"
+      }
+    } catch (error) {
+      builder = load "jenkins/ses_build.groovy"
+      builder_type = "SES"
+    }
+  }
+  system_build = load "jenkins/system_build.groovy"
+  fw_regression = load "jenkins/fw_regression.groovy"
+
+  system_build(builder, "release", builder_type)
+  fw_regression(test_tags, "release")
+
+  if (currentBuild.result != 'SUCCESS') {
+    error("The build failed!")
+  }
+}
+

@@ -1,0 +1,11 @@
+__var start;
+__var end;
+
+save_trace_buffer()
+{
+  start = __smessage "Memory:0x",RecorderDataPtr:%x;
+  end  =  __smessage "Memory:0x",(RecorderDataPtr + 1):%x;
+  __memorySave(start,end,"intel-extended", "$PROJ_DIR$\\trace.hex");
+  
+  return 0;
+}
