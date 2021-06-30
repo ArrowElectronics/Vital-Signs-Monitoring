@@ -401,11 +401,19 @@ typedef struct _m2m2_pm_sys_sensor_app_status {
   FILE_SYS_STREAM_SUBS_STATE_ENUM_t  fs_sub_stat; //1-> subscribed to FS, 0-> unsubscribed to FS
 } m2m2_pm_sys_sensor_app_status;
 
+/*The macro is used to specify the number of applications in
+the system, for which Info maybe obtained. This is based on
+the entries in m2m2_routing_table[] in post_office.c file,
+excluding the indices from 0-13 which is for system upkeeping.
+As of now there are 20 applications, including the status which
+could be queried from Slot A-L from ADPD application.
+*/
+#define PM_APPS_COUNT (21)
 typedef struct _m2m2_pm_sys_sensor_apps_info_req_t {
   uint8_t  command;
   uint8_t  status;
   uint16_t  num_sensor_apps;
-  m2m2_pm_sys_sensor_app_status  app_info[10];
+  m2m2_pm_sys_sensor_app_status  app_info[PM_APPS_COUNT];
 } m2m2_pm_sys_sensor_apps_info_req_t;
 
 typedef struct _m2m2_pm_force_stream_stop_cmd_t {

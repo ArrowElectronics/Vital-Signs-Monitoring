@@ -52,6 +52,7 @@ M2M2_ADDR_ENUM_t = {
     ("M2M2_ADDR_SYS_BATT_STREAM",               0xC691),
     ("M2M2_ADDR_SYS_DBG_STREAM",                0xC6A0),
     ("M2M2_ADDR_SYS_AGC_STREAM",                0xC6B0),
+    ("M2M2_ADDR_SYS_HRV_STREAM",                0xC6C0),
     ("M2M2_ADDR_APP_DROID",                     0xC700),
     ("M2M2_ADDR_APP_IOS",                       0xC701),
     ("M2M2_ADDR_APP_VS",                        0xC702),

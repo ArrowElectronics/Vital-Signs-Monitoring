@@ -152,11 +152,12 @@ static CIRC_BUFF_STATUS_t adpd_buff_put(uint8_t *p_data, ADPD_TS_DATA_TYPE *p_ti
   extern uint32_t gnBytes_in_fifo;
 #endif
 /**
-  * @brief Read data out from hw FIFO to circular buffer, rearrange byte order
+  * @brief  Read data out from hw FIFO to circular buffer, rearrange byte order
+            See data sheet for explanation.
   * @param  p_slot_sz pointer to array of Output data size of each slot
   * @param  p_max_slot highest slot number used
   * @param  p_ch_num pointer to array of number of channels used from each slot
-  * @retval uint8_t 1: SUCCESS, 0: ERROR (when number of samples in fifo is zero) 
+  * @retval uint8_t 1: SUCCESS, 0: ERROR (when number of samples in fifo is zero)
   */
 uint8_t adpd4000_read_data_to_buffer(uint16_t *p_slot_sz, uint16_t *p_max_slot, uint16_t *p_ch_num) {
   ADPD_TS_DATA_TYPE  current_ts = 0;
@@ -314,7 +315,9 @@ uint8_t adpd4000_read_data_to_buffer(uint16_t *p_slot_sz, uint16_t *p_max_slot, 
       get_current_datapattern(&nWriteSequence,gsSlot,
                                 gnLcmValue, highest_slot_num,
                                   &sWriteBufferPattern);
-    }
+    }else{
+       return 0; //error in FIFO data read
+	}
   }   // end while
   // Need to decrement the nWriteSequence to previous Seq no if nbytesinFIFO not sufficient
   nWriteSequence = nPreviousSeqNo;

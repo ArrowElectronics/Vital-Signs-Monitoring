@@ -19,8 +19,8 @@ def bioz_switch_functionality_test():
     response = common.arduino.serial_write('!CfgDacWfm 5 0.1\r')
     time.sleep(1)
 
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
+    common.watch_shell.do_disable_electrode_switch('1')
+    common.watch_shell.do_disable_electrode_switch('3')
 
     common.set_switch('SNOISE1', 1)
     common.set_switch('SNOISE2', 0)
@@ -28,22 +28,19 @@ def bioz_switch_functionality_test():
     common.set_switch('ECG_POSSEL', 1)
 
     # Turn switch ON and collect data
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 1')
-    common.watch_shell.do_quickstart('eda')
+    common.watch_shell.do_enable_electrode_switch('2')
+    common.watch_shell.quick_start('eda', 'eda')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('eda')
+    common.watch_shell.quick_stop('eda', 'eda')
     common.rename_stream_file(common.eda_stream_file_name, '_BioZ_SwitchON.csv')
 
     # Turn switch OFF and collect data
-    common.watch_shell.do_toggleSaveCSV('')
-    common.watch_shell.do_quickstart('eda')
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 0')
-    common.watch_shell.do_toggleSaveCSV('')
+    common.watch_shell.quick_start('eda', 'eda')
+    common.watch_shell.do_disable_electrode_switch('2')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('eda')
+    common.watch_shell.quick_stop('eda', 'eda')
     common.rename_stream_file(common.ecg_stream_file_name, '_BioZ_SwitchOFF.csv')
 
-    common.close_plot_after_run(['EDA Data Plot', 'EDA Data'])
 
     # TODO: Read and compare the two captured files to verify if the switch is working
     test_status = 'pass'
@@ -57,46 +54,38 @@ def ad5940_accuracy_test():
     :return:
     """
     capture_time = 10
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 1')
+    common.watch_shell.do_disable_electrode_switch('1')
+    common.watch_shell.do_disable_electrode_switch('3')
+    common.watch_shell.do_enable_electrode_switch('2')
 
     # Standalone Test
-    common.watch_shell.do_quickstart('eda')
-    common.watch_shell.do_plot('reda')
+    common.watch_shell.quick_start('eda', 'eda')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('eda')
-    common.close_plot_after_run(['EDA Data Plot', 'EDA Data'])
+    common.watch_shell.quick_stop('eda', 'eda')
     sa_eda_file = common.rename_stream_file(common.eda_stream_file_name, '_standalone.csv')
 
     # Usecase Test
     common.dcb_cfg('w', 'adxl', 'adxl_dcb_eda_ppg_UC.dcfg')
-    common.dcb_cfg('w', 'adpd4000', 'ppg_dcb_eda_ppg_UC.dcfg')
-    common.watch_shell.do_quickstart('adxl')
-    common.watch_shell.do_plot('radxl')
-    common.watch_shell.do_sub('radpd6 add')
-    common.watch_shell.do_sensor('adpd4000 start')
-    common.watch_shell.do_plot('radpd6')
-    common.watch_shell.do_quickstart('temperature')
-    common.watch_shell.do_plot('rtemperature')
-    common.watch_shell.do_quickstart('eda')
-    common.watch_shell.do_plot('reda')
+    common.dcb_cfg('w', 'adpd', 'ppg_dcb_eda_ppg_UC.dcfg')
+    common.watch_shell.quick_start('adxl', 'adxl')
+    common.watch_shell.quick_start('adpd', 'adpd6')
+    common.watch_shell.quick_start('temp', 'temp')
+    common.watch_shell.quick_start('eda', 'eda')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('adxl')
-    common.watch_shell.do_quickstop('adpd4000')
-    common.watch_shell.do_quickstop('temperature')
-    common.watch_shell.do_quickstop('eda')
-    common.close_plot_after_run(['ADXL Data', 'ADPD400x Data', 'Temperature Data Plot', 'EDA Data Plot', 'EDA Data'])
+    common.watch_shell.quick_stop('adxl', 'adxl')
+    common.watch_shell.quick_stop('adpd', 'adpd6')
+    common.watch_shell.quick_stop('temp', 'temp')
+    common.watch_shell.quick_stop('eda', 'eda')
     uc_eda_file = common.rename_stream_file(common.eda_stream_file_name, '_usecase.csv')
     common.dcb_cfg('d', 'adxl', 'adxl_dcb_eda_ppg_UC.dcfg')
-    common.dcb_cfg('d', 'adpd4000', 'ppg_dcb_eda_ppg_UC.dcfg')
+    common.dcb_cfg('d', 'adpd', 'ppg_dcb_eda_ppg_UC.dcfg')
 
     # TODO: Implement results evaluation
     # *** Test Results Evaluation ***
     if True:
-        common.logging.info('*** EDA Signal Accuracy Test - PASS ***')
+        common.test_logger.info('*** EDA Signal Accuracy Test - PASS ***')
     else:
-        common.logging.error('*** EDA Signal Accuracy Test - FAIL ***')
+        common.test_logger.error('*** EDA Signal Accuracy Test - FAIL ***')
         raise ConditionCheckFailure('\n\nOne or more of the results are not within the expected limits!')
 
 
@@ -117,9 +106,9 @@ def ad5940_accuracy_test_old():
     # common.set_switch('ECG_NEGSEL', 1)
     # common.set_switch('ECG_POSSEL', 1)
 
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 1')
+    common.watch_shell.do_disable_electrode_switch('1')
+    common.watch_shell.do_disable_electrode_switch('3')
+    common.watch_shell.do_enable_electrode_switch('2')
 
     response = common.arduino.serial_write('!CfgDacWfm {} {}\r'.format(freq_list_khz[0]*1000, amp_vpp))  #initialize wfm
     time.sleep(1)  # 1 second wait time for waveform generation
@@ -131,15 +120,13 @@ def ad5940_accuracy_test_old():
 
             # Toggle save csv and capture ecg
             # common.watch_shell.do_toggleSaveCSV('')
-            common.watch_shell.do_quickstart('ecg')
+            common.watch_shell.quick_start('ecg', 'ecg')
             time.sleep(capture_time)  # A stream file is auto generated at this stage and data is written into it
-            common.watch_shell.do_quickstop('ecg')
+            common.watch_shell.quick_stop('ecg', 'ecg')
             time.sleep(1)
             common.rename_stream_file(common.ecg_stream_file_name,
                                       '_{}Hz_{}Vpp_{}ohm.csv'.format(freq_hz, amp_vpp, imp_ohm))
             # TODO: Read and verify the generated capture files
-
-            common.close_plot_after_run(['ECG Data Plot'])
 
     test_status = 'pass'
     if test_status != 'pass':
@@ -165,9 +152,9 @@ def ad5940_repeatability_test():
     common.set_switch('ECG_NEGSEL', 1)
     common.set_switch('ECG_POSSEL', 1)
 
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 1')
+    common.watch_shell.do_disable_electrode_switch('1')
+    common.watch_shell.do_disable_electrode_switch('3')
+    common.watch_shell.do_enable_electrode_switch('2')
 
     response = common.arduino.serial_write('!CfgDacWfm {} {}\r'.format(freq_list_khz[0]*1000, amp_vpp))  #initialize wfm
     time.sleep(1)  # 1 second wait time for waveform generation
@@ -179,15 +166,13 @@ def ad5940_repeatability_test():
             for k in range(repeat_count):  # Repeat loop
                 # Toggle save csv and capture ecg
                 # common.watch_shell.do_toggleSaveCSV('')
-                common.watch_shell.do_quickstart('ecg')
+                common.watch_shell.quick_start('ecg', 'ecg')
                 time.sleep(capture_time)  # A stream file is auto generated at this stage and data is written into it
-                common.watch_shell.do_quickstop('ecg')
+                common.watch_shell.quick_stop('ecg', 'ecg')
                 time.sleep(1)
                 common.rename_stream_file(common.ecg_stream_file_name,
                                           '_{}Hz_{}Vpp_{}ohm_{}idx.csv'.format(freq_hz, amp_vpp, imp_ohm, k))
                 # TODO: Read and verify the generated capture files
-
-                common.close_plot_after_run(['ECG Data Plot'])
 
     test_status = 'pass'
     if test_status != 'pass':
@@ -215,9 +200,9 @@ def ad5940_accuracy_nonideal_contact_z_test():
     common.set_switch('ECG_NEGSEL', 1)
     common.set_switch('ECG_POSSEL', 1)
 
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 1')
+    common.watch_shell.do_disable_electrode_switch('1')
+    common.watch_shell.do_disable_electrode_switch('3')
+    common.watch_shell.do_enable_electrode_switch('2')
 
     response = common.arduino.serial_write('!CfgDacWfm {} {}\r'.format(freq_list_khz[0]*1000, amp_vpp))  #initialize wfm
     time.sleep(1)  # 1 second wait time for waveform generation
@@ -230,9 +215,9 @@ def ad5940_accuracy_nonideal_contact_z_test():
                 # TODO: add function to switch contact impedance
                 # Toggle save csv and capture ecg
                 # common.watch_shell.do_toggleSaveCSV('')
-                common.watch_shell.do_quickstart('ecg')
+                common.watch_shell.quick_start('ecg', 'ecg')
                 time.sleep(capture_time)  # A stream file is auto generated at this stage and data is written into it
-                common.watch_shell.do_quickstop('ecg')
+                common.watch_shell.quick_stop('ecg', 'ecg')
                 time.sleep(1)
                 common.rename_stream_file(common.ecg_stream_file_name,
                                           '_{}Hz_{}Vpp_{}ohm_{}ohm.csv'.format(freq_hz, amp_vpp,
@@ -267,9 +252,9 @@ def ad5940_accuracy_mismatch_contact_z_test():
     common.set_switch('ECG_NEGSEL', 1)
     common.set_switch('ECG_POSSEL', 1)
 
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 1')
+    common.watch_shell.do_disable_electrode_switch('1')
+    common.watch_shell.do_disable_electrode_switch('3')
+    common.watch_shell.do_enable_electrode_switch('2')
 
     response = common.arduino.serial_write('!CfgDacWfm {} {}\r'.format(freq_list_khz[0]*1000, amp_vpp))  #initialize wfm
     time.sleep(1)  # 1 second wait time for waveform generation
@@ -281,9 +266,9 @@ def ad5940_accuracy_mismatch_contact_z_test():
             # TODO: add function to switch impedance
             # Toggle save csv and capture ecg
             # common.watch_shell.do_toggleSaveCSV('')
-            common.watch_shell.do_quickstart('ecg')
+            common.watch_shell.quick_start('ecg', 'ecg')
             time.sleep(capture_time)  # A stream file is auto generated at this stage and data is written into it
-            common.watch_shell.do_quickstop('ecg')
+            common.watch_shell.quick_stop('ecg', 'ecg')
             time.sleep(1)
             common.rename_stream_file(common.ecg_stream_file_name,
                                       '_{}Hz_{}Vpp_{}ohm_mismatchZ.csv'.format(freq_hz, amp_vpp, imp_ohm))

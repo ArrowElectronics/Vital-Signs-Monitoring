@@ -118,7 +118,7 @@ const uint8_t GIT_ADXL_VERSION_LEN = sizeof(GIT_ADXL_VERSION);
 g_state_adxl_t g_state_adxl;
 
 volatile uint8_t gsOneTimeValueWhenReadAdxlData = 0;
-uint16_t gnODR;
+uint16_t gnAdxlODR;
 /* counter used to send every kth sample to HR algo
    to have ppg odr = 50Hz, where k = odr of adxl*/
 uint32_t gnHRAdxlSampleCount = 0;
@@ -308,7 +308,7 @@ static void fetch_adxl_data(void) {
   static m2m2_sensor_adxl_data_no_compress_stream_t adxlpkt;
 
   if (gsOneTimeValueWhenReadAdxlData == 0) {
-    GetAdxlOutputRate(&gnODR);
+    GetAdxlOutputRate(&gnAdxlODR);
     gsOneTimeValueWhenReadAdxlData = 1;
   }
 
@@ -319,9 +319,9 @@ static void fetch_adxl_data(void) {
 #ifdef ENABLE_PPG_APP
     //Collect data for HR algo in UC 1,2,3,5
     if (gn_uc_hr_enable && !gRun_agc) {
-      if(++gnHRAdxlSampleCount == (gnODR / gAdpd400xLibCfg.hrmInputRate))
+      if(++gnHRAdxlSampleCount == (gnAdxlODR / gAdpd400xLibCfg.hrmInputRate))
       {
-          gnHRAdxlSampleCount=0;
+          gnHRAdxlSampleCount = 0;
           SyncAppDataSend(0, 0, (int16_t *)&pnRData, current_ts);
       }
     }

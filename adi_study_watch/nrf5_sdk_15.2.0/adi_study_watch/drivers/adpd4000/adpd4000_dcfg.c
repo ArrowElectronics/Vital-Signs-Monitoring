@@ -50,11 +50,11 @@ NRF_LOG_MODULE_REGISTER();
 #endif
 #include "adi_calendar.h"
 
-#define MAXADPD4000DCFGSIZE (150 + 1)
+#define MAXADPD4000DCFGSIZE (228) /* Max 4*57 registers */
 
 #ifdef DCB
 static volatile bool g_dcb_Present = false;
-static uint32_t g_current_dcb[2*MAXADPD4000DCBSIZE] = {'\0'};
+static uint32_t g_current_dcb[MAX_ADPD4000_DCB_PKTS*MAXADPD4000DCBSIZE] = {'\0'};
 #endif
 extern uint32_t  gnTemperature_Slot;
 extern uint32_t Ppg_Slot;
@@ -77,7 +77,6 @@ static uint32_t g_current_dcfg[MAXADPD4000DCFGSIZE] = {'\0'};
 
 #define GENERAL_DCFG_SIZE 14 /* No. of registers common for all the slots */
 #define SLOT_DCFG_SIZE 17 /* No. of registers per slot */
-#define SLOT_NUM 12
 uint32_t slot_general_dcfg[SLOT_DCFG_SIZE] = {'\0'};
 
 /* used as a reference to create dcfg for different slots */
@@ -1029,7 +1028,7 @@ ADPD4000_DCFG_STATUS_t get_adpd4k_dcfg(uint16_t slot_id, uint16_t app_id, uint8_
 
   for(i = 0; i < SLOT_DCFG_SIZE ;i++)
   {
-   slot_general_dcfg[i] = ((slotA_default_dcfg_4000[i] >> 16) + (0x20 * slot_id)) << 16;
+   slot_general_dcfg[i] = ((slotA_default_dcfg_4000[i] >> 16) + (ADPD400x_SLOT_BASE_ADDR_DIFF * slot_id)) << 16;
   }
 
   uint8_t idx = GENERAL_DCFG_SIZE + SLOT_DCFG_SIZE*index;
@@ -1063,7 +1062,7 @@ ADPD4000_DCFG_STATUS_t get_adpd4k_dcfg(uint16_t slot_id, uint16_t app_id, uint8_
      }
      if(j == gNumUsedSlots)
      {
-       reg_base = i * 0x20;
+       reg_base = i * ADPD400x_SLOT_BASE_ADDR_DIFF;
        g_created_dcfg[idx++] = (ADPD400x_REG_DATA1_A + reg_base) << 16;
      }
    }
@@ -1089,22 +1088,22 @@ ADPD4000_DCFG_STATUS_t get_adpd4k_dcfg(uint16_t slot_id, uint16_t app_id, uint8_
 
   if(app_id == 4) //adpd4000_g
   {
-    gn_led_slot_g = 1 << slot_id;
+    gn_led_slot_g |= 1 << slot_id;
   }
 
   if(app_id == 5) //adpd4000_r
   {
-    gn_led_slot_r = 1 << slot_id;
+    gn_led_slot_r |= 1 << slot_id;
   }
 
   if(app_id == 6) //adpd4000_ir
   {
-    gn_led_slot_ir = 1 << slot_id;
+    gn_led_slot_ir |= 1 << slot_id;
   }
 
   if(app_id == 7) //adpd4000_b
   {
-    gn_led_slot_b = 1 << slot_id;
+    gn_led_slot_b |= 1 << slot_id;
   }
 #endif
  return ADPD4000_DCFG_STATUS_OK;
@@ -1130,7 +1129,7 @@ ADPD4000_DCFG_STATUS_t stage_adpd4000_dcfg(uint16_t *p_device_id) {
   case M2M2_SENSOR_ADPD4000_DEVICE_4000_G:
 #ifdef DCB
     if( adpd4000_get_dcb_present_flag() ) {
-        uint16_t dcb_sz = (MAXADPD4000DCBSIZE*2);
+        uint16_t dcb_sz = (MAXADPD4000DCBSIZE*MAX_ADPD4000_DCB_PKTS);
         adpd4000_dcb_dcfg_clear();
 	if(read_adpd4000_dcb(g_current_dcb, &dcb_sz) == ADPD4000_DCB_STATUS_OK)
         {

@@ -3421,10 +3421,4 @@
             <name>$PROJ_DIR$\..\..\..\modules\system\printf.c</name>
         </file>
     </group>
-    <file>
-        <name>$PROJ_DIR$\..\..\..\algo\sqi\package\Debug\libadi_vsm_sqi_m4f_Debug.a</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\..\..\..\algo\sqi\package\Release\libadi_vsm_sqi_m4f_Release.a</name>
-    </file>
 </project>

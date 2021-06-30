@@ -7,7 +7,7 @@ gitlabCommitStatus("Jenkins - Nightly") {
     builder = load "jenkins/ses_build_coverity.groovy"
     system_build = load "jenkins/system_build_coverity.groovy"
 
-    system_build(builder, "release", "SES")
+    system_build(builder, "release", "SES", params.EMAIL_LIST)
   }
 
   if (currentBuild.result != 'SUCCESS') {

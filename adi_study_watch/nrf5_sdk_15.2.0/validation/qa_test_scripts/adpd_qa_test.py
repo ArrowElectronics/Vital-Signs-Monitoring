@@ -11,6 +11,8 @@ from utils import qa_utils, meas_check
 
 # Module Variables **********************
 stream_file_name = 'adpd6Stream.csv'
+capture_time = 120
+
 
 # ***************************************
 
@@ -22,46 +24,50 @@ def adpd_dev_id_test():
     qa_utils.dev_id_test('ADPD4K')
 
 
-def adpd_multi_led_stream_test(freq_hz=50, agc_state=1):
+def adpd_multi_led_stream_test(freq_hz=50, agc_state=0):
     """
 
     :param freq_hz:
     :param agc_state:
     :return:
     """
-    capture_time = 10
+    capture_time = 30
     led_list = ['G', 'R', 'IR', 'B']
     mean_dict = {}
+    common.dcb_cfg('d', 'adpd')
+    qa_utils.write_dcb('adpd', 'adpd_multi_led_dcb.dcfg', 'ADPD Multi LED Stream Test')
+    common.watch_shell.do_load_adpd_cfg("5")
 
     # Multi LED Stream Test
     multi_stream_file_list = []
-    led_stream_file_dict = qa_utils.quick_start_adpd_multi_led(samp_freq_hz=freq_hz, agc_state=agc_state)
+    led_stream_file_dict = qa_utils.quick_start_adpd_multi_led(samp_freq_hz=freq_hz, agc_state=agc_state, skip_load_cfg=True)
     for led in led_list:
         multi_stream_file_list.append(led_stream_file_dict[led])
     time.sleep(capture_time)
     for led in led_list:
         common.quick_stop_adpd(led)
-    common.close_plot_after_run(['ADPD400x Data'])
     for i, led in enumerate(led_list):
         f_name = multi_stream_file_list[i]
         # CH1 Data Check
-        err_status, err_str, results_dict = qa_utils.check_stream_data(f_name, 'adpd', 1, freq_hz)
-        common.logging.info('ADPD CH1 MultiStream Test - LED: {} | Freq: {}'.format(led, freq_hz))
-        common.logging.info('ADPD CH1 MultiStream Test Results: {}'.format(results_dict))
+        f_path = common.rename_stream_file(f_name,
+                                           led + "_{}Hz_agc{}_adpd_multi_led_stream_test.csv".format(freq_hz, agc_state))
+        err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'adpd', 1, freq_hz)
+        common.test_logger.info('ADPD CH1 MultiStream Test - LED: {} | Freq: {}'.format(led, freq_hz))
+        common.test_logger.info('ADPD CH1 MultiStream Test Results: {}'.format(results_dict))
         if err_status:
-            common.logging.error('*** ADPD {}Hz {}_LED CH1 MultiStream Test - FAIL ***'.format(freq_hz, led))
+            common.test_logger.error('*** ADPD {}Hz {}_LED CH1 MultiStream Test - FAIL ***'.format(freq_hz, led))
             raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
         # CH2 Data Check
-        err_status, err_str, results_dict = qa_utils.check_stream_data(f_name, 'adpd', 2, freq_hz)
-        common.logging.info('ADPD CH2 MultiStream Test - LED: {} | Freq: {}'.format(led, freq_hz))
-        common.logging.info('ADPD CH2 MultiStream Test Results: {}'.format(results_dict))
+        err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'adpd', 2, freq_hz)
+        common.test_logger.info('ADPD CH2 MultiStream Test - LED: {} | Freq: {}'.format(led, freq_hz))
+        common.test_logger.info('ADPD CH2 MultiStream Test Results: {}'.format(results_dict))
         if err_status:
-            common.logging.error('*** ADPD {}Hz {}_LED CH2 MultiStream Test - FAIL ***'.format(freq_hz, led))
+            common.test_logger.error('*** ADPD {}Hz {}_LED CH2 MultiStream Test - FAIL ***'.format(freq_hz, led))
             raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
         # Mean Calculation
-        ch1_mean = meas_check.calc_mean(f_name, 1)
-        ch2_mean = meas_check.calc_mean(f_name, 3)
-        common.logging.info('ADPD MultiStream Mean | LED:{} |AGC:{} | CH1:{} | CH2:{}'.format(led,
+        ch1_mean = meas_check.calc_mean(f_path, 1)
+        ch2_mean = meas_check.calc_mean(f_path, 3)
+        common.test_logger.info('ADPD MultiStream Mean | LED:{} |AGC:{} | CH1:{} | CH2:{}'.format(led,
                                                                                               agc_state,
                                                                                               ch1_mean,
                                                                                               ch2_mean))
@@ -69,46 +75,47 @@ def adpd_multi_led_stream_test(freq_hz=50, agc_state=1):
     return mean_dict
 
 
-def adpd_stream_test(freq_hz=50, agc_state=1):
+def adpd_stream_test(freq_hz=50, agc_state=0):
     """
 
     :param freq_hz:
     :return:
     """
-    capture_time = 10
+    capture_time = 30
     led_list = ['G', 'R', 'IR', 'B']
     mean_dict = {}
 
     # Single LED Stream Tests
     for led in led_list:
+        common.dcb_cfg('d', 'adpd')
         adpd_led_dcb = 'adpd_{}_dcb.dcfg'.format(led.lower())
-        qa_utils.write_dcb('adpd4000', adpd_led_dcb, 'ADPD Stream Test')
+        qa_utils.write_dcb('adpd', adpd_led_dcb, 'ADPD Stream Test')
         f_name = common.quick_start_adpd(samp_freq_hz=freq_hz, agc_state=agc_state, led=led, skip_load_cfg=False)
         time.sleep(capture_time)
         common.quick_stop_adpd(led)
-        common.close_plot_after_run(['ADPD400x Data'])
-        common.dcb_cfg('d', 'adpd4000')
+
+        f_path = common.rename_stream_file(f_name, led + "_{}Hz_agc{}_adpd_stream_test.csv".format(freq_hz, agc_state))
 
         # CH1 Data Check
-        err_status, err_str, results_dict = qa_utils.check_stream_data(f_name, 'adpd', 1, freq_hz)
-        common.logging.info('ADPD CH1 Stream Test - LED: {} | Freq: {}'.format(led, freq_hz))
-        common.logging.info('ADPD CH1 Stream Test Results: {}'.format(results_dict))
+        err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'adpd', 1, freq_hz)
+        common.test_logger.info('ADPD CH1 Stream Test - LED: {} | Freq: {}'.format(led, freq_hz))
+        common.test_logger.info('ADPD CH1 Stream Test Results: {}'.format(results_dict))
         if err_status:
-            common.logging.error('*** ADPD {}Hz {}_LED CH1 Stream Test - FAIL ***'.format(freq_hz, led))
+            common.test_logger.error('*** ADPD {}Hz {}_LED CH1 Stream Test - FAIL ***'.format(freq_hz, led))
             raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
         # CH2 Data Check
-        err_status, err_str, results_dict = qa_utils.check_stream_data(f_name, 'adpd', 2, freq_hz)
-        common.logging.info('ADPD CH2 Stream Test - LED: {} | Freq: {}'.format(led, freq_hz))
-        common.logging.info('ADPD CH2 Stream Test Results: {}'.format(results_dict))
+        err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'adpd', 2, freq_hz)
+        common.test_logger.info('ADPD CH2 Stream Test - LED: {} | Freq: {}'.format(led, freq_hz))
+        common.test_logger.info('ADPD CH2 Stream Test Results: {}'.format(results_dict))
         if err_status:
-            common.logging.error('*** ADPD {}Hz {}_LED CH2 Stream Test - FAIL ***'.format(freq_hz, led))
+            common.test_logger.error('*** ADPD {}Hz {}_LED CH2 Stream Test - FAIL ***'.format(freq_hz, led))
             raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
         # Mean Calculation
-        ch1_mean = meas_check.calc_mean(f_name, 1)
-        ch2_mean = meas_check.calc_mean(f_name, 3)
-        common.logging.info('ADPD Stream Mean | LED:{} |AGC:{} | CH1:{} | CH2:{}'.format(led,
+        ch1_mean = meas_check.calc_mean(f_path, 1)
+        ch2_mean = meas_check.calc_mean(f_path, 3)
+        common.test_logger.info('ADPD Stream Mean | LED:{} |AGC:{} | CH1:{} | CH2:{}'.format(led,
                                                                                          agc_state,
                                                                                          ch1_mean,
                                                                                          ch2_mean))
@@ -116,33 +123,91 @@ def adpd_stream_test(freq_hz=50, agc_state=1):
     return mean_dict
 
 
-def adpd_fs_stream_test(freq_hz=50, agc_state=1):
+def adpd_fs_stream_test(freq_hz=50, agc_state=0):
     """
 
     :param freq_hz:
     :return:
     """
-    capture_time = 10
     led_list = ['G', 'R', 'IR', 'B']
-    for led in led_list:
+    mean_dict = {}
+    for i, led in enumerate(led_list):
+        common.dcb_cfg('d', 'adpd')
         adpd_led_dcb = 'adpd_{}_dcb.dcfg'.format(led.lower())
-        qa_utils.write_dcb('adpd4000', adpd_led_dcb, 'ADPD Stream Test')
-        common.watch_shell.do_loadAdpdCfg("40")
-        common.config_adpd_stream(samp_freq_hz=freq_hz, agc_state=agc_state, led=led, skip_load_cfg=True)
+        qa_utils.write_dcb('adpd', adpd_led_dcb, 'ADPD Stream Test')
         qa_utils.clear_fs_logs('ADPD')
 
-        common.watch_shell.do_quickstart('start_log_adpd4000_{}'.format(led.lower()))
+        common.quick_start_adpd_fs(samp_freq_hz=freq_hz, agc_state=agc_state, led=led, skip_load_cfg=False)
         time.sleep(capture_time)
-        common.watch_shell.do_quickstop('stop_log_adpd4000_{}'.format(led.lower()))
-        common.dcb_cfg('d', 'adpd4000')
+        common.quick_stop_adpd_fs(led)
         log_file_name, csv_file_name = qa_utils.get_fs_log('ADPD')
         adpd_csv_file = common.rename_stream_file(csv_file_name["adpd"], "adpd_fs_stream")
         err_status, err_str, results_dict = qa_utils.check_stream_data(adpd_csv_file, 'adpd_combained', 1,
                                                                        freq_hz, True)
-        common.logging.info('ADPD FS {}Hz with agc {} Stream Test Results: {}'.format(freq_hz, agc_state, results_dict))
+        common.test_logger.info('ADPD FS {}Hz with agc {} Stream Test Results: {}'.format(freq_hz, agc_state, results_dict))
         if err_status:
-            common.logging.error('*** ADPD FS Stream Test - FAIL ***')
+            common.test_logger.error('*** ADPD FS Stream Test - FAIL ***')
             raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
+
+
+def adpd_fs_stream_download_repeatiablity_test(freq_hz=50, agc_state=0):
+    """
+
+    :param freq_hz:
+    :return:
+    """
+    led_list = ['G', 'R', 'IR', 'B']
+    mean_dict = {}
+    for index in range(50):
+        common.test_logger.info("{} th Iteration".format(str(index)))
+        for i, led in enumerate(led_list):
+            adpd_led_dcb = 'adpd_{}_dcb.dcfg'.format(led.lower())
+            qa_utils.write_dcb('adpd', adpd_led_dcb, 'ADPD Stream Test')
+            common.watch_shell.do_load_adpd_cfg("1")
+            qa_utils.clear_fs_logs('ADPD')
+
+            common.quick_start_adpd_fs(samp_freq_hz=freq_hz, agc_state=agc_state, led=led, skip_load_cfg=True)
+            time.sleep(capture_time)
+            common.quick_stop_adpd_fs(led)
+            log_file_name, csv_file_name = qa_utils.get_fs_log('ADPD')
+            adpd_csv_file = common.rename_stream_file(csv_file_name["adpd"], "adpd_fs_stream_download_repeatiability")
+            err_status, err_str, results_dict = qa_utils.check_stream_data(adpd_csv_file, 'adpd_combained', 1,
+                                                                           freq_hz, True)
+            common.test_logger.info(
+                'ADPD FS {}Hz with agc {} Stream Test Results: {}'.format(freq_hz, agc_state, results_dict))
+            if err_status:
+                common.test_logger.error('*** ADPD FS Stream and download repeatiablity Test - FAIL ***')
+                raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
+
+
+def adpd_fs_download_repeatiablity_test(freq_hz=50, agc_state=0):
+    """
+
+    :param freq_hz:
+    :return:
+    """
+    led_list = ['G', 'R', 'IR', 'B']
+    mean_dict = {}
+    for i, led in enumerate(led_list):
+        adpd_led_dcb = 'adpd_{}_dcb.dcfg'.format(led.lower())
+        qa_utils.write_dcb('adpd', adpd_led_dcb, 'ADPD Stream Test')
+        common.watch_shell.do_load_adpd_cfg("1")
+        qa_utils.clear_fs_logs('ADPD')
+
+        common.quick_start_adpd_fs(samp_freq_hz=freq_hz, agc_state=agc_state, led=led, skip_load_cfg=True)
+        time.sleep(capture_time)
+        common.quick_stop_adpd_fs(led)
+        for index in range(50):
+            common.test_logger.info("{} th Iteration".format(str(index)))
+            log_file_name, csv_file_name = qa_utils.get_fs_log('ADPD')
+            adpd_csv_file = common.rename_stream_file(csv_file_name["adpd"], "adpd_fs_download_repeatiability")
+            err_status, err_str, results_dict = qa_utils.check_stream_data(adpd_csv_file, 'adpd_combained', 1,
+                                                                           freq_hz, True)
+            common.test_logger.info(
+                'ADPD FS {}Hz with agc {} Stream Test Results: {}'.format(freq_hz, agc_state, results_dict))
+            if err_status:
+                common.test_logger.error('*** ADPD FS download repeatiability Test - FAIL ***')
+                raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
 def adpd_agc_test(freq_hz=50):
@@ -162,7 +227,7 @@ def adpd_agc_test(freq_hz=50):
             err_led_list.append(k)
             err_stat = True
     if err_stat:
-        common.logging.error('*** ADPD AGC Test - FAIL ***')
+        common.test_logger.error('*** ADPD AGC Test - FAIL ***')
         raise ConditionCheckFailure("\n\n" + 'AGC state change is not reflecting '
                                              'on the streams from LEDs - {}'.format(err_led_list))
 
@@ -173,7 +238,6 @@ def adpd_freq_sweep_stream_test():
     :return:
     """
     freq_hz_list = [50, 100, 500]
-    common.watch_shell.do_loadAdpdCfg("40")
     for freq_hz in freq_hz_list:
         adpd_stream_test(freq_hz)
 
@@ -184,7 +248,6 @@ def adpd_freq_sweep_fs_stream_test():
     :return:
     """
     freq_hz_list = [50, 100, 500]
-    common.watch_shell.do_loadAdpdCfg("40")
     for freq_hz in freq_hz_list:
         adpd_fs_stream_test(freq_hz)
 
@@ -195,7 +258,6 @@ def adpd_freq_sweep_agc_test():
     :return:
     """
     freq_hz_list = [50, 100, 500]
-    common.watch_shell.do_loadAdpdCfg("40")
     for freq_hz in freq_hz_list:
         adpd_agc_test(freq_hz)
 
@@ -216,7 +278,7 @@ def adpd_dcb_test():
 
     :return:
     """
-    qa_utils.dcb_test(dev='ADPD4K', dcb_file='adpd_qa_dcb.dcfg', dcb_read_file='adpd4000_dcb_get.dcfg',
+    qa_utils.dcb_test(dev='ADPD4K', dcb_file='adpd_qa_dcb.dcfg', dcb_read_file='adpd_dcb_get.dcfg',
                       test_name='ADPD DCB Test')
 
 
@@ -226,44 +288,45 @@ def adpd_dcb_stream_test():
     :return:
     """
     capture_time = 10
-    common.dcb_cfg('d', 'adpd4000')  # Deleting any previous DCB
-    qa_utils.write_dcb('adpd4000', 'adpd_qa_dcb.dcfg', 'ADPD DCB Test')
-    common.watch_shell.do_loadAdpdCfg("40")
+    common.dcb_cfg('d', 'adpd')  # Deleting any previous DCB
+    qa_utils.write_dcb('adpd', 'adpd_qa_dcb.dcfg', 'ADPD DCB Test')
+    common.watch_shell.do_load_adpd_cfg("1")
 
-    err_stat, dcb_dir = common.dcb_cfg('r', 'adpd4000')
+    err_stat, dcb_dir = common.dcb_cfg('r', 'adpd')
     if err_stat:
-        common.logging.error('*** ADPD DCB Stream Test - FAIL ***')
+        common.test_logger.error('*** ADPD DCB Stream Test - FAIL ***')
         raise ConditionCheckFailure("\n\n" + 'DCB Read failed!')
     write_dcb_file = os.path.join(dcb_dir, 'adpd_qa_dcb.dcfg')
-    read_dcb_file = os.path.join(dcb_dir, 'adpd4000_dcb_get.dcfg')
+    read_dcb_file = os.path.join(dcb_dir, 'adpd_dcb_get.dcfg')
     err_stat, err_str = qa_utils.compare_dcb_files(write_dcb_file, read_dcb_file)
     if err_stat:
-        common.logging.error('*** ADPD DCB Stream Test - FAIL ***')
+        common.test_logger.error('*** ADPD DCB Stream Test - FAIL ***')
         raise ConditionCheckFailure("\n\n" + 'Read DCB does not match with the write DCB!\nDetails:{}'.format(err_str))
 
-    f_name = common.quick_start_adpd(samp_freq_hz=None, agc_state=1, led='G', skip_load_cfg=True)
+    f_name = common.quick_start_adpd(samp_freq_hz=None, agc_state=0, led='G', skip_load_cfg=True)
     time.sleep(capture_time)
     common.quick_stop_adpd('G')
-    common.close_plot_after_run(['ADPD400x Data'])
-    err_stat, dcb_dir = common.dcb_cfg('d', 'adpd4000')
+    err_stat, dcb_dir = common.dcb_cfg('d', 'adpd')
     if err_stat:
-        common.logging.error('*** ADPD DCB Stream Test - FAIL ***')
+        common.test_logger.error('*** ADPD DCB Stream Test - FAIL ***')
         raise ConditionCheckFailure("\n\n" + 'DCB Delete failed!')
     adpd_stream_file = os.path.abspath(f_name)
+    f_path = common.rename_stream_file(adpd_stream_file, "_50Hz_adpd_dcb_stream_test.csv")
+
     # Results check for Ch1
-    err_status, err_str, results_dict = qa_utils.check_stream_data(adpd_stream_file, 'adpd', 1, 50)
+    err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'adpd', 1, 50)
     if err_status:
-        common.logging.error('*** ADPD DCB CH1 Stream Test - FAIL ***')
+        common.test_logger.error('*** ADPD DCB CH1 Stream Test - FAIL ***')
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
     else:
-        common.logging.info('ADPD DCB CH1 Stream Test Results: {}'.format(results_dict))
+        common.test_logger.info('ADPD DCB CH1 Stream Test Results: {}'.format(results_dict))
     # Results check for Ch2
-    err_status, err_str, results_dict = qa_utils.check_stream_data(adpd_stream_file, 'adpd', 2, 50)
+    err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'adpd', 2, 50)
     if err_status:
-        common.logging.error('*** ADPD DCB CH2 Stream Test - FAIL ***')
+        common.test_logger.error('*** ADPD DCB CH2 Stream Test - FAIL ***')
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
     else:
-        common.logging.info('ADPD DCB CH2 Stream Test Results: {}'.format(results_dict))
+        common.test_logger.info('ADPD DCB CH2 Stream Test Results: {}'.format(results_dict))
 
 
 def adpd_dcb_stream_repeatability_test():
@@ -278,32 +341,31 @@ def adpd_dcb_stream_repeatability_test():
         adpd_dcb_stream_test()
 
 
-def ppg_stream_test(agc_state=1):
+def ppg_stream_test(agc_state=0):
     """
     Capture PPG data for 30s, check the data for frequency(default 50Hz) frequency mismatch
     :return:
     """
     capture_time = 30
     freq_hz = 50
-    common.dcb_cfg('d', 'adpd4000')
-    common.watch_shell.do_loadAdpdCfg("40")
+    common.dcb_cfg('d', 'adpd')
+    common.dcb_cfg('d', 'ppg')
 
     common.quick_start_ppg(samp_freq_hz=freq_hz, agc_state=agc_state)
     time.sleep(capture_time)
     common.quick_stop_ppg()
-    common.close_plot_after_run(['Sync PPG Data', 'PPG Data'])
     common.rename_stream_file(common.ppg_stream_file_name, "_ppg_{}hz_agc_{}_stream_test.csv".format(freq_hz, agc_state))
     f_path = common.rename_stream_file(common.syncppg_stream_file_name,
                                        "_syncppg_{}hz_agc_{}_stream_test.csv".format(freq_hz, agc_state))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'ppg', 1, freq_hz)
-    common.logging.info('PPG {}Hz with agc {} Stream Test Results: {}'.format(freq_hz, agc_state, results_dict))
+    common.test_logger.info('PPG {}Hz with agc {} Stream Test Results: {}'.format(freq_hz, agc_state, results_dict))
     if err_status:
-        common.logging.error('***PPG {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('***PPG {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
     mean = meas_check.calc_mean(f_path, 1)
-    common.logging.info('PPG Stream | AGC:{} | Mean:{}'.format(agc_state, mean))
+    common.test_logger.info('PPG Stream | AGC:{} | Mean:{}'.format(agc_state, mean))
     return mean
 
 
@@ -318,38 +380,37 @@ def ppg_agc_test():
     mean_agc_on = ppg_stream_test(1)
     mean_agc_off = ppg_stream_test(0)
 
-    if mean_agc_off <= 0.5 * mean_agc_on:
-        common.logging.info('{}Hz PPG AGC Test Pass'.format(freq_hz))
+    if 1.2 * mean_agc_off <= mean_agc_on:
+        common.test_logger.info('{}Hz PPG AGC Test Pass'.format(freq_hz))
     else:
-        common.logging.error('***PPG {}Hz AGC Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('***PPG {}Hz AGC Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + 'AGC state change is not reflecting on the streams')
 
 
-def ppg_fs_stream_test(agc_state=1):
+def ppg_fs_stream_test(agc_state=0):
     """
     Capture PPG data for 30s, check the data for frequency(default 50Hz) frequency mismatch
     :return:
     """
-    capture_time = 10
     freq_hz = 50
-    common.dcb_cfg('d', 'adpd4000')
-    common.watch_shell.do_loadAdpdCfg("40")
+    common.dcb_cfg('d', 'adpd')
+    common.dcb_cfg('d', 'ppg')
     qa_utils.clear_fs_logs('ADPD')
 
-    # common.quick_start_ppg(agc_state=agc_state)
-    common.watch_shell.do_quickstart("start_log_ppg")
+    common.watch_shell.quick_start("ppg", "ppg", fs=True)
+    common.watch_shell.do_start_logging("")
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop("stop_log_ppg")
-
-    log_file_name, csv_file_name = qa_utils.get_fs_log('ADPD')
+    common.watch_shell.quick_stop("ppg", "ppg", fs=True)
+    common.watch_shell.do_stop_logging("")
+    log_file_name, csv_file_name = qa_utils.get_fs_log('ppg')
 
     common.rename_stream_file(csv_file_name["ppg"], "_ppg_{}hz_agc_{}_stream_test.csv".format(freq_hz, agc_state))
     f_path = common.rename_stream_file(csv_file_name["syncppg"], "_syncppg_{}hz_agc_{}_stream_test.csv".format(freq_hz, agc_state))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'syncppg', 1, freq_hz, True)
-    common.logging.info('PPG FS {}Hz with agc {} Stream Test Results: {}'.format(freq_hz, agc_state, results_dict))
+    common.test_logger.info('PPG FS {}Hz with agc {} Stream Test Results: {}'.format(freq_hz, agc_state, results_dict))
     if err_status:
-        common.logging.error('***PPG FS {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('***PPG FS {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 

@@ -46,7 +46,7 @@
 * POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 #ifdef ENABLE_WATCH_DISPLAY
-#ifdef LOW_TOUCH_FEATURE
+#if defined(LOW_TOUCH_FEATURE)
 #include "display_app.h"
 #include "lcd_driver.h"
 #include "key_detect.h"
@@ -59,6 +59,7 @@
 #include "nrf_log_default_backends.h"
 #include "low_touch_task.h"
 
+extern volatile uint8_t gsCfgFileFoundFlag;
 static uint8_t lt_app_enab_status;
 
 static void display_low_touch_config(void)
@@ -87,23 +88,49 @@ static void key_handle(uint8_t key_value)
     {
         case KEY_SELECT_SHORT:
         {
-          //Turn OFF, if its already enabled
-          if(lt_app_enab_status)
-            EnableLowTouchDetection(false);
-          //Turn ON, if its already disabled
-          else
-            EnableLowTouchDetection(true);
+            if(get_low_touch_trigger_mode2_status())
+                dis_page_jump(&page_menu);
+            else
+            {
+
+                //Turn OFF, if its already enabled
+                if(lt_app_enab_status)
+                  EnableLowTouchDetection(false);
+                //Turn ON, if its already disabled
+                else
+                {
+                  if (gen_blk_get_dcb_present_flag() || gsCfgFileFoundFlag)
+                  {
+                    EnableLowTouchDetection(true);
+                  }
+                  else
+                  {
+                    //No LT config file
+                    lcd_background_color_set(COLOR_WHITE);
+                    lygl_dis_string_middle(&lygl_font_48,104,140,COLOR_BLACK,"No Config");
+                    lcd_display_refresh_all();
+                    dis_dynamic_refresh(500);
+                    MCU_HAL_Delay(4000);
+                  }
+                }
+            }
 
         }
         break;
         case KEY_NAVIGATION_SHORT:
         {
-            dis_page_jump(&page_logging_status);
+            if(get_low_touch_trigger_mode2_status())
+                dis_page_jump(&page_menu);
+            else
+                dis_page_jump(&page_logging_status);
         }
         break;
         case KEY_SELECT_LONG_VALUE:
         {
-            dis_page_jump(&page_low_touch_logging);
+            if(get_low_touch_trigger_mode2_status())
+                dis_page_jump(&page_menu);
+            else
+                dis_page_jump(&page_low_touch_logging);
         }
         break;
         default:break;

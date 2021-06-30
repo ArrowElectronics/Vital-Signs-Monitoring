@@ -63,6 +63,7 @@
 #include "nrf_log_default_backends.h"
 #include "ble_task.h"
 #include "key_test.h"
+#include "low_touch_task.h"
 #ifdef HIBERNATE_MD_EN
 #include "power_manager.h"
 #endif

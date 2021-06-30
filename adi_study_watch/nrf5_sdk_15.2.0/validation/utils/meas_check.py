@@ -101,7 +101,7 @@ def check_sample_loss(file_path, stream='ecg', data_offset=1, col_idx=-1):
                         sample_loss_idx_list.append((i+1)*repeat_count)
     else:
         sample_loss_idx_list = [-1]
-        common.logging.error("Unsupported Stream data selected for sample loss check!")
+        common.test_logger.error("Unsupported Stream data selected for sample loss check!")
 
     sample_loss = True if sample_loss_idx_list else False
     return sample_loss, sample_loss_idx_list
@@ -187,7 +187,7 @@ def check_temp_range(f_path, temp_range=(35, 39), col_idx=1):
     out_of_range_count = 0
     out_of_range_percent = 0
     for temp_data in data_list:
-        if not (temp_range[0] <= temp_data <= temp_range[0]):
+        if not (temp_range[0] <= temp_data <= temp_range[1]):
             out_of_range_count += 1
             temp_in_range = False
     if not temp_in_range:
@@ -315,7 +315,7 @@ def check_battery_charge(f_path, curr_threshold=17e-3):
 
 if __name__ == '__main__':
     f_path = r'C:\Users\nphilip\OneDrive - Analog Devices, Inc\Documents\MATLAB\A11H11_ECG_test_result\EcgAppStream_SwitchON.csv'
-    print calc_cmrr(f_path)
+    print (calc_cmrr(f_path))
 
     f_path = r'C:\Users\nphilip\OneDrive - Analog Devices, Inc\Documents\MATLAB\A3H3_ECG_test_result\EcgAppStream_DR_5Hz_0.5Vpp.csv'
     print(calc_dr(f_path))

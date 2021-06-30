@@ -47,6 +47,44 @@
 #ifdef ENABLE_WATCH_DISPLAY
 #include "lygl_common.h"
 #include "lygl.h"
+
+/* ------------------------- Defines  -------------------------------------- */
+
+#define ADJUST_RANGE (3) //!<  Defines the adjust percentage for min,max adjust params
+
+/*------------------------- Private Variables --------------------------------*/
+
+static lygl_graph_param_t m_graph_param;//!<Graph Parameters like coordinates,colors
+static uint16_t x_start = 0xffff;       //!<Graph coordinates
+static uint16_t y_start = 0xffff;       //!<Graph coordinates
+static uint16_t x_end = 0xffff;         //!<Graph coordinates
+static uint16_t y_end = 0xffff;         //!<Graph coordinates
+static uint32_t y_diff = 0xffff;        //!<Range of y coordinate available for application
+
+/* More range of values will be covered in 32 bit data values */
+static uint32_t max_value;              //!<Maximum value
+static uint32_t min_value;              //!<Minimum value
+
+static uint32_t max_adjust_value;       //!<Max adjust value
+static uint32_t min_adjust_value;       //!<Min adjust value
+
+static uint32_t max_record_value;       //!<Max recorded value
+static uint32_t min_record_value;       //!<Min recorded Value
+
+static uint16_t up_adjust_cnt = 0;      //!<Up adjust counter
+static uint16_t down_adjust_cnt = 0;    //!<Down adjust counter
+
+static uint16_t adjust_max = 0;         //!<Threshold for adjust counters
+
+/**
+  * @brief Draws line from one coordinate to other with the required color
+  * @param  Start Coordinate in Horizontal axis X1
+  * @param  Start Coordinates Vertical Axis Y1
+  * @param  Stop Coordinate in Horizontal axis X2
+  * @param  Stop Coordinate in vertical axis Y2
+  * @param  Colour of the line
+  * @retval none.
+  */
 void lygl_draw_line(uint8_t x1,uint8_t y1,uint8_t x2,uint8_t y2,uint8_t color)
 {
     uint8_t x_d,y_d,x,y,y_f;
@@ -111,30 +149,11 @@ void lygl_draw_line(uint8_t x1,uint8_t y1,uint8_t x2,uint8_t y2,uint8_t color)
     }
 }
 
-
-static lygl_graph_param_t m_graph_param;
-static uint16_t x_start = 0xffff;
-static uint16_t y_start = 0xffff;
-static uint16_t x_end = 0xffff;
-static uint16_t y_end = 0xffff;
-static uint16_t y_diff = 0xffff;
-
-static uint16_t max_value;
-static uint16_t min_value;
-
-static uint16_t max_adjust_value;
-static uint16_t min_adjust_value;
-
-static uint16_t max_record_value;
-static uint16_t min_record_value;
-
-static uint16_t up_adjust_cnt = 0;
-static uint16_t down_adjust_cnt = 0;
-
-static uint16_t adjust_max = 0;
-
-#define ADJUST_RANGE (3)// <(100-x*2*20)% = 40%
-
+/**
+  * @brief Initializes display graph structures with application parameters
+  * @param  Application graph parameters structure which provides graph coordinates,color
+  * @retval none.
+  */
 void lygl_creat_graph(lygl_graph_param_t *graph_param)
 {
     m_graph_param.x0 = graph_param->x0;
@@ -164,18 +183,28 @@ void lygl_creat_graph(lygl_graph_param_t *graph_param)
     adjust_max = (m_graph_param.x1 - m_graph_param.x0)/m_graph_param.x_space;//About one page.
 }
 
+/**
+  * @brief Valid_bits variable added  enables the applications to give information
+  *        about data bits to the display functions.This will make the display graph
+  *        algorithm flexible for any number of bits data ranging from 0 to 32.
+  * @param  Application data
+  * @param  Length of application data
+  * @param  Valid bits in the application data
+  * @retval none.
+  */
 
-void lygl_send_graph_data(uint16_t *data,uint16_t len)
+void lygl_send_graph_data(uint32_t *data,uint16_t len,uint32_t valid_bits)
 {
     uint16_t cnt = 0;
-    uint16_t value;
+    uint32_t value;
     uint8_t up_adjust_flag = 0;//0:not adjust,0xff:adjust
     uint8_t down_adjust_flag = 0;//0:not adjust,0xff:adjust
+    uint32_t mid_value = 0;
 
     for(cnt=0;cnt<len;cnt++)
     {
         x_end = x_start+ m_graph_param.x_space;
-        value = (*(data+cnt));
+        value = ((*(data+cnt)) & valid_bits);
 
         /* adjust down limit*/
         if(value > min_adjust_value)
@@ -204,10 +233,12 @@ void lygl_send_graph_data(uint16_t *data,uint16_t len)
         }
         else
         {
-            if(value > m_graph_param.y_unit *5)
-            {
-                min_value = value - y_diff*m_graph_param.y_unit/5;
-            }
+                /* Conditional check to make sure that min_value 
+                   won't be negative */
+                if((value - y_diff*m_graph_param.y_unit/5) < 0)
+                  min_value = 0;
+                else
+                  min_value = value - y_diff*m_graph_param.y_unit/5;
 
             down_adjust_cnt = 0;
             down_adjust_flag = 0xff;
@@ -241,10 +272,14 @@ void lygl_send_graph_data(uint16_t *data,uint16_t len)
         }
         else
         {
-            if((0xffff - m_graph_param.y_unit *5) > value)
-            {
-                max_value = value + y_diff*m_graph_param.y_unit/5;
-            }
+                /* For a given application max value will only be
+                  highest value attained by valid bits,by usage valid_bits
+                  variable will have maximum value stored by default*/
+
+                if((value + y_diff*m_graph_param.y_unit/5) > valid_bits)
+                  max_value = valid_bits;
+                else
+                  max_value = value + y_diff*m_graph_param.y_unit/5;
             up_adjust_cnt = 0;
             up_adjust_flag = 0xff;
         }
@@ -258,6 +293,24 @@ void lygl_send_graph_data(uint16_t *data,uint16_t len)
             else
             {
                 m_graph_param.y_unit = 1;
+                /* If the amplitude unit becomes unity,then the max value
+                   will not be valid.As the total range available now
+                   (y_diff*m_graph_param.y_unit + min) will be more than max in
+                   most of cases*/
+
+                mid_value = (max_value + min_value) / 2;
+                /* So adjusting  min and max values depending on midvalue so that
+                y_unit = 1 will not hold both values(min,max) close together*/
+
+                if((mid_value - (y_diff/2)) > 0)
+                    min_value = mid_value - (y_diff/2);
+                else
+                    min_value = 0;
+
+                if((mid_value + (y_diff/2)) < valid_bits)
+                    max_value = mid_value + (y_diff/2);
+                else
+                    max_value = valid_bits;
             }
             m_graph_param.y_offset = min_value;
             min_adjust_value = m_graph_param.y_offset + y_diff*m_graph_param.y_unit*ADJUST_RANGE/10;

@@ -46,6 +46,8 @@
 #include "nrf_log_ctrl.h"
 #include "post_office.h"
 #include "touch_detect.h"
+#include "key_detect.h"
+#include <system_task.h>
 #include <adi_osal.h>
 #include <app_cfg.h>
 #include <common_application_interface.h>
@@ -65,7 +67,7 @@
 #ifdef DCB
 #include "adi_dcb_config.h"
 #include "dcb_general_block.h"
-#include "wrist_detect_block.h"
+#include "lt_app_lcfg_block.h"
 #include <dcb_interface.h>
 #endif
 /* Low touch App Module Log settings */
@@ -91,8 +93,8 @@ uint8_t ga_lt_task_stack[APP_OS_CFG_LT_APP_TASK_STK_SIZE];
 StaticTask_t g_lt_task_tcb;
 ADI_OSAL_THREAD_HANDLE gh_lt_task_handler;
 ADI_OSAL_QUEUE_HANDLE gh_lt_task_msg_queue = NULL;
-// Create semaphores
-//static ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
+/* semaphore handler for low touch task */
+ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
 
 /* ON wrist time detection for starting logging 5000 (ms). */
 #define LT_ON_WRIST_TIME_INTERVAL 5000
@@ -120,11 +122,6 @@ APP_TIMER_DEF(m_lt_off_timer_id);
 #else
 #define TOUCH_DETECTION_THRESHOLD 1300
 #endif
-
-/*Timeout value to extract msg from PO Msg Queue is to be:
- ADI_OSAL_TIMEOUT_FOREVER -> m2m2 pkts
- ADI_OSAL_TIMEOUT_NONE    -> for processing LT event */
-static volatile uint32_t  g_lt_task_timeout = ADI_OSAL_TIMEOUT_FOREVER;
 
 /* Flag which is used to enable/disable LT application; which is later used to
  * prevent mulitple init-deinit from happening */
@@ -164,19 +161,18 @@ static int16_t user_applied_onWristTimeThreshold = 0;
 static int16_t user_applied_offWristTimeThreshold = 0;
 static int16_t user_applied_airCapVal = 0;
 static int16_t user_applied_skinCapVal = 0;
+static int16_t user_applied_ltAppTrigMethd = 0;
+
 
 lt_app_cfg_type lt_app_cfg;
 /*-------------------- Private Function Declarations ------------------------*/
 static void LowTouchAd7156IntCallback(uint8_t value);
-static void SendStartLowTouchLogReq();
-static void SendStopLowTouchLogReq();
 static void on_timer_init();
 static void off_timer_init();
 static void lt_on_timer_start(void);
 static void lt_on_timer_stop(void);
 static void lt_off_timer_start(void);
 static void lt_off_timer_stop(void);
-static void lt_task(void *arg);
 static void out2_pin_detect(uint8_t value);
 static void LowTouchResetTimer();
 static void init_lt_app_lcfg();
@@ -187,13 +183,35 @@ static m2m2_hdr_t *gen_blk_dcb_command_read_config(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *gen_blk_dcb_command_write_config(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *gen_blk_dcb_command_delete_config(m2m2_hdr_t *p_pkt);
 #endif
-
-/*--------------------- Public Funtion Declarations -------------------------*/
-extern void SetCfgCopyAvailableFlag(uint8_t nflag);
 extern void find_low_touch_DCB();
 
+
+static void lt_task(void *arg);
+static void SendStartLowTouchLogReq();
+static void SendStopLowTouchLogReq();
+/*--------------------- Public Funtion Declarations -------------------------*/
+extern void SetCfgCopyAvailableFlag(uint8_t nflag);
+
+extern bool get_long_button_press_status();
+extern bool reset_long_button_press_status();
+extern bool get_usb_powered_event_status();
+extern bool reset_usb_powered_event_status();
 /* Variable which holds the status of NAND config file */
 extern volatile uint8_t gsCfgFileFoundFlag;
+
+/* Variable which holds the status of LT logging in progress or not */
+extern uint8_t gLowTouchRunning;
+
+#ifdef DCB
+/* Reuse the gsConfigTmpFile[] RAM buffer used in system_task.c for
+ * holding copy of either DCB/NAND config file which has LT
+ * start/stop sequence of commands.
+ * This buffer is to be reused between holding the copy of LT config file
+ * as well as temporary storage for DCB content during READ/WRITE DCB block
+ * for ADPD, Gen block DCB
+ * Buffer to be shared between tasks( General Blk DCB & ADPD4000 DCB ) */
+extern uint8_t gsConfigTmpFile[];
+#endif
 
 /* State machine variables for ON/OFF wrist events */
 volatile LOW_TOUCH_DETECTION_STATUS_ENUM_t eDetection_State = OFF_WRIST,
@@ -230,8 +248,8 @@ app_routing_table_entry_t lt_app_routing_table[] = {
 
 static void init_lt_app_lcfg() {
 
-  /* Check & Load from DCB LT lcfg if lcfg is available in wrist_detect_dcb */
-  if (wrist_detect_get_dcb_present_flag()) {
+  /* Check & Load from DCB LT lcfg if lcfg is available in lt_app_lcfg_dcb */
+  if (lt_app_lcfg_get_dcb_present_flag()) {
 
     lt_app_lcfg_set_from_dcb();
   }
@@ -258,18 +276,37 @@ static void init_lt_app_lcfg() {
       lt_app_cfg.skinCapVal = LT_SKIN_CAP_VAL;
     else
       user_applied_skinCapVal = 0;
+
+    if( !user_applied_ltAppTrigMethd )
+      lt_app_cfg.ltAppTrigMethd  = LT_APP_CAPSENSE_TUNED_TRIGGER;
+    else
+      user_applied_ltAppTrigMethd = 0;
   }
 
-  //Sanity check on parameters
-  if( lt_app_cfg.airCapVal < lt_app_cfg.skinCapVal        ||
-      (lt_app_cfg.airCapVal - lt_app_cfg.skinCapVal) < 10 )
+  if( lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_TUNED_TRIGGER )
   {
-    NRF_LOG_INFO("Unexpected lcfg parameters passed, falling to fw default");
-    lt_app_cfg.airCapVal  = LT_AIR_CAP_VAL;
-    lt_app_cfg.skinCapVal = LT_SKIN_CAP_VAL;
+    //Sanity check on parameters
+    if( lt_app_cfg.airCapVal < lt_app_cfg.skinCapVal        ||
+        (lt_app_cfg.airCapVal - lt_app_cfg.skinCapVal) < 10 )
+    {
+      NRF_LOG_INFO("Unexpected lcfg parameters passed, falling to fw default");
+      lt_app_cfg.airCapVal  = LT_AIR_CAP_VAL;
+      lt_app_cfg.skinCapVal = LT_SKIN_CAP_VAL;
+    }
+
+    gn_ch2_sensitivity = (lt_app_cfg.airCapVal - lt_app_cfg.skinCapVal)/2;
+  }
+  else
+  {
+    /* Mainly handled for lt_app_cfg.ltAppTrigMethd  ==
+      LT_APP_CAPSENSE_DISPLAY_TRIGGER
+    */
+    /* Hardcode the sensitivity to used based on general trend seen
+       from tuning
+    */
+    gn_ch2_sensitivity = 20;
   }
 
-  gn_ch2_sensitivity = (lt_app_cfg.airCapVal - lt_app_cfg.skinCapVal)/2;
   AD7156_SetSensitivity(AD7156_CHANNEL2,gn_ch2_sensitivity);
   //AD7156_SetSensitivity(AD7156_CHANNEL2,25);
 }
@@ -300,6 +337,10 @@ LT_APP_ERROR_CODE_t lt_app_write_lcfg(uint8_t field, uint16_t value) {
       lt_app_cfg.skinCapVal = value;
       user_applied_skinCapVal = 1;
       break;
+    case LT_APP_LCFG_TRIGGER_METHOD:
+      lt_app_cfg.ltAppTrigMethd = value;
+      user_applied_ltAppTrigMethd = 1;
+      break;
     }
     return LT_APP_SUCCESS;
   }
@@ -327,6 +368,9 @@ LT_APP_ERROR_CODE_t lt_app_read_lcfg(uint8_t index, uint16_t *value) {
       break;
     case LT_APP_LCFG_SKIN_CAP_VAL:
       *value = lt_app_cfg.skinCapVal;
+      break;
+    case LT_APP_LCFG_TRIGGER_METHOD:
+      *value = (uint16_t)lt_app_cfg.ltAppTrigMethd;
       break;
     }
     return LT_APP_SUCCESS;
@@ -424,8 +468,7 @@ static m2m2_hdr_t *lt_app_read_ch2_cap(m2m2_hdr_t *p_pkt) {
 }
 
 #ifdef ENABLE_LT_TEST_PAGE
-/* Variable which holds the status of LT logging in progress or not */
-extern uint8_t gLowTouchRunning;
+
 /**
  * @brief Funtion to take LT specific variables, to be shown from LT test page
  *
@@ -446,12 +489,14 @@ void lt_disp_str(char *str0, char *str1, char *str2) {
 }
 #endif
 
-/** @brief    Low Touch Enable Function
- * @details  Sets/Resets the Low touch enable flag; which activates/deactivates
- * the touch sensor and touch detection mechanism
- * @param    True --> Sets the flag
- *           False --> Resets the flag
- * @retval   None
+/** @brief   Low Touch Application Enable/Disable Function
+ * @details  Sets/Resets the Low touch enable flag; activates/deactivates
+ *           the touch sensor and touch detection mechanism
+ *           LT App "Enable" is to be done only once a LT config file is
+ *           written to DCB/NAND
+ * @param    True --> Sets the flag, does AD7156 init for CH2
+ *           False --> Resets the flag, does AD7156 de-init for CH2
+ * @retval   0  --> success 1 --> fail(returned when it has been initialised/deinitialised already)
  */
 int EnableLowTouchDetection(bool bFlag) {
   uint32_t ret;
@@ -475,6 +520,46 @@ int get_lt_app_status() {
   return gsLowTouchInitFlag;
 }
 
+/** @brief   Check if LT application trigger method is LT_APP_CAPSENSE_TUNED_TRIGGER
+ * @details  This is to be used for a LT config file(NAND/gen blk DCB) write/delete
+             such that the trigger happens properly for
+             LT_APP_CAPSENSE_TUNED_TRIGGER
+ * @param    None
+ * @retval   0  --> LT_APP_CAPSENSE_TUNED_TRIGGER not enabled
+             1 --> LT_APP_CAPSENSE_TUNED_TRIGGER enabled
+ */
+bool check_lt_app_capsense_tuned_trigger_status() {
+  if( lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_TUNED_TRIGGER )
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+/** @brief   Check if LT application trigger method is LT_APP_BUTTON_TRIGGER
+ * @details  This is to be used for a LT config file(NAND/gen blk DCB) write/delete
+             such that the trigger happens properly for
+             LT_APP_BUTTON_TRIGGER
+ * @param    None
+ * @retval   0  --> LT_APP_BUTTON_TRIGGER not enabled
+             1 --> LT_APP_BUTTON_TRIGGER enabled
+ */
+bool get_low_touch_trigger_mode2_status(void)
+{
+  if( lt_app_cfg.ltAppTrigMethd  == LT_APP_BUTTON_TRIGGER )
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+
 /** @brief   Low Touch Initialization
  * @details  Register handle for low touch application from AD7156 for wrist
  * Touch detection
@@ -491,24 +576,37 @@ int low_touch_init() {
 
     //Detect initial Wrist status
     capVal = AD7156_ReadChannelCap(2); // unit in uF
-    /*Its seen that an offset of 10 could come in the capVal read*/
-    if((capVal-10) <= lt_app_cfg.skinCapVal)
+
+    if( lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_TUNED_TRIGGER )
     {
+      /*Its seen that an offset of 10 could come in the capVal read*/
+      if((capVal-10) <= lt_app_cfg.skinCapVal)
+      {
+        NRF_LOG_INFO("Init:Resetting timer, ON wrist detected.");
+        LowTouchResetTimer();
+        eDetection_State = ON_WRIST; /*watch is on wrist interrupt detected*/
+        NRF_LOG_INFO("ON wrist detected. cap2=%d", capVal);
+        g_onWrCapValue = capVal;
+      }
+      else if(capVal > lt_app_cfg.skinCapVal &&  capVal <= lt_app_cfg.airCapVal)
+      {
+        NRF_LOG_INFO("Init: OFF wrist detected.");
+        eDetection_State = OFF_WRIST; /*watch is off wrist interrupt detected*/
+        NRF_LOG_INFO("OFF wrist detected. cap2=%d", capVal);
+        g_offWrCapValue = capVal;
+      }
+      else
+        eDetection_State = OFF_WRIST; /*watch is off wrist interrupt detected*/
+    }
+    else
+    {
+      //Mainly for lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_DISPLAY_TRIGGER
       NRF_LOG_INFO("Init:Resetting timer, ON wrist detected.");
       LowTouchResetTimer();
       eDetection_State = ON_WRIST; /*watch is on wrist interrupt detected*/
       NRF_LOG_INFO("ON wrist detected. cap2=%d", capVal);
       g_onWrCapValue = capVal;
     }
-    else if(capVal > lt_app_cfg.skinCapVal &&  capVal <= lt_app_cfg.airCapVal)
-    {
-      NRF_LOG_INFO("Init: OFF wrist detected.");
-      eDetection_State = OFF_WRIST; /*watch is off wrist interrupt detected*/
-      NRF_LOG_INFO("OFF wrist detected. cap2=%d", capVal);
-      g_offWrCapValue = capVal;
-    }
-    else
-      eDetection_State = OFF_WRIST; /*watch is off wrist interrupt detected*/
     return 0;
   }
   return 1;
@@ -688,7 +786,6 @@ int LowTouchSensorEvent() {
   }   // if (gEnableLowTouchDetection)
   return 0;
 }
-
 /**
  * @brief  Sends Low touch log start request to the system task
  * @param  None
@@ -768,9 +865,7 @@ static void lt_on_wrist_timeout_handler(void *p_context) {
   NRF_LOG_INFO("LT ON wrist Timer expiry..");
   gLowTouchTimerUp = 1;
   //lt_on_timer_stop();
-  g_lt_task_timeout = ADI_OSAL_TIMEOUT_NONE;
-  adi_osal_ThreadResumeFromISR(gh_lt_task_handler);
-  //adi_osal_SemPost(lt_task_evt_sem);
+  adi_osal_SemPost(lt_task_evt_sem);
 }
 
 /**@brief Function for handling the low touch off wrist detection timer
@@ -785,9 +880,7 @@ static void lt_off_wrist_timeout_handler(void *p_context) {
   NRF_LOG_INFO("LT OFF wrist Timer expiry..");
   gLowTouchTimerUp = 1;
   //lt_off_timer_stop();
-  g_lt_task_timeout = ADI_OSAL_TIMEOUT_NONE;
-  adi_osal_ThreadResumeFromISR(gh_lt_task_handler);
-  //adi_osal_SemPost(lt_task_evt_sem);
+  adi_osal_SemPost(lt_task_evt_sem);
 }
 
 /**@brief Function for the Timer initialization.
@@ -844,7 +937,7 @@ static void lt_on_timer_stop(void) {
   APP_ERROR_CHECK(err_code);
 }
 
-/**@brief   Function for starting OOF-wrist application timers.
+/**@brief   Function for starting OFF-wrist application timers.
  * @details Timers are run after the scheduler has started.
  */
 static void lt_off_timer_start(void) {
@@ -890,12 +983,13 @@ void low_touch_task_init(void) {
     Debug_Handler();
   }
 
-  //adi_osal_SemCreate(&lt_task_evt_sem, 0);
+  adi_osal_SemCreate(&lt_task_evt_sem, 0);
   // touch_detect_init();
 
-  // ON-OFF detection Timer creation
-  on_timer_init();
-  off_timer_init();
+ // ON-OFF detection Timer creation
+    on_timer_init();
+    off_timer_init();
+
 }
 
 /** @brief Function to enable/disable the bottom touch channel detection in
@@ -913,9 +1007,7 @@ void bottom_touch_func_set(uint8_t en) {
  */
 static void out2_pin_detect(uint8_t value) {
   LowTouchAd7156IntCallback(value);
-  g_lt_task_timeout = ADI_OSAL_TIMEOUT_NONE;
-  adi_osal_ThreadResumeFromISR(gh_lt_task_handler);
-  //adi_osal_SemPost(lt_task_evt_sem);
+  adi_osal_SemPost(lt_task_evt_sem);
 }
 
 /** @brief LT task function
@@ -928,35 +1020,35 @@ static void lt_task(void *arg) {
   ADI_OSAL_STATUS err;
   UNUSED_PARAMETER(arg);
 
-  touch_detect_init();
 
-  /* Wait for FS task FindConfigFile() completes */
-  adi_osal_ThreadSuspend(NULL);
-  /* Wait for FS task FindConfigFile() completes */
-  //adi_osal_SemPend(lt_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+//  if(!get_low_touch_trigger_mode2_status())
+    touch_detect_init();
 
-  /* Check & Load from DCB LT lcfg if lcfg is available in wrist_detect_dcb
+    if (lt_app_lcfg_get_dcb_present_flag()) {
+      lt_app_lcfg_set_from_dcb();
+    }
+    else
+      lt_app_lcfg_set_fw_default();
+  /* Wait for FS task FindConfigFile() completes */
+
+  adi_osal_SemPend(lt_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+
+  /* Check & Load from DCB LT lcfg if lcfg is available in lt_app_lcfg_dcb
      so that lcfg parameters when read from the Tool, gives values correctly
   */
-  if (wrist_detect_get_dcb_present_flag()) {
-    lt_app_lcfg_set_from_dcb();
-  }
-  else
-    lt_app_lcfg_set_fw_default();
 
-  // On Bootup Enable LT app if LT cfg files are present
-  if (gen_blk_get_dcb_present_flag() || gsCfgFileFoundFlag)
-    EnableLowTouchDetection(true);
-
+    // On Bootup Enable LT app if LT cfg files are present
+    if( check_lt_app_capsense_tuned_trigger_status() )
+    {
+      if (gen_blk_get_dcb_present_flag() || gsCfgFileFoundFlag)
+        EnableLowTouchDetection(true);
+    }
 // Test DCB/NAND cfg working without ON/OFF Wrist events
 #ifdef TEST_LT_APP_WITHOUT_EVENTS
   static volatile uint8_t gb_trig_event = 0;
 
   while (1) {
-    // adi_osal_SemPend(lt_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
-    // p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE,
-    // APP_OS_CFG_LT_TASK_INDEX);
-    p_in_pkt = post_office_get(5000, APP_OS_CFG_LT_TASK_INDEX);
+    p_in_pkt = post_office_get(5000, APP_OS_CFG_LT_TASK_INDEX); //LT events
 
     // We got an m2m2 message from the queue, process it.
     if (p_in_pkt != NULL) {
@@ -991,12 +1083,8 @@ static void lt_task(void *arg) {
 #else
 
   while (1) {
-    //adi_osal_ThreadSuspend(NULL);
-    //adi_osal_SemPend(lt_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
-
-    //p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_LT_TASK_INDEX); //LT events
-    //p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_FOREVER, APP_OS_CFG_LT_TASK_INDEX); //m2m2 pkt
-    p_in_pkt = post_office_get(g_lt_task_timeout, APP_OS_CFG_LT_TASK_INDEX);
+    adi_osal_SemPend(lt_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+    p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_LT_TASK_INDEX); //LT events
 
     // We got an m2m2 message from the queue, process it.
     if (p_in_pkt != NULL) {
@@ -1013,13 +1101,67 @@ static void lt_task(void *arg) {
       if (p_out_pkt != NULL) {
         post_office_send(p_out_pkt, &err);
       }
-    } else {
+    }
+    else if(get_low_touch_trigger_mode2_status())
+    {
+        if (get_usb_powered_event_status()) {
+          reset_usb_powered_event_status();
+          SendStopLowTouchLogReq();
+          key_detect_init();
+        } else if (get_lt_mode2_selection_status()) {
+          if (gsCfgFileFoundFlag || gen_blk_get_dcb_present_flag())
+          {
+            SendStartLowTouchLogReq();  /* start the low touch logging*/
+            adi_osal_ThreadSuspend(NULL);
+          }
+          else
+          {
+            reset_lt_mode2_selection_status();
+            LowTouchErr();
+          }
+        } else {
+            // Nothing //
+        }
+    }
+    else
+    {
       LowTouchTimerEvent();
       LowTouchSensorEvent();
     }
-    adi_osal_ThreadSuspend(NULL);
+//    adi_osal_ThreadSuspend(NULL);
   }
-#endif
+#endif //TEST_LT_APP_WITHOUT_EVENTS
+}
+
+/**
+ * @brief  Function to resume the LT task
+ * @param  None
+ * @return None
+ */
+void resume_low_touch_task(void)
+{
+    vTaskResume((TaskHandle_t)gh_lt_task_handler);
+}
+
+
+/**
+ * @brief  Function to resume the LT task and key task, if low touch log request failed
+ *         Called by MaxFileErr(), LowTouchErr().
+ * @param  None
+ * @return None
+ */
+void resume_key_and_lt_task(void)
+{
+  if(get_low_touch_trigger_mode2_status() && get_lt_mode2_selection_status())
+  {
+    reset_lt_mode2_selection_status();  /*reset the LT MD2 log selection status*/
+    key_detect_init();      /* Since Low touch log failed to start, enable the buttons back*/
+    vTaskResume((TaskHandle_t)gh_lt_task_handler);
+  }
+  else
+  {
+    key_detect_init();      /* Since Low touch log failed to start, enable the buttons back*/
+  }
 }
 
 /**
@@ -1029,12 +1171,13 @@ static void lt_task(void *arg) {
  */
 void send_message_lt_task(m2m2_hdr_t *p_pkt) {
   ADI_OSAL_STATUS osal_result;
-  osal_result = adi_osal_MsgQueuePost(gh_lt_task_msg_queue, p_pkt);
-  if (osal_result != ADI_OSAL_SUCCESS)
-    post_office_consume_msg(p_pkt);
-  g_lt_task_timeout = ADI_OSAL_TIMEOUT_FOREVER;
-  vTaskResume((TaskHandle_t)gh_lt_task_handler);
-  //adi_osal_SemPost(lt_task_evt_sem);
+  if(p_pkt != NULL)
+  {
+    osal_result = adi_osal_MsgQueuePost(gh_lt_task_msg_queue, p_pkt);
+    if (osal_result != ADI_OSAL_SUCCESS)
+      post_office_consume_msg(p_pkt);
+  }
+  adi_osal_SemPost(lt_task_evt_sem);
 }
 
 /**
@@ -1048,18 +1191,20 @@ void lt_app_lcfg_set_fw_default()
     lt_app_cfg.offWristTimeThreshold = LT_OFF_WRIST_TIME_INTERVAL;
     lt_app_cfg.airCapVal  = LT_AIR_CAP_VAL;
     lt_app_cfg.skinCapVal = LT_SKIN_CAP_VAL;
+    lt_app_cfg.ltAppTrigMethd = LT_APP_BUTTON_TRIGGER;
 }
 
 /**
- * @brief  Function to set the LT app lcfg to from wrist detect DCB
+ * @brief  Function to set the LT app lcfg to from lt_app_lcfg DCB
  * @param  None
  * @return None
  */
 void lt_app_lcfg_set_from_dcb()
 {
-  load_wrist_detect_dcb();
-  copy_lt_lcfg_from_wrist_detect_dcb(&lt_app_cfg);
+  load_lt_app_lcfg_dcb();
+  copy_lt_lcfg_from_lt_app_lcfg_dcb(&lt_app_cfg);
 }
+
 #ifdef DCB
 /**
  * @brief  Function which handles the m2m2 command to do gen_blk_DCB read
@@ -1068,8 +1213,14 @@ void lt_app_lcfg_set_from_dcb()
  */
 static m2m2_hdr_t *gen_blk_dcb_command_read_config(m2m2_hdr_t *p_pkt) {
   uint16_t r_size;
-  uint16_t i, p, num_of_pkts, dcbdata_index;;
-  uint32_t dcbdata[MAXGENBLKDCBSIZE * 4];
+  uint16_t i, p, num_of_pkts, dcbdata_index;
+  //uint32_t dcbdata[MAXGENBLKDCBSIZE * MAX_GEN_BLK_DCB_PKTS];
+  /* dcbdata - storage for DCB content during READ DCB block
+   * for Gen block DCB; Reusing the RAM buffer from system task,
+   * instead of declaring it in the function,
+   * saves space on Stack requirement from LT Task
+   */
+  uint32_t *dcbdata = (uint32_t *)&gsConfigTmpFile[0];
   ADI_OSAL_STATUS err;
 
   M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
@@ -1080,29 +1231,29 @@ static m2m2_hdr_t *gen_blk_dcb_command_read_config(m2m2_hdr_t *p_pkt) {
     // Declare a pointer to the response packet payload
     PYLD_CST(p_resp_pkt, m2m2_dcb_gen_blk_data_t, p_resp_payload);
 
-    memset(dcbdata, 0, sizeof(dcbdata));
     r_size =
-        (uint16_t)(MAXGENBLKDCBSIZE * 4); // Max words that can be read from FDS
+        (uint16_t)(MAXGENBLKDCBSIZE * MAX_GEN_BLK_DCB_PKTS); // Max words that can be read from FDS
+    memset(dcbdata, 0, (r_size*sizeof(dcbdata[0])));
 
     if (read_gen_blk_dcb(&dcbdata[0], &r_size) == GEN_BLK_DCB_STATUS_OK) {
+      status = M2M2_DCB_STATUS_OK;
       num_of_pkts = (r_size/MAXGENBLKDCBSIZE) +
                     ( (r_size%MAXGENBLKDCBSIZE) ? 1 : 0 );
       dcbdata_index = 0;
       for( p=0; p<num_of_pkts; p++ )
       {
-      	p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
-      	p_resp_payload->status = M2M2_DCB_STATUS_OK;
       	p_resp_payload->size = (p != num_of_pkts-1) ? MAXGENBLKDCBSIZE :
                                                      (r_size%MAXGENBLKDCBSIZE);
       	p_resp_payload->num_of_pkts = num_of_pkts;
       	for (i = 0; i < p_resp_payload->size; i++)
       		p_resp_payload->dcbdata[i] = dcbdata[dcbdata_index++];
-      	p_resp_pkt->src = p_pkt->dest;
-      	p_resp_pkt->dest = p_pkt->src;
       	NRF_LOG_INFO("%d pkt's sz->%d", (p+1), p_resp_payload->size);
-
       	if(p != num_of_pkts-1)
       	{
+          p_resp_pkt->src = p_pkt->dest;
+      	  p_resp_pkt->dest = p_pkt->src;
+          p_resp_payload->status = status;
+          p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
       	  post_office_send(p_resp_pkt, &err);
 
       	  /*Delay is required b/w two pkts send, this was increased from 20,
@@ -1138,10 +1289,7 @@ static m2m2_hdr_t *gen_blk_dcb_command_read_config(m2m2_hdr_t *p_pkt) {
   return p_resp_pkt;
 }
 
-/* Reuse the dcbdata[] buffer used in adpd4000_task.c for
- * adpd_dcb_command_write_config() api */
-/* Buffer to be shared task( General Blk DCB & ADPD4000 DCB */
-extern uint32_t dcbdata[MAXADPD4000DCBSIZE * 4];
+
 /**
  * @brief  Function which handles the m2m2 command to do gen_blk_DCB write
  * @param  p_pkt m2m2 REQ packet
@@ -1149,7 +1297,13 @@ extern uint32_t dcbdata[MAXADPD4000DCBSIZE * 4];
  */
 static m2m2_hdr_t *gen_blk_dcb_command_write_config(m2m2_hdr_t *p_pkt) {
   M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
-  // static uint32_t  dcbdata[MAXGENBLKDCBSIZE*2];
+  //uint32_t  dcbdata[MAXGENBLKDCBSIZE*MAX_GEN_BLK_DCB_PKTS];
+  /* dcbdata - storage for DCB content during write DCB block
+   * for Gen block DCB. Reusing the RAM buffer from system task,
+   * instead of declaring a static buffer in the function,
+   * saves space on total RAM usage from the watch application
+   */
+  static uint32_t *dcbdata = (uint32_t *)&gsConfigTmpFile[0];
   static uint16_t i = 0;
   static uint16_t num_of_pkts = 0;
   uint16_t j;
@@ -1162,8 +1316,8 @@ static m2m2_hdr_t *gen_blk_dcb_command_write_config(m2m2_hdr_t *p_pkt) {
     // Declare a pointer to the response packet payload
     PYLD_CST(p_resp_pkt, m2m2_dcb_gen_blk_data_t, p_resp_payload);
 
-    // Maximum 4 packets can be written to GEN_BLK_DCB
-    if (p_in_payload->num_of_pkts >= 1 && p_in_payload->num_of_pkts <= 4) {
+    // Maximum (MAX_GEN_BLK_DCB_PKTS) packets can be written to GEN_BLK_DCB
+    if (p_in_payload->num_of_pkts >= 1 && p_in_payload->num_of_pkts <= MAX_GEN_BLK_DCB_PKTS) {
       num_of_pkts += 1;
       for (j = 0; j < p_in_payload->size; j++)
         dcbdata[i++] = p_in_payload->dcbdata[j];
@@ -1171,8 +1325,12 @@ static m2m2_hdr_t *gen_blk_dcb_command_write_config(m2m2_hdr_t *p_pkt) {
       if (num_of_pkts == p_in_payload->num_of_pkts) {
         if (write_gen_blk_dcb(&dcbdata[0], i) == GEN_BLK_DCB_STATUS_OK) {
           gen_blk_set_dcb_present_flag(true);
+          find_low_touch_DCB();//Update gbDCBCfgFoundFlag in system task
           NRF_LOG_INFO("LT gen blk DCB written");
-          EnableLowTouchDetection(true);
+          if( check_lt_app_capsense_tuned_trigger_status() )
+          {
+            EnableLowTouchDetection(true);
+          }
           status = M2M2_DCB_STATUS_OK;
         } else {
           status = M2M2_DCB_STATUS_ERR_ARGS;
@@ -1228,8 +1386,12 @@ static m2m2_hdr_t *gen_blk_dcb_command_delete_config(m2m2_hdr_t *p_pkt) {
                                          flag upon LT gen blk DCB deletion */
       find_low_touch_DCB();//Update gbDCBCfgFoundFlag in system task
       NRF_LOG_INFO("LT gen blk DCB deleted");
-      if (!gen_blk_get_dcb_present_flag() && !gsCfgFileFoundFlag)
-        EnableLowTouchDetection(false);
+
+      if( check_lt_app_capsense_tuned_trigger_status() )
+      {
+        if (!gen_blk_get_dcb_present_flag() && !gsCfgFileFoundFlag)
+          EnableLowTouchDetection(false);
+      }
       status = M2M2_DCB_STATUS_OK;
     } else {
       status = M2M2_DCB_STATUS_ERR_ARGS;
@@ -1246,5 +1408,6 @@ static m2m2_hdr_t *gen_blk_dcb_command_delete_config(m2m2_hdr_t *p_pkt) {
   return p_resp_pkt;
 }
 #endif // DCB
+
 
 #endif

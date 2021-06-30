@@ -57,6 +57,8 @@
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
+
+#define TEMP_DATA_VALIDBITS 0XFFFF
 static void display_func(void)
 {
     uint8_t status;
@@ -142,7 +144,7 @@ static void m2m2_protocol_handle(void * ptr)
 {
     m2m2_hdr_t *p_m2m2_ = NULL;
     temperature_app_stream_t *payload = NULL;
-    uint16_t temp_value;
+    uint32_t temp_value;
     p_m2m2_ = (m2m2_hdr_t *)ptr;
 
     if(p_m2m2_->src==M2M2_ADDR_MED_TEMPERATURE_STREAM)
@@ -150,8 +152,8 @@ static void m2m2_protocol_handle(void * ptr)
         payload = (temperature_app_stream_t *)&p_m2m2_->data[0];
         if(payload->command == M2M2_SENSOR_COMMON_CMD_STREAM_DATA)
         {
-            temp_value = payload->nTemperature1;
-            lygl_send_graph_data(&temp_value,1);
+            temp_value = (uint32_t)(payload->nTemperature1);
+            lygl_send_graph_data(&temp_value,1,TEMP_DATA_VALIDBITS);
             lygl_draw_rectangle(62,149,120,181,COLOR_BACKGROUND);
             lygl_dis_decimal_middle(&lygl_font_32,94,165,COLOR_WHITE,payload->nTemperature1,1);/* display decimal*/
             lcd_display_refresh_section(40,181);

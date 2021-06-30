@@ -1,0 +1,8 @@
+#BCM_DCB_LCFG
+
+00 0014	# for checking DCB, ODR here is 25 Hz to differentiate DCB value from f/w value . Default f/w BCM ODR = 4 Hz
+01 0000 # ADC PGA gain is default, options are 0 for ADC gain 1,1 for ADC gain 1.5,2 for ADC gain 2,3 for ADC gain 4,4 for ADC gain 9
+02 0000 # power modulation, 0 or 1, 0 for low power , 1 for high power
+03 C350 # Sine frequency 50,000
+04 000B # DFTNUM_8192 = 11 is default
+

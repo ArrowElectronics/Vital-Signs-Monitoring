@@ -15,7 +15,7 @@ def inter_op_dcb_test():
 
     :return:
     """
-    qa_utils.dcb_test(dev='ADPD4K', dcb_file='adpd_qa_dcb.dcfg', dcb_read_file='adpd4000_dcb_get.dcfg',
+    qa_utils.dcb_test(dev='ADPD4K', dcb_file='adpd_qa_dcb.dcfg', dcb_read_file='adpd_dcb_get.dcfg',
                       test_name='Inter-Op ADPD DCB Test')
     qa_utils.dcb_test(dev='ADXL362', dcb_file='adxl_dcb.dcfg', dcb_read_file='adxl_dcb_get.dcfg',
                       test_name='Inter-Op ADXL DCB Test')
@@ -45,38 +45,29 @@ def inter_op_ecg_switch_independent_test():
     temp_freq_hz = 1
     eda_freq_hz = 4
 
-    common.dcb_cfg('d', 'adpd4000')
-    qa_utils.write_dcb('adpd4000', 'adpd_qa_dcb.dcfg', 'ADPD DCB Test')
-    common.watch_shell.do_loadAdpdCfg("40")
+    common.dcb_cfg('d', 'adpd')
+    qa_utils.write_dcb('adpd', 'adpd_qa_dcb.dcfg', 'ADPD DCB Test')
+    common.watch_shell.do_load_adpd_cfg("1")
 
     common.dcb_cfg('d', 'adxl')
     qa_utils.write_dcb('adxl', 'adxl_dcb.dcfg', 'ADXL Stream Test')
-    common.watch_shell.do_loadAdxlCfg("362")
 
     common.dcb_cfg('d', 'eda')
-    common.watch_shell.do_set_eda_dcb_lcfg("")
 
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
+    common.watch_shell.do_disable_electrode_switch('3')
+    common.watch_shell.do_disable_electrode_switch('2')
+    common.watch_shell.do_disable_electrode_switch('1')
 
     adpd_f_name = common.quick_start_adpd(samp_freq_hz=adpd_freq_hz, agc_state=1)
     common.quick_start_adxl(samp_freq_hz=adxl_freq_hz)
-    common.watch_shell.do_quickstart("temperature")
-    common.watch_shell.do_plot("rtemperature")
+    common.quick_start_temperature()
     common.quick_start_eda(eda_freq_hz)
-    common.watch_shell.do_plot("reda")
-
-    # common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 0')
-    # common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
-    # common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
 
     time.sleep(capture_time)
     common.quick_stop_adpd('G')
-    common.watch_shell.do_quickstop('adxl')
-    common.watch_shell.do_quickstop('temperature')
-    common.watch_shell.do_quickstop('eda')
-    common.close_plot_after_run(['ADPD400x Data', 'ADXL Data', 'Temperature Data Plot', 'EDA Data Plot'])
+    common.watch_shell.quick_stop('adxl', 'adxl')
+    common.watch_shell.quick_stop('temp', 'temp')
+    common.watch_shell.quick_stop('eda', 'eda')
 
     f_path_adpd = common.rename_stream_file(adpd_f_name, "Ecg_SW_independent_{}Hz.csv".format(adpd_freq_hz))
     f_path_adxl = common.rename_stream_file(common.adxl_stream_file_name,
@@ -95,26 +86,26 @@ def inter_op_ecg_switch_independent_test():
                                                                                   temp_freq_hz)
     err_status_eda, err_str_eda, results_dict_eda = qa_utils.check_stream_data(f_path_eda, 'eda', 1, eda_freq_hz)
 
-    common.logging.info('ADPD {}Hz Ecg SW Independent Test Results: {}'.format(adpd_freq_hz, results_dict_adpd_ch1))
-    common.logging.info('ADPD {}Hz Ecg SW Independent Test Results: {}'.format(adpd_freq_hz, results_dict_adpd_ch2))
-    common.logging.info('ADXL {}Hz Ecg SW Independent Test Results: {}'.format(adxl_freq_hz, results_dict_adxl))
-    common.logging.info('Temperature {}Hz Ecg SW Independent Test Results: {}'.format(temp_freq_hz, results_dict_temp))
-    common.logging.info('EDA {}Hz Ecg SW Independent Test Results: {}'.format(eda_freq_hz, results_dict_eda))
+    common.test_logger.info('ADPD {}Hz Ecg SW Independent Test Results: {}'.format(adpd_freq_hz, results_dict_adpd_ch1))
+    common.test_logger.info('ADPD {}Hz Ecg SW Independent Test Results: {}'.format(adpd_freq_hz, results_dict_adpd_ch2))
+    common.test_logger.info('ADXL {}Hz Ecg SW Independent Test Results: {}'.format(adxl_freq_hz, results_dict_adxl))
+    common.test_logger.info('Temperature {}Hz Ecg SW Independent Test Results: {}'.format(temp_freq_hz, results_dict_temp))
+    common.test_logger.info('EDA {}Hz Ecg SW Independent Test Results: {}'.format(eda_freq_hz, results_dict_eda))
 
     if err_status_adpd_ch1:
-        common.logging.error('***PPG {}Hz Ecg SW Independent Test - FAIL ***'.format(adpd_freq_hz))
+        common.test_logger.error('***PPG {}Hz Ecg SW Independent Test - FAIL ***'.format(adpd_freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_adpd_ch1))
     if err_status_adpd_ch2:
-        common.logging.error('***PPG {}Hz Ecg SW Independent Test - FAIL ***'.format(adpd_freq_hz))
+        common.test_logger.error('***PPG {}Hz Ecg SW Independent Test - FAIL ***'.format(adpd_freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_adpd_ch2))
     if err_status_adxl:
-        common.logging.error('*** ADXL {}Hz Ecg SW Independent Test - FAIL ***'.format(adxl_freq_hz))
+        common.test_logger.error('*** ADXL {}Hz Ecg SW Independent Test - FAIL ***'.format(adxl_freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_adxl))
     if err_status_temp:
-        common.logging.error('*** Temperature {}Hz Ecg SW Independent Test - FAIL ***'.format(temp_freq_hz))
+        common.test_logger.error('*** Temperature {}Hz Ecg SW Independent Test - FAIL ***'.format(temp_freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_temp))
     if err_status_eda:
-        common.logging.error('*** EDA {}Hz Ecg SW Independent Test - FAIL ***'.format(eda_freq_hz))
+        common.test_logger.error('*** EDA {}Hz Ecg SW Independent Test - FAIL ***'.format(eda_freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_eda))
 
 

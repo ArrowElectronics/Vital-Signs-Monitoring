@@ -169,7 +169,7 @@ def use_case_5_fs_randomized_test(iterate=1):
 
 
 def use_case_randomized_test(iterate=1):
-    indices = range(5)
+    indices = list(range(5))
     indices_list = [tuple(indices)]
     for _ in range(iterate):
         while 1:
@@ -192,7 +192,7 @@ def use_case_randomized_test(iterate=1):
 
 
 def use_case_fs_randomized_test(iterate=1):
-    indices = range(5)
+    indices = list(range(5))
     indices_list = [tuple(indices)]
     for _ in range(iterate):
         while 1:

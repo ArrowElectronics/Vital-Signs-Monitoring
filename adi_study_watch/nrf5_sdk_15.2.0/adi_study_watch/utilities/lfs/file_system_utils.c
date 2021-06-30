@@ -65,7 +65,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifdef NRF_LOG_DEFAULT_LEVEL
 #undef NRF_LOG_DEFAULT_LEVEL
 #define NRF_LOG_DEFAULT_LEVEL FS_UTILS_CONFIG_LOG_LEVEL
-#endif /* NRF_LOG_DEFAULT_LEVEL */     
+#endif /* NRF_LOG_DEFAULT_LEVEL */
 #define NRF_LOG_INFO_COLOR  FS_UTILS_CONFIG_INFO_COLOR
 #define NRF_LOG_DEBUG_COLOR FS_UTILS_CONFIG_DEBUG_COLOR
 #else /* FS_UTILS_CONFIG_LOG_ENABLED */
@@ -97,7 +97,7 @@ _memory_properties go_fs_mem_prop = {.mem_size = DATA_FLASH_SIZE,
                                .num_of_blocks = NUM_OF_BLOCKS};
 
 /* data file memory */
-uint32_t volatile gn_fs_used_memory = 0; 
+uint32_t volatile gn_fs_used_memory = 0;
 /* config file memory */
 uint32_t volatile gn_fs_used_config_memory = 0;
 
@@ -110,7 +110,6 @@ static  const  char   *fs_hal_month_name[] = {
     "jul",    "aug",    "sep",    "oct",    "nov",    "dec"
 };
 #endif
-#define TOTAL_MEM_SIZE 536870912 
 
 /*!
   ****************************************************************************
@@ -141,8 +140,10 @@ int fs_hal_vol_name_size(void) {
 FS_STATUS_ENUM_t fs_hal_init(void) {
   bool fs_version = false;
   uint32_t fs_rem_space = 0;
+  elfs_result version_error;
+
   /* Reset Nand Flash */
-  if(nand_flash_init() != NRFX_SUCCESS) {
+  if(nand_flash_init() == NAND_NRF_DRIVER_ERROR) {
       return FS_STATUS_INIT_DRIVER_ERR;
   }
   /* Unlock Memory */
@@ -153,18 +154,16 @@ FS_STATUS_ENUM_t fs_hal_init(void) {
   if(lfs_openfs(&go_fs_mem_prop) != LFS_SUCCESS) {
     return FS_STATUS_ERR;
   }
+
+  version_error = lfs_check_comp_version(&fs_version);
+
   /* Check Version Compatibility */
-  if(lfs_check_comp_version(&fs_version) != LFS_SUCCESS) {
-    return FS_STATUS_ERR;
-  }
+  if(version_error == LFS_READ_RESERVED_INFO_ERROR);
+
     if(fs_version != true) {
-     if(fs_hal_format(true) != FS_STATUS_OK) {
-      return FS_STATUS_ERR;
-     }
-     /* only if version mismatch update head and tail pointers */
-     if(initialize_circular_buffer() != LFS_SUCCESS){
-      return FS_STATUS_ERR;
-     }
+      if(fs_hal_flash_reset() == FS_STATUS_ERR){
+        return FS_STATUS_ERR;
+       }
     }
     /* Read table page in structure to preserve contents */
     memset(&gh_fs_table_file_handler,0,sizeof(gh_fs_table_file_handler));
@@ -200,17 +199,17 @@ FS_STATUS_ENUM_t fs_hal_init(void) {
                               &gh_fs_table_file_handler) != LFS_SUCCESS)  {
         return FS_STATUS_ERR;
       }
-      
+
       tmp_bad_blk_num=0;
       /* get bad block number from File Block to Tail Pointer */
       if(get_bad_block_number(&tmp_bad_blk_num,FILEBLOCK,vol_info_buff_var.tmp_tail_pointer,\
         &gh_fs_table_file_handler) != LFS_SUCCESS)  {
         return FS_STATUS_ERR;
       }
-      
+
       bad_block_num += tmp_bad_blk_num;
   }
-  
+
   else if(vol_info_buff_var.tmp_head_pointer == vol_info_buff_var.tmp_tail_pointer )  {
       /* Get no of Bad blocks betweeb FILEBLOCK and total blocks in flash */
      if(get_bad_block_number(&bad_block_num,FILEBLOCK,go_fs_mem_prop.num_of_blocks,\
@@ -218,7 +217,7 @@ FS_STATUS_ENUM_t fs_hal_init(void) {
      return FS_STATUS_ERR;
     }
   }
-        
+
     /* Subtract area corresponding to Bad blocks */
     gn_fs_used_memory += (bad_block_num*go_fs_mem_prop.block_size);
 
@@ -253,7 +252,7 @@ FS_STATUS_ENUM_t fs_hal_format(bool_t bfmt_config_blk) {
 
   /* Reset the memory */
   nand_flash_reset();
-  
+
   /* reset strcucture */
   memset(&vol_info_buff_var,0,sizeof(vol_info_buff_var));
   if(lfs_format(bfmt_config_blk) != LFS_SUCCESS) {
@@ -307,6 +306,46 @@ FS_STATUS_ENUM_t fs_hal_format(bool_t bfmt_config_blk) {
 
 /*!
   ****************************************************************************
+  *@brief      fs_block_erase
+  *@param      block_no: block no to erase
+  *@return     file system status.
+******************************************************************************/
+FS_STATUS_ENUM_t fs_block_erase(uint16_t block_no) {
+
+  /* Reset the memory */
+  nand_flash_reset();
+
+  if((nand_func_erase(&go_fs_mem_prop,block_no,1)) != NAND_FUNC_SUCCESS) {
+        NRF_LOG_INFO("Error in block erase");
+       return FS_STATUS_ERR;
+  }
+  return FS_STATUS_OK;
+}
+
+/*!
+  ****************************************************************************
+  *@brief      fs_write_rsd_block
+  *@param      data: data bytes to be written
+               size: size of data bytes
+  *@return     file system status.
+******************************************************************************/
+FS_STATUS_ENUM_t fs_write_rsd_block(uint32_t data[], uint16_t size) {
+
+  /* Reset the memory */
+  nand_flash_reset();
+
+   /* write file handler information */
+  if(nand_func_write(&go_fs_mem_prop,(RESERVEDBLOCK*go_fs_mem_prop.block_size),\
+                              size,(uint8_t *)&data) !=  NAND_FUNC_SUCCESS) {
+    NRF_LOG_WARNING("Error in writing reserved block first page");
+    return FS_STATUS_ERR;
+  }
+
+  return FS_STATUS_OK;
+}
+
+/*!
+  ****************************************************************************
   *@brief      Write blocks of pattern data
   *@param     pbuff: buffer with pattern data
   *@param     start_block_num: block number to start writing data
@@ -350,11 +389,7 @@ FS_STATUS_ENUM_t fs_hal_flash_reset() {
     NRF_LOG_INFO("Error in lfs_flash_reset");
     return   FS_STATUS_ERR;
   }
-  /* write reserved block info and init pointers */
-  if(lfs_reset_file_system() != LFS_SUCCESS) {
-    NRF_LOG_INFO("Error in resetting fs task");
-    return FS_STATUS_ERR;
-  }
+
   /* Check Version Compatibility */
   if(lfs_check_comp_version(&fs_version) != LFS_SUCCESS) {
     return FS_STATUS_ERR;
@@ -479,7 +514,7 @@ typedef enum {
   *@brief       Searches for the given config file in file directory
   *@param       pfile_name: pointer to character array of config file
   *@param       nfile_nameLen: length of config file name
-  *@param       bdelete_config_file: bool varible if set, 
+  *@param       bdelete_config_file: bool variable if set,
                 given config file will be deleted from the LFS directory
   *@param       pconfig_file_found: pointer to the fileFound result flag
   *@return      FS_STATUS_ENUM_t:file system status.
@@ -566,7 +601,7 @@ FS_STATUS_ENUM_t fs_hal_delete_config_file( uint8_t *pfile_name, uint8_t nfile_n
   *@return      FS_STATUS_ENUM_t: file system status.
 *****************************************************************************/
 FS_STATUS_ENUM_t fs_hal_list_dir(const char* p_dir_path, char *p_file_path, \
-                                uint32_t length,uint8_t *file_type,uint32_t *file_size)       
+                                uint32_t length,uint8_t *file_type,uint32_t *file_size)
 {
   static FS_DIR_STATUS_ENUM_t dir_access_status = FS_DIR_ACCESS_START;
   static uint8_t fileindex = 0;
@@ -662,7 +697,7 @@ FS_STATUS_ENUM_t fs_hal_get_file_info(uint8_t* pfile_index, file_info_t *pfile_i
 
   for(uint8_t i=0; i < FILE_NAME_LEN; i++)
   {
-    pfile_info->file_name[i] = file_handler.head.file_name[i];    
+    pfile_info->file_name[i] = file_handler.head.file_name[i];
     if(file_handler.head.file_name[i] == '\0') /* end of the file reached */
       break;
   }
@@ -677,15 +712,79 @@ FS_STATUS_ENUM_t fs_hal_get_file_info(uint8_t* pfile_index, file_info_t *pfile_i
   ****************************************************************************
   *@brief      It does sanity test of reading the given page from flash memory
   *@param[in]       ppage_num: page number to be tested
+  *                 num_bytes: number of bytes to be read; maximum we can 100 bytes
   *@param[out]      ppage_read_test_info: pointer to page read test info
   *@return      FS_STATUS_ENUM_t: file system status.
 ******************************************************************************/
-FS_STATUS_ENUM_t fs_hal_page_read_test(uint32_t* ppage_num, page_read_test_t *ppage_read_test_info,uint8_t num_bytes)
+FS_STATUS_ENUM_t fs_hal_page_read_test(uint32_t* ppage_num, m2m2_file_sys_page_read_test_resp_pkt_t *ppage_read_test_info,uint8_t num_bytes)
 {
-  memset(ppage_read_test_info->data_samples,0,100);
-  ppage_read_test_info->data_status = read_page_data(*ppage_num, (uint8_t *)&ppage_read_test_info->data_samples, num_bytes);
-  ppage_read_test_info->ecc_status = read_page_ecc_zone(*ppage_num, &ppage_read_test_info->next_page, &ppage_read_test_info->occupied);
-  return (ppage_read_test_info->data_status | ppage_read_test_info->ecc_status);
+  //calculate block no baased on page no, read it proper format, memcpy and send it out
+  uint32_t block_ind = *ppage_num / go_fs_mem_prop.pages_per_block;
+  memset(ppage_read_test_info->sample_data,0,num_bytes);
+
+  if(block_ind == RESERVEDBLOCK){
+    _fs_info tmp_file_info;
+
+    /* Read within the reserved block */
+    if(nand_func_read(&go_fs_mem_prop,(RESERVEDBLOCK*go_fs_mem_prop.block_size+*ppage_num),\
+                    num_bytes,(uint8_t*)&tmp_file_info) != NAND_FUNC_SUCCESS)  {
+      NRF_LOG_INFO("Error in reading version Information");
+      ppage_read_test_info->data_region_status = -1;
+    }
+    else{
+        ppage_read_test_info->data_region_status = 0;
+    }
+
+    NRF_LOG_INFO("foot print = %s, version = %d, revision = %d",
+    nrf_log_push(tmp_file_info.foot_print),
+    tmp_file_info.version,
+    tmp_file_info.revision);
+
+    memcpy(ppage_read_test_info->sample_data,(uint8_t *)&tmp_file_info,num_bytes);
+  }
+
+  else if(block_ind == TOCBLOCK){
+    if((TOC_BLOCK_FIRST_PAGE <= *ppage_num) && (*ppage_num < (TOC_BLOCK_LAST_PAGE(TOC_BLOCK_FIRST_PAGE,TABLE_PAGE_INDEX_IN_TOC)) )){
+      _file_header fileheader;
+      /* file handler type */
+       if(nand_func_read(&go_fs_mem_prop,(*ppage_num) * go_fs_mem_prop.page_size,\
+                    num_bytes,(uint8_t*)&fileheader) != NAND_FUNC_SUCCESS)  {
+              NRF_LOG_INFO("Error in reading file handler information");
+              ppage_read_test_info->data_region_status = -1;
+        }
+        else{
+        ppage_read_test_info->data_region_status = 0;
+       }
+       memcpy(ppage_read_test_info->sample_data,(uint8_t *)&fileheader,num_bytes);
+    }
+    else{
+      _table_file_handler tableheader;
+      /* table file handler */
+       if(nand_func_read(&go_fs_mem_prop,(*ppage_num) * go_fs_mem_prop.page_size,num_bytes,\
+          (uint8_t*)&tableheader) != NAND_FUNC_SUCCESS){
+          ppage_read_test_info->data_region_status = -1;
+          NRF_LOG_INFO("Error in reading file handler information");
+       }
+       else{
+        ppage_read_test_info->data_region_status = 0;
+       }
+          ppage_read_test_info->sample_data[0] = (uint8_t )tableheader.table_file_info.tail_pointer;
+          ppage_read_test_info->sample_data[1] = (uint8_t )tableheader.table_file_info.head_pointer;
+          ppage_read_test_info->sample_data[2] = (uint8_t )tableheader.table_file_info.initialized_circular_buffer;
+          ppage_read_test_info->sample_data[3] = (uint8_t )tableheader.table_file_info.mem_full_flag;
+          ppage_read_test_info->sample_data[4] = (uint8_t )tableheader.table_file_info.offset;
+          ppage_read_test_info->sample_data[5] = (uint8_t )tableheader.table_file_info.config_low_touch_occupied;
+      }
+    }
+  else{
+    ppage_read_test_info->data_region_status = read_page_data(*ppage_num, (uint8_t *)&ppage_read_test_info->sample_data, num_bytes);  
+  }
+  for(int i=0;i < num_bytes;i++){
+      NRF_LOG_INFO("%d",ppage_read_test_info->sample_data[i]);
+    }
+
+  ppage_read_test_info->ecc_zone_status = read_page_ecc_zone(*ppage_num, &ppage_read_test_info->next_page, &ppage_read_test_info->occupied);
+  return (ppage_read_test_info->data_region_status | ppage_read_test_info->ecc_zone_status);
 }
 
 
@@ -927,11 +1026,12 @@ FS_STATUS_ENUM_t fs_hal_open_file(char* p_file_path)
     return FS_STATUS_ERR;
   }
   /* Update used memory */
+  /* max used memory can be 2044 blocks data size */
   gn_fs_used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
 
 
   /* Check for memory full */
-  if(gn_fs_used_memory >= TOTAL_MEM_SIZE) {
+  if(gn_fs_used_memory >= DATA_FLASH_SIZE) {
     return FS_STATUS_ERR_MEMORY_FULL;
   }
   /* File object */
@@ -946,7 +1046,7 @@ FS_STATUS_ENUM_t fs_hal_open_file(char* p_file_path)
   if(lfs_status != LFS_SUCCESS) {
     if(lfs_status == LFS_MAX_FILE_COUNT_ERROR) {
       return FS_STATUS_ERR_MAX_FILE_COUNT;
-    } 
+    }
     else if(lfs_status == LFS_CONFIG_FILE_POSITION_ERROR) {
       return FS_STATUS_ERR_CONFIG_FILE_POSITION;
     } else {
@@ -1033,7 +1133,7 @@ FS_STATUS_ENUM_t fs_hal_close_file(_file_handler *file_handler) {
 /*!
   ****************************************************************************
   *@brief       Get file count
-  *@param       p_file_count: pointer in which the number of files 
+  *@param       p_file_count: pointer in which the number of files
                 present is returned
   *@return      FS_STATUS_ENUM_t: file system status.
 *****************************************************************************/
@@ -1061,8 +1161,8 @@ FS_STATUS_ENUM_t fs_hal_get_file_count(uint8_t *p_file_count) {
   *@param       file_handler: handlr to file
   *@return      file system status.
 ******************************************************************************/
-FS_STATUS_ENUM_t fs_hal_write_config_file(uint8_t *p_buffer, 
-                                          uint32_t *nitems, 
+FS_STATUS_ENUM_t fs_hal_write_config_file(uint8_t *p_buffer,
+                                          uint32_t *nitems,
                                           _file_handler *file_handler) {
   elfs_result      FS_Error;
   static uint32_t nBytes_written = 0;
@@ -1086,7 +1186,7 @@ FS_STATUS_ENUM_t fs_hal_write_config_file(uint8_t *p_buffer,
   // TO DO
   /* Check for memory full */
   /* block of data =  2044 * 64 * 4096 */
-  if(gn_fs_used_config_memory >= 262144) { 
+  if(gn_fs_used_config_memory >= BLOCK_SIZE) {
     return FS_STATUS_ERR_MEMORY_FULL;
   }
   if (FS_Error != LFS_SUCCESS) {
@@ -1109,7 +1209,7 @@ FS_STATUS_ENUM_t fs_hal_write_config_file(uint8_t *p_buffer,
   *@return      FS_STATUS_ENUM_t: file system status.
 *****************************************************************************/
 FS_STATUS_ENUM_t fs_hal_write_file(uint8_t *p_buffer,
-                                   uint32_t *nitems, 
+                                   uint32_t *nitems,
                                    _file_handler *file_handler) {
   elfs_result FS_Error;
   static uint32_t nBytes_written = 0;
@@ -1122,7 +1222,7 @@ FS_STATUS_ENUM_t fs_hal_write_file(uint8_t *p_buffer,
 uint32_t nTick = 0;
 nTick = MCU_HAL_GetTick();
 #endif
-  
+
   /* Write data to File */
   FS_Error = lfs_update_file(p_buffer, *nitems, file_handler,&gh_fs_table_file_handler);
 #ifdef PROFILE_TIME_ENABLED
@@ -1145,7 +1245,7 @@ nTick = MCU_HAL_GetTick();
     if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
     return FS_STATUS_ERR;
     }
-   
+
    /* update temp variables while writing */
    vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_handler.table_file_info.head_pointer;
    vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_handler.table_file_info.tail_pointer;
@@ -1162,14 +1262,14 @@ nTick = MCU_HAL_GetTick();
   }
   // TO DO
   /* Check for memory full */
-  if(gn_fs_used_memory >= TOTAL_MEM_SIZE) { /* 2044 blocks for data */
+  if(gn_fs_used_memory >= DATA_FLASH_SIZE) { /* 2044 blocks for data */
     return FS_STATUS_ERR_MEMORY_FULL;
   }
   if (FS_Error != LFS_SUCCESS) {
     /* file closed as cannot be recovered */
-    if(FS_Error == LFS_FILE_WRITE_ERROR) 
+    if(FS_Error == LFS_FILE_WRITE_ERROR)
       /* update in file header as invalid */
-      file_handler->head.file_type = LFS_INVALID_FILE; 
+      file_handler->head.file_type = LFS_INVALID_FILE;
     if (lfs_end_file(file_handler,&gh_fs_table_file_handler) == LFS_SUCCESS) {
       ge_file_wr_access = FS_FILE_ACCESS_START;
       if(FS_Error == LFS_FILE_WRITE_ERROR)
@@ -1212,7 +1312,7 @@ FS_STATUS_ENUM_t fs_hal_fixed_pattern_write_file(uint8_t *p_buffer,uint16_t star
   /* Updated bytes written to Flash */
   nBytes_written += *nitems;
   // TO DO
-  if(nBytes_written >= 16384) { /* updating header for 4*page_size written */
+  if(nBytes_written >= TOC_REPEATED_UPDATE_SIZE) { /* updating header for 4*page_size written */
     nBytes_written = 0;
     /* Refresh Handler */
     if(file_handler->op_mode == LFS_MODE_MANUAL) {
@@ -1221,14 +1321,14 @@ FS_STATUS_ENUM_t fs_hal_fixed_pattern_write_file(uint8_t *p_buffer,uint16_t star
   }
   // TO DO
   /* Check for memory full */
-  if(gn_fs_used_memory >= TOTAL_MEM_SIZE) { /* 2044 blocks for data */
+  if(gn_fs_used_memory >= DATA_FLASH_SIZE) { /* 2044 blocks for data */
     return FS_STATUS_ERR_MEMORY_FULL;
   }
   if (FS_Error != LFS_SUCCESS) {
     /* file closed as cannot be recovered */
-    if(FS_Error == LFS_FILE_WRITE_ERROR) 
+    if(FS_Error == LFS_FILE_WRITE_ERROR)
     /* update in file header as invalid */
-      file_handler->head.file_type = LFS_INVALID_FILE; 
+      file_handler->head.file_type = LFS_INVALID_FILE;
     if (lfs_end_file(file_handler,&gh_fs_table_file_handler) == LFS_SUCCESS) {
       ge_file_wr_access = FS_FILE_ACCESS_START;
       if(FS_Error == LFS_FILE_WRITE_ERROR)
@@ -1294,11 +1394,11 @@ M2M2_APP_COMMON_STATUS_ENUM_t fs_hal_write_packet_stream(m2m2_hdr_t *pkt)
     pkt->checksum = BYTE_SWAP_16(pkt->checksum);
 #ifdef PROFILE_TIME_ENABLED
 uint32_t nTick = 0;
-nTick = MCU_HAL_GetTick();          
+nTick = MCU_HAL_GetTick();
 #endif
     fs_err_status = fs_hal_write_file((uint8_t *)pkt,
                                       &buffersize, &gh_fs_file_write_handler);
-   
+
 #ifdef PROFILE_TIME_ENABLED
           uint32_t hal_pkt_write_time = MCU_HAL_GetTick() - nTick;
          // NRF_LOG_INFO("Time taken for packet write time = %d",hal_pkt_write_time);
@@ -1334,7 +1434,7 @@ nTick = MCU_HAL_GetTick();
   *@param       nbuff_size: size of the test pattern array
   *@return      M2M2_APP_COMMON_STATUS_ENUM_t: file system status.
 *****************************************************************************/
-M2M2_APP_COMMON_STATUS_ENUM_t fs_hal_test_pattern_write(uint8_t* pbuff, 
+M2M2_APP_COMMON_STATUS_ENUM_t fs_hal_test_pattern_write(uint8_t* pbuff,
                                                         uint32_t nbuff_size) {
   FS_STATUS_ENUM_t fs_err_status;
 	if (fs_hal_write_access_state() == FS_FILE_ACCESS_IN_PROGRESS) {
@@ -1362,7 +1462,7 @@ M2M2_APP_COMMON_STATUS_ENUM_t fs_hal_test_pattern_write(uint8_t* pbuff,
   *@param       nbuff_size: size of the test pattern array
   *@return      M2M2_APP_COMMON_STATUS_ENUM_t: file system status.
 ******************************************************************************/
-M2M2_APP_COMMON_STATUS_ENUM_t fs_hal_test_pattern_config_write(uint8_t* pbuff, 
+M2M2_APP_COMMON_STATUS_ENUM_t fs_hal_test_pattern_config_write(uint8_t* pbuff,
                                                                uint32_t nbuff_size) {
   FS_STATUS_ENUM_t fs_err_status;
   if (fs_hal_write_access_state() == FS_FILE_ACCESS_IN_PROGRESS) {
@@ -1416,7 +1516,7 @@ FS_STATUS_ENUM_t fs_hal_unblock_flash(void) {
 /*!
   ****************************************************************************
   *@brief       Check for availability of file
-  *@param       file_name: name of file 
+  *@param       file_name: name of file
   *@return      FS_STATUS_ENUM_t: file system status.
 *****************************************************************************/
 FS_STATUS_ENUM_t fs_hal_find_file(char* file_name) {
@@ -1443,7 +1543,7 @@ FS_STATUS_ENUM_t fs_hal_find_file(char* file_name) {
 /*!
   ****************************************************************************
   *@brief       Power on flash
-  *@param       benable: flag to power on/off flash 
+  *@param       benable: flag to power on/off flash
   *@return      FS_STATUS_ENUM_t: file system status.
 *****************************************************************************/
 FS_STATUS_ENUM_t fs_flash_power_on (bool benable) {
@@ -1455,13 +1555,13 @@ FS_STATUS_ENUM_t fs_flash_power_on (bool benable) {
     /* Unblock locked flash module */
     if(fs_hal_unblock_flash() != FS_STATUS_OK) {
       return FS_STATUS_ERR;
-    } 
+    }
   }
   else if ((!benable) &&  (adp5360_is_ldo_enable(FS_LDO) == true)) {
     /* Check for file write and read in progress */
     if((fs_hal_write_access_state() == FS_FILE_ACCESS_START) && \
                      (ge_file_read_access == FS_FILE_ACCESS_START)) {
-        adp5360_enable_ldo(FS_LDO, false);      
+        adp5360_enable_ldo(FS_LDO, false);
     }
   }
   return FS_STATUS_OK;
@@ -1470,7 +1570,7 @@ FS_STATUS_ENUM_t fs_flash_power_on (bool benable) {
 /*!
   ****************************************************************************
   *@brief       Get remaining space on flash
-  *@param       None 
+  *@param       None
   *@return      uint32_t: remaining space on flash
 *****************************************************************************/
 uint32_t fs_hal_get_remaining_memory (void) {

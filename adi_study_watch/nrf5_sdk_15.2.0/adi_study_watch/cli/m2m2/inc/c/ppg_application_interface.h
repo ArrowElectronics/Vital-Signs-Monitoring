@@ -156,6 +156,7 @@ typedef struct _hrv_data_set_t {
   uint16_t  timestamp;
   int16_t  rr_interval;
   uint16_t  is_gap;
+  uint16_t rmssd;
 } hrv_data_set_t;
 
 typedef struct _ppg_app_hrv_info_t {
@@ -165,6 +166,7 @@ typedef struct _ppg_app_hrv_info_t {
   uint32_t  timestamp;
   int16_t  first_rr_interval;
   uint16_t  first_is_gap;
+  uint16_t first_rmssd;
   hrv_data_set_t  hrv_data[3];
 } ppg_app_hrv_info_t;
 

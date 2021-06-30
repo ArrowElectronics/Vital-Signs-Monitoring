@@ -1,5 +1,5 @@
 // This constructs and returns an object which runs the "call" method (i.e. iar_build("my_project.ewp", "Debug", -parallel 4))
-def call(String proj_file, String project_config, String project_name, String coverity_stream=null) {
+def call(String proj_file, String project_config, String project_name, String coverity_stream=null, String email_id=null) {
   env.GIT_VER = sh (
     script: "git describe --always --dirty",
     returnStdout: true
@@ -14,7 +14,11 @@ def call(String proj_file, String project_config, String project_name, String co
       sh "set -x"
       sh "${env.COVERITY_FORMAT_ERRORS_EXE} --dir ./coverity_output --html-output ./coverity_html"
       sh "zip -r coverity_results_${env.GIT_VER}.zip ./coverity_html"
-      def email_list = "${env.COVERITY_EMAIL_LIST}"
+      if (email_id != null) {
+        def email_list = email_id
+      } else {
+        def email_list = "${env.COVERITY_EMAIL_LIST}"
+      }
       def email_subject = "Perseus Coverity results:${coverity_stream}:${env.GIT_VER}"
       emailext attachmentsPattern: 'coverity_results_*.zip', body: '', subject: email_subject, to: email_list
       archiveArtifacts artifacts: 'coverity_results_*.zip', onlyIfSuccessful: true

@@ -38,8 +38,12 @@
 #include "adpd400x_reg.h"
 #include "Adxl362.h"
 #include "app_common.h"
+#include "math.h"
 
 uint16_t reg_base;
+uint16_t gPrevSamplerate = 0;
+extern volatile uint8_t gbAdpdSamplingRateChanged;
+extern void ppg_adjust_adpd_ext_trigger(uint16_t nOdr);
 /* Static variable and function prototypes */
 //uint8_t gnSynxDataSetSize = 0;
 /**
@@ -198,7 +202,7 @@ int16_t AdpdClSelectSlot(uint8_t eSlotAMode,uint8_t eSlotBMode) {
 * @param    Output of decimation value, 1 = no decimation
 * @return   -1=fail, 0=success
 */
-int8_t GetAdpdClOutputRate(uint16_t* sampleRate, uint16_t* decimation, uint8_t slotN) {
+int8_t GetAdpdClOutputRate(uint16_t* sampleRate, uint16_t* decimation, uint16_t slotN) {
 
     uint16_t nOsc = 0;
     uint16_t reg_base = 0;
@@ -231,7 +235,7 @@ int8_t GetAdpdClOutputRate(uint16_t* sampleRate, uint16_t* decimation, uint8_t s
     } else if (nOsc == 0x0001) {
       *sampleRate = 32000/nTimeSlotPeriod;   // LFOSC = 32KHz
     }
-    reg_base = slotN * 0x20;
+    reg_base = log2(slotN) * ADPD400x_SLOT_BASE_ADDR_DIFF;
     if(Adpd400xDrvRegRead(reg_base + ADPD400x_REG_DECIMATE_A, decimation) != ADPD400xDrv_SUCCESS)
     {
       return -1;
@@ -248,9 +252,9 @@ int8_t GetAdpdClOutputRate(uint16_t* sampleRate, uint16_t* decimation, uint8_t s
 * @param    decimation value
 * @return   -1=fail, 0=success
 */
-int8_t SetAdpdClOutputRate(uint16_t sampleRate, uint16_t decimation, uint8_t slotNum) {
+int8_t SetAdpdClOutputRate(uint16_t sampleRate, uint16_t decimation, uint16_t slotNum) {
 
-     uint16_t nOsc = 0, temp16;
+     uint16_t nOsc = 0, temp16,reg_base = 0;
      uint32_t nTimeSlotPeriod = 0;
 
      // TODO there is separate decimate register for each slot.
@@ -275,11 +279,17 @@ int8_t SetAdpdClOutputRate(uint16_t sampleRate, uint16_t decimation, uint8_t slo
 
     Adpd400xDrvRegWrite(ADPD400x_REG_TS_FREQ, (nTimeSlotPeriod&0xFFFF));
     Adpd400xDrvRegWrite(ADPD400x_REG_TS_FREQH,(nTimeSlotPeriod>>16));
-
-    Adpd400xDrvRegRead(ADPD400x_REG_DECIMATE_A, &temp16);
+    
+    reg_base = log2(slotNum) * ADPD400x_SLOT_BASE_ADDR_DIFF;
+    Adpd400xDrvRegRead(ADPD400x_REG_DECIMATE_A + reg_base, &temp16);
     temp16 = temp16 & 0xF80F;
-    temp16 |= (decimation + 1) << 4;
-    Adpd400xDrvRegWrite(ADPD400x_REG_DECIMATE_A, temp16);
+    temp16 |= (decimation - 1) << 4;//subract one becuase DECIMATE_FACTOR_x + 1 in register.
+    Adpd400xDrvRegWrite(ADPD400x_REG_DECIMATE_A + reg_base, temp16);
 
+    if(sampleRate != gPrevSamplerate){
+      ppg_adjust_adpd_ext_trigger(sampleRate);// Adjusting the external trigger timer
+      gPrevSamplerate = sampleRate;
+      gbAdpdSamplingRateChanged = 1;
+    }
   return 0;
 }

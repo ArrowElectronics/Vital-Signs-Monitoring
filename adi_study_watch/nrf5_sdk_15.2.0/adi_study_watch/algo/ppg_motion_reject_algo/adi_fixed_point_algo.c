@@ -220,6 +220,9 @@ int32_t gnAdpd400xTotalNumSamples;
 #define LOOPCOUNT 2
 #define CORE_FREQUENCY_MULTIPLIER 26000  // cycles per millisecond
 
+#define PPG_LIMIT 600000
+LibResult_t gAlgoResult_Backup;
+
 void Adpd400xAlgHRCfg() {
     gnAdpd400xSpotAlgoSampleRate =  gAdpd400x_lcfg->spotalgosamplerate;
     gnAdpd400xSpotAlgoDecimation =  gAdpd400x_lcfg->spotalgodecimation;
@@ -243,7 +246,7 @@ void Adpd400xAlgHRCfg() {
 int16_t Adpd400xAlgHRInit() {
 
     Adpd400xAlgHRCfg();
-
+    memset(&gAlgoResult_Backup,0,sizeof(gAlgoResult_Backup));
 #ifdef HRMPLUS
     /* initialize the memory object for the HRMPlus instance */
     Adpd400xvsmhrm_plus_memory_setup.state.block = STATE_memory_HRMPLUS;
@@ -361,6 +364,18 @@ ADPDLIB_ERROR_CODE_t Adpd400xAlgHRProcess(uint32_t nSlotSumA,
     int32_t nLoop;
 
     nSlotSumA = nSlotSumA;  // to remove warning
+    
+    if(nSlotSumB > PPG_LIMIT)
+    {
+      result->HR = gAlgoResult_Backup.HR;
+      result->confidence = gAlgoResult_Backup.confidence;
+      result->HR_Type = gAlgoResult_Backup.HR_Type; 
+      return  ADPDLIB_ERR_ALGO_INPUT_OVERFLOW;
+    }
+    gGetAlgoInfo.PPG_algo = nSlotSumB;
+    gGetAlgoInfo.X_algo = acceldata[0];
+    gGetAlgoInfo.Y_algo = acceldata[1];
+    gGetAlgoInfo.Z_algo = acceldata[2];
 
     nPpgSignal = (nSlotSumB * gnAdpd400xPpgScale);
 
@@ -522,8 +537,8 @@ ADPDLIB_ERROR_CODE_t Adpd400xAlgHRProcess(uint32_t nSlotSumA,
             if (Adpd400xvsmhrv_output.interval_ms != 0) { // added due to bug in HRV algo
               g_resultlog->RRinterval = Adpd400xvsmhrv_output.interval_ms;
               result->RRinterval = Adpd400xvsmhrv_output.interval_ms;
-              g_resultlog->IsHrvValid = 1;
-              result->IsHrvValid = 1;
+              g_resultlog->IsHrvValid = ADI_HRV_PPG_B2B_VALID_RR;
+              result->IsHrvValid = ADI_HRV_PPG_B2B_VALID_RR;
             } else {
               g_resultlog->RRinterval = 0;
               result->RRinterval = 0;
@@ -534,8 +549,8 @@ ADPDLIB_ERROR_CODE_t Adpd400xAlgHRProcess(uint32_t nSlotSumA,
           case ADI_HRV_PPG_B2B_GAP:
             g_resultlog->RRinterval = Adpd400xvsmhrv_output.interval_ms;
             result->RRinterval = Adpd400xvsmhrv_output.interval_ms;
-            g_resultlog->IsHrvValid = 0;
-            result->IsHrvValid = 0;
+            g_resultlog->IsHrvValid = ADI_HRV_PPG_B2B_GAP;
+            result->IsHrvValid = ADI_HRV_PPG_B2B_GAP;
             break;
           case ADI_HRV_PPG_B2B_NEED_MORE_INPUT:
             g_resultlog->RRinterval = 0;
@@ -581,6 +596,7 @@ ADPDLIB_ERROR_CODE_t Adpd400xAlgHRProcess(uint32_t nSlotSumA,
         /* Convert HR output to float */
         // HR_alg = FIXED16Q4_TO_FLOAT(vsmhrm_output.heart_rate_bpm);
 #endif
+        memcpy(&gAlgoResult_Backup,result,sizeof(gAlgoResult_Backup));
         return ADPDLIB_ERR_SUCCESS_WITH_RESULT;
 }
 

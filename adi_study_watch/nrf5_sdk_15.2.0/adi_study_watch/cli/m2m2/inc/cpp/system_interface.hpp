@@ -390,7 +390,7 @@ struct m2m2_ps_sys_sensor_apps_info_req_t {
   uint8_t  command;
   uint8_t  status;
   uint16_t  num_sensor_apps;
-  m2m2_pm_sys_sensor_app_status  app_info[15];
+  m2m2_pm_sys_sensor_app_status  app_info[21];
 };
 
 struct m2m2_pm_force_stream_stop_cmd_t {

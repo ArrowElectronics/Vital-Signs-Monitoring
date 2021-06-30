@@ -59,6 +59,7 @@ static uint32_t LevelThresholdOFF;    // reference ON/OFF TH
   * @param  Number of data to do averaging.
   * @retval none
   */
+#if 0
 void Adpd400xDetectObjectOffInit() {
     LevelThresholdOFF = gAdpd400xDetectVal.curDcLevelG * gAdpd400x_lcfg->triggerOffPercentage;
     LevelThresholdOFF /= 100;
@@ -73,6 +74,7 @@ void Adpd400xDetectObjectOffInit() {
     OccurCounter1 = OccurCounter2 = 0;
     return;
 }
+#endif
 
 /**
   * @brief Check if object is detached
@@ -80,6 +82,7 @@ void Adpd400xDetectObjectOffInit() {
   * @param1 mean current signal's variance value
   * @retval SUCCESS = detect OFF, IN_PROGRESS = detect OFF fail, keep checking
   */
+#if 0
 INT_ERROR_CODE_t Adpd400xDetectObjectOFF(uint32_t mean_val, uint32_t var) {
     uint8_t off_true;
 
@@ -128,3 +131,4 @@ INT_ERROR_CODE_t Adpd400xDetectObjectOFF(uint32_t mean_val, uint32_t var) {
     return IERR_IN_PROGRESS;
 
 }
+#endif

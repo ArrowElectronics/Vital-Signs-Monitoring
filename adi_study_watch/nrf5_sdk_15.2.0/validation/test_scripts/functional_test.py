@@ -46,7 +46,7 @@ def check_memory_access(dev_name, write_reg_list):
     """
     write_reg_str, read_reg_str = form_reg_write_str(write_reg_list)
     common.watch_shell.do_reg('w {} {}'.format(dev_name, write_reg_str))
-    err_stat, read_reg_list = common.watch_shell.do_reg('r {} {}'.format(dev_name, read_reg_str))
+    err_stat, read_reg_list = common.watch_shell.reg_read(dev_name, read_reg_str)
     if not err_stat:
         reg_mismatch = check_reg_val(write_reg_list, read_reg_list)
     else:
@@ -63,7 +63,7 @@ def memory_access_test():
 
     # ADPD memory access
     write_reg_list = [('0x105', '0x2525')]
-    mismatch_dict['adpd4000'] = check_memory_access('adpd4000', write_reg_list)
+    mismatch_dict['adpd4000'] = check_memory_access('adpd', write_reg_list)
 
     # ADXL memory access
     write_reg_list = [('0x2D', '0x10')]
@@ -82,27 +82,19 @@ def data_loss_test():
     pkt_loss_file_path = os.path.join(os.getcwd(), 'pkt_loss.yaml')
     if os.path.isfile(pkt_loss_file_path):
         os.remove(pkt_loss_file_path)
-    common.watch_shell.do_quickstart('ecg')
-    common.watch_shell.do_quickstart('adxl')
-    common.watch_shell.do_quickstart('ppg')
-    common.watch_shell.do_quickstart('syncppg')
-    common.watch_shell.do_quickstart('temperature')
-
-    common.watch_shell.do_plot('recg')
-    common.watch_shell.do_plot('radxl')
-    common.watch_shell.do_plot('rppg')
-    common.watch_shell.do_plot('rsyncppg')
-    common.watch_shell.do_plot('rtemperature')
+    common.watch_shell.quick_start('ecg', 'ecg')
+    common.watch_shell.quick_start('adxl', 'adxl')
+    common.watch_shell.quick_start('ppg', 'ppg')
+    common.watch_shell.quick_start('sync_ppg', 'sync_ppg')
+    common.watch_shell.quick_start('temp', 'temp')
 
     time.sleep(10)
 
-    common.watch_shell.do_quickstop('ecg')
-    common.watch_shell.do_quickstop('adxl')
-    common.watch_shell.do_quickstop('ppg')
-    common.watch_shell.do_quickstop('syncppg')
-    common.watch_shell.do_quickstop('temperature')
-
-    common.close_plot_after_run(['ECG Data Plot', 'Sync PPG Data', 'ADXL Data', 'Temperature Data Plot', 'PPG Data'])
+    common.watch_shell.quick_stop('ecg', 'ecg')
+    common.watch_shell.quick_stop('adxl', 'adxl')
+    common.watch_shell.quick_stop('ppg', 'ppg')
+    common.watch_shell.quick_stop('sync_ppg', 'sync_ppg')
+    common.watch_shell.quick_stop('temp', 'temp')
 
     if os.path.isfile(pkt_loss_file_path):  # This file will be generated with results by CLI if pkt loss occurs
         with open(pkt_loss_file_path, 'r') as f_ref:

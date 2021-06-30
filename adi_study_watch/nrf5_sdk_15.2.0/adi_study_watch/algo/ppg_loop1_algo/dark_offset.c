@@ -22,6 +22,7 @@
 *                                                                             *
 ******************************************************************************/
 #include <stdio.h>
+#include <math.h>
 #include "adpd400x_lib.h"
 #include "adpd400x_lib_common.h"
 #include "variables.h"
@@ -124,7 +125,7 @@ ADPDLIB_ERROR_CODE_t Adpd400xLibGetDarkOffset(uint32_t* rawData, uint16_t* dValu
   */
 void Adpd400xLibSetDarkOffset() {
   uint8_t i;
-  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * 0x20;
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
   for (i = 0; i < CHANNEL_NUM; i++) {
     if (gsDarkOffsetAvg[i] != 0 && gsOldIniOffset[i] != 0)  {
       AdpdDrvRegWrite(g_reg_base + gsRegDoc[i], gsDarkOffsetAvg[i]);
@@ -142,7 +143,7 @@ void Adpd400xLibSetDarkOffset() {
   */
 static void DarkOffsetCalculationInit() {
   uint8_t i;
-  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * 0x20;
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
   gsDarkOffsetSum = &gnAdpd400xTempData[0];
   gsOldIniOffset = (uint16_t*)&gnAdpd400xTempData[8];
   gsDarkOffsetAvg = (uint16_t*)&gnAdpd400xTempData[16];
@@ -179,7 +180,7 @@ static void DarkOffsetCalculationInit() {
   */
 static void DarkOffsetCalculationDeInit() {
   gsSampleCnt = 0;
-  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * 0x20;
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
   AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_INPUTS_A, Reg.x102);
   AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_LED_POW12_A, Reg.x105);
   AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_LED_POW34_A, Reg.x106);

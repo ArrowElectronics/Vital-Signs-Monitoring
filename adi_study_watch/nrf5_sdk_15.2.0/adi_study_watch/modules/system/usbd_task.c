@@ -76,7 +76,7 @@
 #include "adpd4000_dcfg.h"
 #include "adxl_dcfg.h"
 #include "dcb_general_block.h"
-#include "wrist_detect_block.h"
+#include "lt_app_lcfg_block.h"
 #include "mw_ppg.h"
 #include "semphr.h"
 #include "task.h"
@@ -149,6 +149,9 @@ ADI_OSAL_STATIC_THREAD_ATTR g_usbd_tx_task_attributes;
 StaticTask_t g_usbd_tx_task_tcb;
 /* Create Queue Handler for task */
 ADI_OSAL_QUEUE_HANDLE gh_usbd_tx_task_msg_queue = NULL;
+// Create semaphores
+static ADI_OSAL_SEM_HANDLE g_usbd_tx_task_evt_sem;
+
 
 /* For USBD app FreeRTOS Task Creation */
 /* Create the stack for task */
@@ -195,12 +198,19 @@ static volatile uint8_t gb_usb_status = USB_DISCONNECTED;
 /* Variable to initiate stream stop from all sensors when USB connection
  * status is either USB_DISCONNECTED or USB_PORT_CLOSED */
 static volatile bool gb_force_stream_stop = false;
+/* Flag to mark that usbd tx task is suspended or not(active) */
+uint8_t gn_usbd_tx_task_suspended = 0;
 /* Variable to hold the current status of USB tx: done or not; to be used by
  * FS task for log download decisions */
 static volatile uint8_t g_usb_tx_pending_flag = 0;
 /* To hold the USB connect src address(CLI/WT,etc) */
 M2M2_ADDR_ENUM_t usb_pkt_src = M2M2_ADDR_UNDEFINED;
+/* Flag to indicate usb powered event */
+volatile bool g_usb_power_detected_flag = false;
 
+extern volatile uint32_t  g_lt_task_timeout;
+extern ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
+extern ADI_OSAL_THREAD_HANDLE gh_lt_task_handler;
 /*!
  ****************************************************************************
  * @brief  Function to do FDS init adn RTC init
@@ -231,6 +241,7 @@ void send_message_usbd_tx_task(m2m2_hdr_t *p_pkt) {
   osal_result = adi_osal_MsgQueuePost(gh_usbd_tx_task_msg_queue, p_pkt);
   if (osal_result != ADI_OSAL_SUCCESS)
     post_office_consume_msg(p_pkt);
+  adi_osal_SemPost(g_usbd_tx_task_evt_sem);
 }
 
 /*!
@@ -287,6 +298,11 @@ void usbd_task_init(void) {
   }
 
   eOsStatus = adi_osal_SemCreate(&g_usb_wr_sync, 0U);
+  if (eOsStatus != ADI_OSAL_SUCCESS) {
+    Debug_Handler();
+  }
+
+  eOsStatus = adi_osal_SemCreate(&g_usbd_tx_task_evt_sem, 0);
   if (eOsStatus != ADI_OSAL_SUCCESS) {
     Debug_Handler();
   }
@@ -370,7 +386,7 @@ uint8_t usb_cdc_write_failed=0;
 void dcb_block_status_update() {
 #ifdef LOW_TOUCH_FEATURE
   gen_blk_update_dcb_present_flag();
-  wrist_detect_update_dcb_present_flag();
+  lt_app_lcfg_update_dcb_present_flag();
 #endif
   adpd4000_update_dcb_present_flag();
   adxl_update_dcb_present_flag();
@@ -386,6 +402,17 @@ void dcb_block_status_update() {
   ad7156_update_dcb_present_flag();
 }
 #endif
+
+/*!
+ ****************************************************************************
+ * @brief  Reset the msg queue of USBD tx transmit task
+ * @param  None
+ * @return None
+ ******************************************************************************/
+void usbd_tx_msg_queue_reset()
+{
+  xQueueReset( gh_usbd_tx_task_msg_queue );
+}
 
 /* Debug variable to count total USB Tx pkts transferred */
 static uint32_t gn_num_pkt_submit_cnt = 0;
@@ -426,10 +453,16 @@ static void usbd_tx_task(void *pArgument) {
   fds_rtc_init();
   dcb_block_status_update();
 
+  /* Suspend USBD tx task */
+  gn_usbd_tx_task_suspended = 1;
+  vTaskSuspend(NULL);
+
   while (1) {
+    adi_osal_SemPend(g_usbd_tx_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+    gn_usbd_tx_task_suspended = 0;
     if (gb_usb_status == USB_PORT_OPENED) {
       pkt = post_office_get(
-          ADI_OSAL_TIMEOUT_FOREVER, APP_OS_CFG_USBD_TX_TASK_INDEX);
+          ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_USBD_TX_TASK_INDEX);
       if (pkt == NULL) {
         continue;
       } else {
@@ -548,6 +581,9 @@ static void usbd_tx_task(void *pArgument) {
     else if ((gb_usb_status == USB_PORT_CLOSED) ||
                (gb_usb_status == USB_DISCONNECTED)) {
       if (!gb_force_stream_stop) {
+        gn_usbd_tx_task_suspended = 1;
+        usbd_tx_msg_queue_reset();
+        usb_pkt_src = M2M2_ADDR_UNDEFINED;
         vTaskSuspend(NULL); /* Suspend USB task */
       } else {
         /* Force-stop Sensor streaming that wasn't stopped */
@@ -570,7 +606,7 @@ static void usbd_tx_task(void *pArgument) {
           NRF_LOG_INFO("Sending Force stream stop cmd from USB");
           post_office_send(req_pkt, &err);
           gb_force_stream_stop = false;
-          usb_pkt_src = M2M2_ADDR_UNDEFINED;
+          adi_osal_SemPost(g_usbd_tx_task_evt_sem);
         }
       }
     }
@@ -599,6 +635,7 @@ static void cdc_acm_user_ev_handler(
     gb_usb_status = USB_PORT_OPENED;
     gb_force_stream_stop = false;
     adi_osal_ThreadResumeFromISR(gh_usbd_tx_task_handler);
+    adi_osal_SemPost(g_usbd_tx_task_evt_sem);
     /* Set up the first transfer */
 #ifdef USE_USB_READ
     if (!nRxLengthFlag) {
@@ -640,6 +677,7 @@ static void cdc_acm_user_ev_handler(
     NRF_LOG_INFO("CDC ACM port closed");
     gb_usb_status = USB_PORT_CLOSED;
     gb_force_stream_stop = true;
+    adi_osal_SemPost(g_usbd_tx_task_evt_sem);
     break;
 
   case APP_USBD_CDC_ACM_USER_EVT_TX_DONE:
@@ -876,6 +914,17 @@ static void cdc_acm_user_ev_handler(
   }
 }
 
+
+bool get_usb_powered_event_status()
+{
+  return(g_usb_power_detected_flag);
+} 
+
+void reset_usb_powered_event_status()
+{
+  g_usb_power_detected_flag = false;
+} 
+
 /*!
  ****************************************************************************
  * @brief User event handler for USBD application task
@@ -902,6 +951,12 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
     if (!nrf_drv_usbd_is_enabled()) {
       app_usbd_enable();
     }
+    if(get_low_touch_trigger_mode2_status() && get_lt_mode2_selection_status())
+    {
+        reset_lt_mode2_selection_status();    /*reset the LT mode2 log selection status*/
+        g_usb_power_detected_flag = true;
+        adi_osal_SemPost(lt_task_evt_sem);
+    }
   } break;
 
   case APP_USBD_EVT_POWER_REMOVED: {
@@ -914,6 +969,7 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
     gb_usb_status = USB_DISCONNECTED;
     gb_force_stream_stop = true;
     app_usbd_stop();
+    adi_osal_SemPost(g_usbd_tx_task_evt_sem);
   } break;
 
   case APP_USBD_EVT_POWER_READY: {

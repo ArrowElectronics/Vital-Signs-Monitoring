@@ -32,11 +32,11 @@ application_name_map = {
 "ped":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PED, 'help':"The Pedometer service."},
 "ad5940":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, 'help':"The AD5940 device."}, #Since we dont have ad5940 app separately, using EDA address to access ad5940
 "adpd4000":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, 'help':"The ADPD400 device."},
-"low_touch":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP, 'help':"The low touch application service."},
+"lt_dcb_config":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP, 'help':"The low touch application service."},
 "adp5360":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, 'help':"The ADP5360 device."},
 "ad7156":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156, 'help':"The AD7156 device."},
 "sqi":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SQI, 'help':"The SQI service."},
-"wrist_detect":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, 'help':"The wrist_detect."},
+"lt_app_lcfg":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, 'help':"The lt_app_lcfg."},
 }
 
 stream_name_map = {
@@ -63,6 +63,7 @@ stream_name_map = {
 "rtemperature":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM, 'help':"Raw Temperature data."},
 "rped":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PED, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PED_STREAM, 'help':"Raw Pedometer data."},
 "rsqi":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SQI, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SQI_STREAM, 'help':"Raw SQI data."},
+"rhrv":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_HRV_STREAM, 'help':"PPG HRV data."},
 #"rad5940":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD5940, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD5940_STREAM, 'help':"Raw ADPD data (support for dual-slot)"},
 }
 

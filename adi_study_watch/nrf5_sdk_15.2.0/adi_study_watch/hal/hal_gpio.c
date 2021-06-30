@@ -139,7 +139,7 @@ __STATIC_INLINE void nrf_gpio_cfg_output_high_drive(uint32_t pin_number)
         NRF_GPIO_PIN_NOSENSE);
 }
 
-void enable_ecg_trigger_pin()
+void enable_ad5940_trigger_pin()
 {
   //nrf_gpio_cfg_output(3);
  // nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(true);
@@ -147,7 +147,7 @@ void enable_ecg_trigger_pin()
  nrf_gpio_cfg_output_high_drive(3);
 }
 
-void disable_ecg_trigger_pin()
+void disable_ad5940_trigger_pin()
 {
    //nrfx_gpiote_out_uninit(3);
 }
@@ -162,13 +162,13 @@ void invert_adxl_trigger_signal()
   nrf_drv_gpiote_out_toggle(ADXL362_INT2_PIN);
 }
 
-void invert_ecg_trigger_signal()
+void invert_ad5940_trigger_signal()
 {
   nrf_gpio_pin_toggle(3);
   //nrf_drv_gpiote_out_toggle(3);
 }
 
-void reset_ecg_trigger_signal(bool n_state)
+void reset_ad5940_trigger_signal(bool n_state)
 {
   if(n_state){
     //nrf_drv_gpiote_out_set(3);
@@ -272,4 +272,15 @@ uint32_t AdpdLibGetTick() { // in ms
 void GPIO_Clock_Cal_TriggerTS()
 {
 
+}
+
+/* 
+  *  @brief   Function to get the current timestamp in 32kHz ticks resolution, by the sensors for packet TS
+  *           This function will be called from library for AGC timestamp udpate.
+  *   @param  None
+  *   @retval unit32_t ticks in 32K resolution 
+*/
+uint32_t AdpdLibGetSensorTimeStamp() {
+
+    return get_sensor_time_stamp();
 }

@@ -1,5 +1,5 @@
 // Executes regression tests for Firmware
-def call(String test_tags, String build_mode) {
+def call(String test_tags, String build_mode, String QA_TS_Tolerance) {
   // "Stage" is for Jenkins to help it organize the steps
   stage("DevTest") {
     parallel PS_PM_TESTS: {
@@ -25,8 +25,8 @@ def call(String test_tags, String build_mode) {
                   ).trim()
                 }
                 echo bin_image
-                bat label: 'EnterBootloader', script: '''call conda activate py27
-                python jenkins/enter_bootloader.py'''
+                bat label: 'EnterBootloader', script: """call conda activate ${env.py3_qa_test_env}
+                python jenkins/enter_bootloader.py"""
                 sleep 1
                 sh "cp ${bin_image} ADI_project.hex"
                 bat label: 'FwDownload', script:"""call conda activate py27
@@ -43,9 +43,9 @@ def call(String test_tags, String build_mode) {
             sleep 2
             cur_dir = pwd()
             robot_file_dir = "${cur_dir}\\nrf5_sdk_15.2.0\\validation"
-            bat label: 'Execute_Robog_Test', script: """call conda activate py27
+            bat label: 'Execute_Robot_Test', script: """call conda activate ${env.py3_qa_test_env}
             cd ${robot_file_dir}
-            robot --variable DUT_COMPORT:${env.NRF_COM_PORT} --include ${test_tags} qa_test.robot
+            robot --variable DUT_COMPORT:${env.NRF_COM_PORT} --variable TS_Tolerance:${QA_TS_Tolerance} --include ${test_tags} qa_test.robot
             exit 0"""
             sh "cp nrf5_sdk_15.2.0/validation/report.html report.html"
             sh "cp nrf5_sdk_15.2.0/validation/log.html log.html"

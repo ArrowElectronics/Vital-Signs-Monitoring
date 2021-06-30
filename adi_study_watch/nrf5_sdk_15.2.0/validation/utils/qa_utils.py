@@ -3,16 +3,16 @@ import common
 import time
 
 # Global Variables
-dev_id_dict = {'ADXL362': 'adxl', 'ADPD4K': 'adpd4000', 'ADP5360': '',
+dev_id_dict = {'ADXL362': 'adxl', 'ADPD4K': 'adpd', 'ADP5360': '',
                'AD5940': '', 'NAND_FLASH': '', 'AD7156': '', 'ECG': 'ecg', 'EDA': 'eda', 'BCM': 'bcm'}
 
 
 def clear_fs_logs(app_name='ADXL'):
     common.watch_shell.do_fs_format('')
-    err_stat, fs_ls_list = common.watch_shell.do_fs_ls('')
+    err_stat, fs_ls_list = common.watch_shell.fs_ls()
     for fs_dict in fs_ls_list:
         if 'user_config' not in fs_dict['file'].lower():
-            common.logging.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
+            common.test_logger.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
             raise common.ConditionCheckFailure("\n\n" + '{}'.format('FS Format unable to clear all files!'))
 
 
@@ -36,22 +36,22 @@ def convert_and_verify_logs(log_file_name, csv_file_suffix='ADPDAppStream_Combin
 
 
 def get_fs_log(app_name='ADXL'):
-    err_stat, fs_ls_list = common.watch_shell.do_fs_ls('')
+    err_stat, fs_ls_list = common.watch_shell.fs_ls()
     log_file_name = None
     csv_file_name = None
     if len(fs_ls_list) < 1:
-        common.logging.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
+        common.test_logger.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
         raise common.ConditionCheckFailure("\n\n" + '{}'.format('File not found in FS!'))
     elif len(fs_ls_list) == 1 and 'user_config' in fs_ls_list[0]['file'].lower():
-        common.logging.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
+        common.test_logger.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
         raise common.ConditionCheckFailure("\n\n" + '{}'.format('File not found in FS!'))
     elif len(fs_ls_list) == 2 and not ('user_config' in fs_ls_list[0]['file'].lower() or
                                        'user_config' in fs_ls_list[1]['file'].lower()):
-        common.logging.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
-        raise common.ConditionCheckFailure("\n\n" + '{}'.format('Multiple files not found for a single stream!'))
+        common.test_logger.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
+        raise common.ConditionCheckFailure("\n\n" + '{}'.format('Multiple files found for a single stream!'))
     elif len(fs_ls_list) > 2:
-        common.logging.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
-        raise common.ConditionCheckFailure("\n\n" + '{}'.format('Multiple files not found for a single stream!'))
+        common.test_logger.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
+        raise common.ConditionCheckFailure("\n\n" + '{}'.format('Multiple files found for a single stream!'))
     else:
         log_file_name = None
         for fs_dict in fs_ls_list:
@@ -59,16 +59,17 @@ def get_fs_log(app_name='ADXL'):
                 log_file_name = fs_dict['file']
                 break
         if not log_file_name:
-            common.logging.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
+            common.test_logger.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
             raise common.ConditionCheckFailure("\n\n" + '{}'.format('File not found in FS!'))
         else:
-            common.watch_shell.do_fs_stream(log_file_name)
-            # csv_file_name = '{}.csv'.format(log_file_name.split('.')[0])
+            common.test_logger.info("*** Log File Name - {} ***".format(log_file_name))
+            common.watch_shell.do_download_file(log_file_name)
+            csv_file_name = '{}.csv'.format(log_file_name.split('.')[0])
             if not (os.path.exists(log_file_name) and os.path.isfile(log_file_name)):
-                common.logging.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
+                common.test_logger.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
                 raise common.ConditionCheckFailure("\n\n" + '{}'.format('FS log file was not found after download!'))
             elif os.stat(log_file_name).st_size == 0:
-                common.logging.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
+                common.test_logger.error('*** {} FS Stream Test - FAIL ***'.format(app_name))
                 raise common.ConditionCheckFailure("\n\n" + '{}'.format('Empty FS Log file downloaded!'))
             os.system(r"LogConverter\LogConverter.exe .\{}".format(log_file_name))
             csv_file_name = {}
@@ -116,7 +117,7 @@ def write_reg_from_dcb(dev, dcb_name):
     dcb_file = os.path.join(dcb_cfg_dir, dcb_name)
     addr_list, val_list = get_dcb_data_list(dcb_file)
     for i, addr in enumerate(addr_list):
-        common.watch_shell.do_reg('{} w 0x{}:0x{}'.format(dev, addr, val_list[i]))
+        common.watch_shell.do_reg('w {} 0x{}:0x{}'.format(dev, addr, val_list[i]))
 
 
 def read_reg_and_verify_dcb(dev, dcb_name):
@@ -126,7 +127,7 @@ def read_reg_and_verify_dcb(dev, dcb_name):
     addr_list, val_list = get_dcb_data_list(dcb_file)
     mis_match_list = []
     for i, addr in enumerate(addr_list):
-        err_stat, reg_val_list = common.watch_shell.do_reg('{} r 0x{}'.format(dev, addr))
+        err_stat, reg_val_list = common.watch_shell.reg_read('{} r 0x{}'.format(dev, addr))
         if int(val_list[i], 16) != int(reg_val_list[0][1], 16):
             mis_match_list.append(addr)
     return mis_match_list
@@ -135,7 +136,7 @@ def read_reg_and_verify_dcb(dev, dcb_name):
 def write_dcb(dev, dcb_file, test_name):
     err_stat, dcb_dir = common.dcb_cfg('w', dev, dcb_file)  # fs = 50Hz
     if err_stat:
-        common.logging.error('*** {} - FAIL ***'.format(test_name))
+        common.test_logger.error('*** {} - FAIL ***'.format(test_name))
         raise common.ConditionCheckFailure("\n\n" + 'DCB Write failed!')
     return err_stat, dcb_dir
 
@@ -166,6 +167,10 @@ def compare_dcb_files(f1, f2):
     """
     f1_addr_list, f1_val_list = get_dcb_data_list(f1)
     f2_addr_list, f2_val_list = get_dcb_data_list(f2)
+    f1_addr_list = [hex(int(f1_addr, 16)) for f1_addr in f1_addr_list]
+    f1_val_list = [hex(int(f1_val, 16)) for f1_val in f1_val_list]
+    f2_addr_list = [hex(int(f2_addr, 16)) for f2_addr in f2_addr_list]
+    f2_val_list = [hex(int(f2_val, 16)) for f2_val in f2_val_list]
     err_stat = 0
     err_str = ''
     if len(f1_addr_list) != len(f2_addr_list):
@@ -189,62 +194,64 @@ def compare_dcb_files(f1, f2):
 def quick_start_adpd_multi_led(samp_freq_hz=50, agc_state=0, skip_load_cfg=False):
     led_stream_file_dict = {}
     led_list = ['G', 'R', 'IR', 'B']
-    cfg_dict = {'G': {'adpd_cfg': '40', 'clk_calib': '6', 'sub': '6', 'agc_ctrl_id': '1'},
-                'R': {'adpd_cfg': '41', 'clk_calib': '6', 'sub': '7', 'agc_ctrl_id': '2'},
-                'IR': {'adpd_cfg': '42', 'clk_calib': '6', 'sub': '8', 'agc_ctrl_id': '3'},
-                'B': {'adpd_cfg': '43', 'clk_calib': '6', 'sub': '9', 'agc_ctrl_id': '4'}}
+    cfg_dict = {'G': {'adpd_cfg': '1', 'clk_calib': common.adpd_clk_calib, 'sub': '6', 'agc_ctrl_id': '1'},
+                'R': {'adpd_cfg': '2', 'clk_calib': common.adpd_clk_calib, 'sub': '7', 'agc_ctrl_id': '2'},
+                'IR': {'adpd_cfg': '3', 'clk_calib': common.adpd_clk_calib, 'sub': '8', 'agc_ctrl_id': '3'},
+                'B': {'adpd_cfg': '4', 'clk_calib': common.adpd_clk_calib, 'sub': '9', 'agc_ctrl_id': '4'},
+                'MWL': {'adpd_cfg': '5', 'clk_calib':common.adpd_clk_calib, 'sub': '10', 'agc_ctrl_id': '5'}}
 
     for led in led_list:
         if agc_state:
-            common.watch_shell.do_adpdAGCControl('{}:1'.format(cfg_dict[led]['agc_ctrl_id']))
+            common.watch_shell.do_enable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
         else:
-            common.watch_shell.do_adpdAGCControl('{}:0'.format(cfg_dict[led]['agc_ctrl_id']))
-
-
-    if samp_freq_hz == 50:
-        common.watch_shell.do_reg("w adpd4000 0xD:0x4e20")
-    elif samp_freq_hz == 100:
-        common.watch_shell.do_reg("w adpd4000 0xD:0x2710")
-    elif samp_freq_hz == 500:
-        common.watch_shell.do_reg("w adpd4000 0xD:0x07D0")
-    else:
-        raise RuntimeError("Sampling Frequency Not Supported!")
+            common.watch_shell.do_disable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
 
     if not skip_load_cfg:
         for led in led_list:
             adpd_led_dcb = 'adpd_{}_dcb.dcfg'.format(led.lower())
-            write_reg_from_dcb('adpd4000', adpd_led_dcb)
+            write_reg_from_dcb('adpd', adpd_led_dcb)
             time.sleep(.5)
-    common.watch_shell.do_sensor("adpd4000 start")
+    if samp_freq_hz is None:
+        pass
+    elif samp_freq_hz == 50:
+        common.watch_shell.do_reg("w adpd 0xD:0x4e20")
+    elif samp_freq_hz == 100:
+        common.watch_shell.do_reg("w adpd 0xD:0x2710")
+    elif samp_freq_hz == 500:
+        common.watch_shell.do_reg("w adpd 0xD:0x07D0")
+    else:
+        raise RuntimeError("Sampling Frequency Not Supported!")
+    common.watch_shell.do_sensor("adpd start")
     for led in led_list:
-        common.watch_shell.do_sub("radpd{} add".format(cfg_dict[led]['sub']))
-    for led in led_list:
-        common.watch_shell.do_plot("radpd{}".format(cfg_dict[led]['sub']))
-        led_stream_file_dict[led] = 'adpd{}Stream.csv'.format(cfg_dict[led]['sub'])
+        common.watch_shell.do_csv_log("adpd{} start".format(cfg_dict[led]['sub']))
+        led_stream_file_dict[led] = 'adpd{}.csv'.format(cfg_dict[led]['sub'])
         time.sleep(2)
+    for led in led_list:
+        common.watch_shell.do_sub("adpd{} add".format(cfg_dict[led]['sub']))
     return led_stream_file_dict
 
 
 def quick_start_ppg_multi_led(samp_freq_hz=50, agc_state=0):
     led_list = ['G', 'R', 'IR', 'B']
-    cfg_dict = {'G': {'adpd_cfg': '40', 'clk_calib': '6', 'sub': '6', 'agc_ctrl_id': '1'},
-                'R': {'adpd_cfg': '41', 'clk_calib': '6', 'sub': '7', 'agc_ctrl_id': '2'},
-                'IR': {'adpd_cfg': '42', 'clk_calib': '6', 'sub': '8', 'agc_ctrl_id': '3'},
-                'B': {'adpd_cfg': '43', 'clk_calib': '6', 'sub': '9', 'agc_ctrl_id': '4'}}
+    cfg_dict = {'G': {'adpd_cfg': '1', 'clk_calib': common.adpd_clk_calib, 'sub': '6', 'agc_ctrl_id': '1'},
+                'R': {'adpd_cfg': '2', 'clk_calib': common.adpd_clk_calib, 'sub': '7', 'agc_ctrl_id': '2'},
+                'IR': {'adpd_cfg': '3', 'clk_calib': common.adpd_clk_calib, 'sub': '8', 'agc_ctrl_id': '3'},
+                'B': {'adpd_cfg': '4', 'clk_calib': common.adpd_clk_calib, 'sub': '9', 'agc_ctrl_id': '4'},
+                'MWL': {'adpd_cfg': '5', 'clk_calib': common.adpd_clk_calib, 'sub': '10', 'agc_ctrl_id': '5'}}
 
     for led in led_list:
         if agc_state:
-            common.watch_shell.do_adpdAGCControl('{}:1'.format(cfg_dict[led]['agc_ctrl_id']))
+            common.watch_shell.do_enable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
         else:
-            common.watch_shell.do_adpdAGCControl('{}:0'.format(cfg_dict[led]['agc_ctrl_id']))
+            common.watch_shell.do_disable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
 
 
     if samp_freq_hz == 50:
-        common.watch_shell.do_reg("w adpd4000 0xD:0x4e20")
+        common.watch_shell.do_reg("w adpd 0xD:0x4e20")
     elif samp_freq_hz == 100:
-        common.watch_shell.do_reg("w adpd4000 0xD:0x2710")
+        common.watch_shell.do_reg("w adpd 0xD:0x2710")
     elif samp_freq_hz == 500:
-        common.watch_shell.do_reg("w adpd4000 0xD:0x07D0")
+        common.watch_shell.do_reg("w adpd 0xD:0x07D0")
     else:
         raise RuntimeError("Sampling Frequency Not Supported!")
 
@@ -252,11 +259,10 @@ def quick_start_ppg_multi_led(samp_freq_hz=50, agc_state=0):
     #     adpd_led_dcb = 'adpd_{}_dcb.dcfg'.format(led.lower())
     #     write_reg_from_dcb('adpd4000', adpd_led_dcb)
     #     time.sleep(.5)
-    common.watch_shell.do_sub("rppg add")
     common.watch_shell.do_sensor("ppg start")
-    common.watch_shell.do_plot("rppg")
-    common.watch_shell.do_plot("rsyncppg")
-
+    common.watch_shell.do_csv_log("ppg start")
+    common.watch_shell.do_csv_log("sync_ppg start")
+    common.watch_shell.do_sub("ppg add")
 
 def get_delta_ts_and_fs(ts_data_list, repeat_count, fs_div):
     if len(ts_data_list) > 100:
@@ -300,7 +306,7 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False)
             ch0_col_idx = 0
             ch1_col_idx = 0
             row_offset = 5
-        elif stream == 'adpd_combained':
+        elif stream == 'adpd_combined':
             ch0_col_idx = 1
             ch1_col_idx = 1
             row_offset = 5
@@ -352,9 +358,9 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False)
 
         if not ref_delta_ts and i == 1:
             ref_delta_ts = delta_ts
-            common.logging.error('Median Ref Delta TS calculation Failed. Switching to start index calculation!')
+            common.test_logger.warning('Median Ref Delta TS calculation Failed. Switching to start index calculation!')
         else:
-            if abs(ref_delta_ts - delta_ts) > 0.1*ref_delta_ts:
+            if not(0.9 * ref_delta_ts <= delta_ts <= 1.1 * ref_delta_ts):
                 ts_mismatch_count += 1
             else:
                 delta_ts_sum += delta_ts
@@ -364,28 +370,38 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False)
     else:
         avg_fs = 0
     if time_data_list:
-        if fs_log:
-            total_time = (time_data_list[-1] - time_data_list[0]) / 1000.0
-        else:
-            total_time = (time_data_list[-1]-time_data_list[0])/32000.0
+        total_time = (time_data_list[-1] - time_data_list[0]) / div
         expected_num_samples = total_time * avg_fs
         actual_num_samples = len(time_data_list)
         sample_loss = False
         excess_samples = False
         num_samples_lost = 0
         num_excess_samples = 0
-        if actual_num_samples-expected_num_samples > 2:
+        if actual_num_samples > expected_num_samples * 1.02:
             excess_samples = True
             num_excess_samples = actual_num_samples - expected_num_samples
-        elif expected_num_samples-actual_num_samples > 2:
+        elif 0.98 * expected_num_samples > actual_num_samples:
             sample_loss = True
             num_samples_lost = expected_num_samples-actual_num_samples
         freq_check_dict = {'avg_fs': avg_fs, 'ts_mismatch_count': ts_mismatch_count,
                            'sample_loss': sample_loss, 'num_samples_lost': num_samples_lost,
                            'excess_samples': excess_samples, 'num_excess_samples': num_excess_samples}
+        if freq_check_dict["ts_mismatch_count"] <= common.ts_mismatch_tolerance and \
+                freq_check_dict["ts_mismatch_count"] != 0:
+            common.test_logger.warning("***TS Mismatch {}***".format(freq_check_dict["ts_mismatch_count"]))
 
-        if (abs(freq_check_dict['avg_fs']-exp_fs_hz) > 5) or \
-           freq_check_dict['ts_mismatch_count'] or \
+        if exp_fs_hz <= 10:
+            freq_value = (exp_fs_hz * 0.9 >= freq_check_dict['avg_fs']) or \
+                         (freq_check_dict['avg_fs'] >= exp_fs_hz * 1.1)
+        elif exp_fs_hz <= 50:
+            freq_value = (exp_fs_hz * 0.95 >= freq_check_dict['avg_fs']) or \
+                         (freq_check_dict['avg_fs'] >= exp_fs_hz * 1.05)
+        else:
+            freq_value = (exp_fs_hz * 0.98 >= freq_check_dict['avg_fs']) or \
+                         (freq_check_dict['avg_fs'] >= exp_fs_hz * 1.02)
+
+        if freq_value or \
+           freq_check_dict["ts_mismatch_count"] > common.ts_mismatch_tolerance or \
            freq_check_dict['sample_loss'] or \
            freq_check_dict['excess_samples']:
             err_str = 'AvgFs(Hz)= {} | SamplesLost={} | ExcessSamples={} | TimeStampMismatch={}'.format(freq_check_dict['avg_fs'],
@@ -415,24 +431,28 @@ def dev_id_test(dev):
 
     :return:
     """
-    dev_idx_dict = {'ADXL362': (1, 0xf2), 'ADPD4K': (2, 0xc0), 'ADP5360': (3, 0x10),
+    dev_idx_dict = {'ADXL362': (1, 0xf2), 'ADPD4K': (2, [0xc0, 0x1c2]), 'ADP5360': (3, 0x10),
                     'AD5940': (4, 0x5502), 'NAND_FLASH': (5, 0x35), 'AD7156': (6, 0x88)}
     chip_id_exp = 0xff
     if dev.upper() in dev_idx_dict:
         dev_idx = dev_idx_dict[dev.upper()][0]
-        chip_id_exp = dev_idx_dict[dev.upper()][1]
-        err_stat, chip_id = common.watch_shell.do_getChipID('{}'.format(dev_idx))
+        if dev.upper() == "ADPD4K":
+            chip_id_exp = dev_idx_dict[dev.upper()][1][common.DVT_version]
+        else:
+            chip_id_exp = dev_idx_dict[dev.upper()][1]
+        err_stat, chip_id = common.watch_shell.get_chip_id('{}'.format(dev_idx))
+        print(chip_id_exp)
     else:
         err_stat = 1
         chip_id = None
     if err_stat:
-        common.logging.error('*** {} Chip ID Test - FAIL ***'.format(dev.upper()))
+        common.test_logger.error('*** {} Chip ID Test - FAIL ***'.format(dev.upper()))
         raise common.ConditionCheckFailure("\n\n" + 'Unable to retrieve ADPD Chip ID!')
     elif chip_id != chip_id_exp:
-        common.logging.error('*** {} Chip ID Test - FAIL ***'.format(dev.upper()))
-        raise common.ConditionCheckFailure("\n\n" + 'Read Chip ID {} does not match with {} chip ID 0xc0!'.format(hex(chip_id), dev.upper()))
+        common.test_logger.error('*** {} Chip ID Test - FAIL ***'.format(dev.upper()))
+        raise common.ConditionCheckFailure("\n\n" + 'Read Chip ID {} does not match with {} chip ID {}!'.format(hex(chip_id), dev.upper(), hex(chip_id_exp)))
     else:
-        common.logging.info('{} Chip ID: {}'.format(dev.upper(), hex(chip_id)))
+        common.test_logger.info('{} Chip ID: {}'.format(dev.upper(), hex(chip_id)))
 
 
 def dcb_test(dev='ADPD4K', dcb_file='adpd_qa_dcb.dcfg',
@@ -444,39 +464,39 @@ def dcb_test(dev='ADPD4K', dcb_file='adpd_qa_dcb.dcfg',
     dev_id = dev_id_dict[dev]
     common.dcb_cfg('d', dev_id)  # Deleting any previous DCB
     write_dcb(dev_id, dcb_file, test_name)
-    if dev_id == 'adpd4000':
-        common.watch_shell.do_loadAdpdCfg("40")
+    if dev_id == 'adpd':
+        common.watch_shell.do_load_adpd_cfg("1")
     elif dev_id == 'adxl':
-        common.watch_shell.do_loadAdxlCfg("362")
+        common.watch_shell.do_load_adxl_cfg("1")
     elif dev_id == "ecg":
-        common.watch_shell.do_set_ecg_dcb_lcfg("")
+        common.watch_shell.do_write_dcb_to_lcfg("ecg")
     elif dev_id == "eda":
-        common.watch_shell.do_set_eda_dcb_lcfg("")
+        common.watch_shell.do_write_dcb_to_lcfg("eda")
     elif dev_id == "bcm":
-        common.watch_shell.do_set_bcm_dcb_lcfg("")
+        common.watch_shell.do_write_dcb_to_lcfg("bcm")
 
     err_stat, dcb_dir = common.dcb_cfg('r', dev_id)
     if err_stat:
-        common.logging.error('*** {} - FAIL ***'.format(test_name))
+        common.test_logger.error('*** {} - FAIL ***'.format(test_name))
         raise common.ConditionCheckFailure("\n\n" + 'DCB Read failed!')
 
     write_dcb_file = os.path.join(dcb_dir, dcb_file)
     read_dcb_file = os.path.join(dcb_dir, dcb_read_file)
     err_stat, err_str = compare_dcb_files(write_dcb_file, read_dcb_file)
     if err_stat:
-        common.logging.error('*** {} - FAIL ***'.format(test_name))
+        common.test_logger.error('*** {} - FAIL ***'.format(test_name))
         raise common.ConditionCheckFailure("\n\n" + 'Read DCB does not match with '
                                                     'the write DCB!\nDetails:{}'.format(err_str))
 
     err_stat, mismatch = check_dcb(dev, dcb_file)
     if err_stat or mismatch:
-        common.logging.error('*** {} - FAIL ***'.format(test_name))
+        common.test_logger.error('*** {} - FAIL ***'.format(test_name))
         raise common.ConditionCheckFailure("\n\n" + 'DCB Write failed or Register '
                                                     'values does not match with DCB values!')
 
     err_stat, dcb_dir = common.dcb_cfg('d', dev_id)
     if err_stat:
-        common.logging.error('*** {} - FAIL ***'.format(test_name))
+        common.test_logger.error('*** {} - FAIL ***'.format(test_name))
         raise common.ConditionCheckFailure("\n\n" + 'DCB Delete failed!')
 
 
@@ -493,21 +513,25 @@ def check_dcb(dev, dcb_name):
                 if data.strip()[0] != '#':
                     addr = data.split(' ')[0]
                     val = int(data.split(' ')[1].strip(), 16)
-                    if dev_id.lower() == "ecg":
-                        status, reg_val_list = common.watch_shell.do_lcfgEcgRead(addr)
-                    elif dev_id.lower() == "eda":
-                        status, reg_val_list = common.watch_shell.do_lcfgEdaRead(addr)
-                    elif dev_id.lower() == "bcm":
-                        status, reg_val_list = common.watch_shell.do_lcfgBcmRead(addr)
+                    if dev_id.lower() == "ecg" or dev_id.lower() == "eda" or dev_id.lower() == "bcm":
+                        packet = common.watch_shell.do_lcfg("r {} 0x{}".format(dev_id, addr))
+                        reg_val_list = packet["payload"]["data"]
+                    # elif dev_id.lower() == "eda":
+                    #     status, reg_val_list = common.watch_shell.do_lcfgEdaRead(addr)
                     else:
-                        status, reg_val_list = common.watch_shell.do_reg('{} r 0x{}'.format(dev_id, addr))
+                        packet = common.watch_shell.do_reg('r {} 0x{}'.format(dev_id, addr))
+                        reg_val_list = packet["payload"]["data"]
                     if reg_val_list:
                         reg_val = int(reg_val_list[0][1], 16)
                         if reg_val != val:
                             dcb_val_mismatch = True
-                            common.logging.error('Expected: Addr={} Val={} | Actual: Addr={} Val={}'.format(addr, val,
+                            common.test_logger.error('Expected: Addr={} Val={} | Actual: Addr={} Val={}'.format(addr, val,
                                                                                                             addr,
                                                                                                             reg_val))
     else:
         err_stat = 1
     return err_stat, dcb_val_mismatch
+
+
+def enable_ecg_without_electrodes_contact():
+    common.watch_shell.do_lcfg("w ecg 0x3:0x0")

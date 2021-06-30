@@ -38,6 +38,14 @@
 #define _SENSOR_AD5940_H_
 #define AD5940Drv_SUCCESS (0)
 #define AD5940Drv_ERROR  (-1)
+
+typedef enum AD5950_APP_ENUM_t {
+  AD5940_APP_NONE = 0,
+  AD5940_APP_ECG,
+  AD5940_APP_EDA,
+  AD5940_APP_BCM
+} AD5950_APP_ENUM_t;
+
 void Ad5940Init();
 void Ad5940FifoCallBack(void);
 void Ad5940RxBufferInit(void);

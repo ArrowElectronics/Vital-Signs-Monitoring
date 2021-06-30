@@ -16,23 +16,22 @@ def ppg_dark_test():
     """
     capture_time = 20
     common.easygui.msgbox('Place the wrist/finger on the sensor and press OK', 'PPG')
-    common.dcb_cfg('w', 'adpd4000', 'ppg_dark_test.dcfg')
+    common.dcb_cfg('w', 'adpd', 'ppg_dark_test.dcfg')
     stream_file_name = common.quick_start_adpd(100, 0)
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('adpd4000')
-    common.close_plot_after_run(['ADPD400x Data'])
-    common.dcb_cfg('d', 'adpd4000')
+    common.watch_shell.quick_stop('adpd', 'adpd6')
+    common.dcb_cfg('d', 'adpd')
     ppg_file = common.rename_stream_file(common.adpd_stream_file_name, '_dark_test.csv')
     ch1_std_dev = meas_check.calc_std_dev(ppg_file, 1)
     ch2_std_dev = meas_check.calc_std_dev(ppg_file, 3)
 
     # *** Test Results Evaluation ***
     if ch1_std_dev < 2 and ch2_std_dev < 2:
-        common.logging.info('Ch0 StdDev = {} | Ch1 StdDev = {}'.format(ch1_std_dev, ch2_std_dev))
-        common.logging.info('*** PPG Dark Test - PASS ***')
+        common.test_logger.info('Ch0 StdDev = {} | Ch1 StdDev = {}'.format(ch1_std_dev, ch2_std_dev))
+        common.test_logger.info('*** PPG Dark Test - PASS ***')
     else:
-        common.logging.error('Ch0 StdDev = {} | Ch1 StdDev = {}'.format(ch1_std_dev, ch2_std_dev))
-        common.logging.error('*** PPG Dark Test - FAIL ***')
+        common.test_logger.error('Ch0 StdDev = {} | Ch1 StdDev = {}'.format(ch1_std_dev, ch2_std_dev))
+        common.test_logger.error('*** PPG Dark Test - FAIL ***')
         raise ConditionCheckFailure('\n\nCh1 or Ch2 standard deviation exceeded the limits!')
 
 
@@ -44,14 +43,12 @@ def ppg_agc_test():
     capture_time = 40
     common.easygui.msgbox('Make sure watch is on the wrist and press OK', 'PPG')
     # TODO: Add PPG AGC Test DCFG
-    # common.dcb_cfg('w', 'adpd4000', 'ppg_dark_test.dcfg')
+    # common.dcb_cfg('w', 'adpd', 'ppg_dark_test.dcfg')
 
     # ADPD Stream with AGC ON
     stream_file_name = common.quick_start_adpd(100, 1)
     time.sleep(capture_time)
     common.quick_stop_adpd()
-    # time.sleep(20)  # This delay is to avoid data loss while saving to CSV
-    common.close_plot_after_run(['ADPD400x Data'])
     ppg_agc_on_file = common.rename_stream_file(stream_file_name, '_agc_on.csv')
     ppg_agc_on_file = os.path.abspath(ppg_agc_on_file)
     ppg_agc_on_results_dict = common.analyze_wfm(ppg_agc_on_file, 'ppg')
@@ -59,17 +56,15 @@ def ppg_agc_test():
     time.sleep(5)
 
     # ADPD Stream with AGC OFF
-    status, reg_val_list = common.watch_shell.do_reg('adpd4000 r 0x01A5')
-    common.watch_shell.do_loadAdpdCfg('40')
-    common.watch_shell.do_clockCalibration('6')
+    status, reg_val_list = common.watch_shell.reg_read('adpd', '0x01A5')
+    common.watch_shell.do_load_adpd_cfg('1')
+    common.watch_shell.do_calibrate_clock(common.adpd_clk_calib)
     if reg_val_list:
         reg_val = int(reg_val_list[0][1], 16) >> 2
-        common.watch_shell.do_reg('adpd4000 w 0x01A5:{}'.format(reg_val))
+        common.watch_shell.do_reg('w adpd 0x01A5:{}'.format(reg_val))
     stream_file_name = common.quick_start_adpd(100, 0, 'G', True)
     time.sleep(capture_time)
     common.quick_stop_adpd()
-    # time.sleep(20)  # This delay is to avoid data loss while saving to CSV
-    common.close_plot_after_run(['ADPD400x Data'])
     ppg_agc_off_file = common.rename_stream_file(stream_file_name, '_agc_off.csv')
     ppg_agc_off_file = os.path.abspath(ppg_agc_off_file)
     ppg_agc_off_results_dict = common.analyze_wfm(ppg_agc_off_file, 'ppg')
@@ -81,15 +76,15 @@ def ppg_agc_test():
     dc_amp_ch1_agc_off = float(ppg_agc_off_results_dict['dc_amp_ch1'])
     dc_amp_ch0_agc_on = float(ppg_agc_on_results_dict['dc_amp_ch0'])
     dc_amp_ch1_agc_on = float(ppg_agc_on_results_dict['dc_amp_ch1'])
-    common.logging.info('CH0: agc_on_dc_amp = {} | agc_on_dc_amp = {}'.format(dc_amp_ch0_agc_on,
+    common.test_logger.info('CH0: agc_on_dc_amp = {} | agc_on_dc_amp = {}'.format(dc_amp_ch0_agc_on,
                                                                               dc_amp_ch0_agc_off))
-    common.logging.info('CH1: agc_on_dc_amp = {} | agc_on_dc_amp = {}'.format(dc_amp_ch0_agc_on,
+    common.test_logger.info('CH1: agc_on_dc_amp = {} | agc_on_dc_amp = {}'.format(dc_amp_ch0_agc_on,
                                                                               dc_amp_ch0_agc_off))
     if (dc_amp_ch0_agc_off < (0.09 * dc_amp_ch0_agc_on)) and \
        (dc_amp_ch1_agc_off < (0.09 * dc_amp_ch1_agc_on)):
-        common.logging.info('*** PPG AGC ON/OFF Test - PASS ***')
+        common.test_logger.info('*** PPG AGC ON/OFF Test - PASS ***')
     else:
-        common.logging.error('*** PPG AGC ON/OFF Test - FAIL ***')
+        common.test_logger.error('*** PPG AGC ON/OFF Test - FAIL ***')
         raise ConditionCheckFailure('\n\nCh1 or Ch2 DC amplitude is not showing expected changes during AGC ON/OFF!')
 
 
@@ -108,8 +103,6 @@ def ppg_at_multiple_frequency_test():
         stream_file_name = common.quick_start_adpd(freq_hz, 1)
         time.sleep(capture_time)
         common.quick_stop_adpd()
-        # time.sleep(20)  # This delay is to avoid data loss while saving to CSV
-        common.close_plot_after_run(['ADPD400x Data'])
         ppg_agc_on_file = common.rename_stream_file(stream_file_name, '_{}Hz.csv'.format(freq_hz))
         ppg_agc_on_file = os.path.abspath(ppg_agc_on_file)
         ppg_agc_on_results_dict = common.analyze_wfm(ppg_agc_on_file, 'ppg')
@@ -138,8 +131,6 @@ def ppg_agc_test_watches():
         stream_file_name = common.quick_start_adpd(500, 1)
         time.sleep(capture_time)
         common.quick_stop_adpd()
-    # time.sleep(20)  # This delay is to avoid data loss while saving to CSV
-        common.close_plot_after_run(['ADPD400x Data'])
         ppg_agc_on_file = common.rename_stream_file(stream_file_name, '_agc_on_iteration-{}.csv'.format(watch_num))
         ppg_agc_on_file = os.path.abspath(ppg_agc_on_file)
         ppg_agc_on_results_dict = common.analyze_wfm(ppg_agc_on_file, 'ppg')
@@ -153,15 +144,13 @@ def ppg_agc_test_watches():
     #print(ppg_agc_on_results_dict)
 
     # ADPD Stream with AGC OFF
-        status, reg_val_list = common.watch_shell.do_reg('adpd4000 r 0x01A5')
+        status, reg_val_list = common.watch_shell.reg_read('adpd', '0x01A5')
         if reg_val_list:
             reg_val = int(reg_val_list[0][1], 16) >> 2
-            common.watch_shell.do_reg('adpd4000 w 0x01A5:{}'.format(reg_val))
+            common.watch_shell.do_reg('adpd w 0x01A5:{}'.format(reg_val))
         stream_file_name = common.quick_start_adpd(500, 0)
         time.sleep(capture_time)
         common.quick_stop_adpd()
-    # time.sleep(20)  # This delay is to avoid data loss while saving to CSV
-        common.close_plot_after_run(['ADPD400x Data'])
         ppg_agc_off_file = common.rename_stream_file(stream_file_name, '_agc_off_iteration-{}.csv'.format(watch_num))
         ppg_agc_off_file = os.path.abspath(ppg_agc_off_file)
         ppg_agc_off_results_dict = common.analyze_wfm(ppg_agc_off_file, 'ppg')

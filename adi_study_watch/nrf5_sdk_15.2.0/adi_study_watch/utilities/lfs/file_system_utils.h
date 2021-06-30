@@ -56,9 +56,9 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #define ADI_FS_LDO  3
 
-#define MEM_SIZE  536870912
-#define BLOCK_SIZE 262144
-#define PAGE_SIZE 4096
+#define MEM_SIZE  536870912 //NUM_OF_BLOCKS x PAGES_PER_BLOCK x PAGE_SIZE bytes
+#define BLOCK_SIZE 262144   //PAGES_PER_BLOCK x PAGE_SIZE bytes
+#define PAGE_SIZE 4096      //bytes
 #define PAGES_PER_BLOCK 64
 #define NUM_OF_BLOCKS 2048
 
@@ -83,25 +83,16 @@ typedef enum {
   FS_FILE_ACCESS_IN_PROGRESS = 0x01,
 } FS_FILE_STATE_ENUM_t;
 
-typedef struct _file_info_t { 
-  uint8_t  file_name[16]; 
+typedef struct _file_info_t {
+  uint8_t  file_name[16];
   uint32_t start_page;
   uint32_t end_page;
   uint32_t file_size;
 } file_info_t;
 
-
-typedef struct _page_read_test_t { 
-  uint8_t ecc_status;
-  uint32_t next_page;
-  uint8_t occupied;
-  uint8_t data_status;
-  uint8_t data_samples[100];
-} page_read_test_t;
-
-typedef struct _vol_info_buff_t { 
-   uint16_t tmp_head_pointer;
-   uint16_t tmp_tail_pointer;
+typedef struct _vol_info_buff_t {
+   uint32_t tmp_head_pointer;
+   uint32_t tmp_tail_pointer;
    uint32_t bad_block_num;
    uint8_t bad_block_updated;
    uint32_t used_memory;
@@ -141,7 +132,9 @@ FS_STATUS_ENUM_t fs_hal_write_config_file(uint8_t *p_buffer, uint32_t *nitems, _
 FS_STATUS_ENUM_t fs_hal_write_blocks( uint8_t *pbuff, uint16_t start_block_num,uint16_t num_blocks_write,uint8_t first_time_write );
 FS_STATUS_ENUM_t fs_hal_fixed_pattern_write_file(uint8_t *p_buffer,uint16_t start_block_num, uint16_t *nitems, _file_handler *file_handler,uint8_t first_time_write);
 FS_STATUS_ENUM_t fs_hal_get_file_info(uint8_t* pfile_index, file_info_t *pfile_info);
-FS_STATUS_ENUM_t fs_hal_page_read_test(uint32_t* ppage_num, page_read_test_t *pfile_info,uint8_t num_bytes);
+FS_STATUS_ENUM_t fs_hal_page_read_test(uint32_t* ppage_num, m2m2_file_sys_page_read_test_resp_pkt_t *pfile_info,uint8_t num_bytes);
+FS_STATUS_ENUM_t fs_write_rsd_block(uint32_t data[], uint16_t size);
+FS_STATUS_ENUM_t fs_block_erase(uint16_t block_no);
 #ifdef TEST_FS_NAND
 void fs_hal_test_features(void);
 void fs_hal_test_file_write_read(uint32_t inp_num_iter, uint32_t block_size);

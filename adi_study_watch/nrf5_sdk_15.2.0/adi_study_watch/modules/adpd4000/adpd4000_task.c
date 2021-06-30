@@ -65,6 +65,7 @@
 #include "power_manager.h"
 #include "us_tick.h"
 #include "app_sync.h"
+#include "low_touch_task.h"
 
 /* System Task Module Log settings */
 #include "nrf_log.h"
@@ -74,6 +75,8 @@
 #define SAMPLE_NUM 1
 #define ADPD_APP_ROUTING_TBL_SZ                                                \
   (sizeof(adpd4000_app_routing_table) / sizeof(adpd4000_app_routing_table[0]))
+#define SECONDS_PER_MIN               60U   //! Number of seconds per minute
+
 /*--------------------------- Typedef ---------------------------------------*/
 
 /*!
@@ -102,43 +105,25 @@ uint16_t gAdpd_ext_data_stream_odr = 50U;
 /* Application status trace */
 g_state_t g_state;
 ADPD_TS_DATA_TYPE gADPD4000_dready_ts_prev, g_time_diff;
-static uint16_t g_reg_base;
+static uint16_t g_adpd_reg_base;
 /****Flags to control AGC for 4 LEDs ****/
-static bool agc_deinit_done = false;
-static uint32_t gsAgcSampleCnt_g;
+uint32_t gn_agc_active_slots;
+static uint32_t gsAgcSampleCnt[SLOT_NUM];
 static uint8_t gsAgcFlag = 0;
-static uint8_t gsAgcCount_g = 0;
 uint32_t gn_led_slot_g = 0;
-uint8_t gb_static_agc_green_en = 1;
-uint8_t gb_ppg_static_agc_green_en = 0;
-uint8_t gb_static_agc_green_done = 0;
-
-static uint32_t gsAgcSampleCnt_r;
-static uint8_t gsAgcCount_r = 0;
 uint32_t gn_led_slot_r = 0;
-uint8_t gb_static_agc_red_en = 1;
-static uint8_t gb_static_agc_red_done = 0;
-
-static uint32_t gsAgcSampleCnt_ir;
-static uint8_t gsAgcCount_ir = 0;
 uint32_t gn_led_slot_ir = 0;
-uint8_t gb_static_agc_ir_en = 1;
-static uint8_t gb_static_agc_ir_done = 0;
-
-static uint32_t gsAgcSampleCnt_b;
-static uint8_t gsAgcCount_b = 0;
 uint32_t gn_led_slot_b = 0;
-uint8_t gb_static_agc_blue_en = 1;
-static uint8_t gb_static_agc_blue_done = 0;
-static bool external_load_dcfg = false;
-uint8_t agc_count = 0;
-uint8_t g_mwl_view = 0;
-static bool agc_complete = false;
 bool gRun_agc = false;
+static uint32_t gsResetStaticAgcSampleCnt = 0; //!< To count number of samples to recalibrate the signal
 #ifdef SLOT_SELECT
 static uint16_t led_current12 = 0;
 static uint16_t led_current34 = 0;
 #endif
+/*************************************/
+
+/* flag to check if loadAdpdCfg cmd is used to load the adpd dcfg */
+static bool external_load_dcfg = false;
 /*
 ** All chips prior to DVT2 have chipID as 0xC0 corresponding to ADPD4000
 ** dvt2=0 --> older boards (nRF DK+ sensor board, EVT, DVT1)
@@ -147,21 +132,26 @@ static uint16_t led_current34 = 0;
 uint8_t dvt2 = 0; /* whether DVT2 or not */
 
 /* counter used to send every kth sample to temp task
-   to have temp stream odr = 1Hz, where k = odr of adpd4k*/
-uint32_t gsSampleCount = 0;
+   to have temp stream odr = 1Hz, where k = odr of adpd4k temp slot */
+uint32_t gsTempSampleCount = 0;
 #ifdef SLOT_SELECT
 /* counter used to send every kth sample to ppg task
-   to have ppg odr = 50Hz, where k = odr of adpd4k*/
+   to have ppg odr = 50Hz, where k = odr of adpd4k ppg slot */
 uint32_t gsSampleCount1 = 0;
 #endif
 /* counter used to send every kth sample to HR algo
    to have ppg odr = 50Hz, where k = odr of adpd4k*/
 uint32_t gnHRAdpdSampleCount = 0;
+/* flag is set when sampling rate is changed */
+volatile uint8_t gbAdpdSamplingRateChanged;
+extern uint16_t gAdpdSlotMaxODR; /* Maximum ODR among of all the active slots */
 extern Adpd400xLibConfig_t gAdpd400xLibCfg;
 extern uint32_t gnHRAdxlSampleCount;
 volatile uint8_t gn_uc_hr_enable = 0;
 uint16_t gn_uc_hr_slot = ADPD4K_SLOT_F;
 extern volatile uint8_t gnAppSyncTimerStarted;
+
+volatile uint8_t gb_adpd_multi_sub_start = 0; /* Flag to handle whether ADPD sensor was 'start'ed and multiple subscribers(more than 1) added to get raw data(CLI_USB/CLI_BLE)*/
 
 /* assign the connected sensor, which can used other application task */
 extern ADPD_TS_DATA_TYPE gADPD4000_dready_ts;
@@ -174,13 +164,22 @@ extern uint32_t nInterruptSequence;
 extern uint32_t nWriteSequence;
 extern adpd400xDrv_slot_t gsSlot[SLOT_NUM];
 #ifdef ENABLE_PPG_APP
+/* flag to check if agc ON for PPG or UC HR */
+extern uint8_t gPpg_agc_en;
+/*
+following flag is set in two cases for PPG or UC HR
+    - AGC is ON and AGC calibration done
+    - AGC is OFF and Setting Default Curr/Gain from LCFG done
+*/
+extern uint8_t gPpg_agc_done;
 extern uint32_t Ppg_Slot;
+extern uint8_t gnFirstAGCcal;
 #endif
 #ifdef ENABLE_TEMPERATURE_APP
 extern uint32_t gnTemperature_Slot;
 extern uint16_t gsTemperatureStarts;
 #endif
-extern agc_data_t agc_data[LED_SLOTS];
+extern agc_data_t agc_data[SLOT_NUM];
 #ifdef ENABLE_BCM_APP
 extern g_state_bcm_t g_state_bcm;
 #endif
@@ -195,10 +194,22 @@ extern uint32_t sqi_event;
 extern uint32_t gnSQI_Slot;
 #endif
 extern uint16_t g_adpd_odr; /**/
-extern uint32_t get_adpd_odr();
+extern uint16_t get_adpd_odr();
+
+#ifdef DCB
+/* Reuse the gsConfigTmpFile[] RAM buffer used in system_task.c for
+ * holding copy of either DCB/NAND config file which has LT
+ * start/stop sequence of commands.
+ * This buffer is to be reused between holding the copy of LT config file
+ * as well as temporary storage for DCB content during READ/WRITE DCB block
+ * for ADPD, Gen block DCB
+ * Buffer to be shared between tasks( General Blk DCB & ADPD4000 DCB ) */
+extern uint8_t gsConfigTmpFile[];
+#endif
 
 void get_agc_info(m2m2_adpd_agc_info_t *agc_info);
 void reset_agc_flags(void);
+static void update_ppg_default_current_gain(uint8_t slot_id);
 /*------------------------------ Public Function Prototype ------------------ */
 #ifdef ENABLE_PPG_APP
 extern void RegisterPpgCB(int16_t (*pfppg_set_opmode)(uint8_t));
@@ -223,6 +234,7 @@ extern void RegisterMwPpgModifyLCFGRegCB(
 extern void SyncAppDataSend(uint32_t *p_data, uint32_t adpdtimestamp,
     int16_t *pAdxlData, uint32_t adxltimestamp);
 extern void app_sync_timer_init(void);
+extern uint16_t Adpd400xUtilGetRegFromMonotonicCurrent(uint8_t ncurrent);
 #endif
 
 #ifdef ENABLE_TEMPERATURE_APP
@@ -247,8 +259,6 @@ static M2M2_ADDR_ENUM_t gsStream[SLOT_NUM] = {
     M2M2_ADDR_SENSOR_ADPD_STREAM11,
     M2M2_ADDR_SENSOR_ADPD_STREAM12,
 };
-
-
 
 #ifndef ADPD_SEM_CORRUPTION_DEBUG
 /* Create the stack for task */
@@ -317,7 +327,6 @@ static m2m2_hdr_t *ecg4k_lcfg_access(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *set_adpd4000_fs(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *adpd_app_agc_on_off_cntrl(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *adpd_app_agc_info(m2m2_hdr_t *p_pkt);
-static m2m2_hdr_t *adpd_app_agc_status(m2m2_hdr_t *p_pkt);
 #ifdef ENABLE_SQI_APP
 static m2m2_hdr_t *adpd_app_ext_adpd_datastream(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *adpd_app_set_ext_adpd_datastream_odr(m2m2_hdr_t *p_pkt);
@@ -338,7 +347,6 @@ static uint16_t gsAdpdSequenceCnt[SLOT_NUM][2];
 #ifdef OS_TIMER
 static OS_TMR gsPollFIFO_Timer;
 #endif
-uint16_t gsODR;
 static bool bIsStatusStreamEnabled = false;
 static uint16_t nStatusRegValue = 0;
 
@@ -390,7 +398,6 @@ app_routing_table_entry_t adpd4000_app_routing_table[] = {
 #endif
     {M2M2_SENSOR_ADPD_COMMAND_AGC_ON_OFF_REQ, adpd_app_agc_on_off_cntrl},
     {M2M2_SENSOR_ADPD_COMMAND_AGC_INFO_REQ, adpd_app_agc_info},
-    {M2M2_SENSOR_ADPD_COMMAND_AGC_STATUS_REQ, adpd_app_agc_status},
 #ifdef DCB
     {M2M2_DCB_COMMAND_READ_CONFIG_REQ, adpd_dcb_command_read_config},
     {M2M2_DCB_COMMAND_WRITE_CONFIG_REQ, adpd_dcb_command_write_config},
@@ -531,12 +538,12 @@ static void sensor_adpd4000_task(void *pArgument) {
     NRF_LOG_INFO("** Working with board having ADPD4000 **");
     dvt2 = 0;
   }
-
   if (load_adpd4000_cfg(M2M2_SENSOR_ADPD4000_DEVICE_4000_G) !=
       ADPD4000_DCFG_STATUS_OK) {
     Debug_Handler();
   }
   Adpd400xDrvSetParameter(ADPD400x_WATERMARKING, 0, 4);
+  reset_agc_flags();/**reset AGC flags **/
 
   //Initilaze the app_timer for sync buffering for UC HR
   app_sync_timer_init();
@@ -661,6 +668,7 @@ static uint8_t fetch_adpd_data(void) {
   uint32_t timestamp = 0;
   uint16_t nSampleSize = 0;
   uint32_t ppgData[2] = {0}, tmpPPGData[2] = {0};
+  uint32_t ch1ch2data[2] = {0};
   uint16_t nWaterMark=1, nMaximumFifoTh = 0;
 #ifdef ADPD_SEM_CORRUPTION_DEBUG
   uint8_t i, tmp[256];//, dataPtr;
@@ -680,22 +688,16 @@ static uint8_t fetch_adpd_data(void) {
                                             adpd_ch2_pkt[SLOT_NUM] = {'\0'};
 
   if (gsOneTimeValueWhenReadAdpdData == 0) {
-    uint16_t temp16;
-    uint32_t sampleFrq, lfOSC;
-    Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &temp16);
-    temp16 &= BITM_SYS_CTL_LFOSC_SEL;
-    temp16 >>= BITP_SYS_CTL_LFOSC_SEL;
-    if (temp16 == 1)
-      lfOSC = 1000000; /* 1M clock */
-    else
-      lfOSC = 32000; /* 32k clock */
-    Adpd400xDrvRegRead32B(ADPD400x_REG_TS_FREQ, &sampleFrq);
-    gsODR = lfOSC / sampleFrq;
     gsOneTimeValueWhenReadAdpdData = 1;
+    if(gbAdpdSamplingRateChanged)
+    {
+      gbAdpdSamplingRateChanged = 0;
+      /* reset the counter for temp only if sampling rate is changed */
+      gsTempSampleCount = 0;
+    }
     Adpd400xDrvRegRead(ADPD400x_REG_FIFO_STATUS_BYTES, &nStatusRegValue);
-
     // Handle ADPD at 500Hz by increasing ADPD task priority
-    if ((gsODR >= 500) && (gbAdpdHighPrio == 0)) {
+    if ((gAdpdSlotMaxODR >= 500) && (gbAdpdHighPrio == 0)) {
       adi_osal_ThreadSetPrio(NULL, ADPD_500Hz_TASK_PRIO);
       gbAdpdHighPrio = 1;
     }
@@ -759,8 +761,8 @@ static uint8_t fetch_adpd_data(void) {
       /* Check the slot is in Temperature mode */
       if (gnTemperature_Slot != 0) {
         if (gnTemperature_Slot == (0x01 << i)) {
-          if (++gsSampleCount == gsODR) {
-            gsSampleCount = 0;
+          if (++gsTempSampleCount == gsSlot[i].odr) {
+            gsTempSampleCount = 0;
             /* Get Thermistor value */
             memcpy(&tmpPPGData[0], &tmp[dataPtr], eachSlotSize);
             ppgData[0] = *(uint32_t *)tmpPPGData;
@@ -794,256 +796,144 @@ static uint8_t fetch_adpd_data(void) {
       }
 #endif
 
-
 #ifdef ENABLE_PPG_APP
-      /* Check the slot is in PPG mode */
-      if (Ppg_Slot != 0) {
+      /* Check the slot is in PPG mode and agc calibration is done */
+      if (Ppg_Slot != 0 && !gRun_agc) {
         if (Ppg_Slot == (0x01 << i)) {
+          if(!gPpg_agc_en && !gPpg_agc_done){
+             update_ppg_default_current_gain(i);// update lcfg current and gain if static agc not enabled for ppg
+             gPpg_agc_done = 1;
+           }
 #ifdef SLOT_SELECT
-          if (++gsSampleCount1 == gsODR / gAdpd400x_lcfg->hrmInputRate) {
+          if (++gsSampleCount1 == gsSlot[i].odr / gAdpd400x_lcfg->hrmInputRate) {
             gsSampleCount1 = 0;
 #endif
-            /* send CH1 data */
             memcpy(&tmpPPGData[0], &tmp[dataPtr], eachSlotSize);
             ppgData[0] = *(uint32_t *)tmpPPGData;
+            ppgData[1] = 0;
+            /* check if CH2 enabled */
+            if ((ch_num[i] == 3) && ((gAdpd400xLibCfg.targetChs & 0xF) != TARGET_CH3)) {
+              /* Get CH2 data */
+              memcpy(&tmpPPGData[1], &tmp[dataPtr + eachSlotSize], eachSlotSize);
+              ppgData[1] = *(uint32_t *)(tmpPPGData + 1);
+            }
             SyncAppDataSend(ppgData, timestamp, 0, 0);
-            if (!gb_static_agc_green_done) {
-              if (gb_static_agc_green_en) {
-                if (gsAgcFlag == 0) {
-                  agc_init();
-                  gsAgcFlag = 1;
-                }
-
-                if (gsAgcCount_g++ < 10) {
-                  /* waiting for agc buffer to fill */
-                } else if (gsAgcSampleCnt_g < SAMPLE_AVG_NUM) {
-                  /* Get CH1 data */
-                  agc_data[AGC_LED_SLOT_GREEN].ch1[gsAgcSampleCnt_g] = ppgData[0];
-
-                  /* check if CH2 enabled */
-                  if (ch_num[i] == 3) {
-                    /* Get CH2 data */
-                    memcpy(&tmpPPGData[1], &tmp[dataPtr + eachSlotSize], eachSlotSize);
-                    ppgData[1] = *(uint32_t *)(tmpPPGData + 1);
-                    agc_data[AGC_LED_SLOT_GREEN].ch2[gsAgcSampleCnt_g] = ppgData[1];
-                  }
-                  gsAgcSampleCnt_g++;
-                } else if (gsAgcSampleCnt_g >= SAMPLE_AVG_NUM) {
-                  agc_data_process();
-                  agc_deinit();
-                  gsAgcCount_g = 0;
-                  gsAgcSampleCnt_g = 0;
-                  gsAgcFlag = 0;
-                  gb_static_agc_green_done = 1;
-                }
-              } /* if(gb_static_agc_green_en) */
-              else {
 #ifdef SLOT_SELECT
-                /* Write default dcfg values to LED and TIA register */
-                /* Slot F LED 1A Green */
-                g_reg_base = log2(gn_led_slot_g) * 0x20;
-                Adpd400xDrvRegWrite(
-                    ADPD400x_REG_LED_POW12_A + g_reg_base, 0x0005);
-
-                /* Slot F TIA gain */
-                Adpd400xDrvRegWrite(
-                    ADPD400x_REG_AFE_TRIM_A + g_reg_base, 0xE3D2);
-                gb_static_agc_green_done = 1;
-#else
-              /* Write default dcfg values to LED and TIA register */
-              /* Slot F LED 1A Green */
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_F, 0x0005);
-
-              /* Slot F TIA gain */
-              Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_F, 0xE3D2);
-              gb_static_agc_green_done = 1;
+           }
 #endif
-              }
-            } /* if(!gb_static_agc_green_done) */
-#ifdef SLOT_SELECT
-          }
-#endif
-        } /* if(Ppg_Slot == (0x01 << i)) */
-      }   /* if(Ppg_Slot != 0) */
+         }//if (Ppg_Slot == (0x01 << i))
+       }//if (Ppg_Slot != 0 && !gRun_agc)
+
      /* Check if ppg app is not running & if its slot F data
         to calculate HR */
      if (gn_uc_hr_enable && Ppg_Slot == 0 && i==(gn_uc_hr_slot-1) && !gRun_agc) {
-      if (++gnHRAdpdSampleCount == gsODR / gAdpd400xLibCfg.hrmInputRate) {
+        if(get_low_touch_trigger_mode2_status())
+        {
+            uint32_t n_recal_time_in_min;
+            MwPPG_ReadLCFG(12, &n_recal_time_in_min);/*! To read featureSelect */
+            if((n_recal_time_in_min != 0) && (++gsResetStaticAgcSampleCnt >= (gsSlot[i].odr * n_recal_time_in_min * SECONDS_PER_MIN)))
+            {
+              gsResetStaticAgcSampleCnt = 0;
+              /*Put the device into IDLE mode*/
+              Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
+
+              /*Reset flags related green LED*/
+              gPpg_agc_done = 0;
+
+              /*Set flags condition to trigger agc recalibration */
+              gPpg_agc_en = 1;
+              gn_led_slot_g = G_LED_AGC_SLOTS;
+              gn_agc_active_slots = gn_led_slot_g;
+              gRun_agc = true;
+
+              /*Put the device back to sample mode*/
+              Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);
+            }
+        }
+
+      if(!gPpg_agc_en && !gPpg_agc_done){
+        update_ppg_default_current_gain(i);// update lcfg current and gain if static agc not enabled for ppg
+        gPpg_agc_done = 1;
+      }
+      if (++gnHRAdpdSampleCount == gsSlot[i].odr / gAdpd400xLibCfg.hrmInputRate) {
         gnHRAdpdSampleCount = 0;
+        /* send CH1 data */
         memcpy(&tmpPPGData[0], &tmp[dataPtr], eachSlotSize);
         ppgData[0] = *(uint32_t *)tmpPPGData;
+        ppgData[1] = 0;
+        /* check if CH2 enabled */
+        if ((ch_num[i] == 3) && ((gAdpd400xLibCfg.targetChs & 0xF) != TARGET_CH3)) {
         /* Get CH2 data */
-        //memcpy(&tmpPPGData[1], &tmp[dataPtr + eachSlotSize], eachSlotSize);
-        //ppgData[1] = *(uint32_t *)(tmpPPGData + 1);
+        memcpy(&tmpPPGData[1], &tmp[dataPtr + eachSlotSize], eachSlotSize);
+        ppgData[1] = *(uint32_t *)(tmpPPGData + 1);
+        }
         /* send data to ppg task */
-
         SyncAppDataSend(ppgData, timestamp, 0, 0);
        }
      }
 #endif //ENABLE_PPG_APP
 
-     if(gRun_agc)
-     {
-      if (gn_led_slot_g != 0 && !gb_static_agc_green_done &&
-#ifdef ENABLE_PPG_APP
-        !Ppg_Slot) {
-#else
-        1) {
-#endif
-        if (gn_led_slot_g == (0x01 << i)) {
-          if (gb_static_agc_green_en) {
+     if(gRun_agc){
+       if (gn_agc_active_slots != 0) {
+         if (gn_agc_active_slots & (0x01 << i)) {
+            int8_t slotnum = i;
             if (gsAgcFlag == 0) {
               agc_init();
               gsAgcFlag = 1;
             }
-
-            if (gsAgcCount_g++ < 10) {
+            if (gsAgcSampleCnt[slotnum] < SKIP_SAMPLES) {
+              gsAgcSampleCnt[slotnum]++;
               /* waiting for agc buffer to fill */
-            } else if (gsAgcSampleCnt_g < SAMPLE_AVG_NUM) {
+            } else if (gsAgcSampleCnt[slotnum] < SKIP_SAMPLES + SAMPLE_AVG_NUM) {
               /* Get CH1 data */
               memcpy(&tmpPPGData[0], &tmp[dataPtr], eachSlotSize);
               ppgData[0] = *(uint32_t *)tmpPPGData;
-              agc_data[AGC_LED_SLOT_GREEN].ch1[gsAgcSampleCnt_g] = ppgData[0];
-
+              agc_data[slotnum].ch1[gsAgcSampleCnt[slotnum] - SKIP_SAMPLES] = ppgData[0];
               /* check if CH2 enabled */
-              if (ch_num[i] == 3) {
-                /* Get CH2 data */
-                memcpy(&tmpPPGData[1], &tmp[dataPtr + eachSlotSize], eachSlotSize);
-                ppgData[1] = *(uint32_t *)(tmpPPGData + 1);
-                agc_data[AGC_LED_SLOT_GREEN].ch2[gsAgcSampleCnt_g] = ppgData[1];
+              /* if this slot is for green LED and UC HR enabled or if it is a PPG slot */
+              if(((slotnum == (gn_uc_hr_slot - 1)) && gn_uc_hr_enable) || (Ppg_Slot == (1 << slotnum))) {
+                ppgData[1] = 0;
+                if (ch_num[i] == 3 && ((gAdpd400xLibCfg.targetChs & 0xF) != TARGET_CH3)){
+                  /* Get CH2 data */
+                  memcpy(&tmpPPGData[1], &tmp[dataPtr + eachSlotSize], eachSlotSize);
+                  ppgData[1] = *(uint32_t *)(tmpPPGData + 1);
+                }
+                agc_data[slotnum].ch2[gsAgcSampleCnt[slotnum] - SKIP_SAMPLES] = ppgData[1];
+              }else{
+                  ppgData[1] = 0;
+                  if (ch_num[i] == 3) {
+                  /* Get CH2 data */
+                  memcpy(&tmpPPGData[1], &tmp[dataPtr + eachSlotSize], eachSlotSize);
+                  ppgData[1] = *(uint32_t *)(tmpPPGData + 1);
+                }
+                agc_data[slotnum].ch2[gsAgcSampleCnt[slotnum] - SKIP_SAMPLES] = ppgData[1];
               }
-              gsAgcSampleCnt_g++;
-            } else if (gsAgcSampleCnt_g >= SAMPLE_AVG_NUM) {
-              if (!agc_complete) {
-                agc_data_process();
-                agc_complete = true;
-              }
-              --agc_count;
-              gsAgcCount_g = 0;
-              gsAgcSampleCnt_g = 0;
-              gb_static_agc_green_done = 1;
+              gsAgcSampleCnt[slotnum]++;
+            } else if (gsAgcSampleCnt[slotnum] >=  SKIP_SAMPLES + SAMPLE_AVG_NUM) {
+                agc_data_process();// do agc process for all the active slots
+                for(uint8_t slot = 0; slot <= highest_slot ; slot++){
+                  if (gn_agc_active_slots & (0x01 << slot)){
+                  gsAgcSampleCnt[slot] = 0;
+                  }
+                }
+                if(gPpg_agc_en)//if(gn_agc_active_slots & Ppg_slot)
+                {
+                  /* This variabe get reset on AGC un-subscribe in ppg application task */
+                  if(!gnFirstAGCcal){
+                    gnFirstAGCcal = 1;
+                    Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_STATIC_AGC_FIRST_CAL);//update agc stream info in library
+                  }else{
+                    Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_STATIC_AGC_RECAL);//update agc stream info in library
+                  }
+                  gPpg_agc_done = 1;
+                }
+                agc_deinit();
+                gsAgcFlag = 0;
+                gRun_agc = false;
             }
-          } /* if(gb_static_agc_green_en) */
-        }
-      }
-      if (gn_led_slot_r != 0 && !gb_static_agc_red_done) {
-        if (gn_led_slot_r == (0x01 << i)) {
-          if (gb_static_agc_red_en) {
-            if (gsAgcFlag == 0) {
-              agc_init();
-              gsAgcFlag = 1;
-            }
-            if (gsAgcCount_r++ < 10) {
-              /* waiting for agc buffer to fill */
-            } else if (gsAgcSampleCnt_r < SAMPLE_AVG_NUM) {
-              /* Get CH1 data */
-              memcpy(&tmpPPGData[0], &tmp[dataPtr], eachSlotSize);
-              ppgData[0] = *(uint32_t *)tmpPPGData;
-              agc_data[AGC_LED_SLOT_RED].ch1[gsAgcSampleCnt_r] = ppgData[0];
-
-              /* check if CH2 enabled */
-              if (ch_num[i] == 3) {
-                /* Get CH2 data */
-                memcpy(&tmpPPGData[1], &tmp[dataPtr + eachSlotSize], eachSlotSize);
-                ppgData[1] = *(uint32_t *)(tmpPPGData + 1); 
-                agc_data[AGC_LED_SLOT_RED].ch2[gsAgcSampleCnt_r] = ppgData[1];
-              }
-              gsAgcSampleCnt_r++;
-            } else if (gsAgcSampleCnt_r >= SAMPLE_AVG_NUM) {
-              if (!agc_complete) {
-                agc_data_process();
-                agc_complete = true;
-              }
-              --agc_count;
-              gsAgcCount_r = 0;
-              gsAgcSampleCnt_r = 0;
-              gb_static_agc_red_done = 1;
-            }
-          } /* if( gb_static_agc_red_en ) */
-        }
-      }
-      if (gn_led_slot_ir != 0 && !gb_static_agc_ir_done) {
-        if (gn_led_slot_ir == (0x01 << i)) {
-          if (gb_static_agc_ir_en) {
-            if (gsAgcFlag == 0) {
-              agc_init();
-              gsAgcFlag = 1;
-            }
-            if (gsAgcCount_ir++ < 10) {
-              /* waiting for agc buffer to fill */
-            } else if (gsAgcSampleCnt_ir < SAMPLE_AVG_NUM) {
-              /* Get CH1 data */
-              memcpy(&tmpPPGData[0], &tmp[dataPtr], eachSlotSize);
-              ppgData[0] = *(uint32_t *)tmpPPGData;
-              agc_data[AGC_LED_SLOT_IR].ch1[gsAgcSampleCnt_ir] = ppgData[0];
-
-              /* check if CH2 enabled */
-              if (ch_num[i] == 3) {
-                /* Get CH2 data */
-                memcpy(&tmpPPGData[1], &tmp[dataPtr + eachSlotSize], eachSlotSize);
-                ppgData[1] = *(uint32_t *)(tmpPPGData + 1);
-                agc_data[AGC_LED_SLOT_IR].ch2[gsAgcSampleCnt_ir] = ppgData[1];
-              }
-              gsAgcSampleCnt_ir++;
-            } else if (gsAgcSampleCnt_ir >= SAMPLE_AVG_NUM) {
-              if (!agc_complete) {
-                agc_data_process();
-                agc_complete = true;
-              }
-              --agc_count;
-              gsAgcCount_ir = 0;
-              gsAgcSampleCnt_ir = 0;
-              gb_static_agc_ir_done = 1;
-            }
-          } /* if( gb_static_agc_ir_en ) */
-        }
-      }
-
-      if (gn_led_slot_b != 0 && !gb_static_agc_blue_done) {
-        if (gn_led_slot_b == (0x01 << i)) {
-          if (gb_static_agc_blue_en) {
-            if (gsAgcFlag == 0) {
-              agc_init();
-              gsAgcFlag = 1;
-            }
-            if (gsAgcCount_b++ < 10) {
-              /* waiting for agc buffer to fill */
-            } else if (gsAgcSampleCnt_b < SAMPLE_AVG_NUM) {
-              /* Get CH1 data */
-              memcpy(&tmpPPGData[0], &tmp[dataPtr], eachSlotSize);
-              ppgData[0] = *(uint32_t *)tmpPPGData;
-              agc_data[AGC_LED_SLOT_BLUE].ch1[gsAgcSampleCnt_b] = ppgData[0];
-
-              /* check if CH2 enabled */
-              if (ch_num[i] == 3) {
-                /* Get CH2 data */
-                memcpy(&tmpPPGData[1], &tmp[dataPtr + eachSlotSize], eachSlotSize);
-                ppgData[1] = *(uint32_t *)(tmpPPGData + 1);
-                agc_data[AGC_LED_SLOT_BLUE].ch2[gsAgcSampleCnt_b] = ppgData[1];
-              }
-              gsAgcSampleCnt_b++;
-            } else if (gsAgcSampleCnt_b >= SAMPLE_AVG_NUM) {
-              if (!agc_complete) {
-                agc_data_process();
-                agc_complete = true;
-              }
-              --agc_count;
-              gsAgcCount_b = 0;
-              gsAgcSampleCnt_b = 0;
-              gb_static_agc_blue_done = 1;
-            }
-          } /* if( gb_static_agc_blue_en ) */
-        }
-      }
-      /*  if agc settings is done, then do agc_deinit,
-          and set the deinit flag to avoid entering this condition again*/
-      if (agc_complete == true && agc_count == 0 && !agc_deinit_done) {
-        agc_deinit();
-        agc_deinit_done = true;
-        gsAgcFlag = 0;
-        gRun_agc = false;
-      }
-     }
+         }//if (gn_agc_active_slots & (0x01 << i))
+      }//if (gn_agc_active_slots != 0)
+    }//gRun_agc
 
       if (eachSlotSize == 0 || g_state.num_subs[i] == 0) {
         /* update dataptr in tmp buffer, ptr to next slot */
@@ -1070,9 +960,9 @@ static uint8_t fetch_adpd_data(void) {
           g_state.sl_pktizer1[i].packet_max_nsamples = 6;
         }
 
-        if ((gsODR / gsSlot[i].decimation) < 25) {
+        if (gsSlot[i].odr < 25) {
           g_state.sl_pktizer1[i].packet_max_nsamples = 1;
-        } else if ((gsODR / gsSlot[i].decimation) < 75) {
+        } else if (gsSlot[i].odr < 75) {
           if (g_state.sl_pktizer1[i].packet_max_nsamples > 2)
             g_state.sl_pktizer1[i].packet_max_nsamples = 2;
         }
@@ -1088,7 +978,18 @@ static uint8_t fetch_adpd_data(void) {
       /* in future, data in circular buffer should have a byte to indicate the
          size, slot, channel etc. */
       if ((slot_sz[i] & 0x0100) == 0) {
-        memcpy(g_state.sl_pktizer1[i].payload_ptr, &tmp[dataPtr], eachSlotSize);
+        if(!get_low_touch_trigger_mode2_status())
+            memcpy(g_state.sl_pktizer1[i].payload_ptr,  &tmp[dataPtr], eachSlotSize);
+        else
+        {
+            ch1ch2data[0] = *(uint32_t*)&tmp[dataPtr];
+            ch1ch2data[1] = 0;
+            if (ch_num[i] == 3){
+             ch1ch2data[1] = *(uint32_t*)&tmp[dataPtr + eachSlotSize];
+            }
+            ch1ch2data[0] =  ch1ch2data[0] + ch1ch2data[1]; //sum ch1,ch2 and store to ch1 packetizer
+            memcpy(g_state.sl_pktizer1[i].payload_ptr, &ch1ch2data[0], eachSlotSize);
+        }
         /* update adpddata ptr */
         g_state.sl_pktizer1[i].payload_ptr += eachSlotSize;
         /* update dataptr in tmp buffer, ptr to next channel */
@@ -1154,57 +1055,60 @@ static uint8_t fetch_adpd_data(void) {
 
       if (ch_num[i] != 3)
         continue;
-      g_state.sl_pktizer2[i].packet_nsamples++;
-      if (g_state.sl_pktizer2[i].packet_nsamples == 1) { /* first sample */
-        g_state.sl_pktizer2[i].packet_max_nsamples =
-            g_state.sl_pktizer1[i].packet_max_nsamples;
-
-        g_state.sl_pktizer2[i].payload_ptr = &(adpd_ch2_pkt[i].adpddata[0]);
-      }
-
-      memcpy(g_state.sl_pktizer2[i].payload_ptr, &tmp[dataPtr], eachSlotSize);
-      g_state.sl_pktizer2[i].payload_ptr += eachSlotSize;
-      /* update dataptr in tmp buffer. Ptr to next slot */
-      dataPtr += eachSlotSize;
-      g_state.sl_pktizer2[i].decimation_nsamples++;
-      if ((g_state.sl_pktizer2[i].packet_nsamples >=
-          g_state.sl_pktizer2[i].packet_max_nsamples)&&(!gAdpdPause)) {
-        if (g_state.sl_pktizer2[i].decimation_nsamples >= (g_state.decimation_factor*g_state.sl_pktizer2[i].packet_max_nsamples)) {
-          g_state.sl_pktizer2[i].decimation_nsamples = 0;
-        adi_osal_EnterCriticalRegion();
-        g_state.sl_pktizer2[i].p_pkt = post_office_create_msg(sizeof(m2m2_sensor_adpd4000_data_stream_t) +M2M2_HEADER_SZ); // TODO: review the changes to :check if p_pkt is
-                             // not NULL before writing
-                           //  g_state.sl_pktizer2[i].p_pkt=NULL;
-        if (g_state.sl_pktizer2[i].p_pkt != NULL) {
-#ifdef ADPD_SEM_CORRUPTION_DEBUG
-          sempahore_add_channel2 = g_state.sl_pktizer2[i].p_pkt;
-#endif
-          PYLD_CST(g_state.sl_pktizer2[i].p_pkt,m2m2_sensor_adpd4000_data_stream_t, ptr_payload2);
-          g_state.sl_pktizer2[i].packet_nsamples = 0;
-          g_state.sl_pktizer2[i].p_pkt->src = M2M2_ADDR_SENSOR_ADPD4000;
-          g_state.sl_pktizer2[i].p_pkt->dest = gsStream[i];
-          memcpy(&ptr_payload2->command, &adpd_ch2_pkt[i],
-              sizeof(m2m2_sensor_adpd4000_data_stream_t));
-          ptr_payload2->command =(M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
-          ptr_payload2->status =(M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_APP_COMMON_STATUS_OK;
-          ptr_payload2->sequence_num = gsAdpdSequenceCnt[i][1]++;
-          ptr_payload2->data_format = slot_sz[i];
-          ptr_payload2->timestamp = timestamp;
-          ptr_payload2->sample_num = g_state.sl_pktizer2[i].packet_max_nsamples;
-          ptr_payload2->channel_num = 2;
-#ifdef DEBUG_PKT
-          post_office_msg_cnt(g_state.sl_pktizer2[i].p_pkt);
-#endif
-          post_office_send(g_state.sl_pktizer2[i].p_pkt, &err);
-        }
-        else
+        if(!get_low_touch_trigger_mode2_status())
         {
-          g_state.sl_pktizer2[i].packet_nsamples = 0;
+            g_state.sl_pktizer2[i].packet_nsamples++;
+            if (g_state.sl_pktizer2[i].packet_nsamples == 1) { /* first sample */
+              g_state.sl_pktizer2[i].packet_max_nsamples =
+                  g_state.sl_pktizer1[i].packet_max_nsamples;
+
+              g_state.sl_pktizer2[i].payload_ptr = &(adpd_ch2_pkt[i].adpddata[0]);
+            }
+
+            memcpy(g_state.sl_pktizer2[i].payload_ptr, &tmp[dataPtr], eachSlotSize);
+            g_state.sl_pktizer2[i].payload_ptr += eachSlotSize;
+            /* update dataptr in tmp buffer. Ptr to next slot */
+            dataPtr += eachSlotSize;
+            g_state.sl_pktizer2[i].decimation_nsamples++;
+            if ((g_state.sl_pktizer2[i].packet_nsamples >=
+                g_state.sl_pktizer2[i].packet_max_nsamples)&&(!gAdpdPause)) {
+              if (g_state.sl_pktizer2[i].decimation_nsamples >= (g_state.decimation_factor*g_state.sl_pktizer2[i].packet_max_nsamples)) {
+                g_state.sl_pktizer2[i].decimation_nsamples = 0;
+              adi_osal_EnterCriticalRegion();
+              g_state.sl_pktizer2[i].p_pkt = post_office_create_msg(sizeof(m2m2_sensor_adpd4000_data_stream_t) +M2M2_HEADER_SZ); // TODO: review the changes to :check if p_pkt is
+                                   // not NULL before writing
+                                 //  g_state.sl_pktizer2[i].p_pkt=NULL;
+              if (g_state.sl_pktizer2[i].p_pkt != NULL) {
+#ifdef ADPD_SEM_CORRUPTION_DEBUG
+                sempahore_add_channel2 = g_state.sl_pktizer2[i].p_pkt;
+#endif
+                PYLD_CST(g_state.sl_pktizer2[i].p_pkt,m2m2_sensor_adpd4000_data_stream_t, ptr_payload2);
+                g_state.sl_pktizer2[i].packet_nsamples = 0;
+                g_state.sl_pktizer2[i].p_pkt->src = M2M2_ADDR_SENSOR_ADPD4000;
+                g_state.sl_pktizer2[i].p_pkt->dest = gsStream[i];
+                memcpy(&ptr_payload2->command, &adpd_ch2_pkt[i],
+                    sizeof(m2m2_sensor_adpd4000_data_stream_t));
+                ptr_payload2->command =(M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
+                ptr_payload2->status =(M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_APP_COMMON_STATUS_OK;
+                ptr_payload2->sequence_num = gsAdpdSequenceCnt[i][1]++;
+                ptr_payload2->data_format = slot_sz[i];
+                ptr_payload2->timestamp = timestamp;
+                ptr_payload2->sample_num = g_state.sl_pktizer2[i].packet_max_nsamples;
+                ptr_payload2->channel_num = 2;
+#ifdef DEBUG_PKT
+                post_office_msg_cnt(g_state.sl_pktizer2[i].p_pkt);
+#endif
+                post_office_send(g_state.sl_pktizer2[i].p_pkt, &err);
+              }
+              else
+              {
+                g_state.sl_pktizer2[i].packet_nsamples = 0;
+              }
+              adi_osal_ExitCriticalRegion();
+              g_state.sl_pktizer2[i].p_pkt = NULL;
+              }//if (g_state.decimation_nsamples_ch2 >= (g_state.decimation_factor*g_state.sl_pktizer2[i].packet_max_nsamples))
+            }
         }
-        adi_osal_ExitCriticalRegion();
-        g_state.sl_pktizer2[i].p_pkt = NULL;
-        }//if (g_state.decimation_nsamples_ch2 >= (g_state.decimation_factor*g_state.sl_pktizer2[i].packet_max_nsamples))
-      }
     }
 
     if (sReadBufferPattern.slot_info[1] != '0') {
@@ -1235,12 +1139,7 @@ static uint8_t fetch_adpd_data(void) {
   if (nSampleSize != 0) {
     nSampleSize += nFifoStatusByte;
     Adpd400xDrvGetParameter(ADPD400x_WATERMARKING, 0, &nWaterMark);
-    if(!dvt2)
-    {
-      nMaximumFifoTh = 0xFF;     
-    }else{
-      nMaximumFifoTh = 0x1FF;
-    }
+    nMaximumFifoTh = (!dvt2) ? 0xFF: 0x1FF;
     Adpd400xDrvRegWrite(ADPD400x_REG_FIFO_CTL, (nWaterMark*nSampleSize - 1) & nMaximumFifoTh);
   }
   return 0;
@@ -1629,12 +1528,14 @@ static m2m2_hdr_t *adpd_app_load_cfg(m2m2_hdr_t *p_pkt) {
  * @return              pointer to reponse m2m2 packet
  *****************************************************************************/
 static m2m2_hdr_t *adpd_app_status(m2m2_hdr_t *p_pkt) {
+  /* Declare a pointer to the response packet payload */
+  PYLD_CST(p_pkt, m2m2_app_common_status_t, p_in_payload);
   /* Declare and malloc a response packet */
   PKT_MALLOC(p_resp_pkt, m2m2_app_common_status_t, 0);
   if (NULL != p_resp_pkt) {
     /* Declare a pointer to the response packet payload */
     PYLD_CST(p_resp_pkt, m2m2_app_common_status_t, p_resp_payload);
-    uint8_t num_subs = 0;
+    uint8_t i=0;
 
     p_resp_payload->command = M2M2_APP_COMMON_CMD_SENSOR_STATUS_QUERY_RESP;
     p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
@@ -1645,12 +1546,12 @@ static m2m2_hdr_t *adpd_app_status(m2m2_hdr_t *p_pkt) {
       p_resp_payload->status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
     }
 
-    for (uint8_t i = 0; i < SLOT_NUM; i++) {
-      num_subs += g_state.num_subs[i];
-    }
+    //Get the index of the slot
+    i = p_in_payload->stream - M2M2_ADDR_SENSOR_ADPD_STREAM1;
 
-    p_resp_payload->stream = M2M2_ADDR_SENSOR_ADPD_STREAM1;
-    p_resp_payload->num_subscribers = num_subs;
+    p_resp_payload->stream = p_in_payload->stream;
+
+    p_resp_payload->num_subscribers = g_state.num_subs[i];
     p_resp_payload->num_start_reqs = g_state.num_starts;
     p_resp_pkt->src = p_pkt->dest;
     p_resp_pkt->dest = p_pkt->src;
@@ -1726,7 +1627,18 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
       if (g_state.num_starts == 0) {
         if(gn_uc_hr_enable)
         {
+          uint32_t temp_val;
+          MwPPG_ReadLCFG(4, &temp_val);/*! To read featureSelect */
+          gPpg_agc_en = ((uint16_t)temp_val & (uint16_t)(STATIC_AGC_EN)) >> STATIC_AGC_BIT_P;
+          gn_led_slot_g = (gPpg_agc_en == 1) ? (1 << (gn_uc_hr_slot - 1)) : 0;
+          if(gPpg_agc_en)
+          {
+            gn_agc_active_slots |= (1 << (gn_uc_hr_slot - 1));
+          }
+          gRun_agc = (gn_agc_active_slots != 0) ? true: false;
+          gPpg_agc_done = 0;
           MwPPG_HeartRateInit();
+          Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
           SyncInit();
         }
         /*
@@ -1763,10 +1675,6 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
         }
         external_load_dcfg = false;
         Adpd400xDrvSetParameter(ADPD400x_WATERMARKING, 0, 4);
-        if(agc_count > 0)
-        {
-          gRun_agc = true; /* setting the flag to enable agc related code */
-        }
         Adpd400xDrvDataReadyCallback(adpd_data_ready_cb);
         reset_adpd_packetization();
         /* Reset the Interrupt Status variables */
@@ -1804,17 +1712,13 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
             (gsTemperatureStarts == g_state.num_starts)) {
 #ifndef SLOT_SELECT
           for (uint8_t i = 0; i < SLOT_NUM; i++) {
-            g_reg_base = i * 0x20;
-            Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base,
+            g_adpd_reg_base = i * ADPD400x_SLOT_BASE_ADDR_DIFF;
+            Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_adpd_reg_base,
                 led_reg.reg_val[i].reg_pow12);
-            Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base,
+            Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_adpd_reg_base,
                 led_reg.reg_val[i].reg_pow34);
           }
 #endif
-          if(agc_count > 0)
-           {
-            gRun_agc = true; /* setting the flag to enable agc related code */
-           }
          }
 #endif
         g_state.num_starts++;
@@ -1829,8 +1733,9 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
       if (1 == gbAdpdHighPrio) {
         adi_osal_ThreadSetPrio(NULL, APP_OS_CFG_SENSOR_ADPD4000_TASK_PRIO);
         gbAdpdHighPrio = 0;
-        gsODR = 0;
       }
+      /* reset the sample count after the stream has stopped*/
+      gsResetStaticAgcSampleCnt = 0;
 
       if (g_state.num_starts == 0) {
         status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
@@ -1862,6 +1767,8 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
         }
         if(gn_uc_hr_enable)
         {
+          gPpg_agc_en = 0;
+          gPpg_agc_done = 0;
           MwPPG_HeartRateDeInit();
           gn_uc_hr_slot = ADPD4K_SLOT_F; //Slot F
         }
@@ -1872,19 +1779,18 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
             (g_state.num_starts == gsTemperatureStarts)) {
 #ifndef SLOT_SELECT
           for (uint8_t i = 0; i < SLOT_NUM; i++) {
-            g_reg_base = i * 0x20;
-            if (Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base,
+            g_adpd_reg_base = i * ADPD400x_SLOT_BASE_ADDR_DIFF;
+            if (Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_adpd_reg_base,
                     &led_reg.reg_val[i].reg_pow12) == ADPD400xDrv_SUCCESS) {
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, 0x0);
+              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_adpd_reg_base, 0x0);
             } /* disable led for slot-A - I */
 
-            if (Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base,
+            if (Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_adpd_reg_base,
                     &led_reg.reg_val[i].reg_pow34) == ADPD400xDrv_SUCCESS) {
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, 0x0);
+              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_adpd_reg_base, 0x0);
             } /* disable led for slot-> A - I */
           }
 #endif
-          reset_agc_flags();/**reset AGC flags **/
         }
 #endif//ENABLE_TEMPERATURE_APP
         status = M2M2_APP_COMMON_STATUS_STREAM_COUNT_DECREMENT;
@@ -1907,6 +1813,17 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
         g_state.num_subs[sl_num]++;
         gsAdpdSequenceCnt[sl_num][0] = 0;
         gsAdpdSequenceCnt[sl_num][1] = 0;
+
+        //Check if no: of subscribers are more than 1, for all slots
+        uint8_t i;
+        // Go through total adpd slots
+        gb_adpd_multi_sub_start = 0;
+        for (i = 0; i < SLOT_NUM; i++) {
+          if (g_state.num_subs[i] >= 1) {
+            gb_adpd_multi_sub_start = 1;
+            break;
+          }
+        }
       }
       post_office_setup_subscriber(
           M2M2_ADDR_SENSOR_ADPD4000, p_in_payload->stream, p_pkt->src, true);
@@ -1931,6 +1848,16 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
       post_office_setup_subscriber(
           M2M2_ADDR_SENSOR_ADPD4000, p_in_payload->stream, p_pkt->src, false);
       command = M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP;
+      //Check if no: of subscribers are more than 1, for all slots
+      uint8_t i;
+      // Go through total adpd slots
+      gb_adpd_multi_sub_start = 0;
+      for (i = 0; i < SLOT_NUM; i++) {
+        if (g_state.num_subs[i] >= 1) {
+          gb_adpd_multi_sub_start = 1;
+          break;
+        }
+      }
       break;
 
     default:
@@ -2361,7 +2288,7 @@ static m2m2_hdr_t *adpd_app_agc_on_off_cntrl(m2m2_hdr_t *p_pkt) {
       p_resp_payload->ops[i].agc_cntrl = p_in_payload->ops[i].agc_cntrl;
       p_resp_payload->ops[i].agc_type = p_in_payload->ops[i].agc_type;
     }
-    agc_count = 0;
+
     /* Turn ON STATIC_AGC */
     for (uint8_t i = 0; i < p_in_payload->num_ops; i++) {
       switch (p_in_payload->ops[i].agc_type) {
@@ -2369,49 +2296,35 @@ static m2m2_hdr_t *adpd_app_agc_on_off_cntrl(m2m2_hdr_t *p_pkt) {
       {
         if (p_in_payload->ops[i].agc_cntrl) /* AGC_ON */
         {
-          gb_static_agc_green_en = 1;
-          gb_static_agc_red_en = 1;
-          gb_static_agc_ir_en = 1;
-          gb_static_agc_blue_en = 1;
-          agc_count = 4;
+#ifndef SLOT_SELECT
+          gn_led_slot_g = G_LED_AGC_SLOTS;
+          gn_led_slot_r = R_LED_AGC_SLOTS;
+          gn_led_slot_ir = IR_LED_AGC_SLOTS;
+          gn_led_slot_b = B_LED_AGC_SLOTS;
+#endif
         }
         else
         {
-          gb_static_agc_green_en = 0;
-          gb_static_agc_red_en = 0;
-          gb_static_agc_ir_en = 0;
-          gb_static_agc_blue_en = 0;
-          agc_count = 0;
+          gn_led_slot_g = 0;
+          gn_led_slot_r = 0;
+          gn_led_slot_ir = 0;
+          gn_led_slot_b = 0;
         }
-#ifndef SLOT_SELECT
-          gn_led_slot_g = 0x20;
-          gn_led_slot_r = 0x40;
-          gn_led_slot_ir = 0x80;
-          gn_led_slot_b = 0x100;
-#endif
-          gb_static_agc_green_done = 0;
-          gb_static_agc_red_done = 0;
-          gb_static_agc_ir_done = 0;
-          gb_static_agc_blue_done = 0;
           p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-          g_mwl_view = 1;
           break;
       }
       case 1: /* Green LED */
       {
         if (p_in_payload->ops[i].agc_cntrl)
          {
-          gb_static_agc_green_en = 1;
-          ++agc_count;
+#ifndef SLOT_SELECT
+           gn_led_slot_g = G_LED_AGC_SLOTS;
+#endif
          }
          else
          {
-           gb_static_agc_green_en = 0;
+           gn_led_slot_g = 0;
          }
-          gb_static_agc_green_done = 0;
-#ifndef SLOT_SELECT
-          gn_led_slot_g = 0x20;
-#endif
           p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
           break;
       }
@@ -2419,17 +2332,14 @@ static m2m2_hdr_t *adpd_app_agc_on_off_cntrl(m2m2_hdr_t *p_pkt) {
       {
         if (p_in_payload->ops[i].agc_cntrl)
          {
-          gb_static_agc_red_en = 1;
-          ++agc_count;
+#ifndef SLOT_SELECT
+           gn_led_slot_r = R_LED_AGC_SLOTS;
+#endif
          }
          else
          {
-           gb_static_agc_red_en = 0;
+           gn_led_slot_r = 0;
          }
-          gb_static_agc_red_done = 0;
-#ifndef SLOT_SELECT
-          gn_led_slot_r = 0x40;
-#endif
           p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
           break;
       }
@@ -2437,17 +2347,14 @@ static m2m2_hdr_t *adpd_app_agc_on_off_cntrl(m2m2_hdr_t *p_pkt) {
       {
         if (p_in_payload->ops[i].agc_cntrl)
          {
-          gb_static_agc_ir_en = 1;
-          ++agc_count;
+#ifndef SLOT_SELECT
+           gn_led_slot_ir = IR_LED_AGC_SLOTS;
+#endif
          }
          else
          {
-           gb_static_agc_ir_en = 0;
+           gn_led_slot_ir = 0;
          }
-          gb_static_agc_ir_done = 0;
-#ifndef SLOT_SELECT
-          gn_led_slot_ir = 0x80;
-#endif
           p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
           break;
       }
@@ -2455,31 +2362,25 @@ static m2m2_hdr_t *adpd_app_agc_on_off_cntrl(m2m2_hdr_t *p_pkt) {
       {
         if (p_in_payload->ops[i].agc_cntrl)
          {
-          gb_static_agc_blue_en = 1;
-          ++agc_count;
+#ifndef SLOT_SELECT
+           gn_led_slot_b = B_LED_AGC_SLOTS;
+#endif
          }
          else
          {
-           gb_static_agc_blue_en = 0;
+           gn_led_slot_b = 0;
          }
-          gb_static_agc_blue_done = 0;
-#ifndef SLOT_SELECT
-          gn_led_slot_b = 0x100;
-#endif
           p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
           break;
       }
       default: {
         p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
-        agc_count = 0;
-        g_mwl_view = 0;
         break;
       }
       } // switch case
     }   // for loop
-
-    agc_deinit_done = false;
-    agc_complete = false;
+    gn_agc_active_slots = gn_led_slot_g |  gn_led_slot_r | gn_led_slot_ir | gn_led_slot_b;
+    gRun_agc = (gn_agc_active_slots != 0) ? true: false;
     p_resp_pkt->src = p_pkt->dest;
     p_resp_pkt->dest = p_pkt->src;
   } // if(NULL != p_resp_pkt)
@@ -2513,77 +2414,6 @@ static m2m2_hdr_t *adpd_app_agc_info(m2m2_hdr_t *p_pkt) {
   return p_resp_pkt;
 }
 
-/*!
- ****************************************************************************
- * @brief Check AGC ON/OFF Status for each of four LEDs in ADPD4k
- *
- * @param[in]           p_pkt: input m2m2 packet
- *
- * @return              pointer to reponse m2m2 packet
- *****************************************************************************/
-static m2m2_hdr_t *adpd_app_agc_status(m2m2_hdr_t *p_pkt) {
-  /* Declare a pointer to the response packet payload */
-  PYLD_CST(p_pkt, m2m2_adpd_agc_status_t, p_in_payload);
-  /* Declare and malloc a response packet */
-  PKT_MALLOC(p_resp_pkt, m2m2_adpd_agc_status_t, 0);
-  if (NULL != p_resp_pkt) {
-    /* Declare a pointer to the response packet payload */
-    PYLD_CST(p_resp_pkt, m2m2_adpd_agc_status_t, p_resp_payload);
-
-    switch (p_in_payload->agc_type) {
-    case 0: /* MWL */
-    {
-      if (g_mwl_view) {
-        /*In MWL,AGC is ON/OFF for all the LEDs together,
-          so checking only green led AGC status is enough.*/
-        p_resp_payload->agc_status = gb_static_agc_green_en;
-        p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-        break;
-      } else {
-        p_resp_payload->agc_status = -1;
-        p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
-        break;
-      }
-    }
-    case 1: /* Green */
-    {
-      p_resp_payload->agc_status = gb_static_agc_green_en;
-      p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-      break;
-    }
-    case 2: /* Red */
-    {
-      p_resp_payload->agc_status = gb_static_agc_red_en;
-      p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-      break;
-    }
-    case 3: /* IR */
-    {
-      p_resp_payload->agc_status = gb_static_agc_ir_en;
-      p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-      break;
-    }
-    case 4: /* Blue */
-    {
-      p_resp_payload->agc_status = gb_static_agc_blue_en;
-      p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-      break;
-    }
-    default: {
-      p_resp_payload->agc_status = -1;
-      p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
-      break;
-    }
-    }
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_pkt->dest = p_pkt->src;
-    p_resp_payload->command = M2M2_SENSOR_ADPD_COMMAND_AGC_STATUS_RESP;
-    p_resp_payload->agc_type = p_in_payload->agc_type;
-  } // if(NULL != p_resp_pkt)
-
-  return p_resp_pkt;
-}
-
 #ifdef DCB
 /*!
  ****************************************************************************
@@ -2596,84 +2426,78 @@ static m2m2_hdr_t *adpd_app_agc_status(m2m2_hdr_t *p_pkt) {
 static m2m2_hdr_t *adpd_dcb_command_read_config(m2m2_hdr_t *p_pkt)
 {
     uint16_t r_size;
-    uint16_t i;
-    uint32_t  dcbdata[MAXADPD4000DCBSIZE*2];
+    uint16_t i = 0, num_pkts = 0, dcbdata_index = 0;
+
+    /* dcbdata - storage for DCB content during READ DCB block
+     * for Gen block DCB; Reusing the RAM buffer from system task,
+     * instead of declaring it in the function,
+     * saves space on Stack requirement from LT Task
+     */
+    uint32_t *dcbdata = (uint32_t *)&gsConfigTmpFile[0];
     ADI_OSAL_STATUS  err;
     M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
 
-    // Declare a pointer to access the input packet payload
-    //PYLD_CST(p_pkt, m2m2_dcb_adpd4000_data_t, p_in_payload);
     PKT_MALLOC(p_resp_pkt, m2m2_dcb_adpd4000_data_t, 0);
     if(p_resp_pkt != NULL )
     {
-        // Declare a pointer to the response packet payload
-        PYLD_CST(p_resp_pkt, m2m2_dcb_adpd4000_data_t, p_resp_payload);
+       // Declare a pointer to the response packet payload
+       PYLD_CST(p_resp_pkt, m2m2_dcb_adpd4000_data_t, p_resp_payload);
 
-        memset(dcbdata, 0, sizeof(dcbdata));
-        r_size = (uint16_t)(MAXADPD4000DCBSIZE*2); //Max words that can be read from FDS
-        if(read_adpd4000_dcb(&dcbdata[0],&r_size) == ADPD4000_DCB_STATUS_OK)
-        {
-            if(r_size > MAXADPD4000DCBSIZE)
-            {
-                //1st pkt
-                p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
-                p_resp_payload->status = M2M2_DCB_STATUS_OK;
-                p_resp_payload->size = MAXADPD4000DCBSIZE;
-                p_resp_payload->num_of_pkts = 2;
-                for(i=0; i< MAXADPD4000DCBSIZE; i++)
-                  p_resp_payload->dcbdata[i] = dcbdata[i];
-                p_resp_pkt->src = p_pkt->dest;
-                p_resp_pkt->dest = p_pkt->src;
-                NRF_LOG_INFO("1st pkt sz->%d",p_resp_payload->size);
-                post_office_send(p_resp_pkt, &err);
-                MCU_HAL_Delay(20);
+       memset(dcbdata, 0, sizeof(dcbdata));
+       r_size = (uint16_t)(MAXADPD4000DCBSIZE*MAX_ADPD4000_DCB_PKTS); //Max words that can be read from FDS
+       if(read_adpd4000_dcb(&dcbdata[0], &r_size) == ADPD4000_DCB_STATUS_OK)
+       {
+         status = M2M2_DCB_STATUS_OK;
+         num_pkts = (r_size / MAXADPD4000DCBSIZE) + ((r_size % MAXADPD4000DCBSIZE) ? 1 : 0 );
+         dcbdata_index = 0;
+         for(uint16_t p = 0; p < num_pkts; p++)
+         {
+      	   p_resp_payload->size = \
+                (p != num_pkts-1) ? MAXADPD4000DCBSIZE : (r_size % MAXADPD4000DCBSIZE);
+      	   p_resp_payload->num_of_pkts = num_pkts;
+           for (i = 0; i < p_resp_payload->size; i++)
+           {
+      	      p_resp_payload->dcbdata[i] = dcbdata[dcbdata_index++];
+           }
+           if(p != num_pkts-1)
+      	   {
+             p_resp_pkt->src = p_pkt->dest;
+      	     p_resp_pkt->dest = p_pkt->src;
+             p_resp_payload->status = status;
+             p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
+      	     post_office_send(p_resp_pkt, &err);
 
-                //2nd pkt
-                PKT_MALLOC(p_resp_pkt, m2m2_dcb_adpd4000_data_t, 0);
-                // Declare a pointer to the response packet payload
-                PYLD_CST(p_resp_pkt, m2m2_dcb_adpd4000_data_t, p_resp_payload);
-                for(i=0; i< MAXADPD4000DCBSIZE; i++)
-                  p_resp_payload->dcbdata[i] = 0;
+      	     /* Delay is kept same as what is there in low touch task */
+      	     MCU_HAL_Delay(60);
 
-                p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
-                p_resp_payload->status = M2M2_DCB_STATUS_OK;
-                p_resp_payload->size = r_size - MAXADPD4000DCBSIZE;
-                p_resp_payload->num_of_pkts = 2;
-                for(uint16_t j=0; j< p_resp_payload->size; j++, i++)
-                    p_resp_payload->dcbdata[j] = dcbdata[i];
-                NRF_LOG_INFO("2nd pkt sz->%d",p_resp_payload->size);
-                status = M2M2_DCB_STATUS_OK;
-            }
-            else
-            {
-                p_resp_payload->size = (r_size); //Update payload with actual words read from FDS
-                p_resp_payload->num_of_pkts = 1;
-                for(i=0; i< MAXADPD4000DCBSIZE; i++)
-                  p_resp_payload->dcbdata[i] = 0;
-                for(uint16_t j=0, i=0; j< p_resp_payload->size; j++, i++)
-                    p_resp_payload->dcbdata[j] = dcbdata[i];
-                status = M2M2_DCB_STATUS_OK;
-                NRF_LOG_INFO("1/1 pkt sz->%d",p_resp_payload->size);
-            }
+      	     PKT_MALLOC(p_resp_pkt, m2m2_dcb_adpd4000_data_t, 0);
+      	     if(NULL != p_resp_pkt)
+      	     {
+               // Declare a pointer to the response packet payload
+               PYLD_CST(p_resp_pkt, m2m2_dcb_adpd4000_data_t, p_resp_payload);
+
+      	     }//if(NULL != p_resp_pkt)
+      	     else
+      	     {
+               return NULL;
+      	     }
+      	   }
+         }
         }
         else
         {
             p_resp_payload->size = 0;
             p_resp_payload->num_of_pkts = 0;
             status = M2M2_DCB_STATUS_ERR_ARGS;
-        }
-
+        }//if(read_adpd4000_dcb())
         p_resp_payload->status = status;
         p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
         p_resp_pkt->src = p_pkt->dest;
         p_resp_pkt->dest = p_pkt->src;
-    }
-
+    }//if(NULL != p_resp_pkt)
   return p_resp_pkt;
 }
 
-/* Buffer to be shared between General Blk DCB & ADPD4000 DCB */
-uint32_t  dcbdata[MAXADPD4000DCBSIZE*4];
 /*!
  ****************************************************************************
  * @brief Write ADPD4K DCB Configuration
@@ -2688,6 +2512,12 @@ static m2m2_hdr_t *adpd_dcb_command_write_config(m2m2_hdr_t *p_pkt)
     static uint16_t i = 0;
     static uint16_t num_of_pkts = 0;
     uint16_t j;
+    /* dcbdata - storage for DCB content during write DCB block
+     * for Gen block DCB. Reusing the RAM buffer from system task,
+     * instead of declaring a static buffer in the function,
+     * saves space on total RAM usage from the watch application
+     */
+    uint32_t *dcbdata = (uint32_t *)&gsConfigTmpFile[0];
 
     // Declare a pointer to access the input packet payload
     PYLD_CST(p_pkt, m2m2_dcb_adpd4000_data_t, p_in_payload);
@@ -2698,7 +2528,7 @@ static m2m2_hdr_t *adpd_dcb_command_write_config(m2m2_hdr_t *p_pkt)
         PYLD_CST(p_resp_pkt, m2m2_dcb_adpd4000_data_t, p_resp_payload);
 
         //Maximum two packets can be written to ADPD4000_DCB
-        if(p_in_payload->num_of_pkts >= 1 && p_in_payload->num_of_pkts <= 2)
+        if(p_in_payload->num_of_pkts >= 1 && p_in_payload->num_of_pkts <= MAX_ADPD4000_DCB_PKTS)
         {
             num_of_pkts += 1;
             for( j=0; j<p_in_payload->size; j++ )
@@ -3063,7 +2893,6 @@ static m2m2_hdr_t *adpd_app_set_ext_adpd_datastream_odr(m2m2_hdr_t *p_pkt) {
   return p_resp_pkt;
 }
 #endif
-
 /*!
  ****************************************************************************
  * @brief Reset AGC related flags
@@ -3074,27 +2903,61 @@ static m2m2_hdr_t *adpd_app_set_ext_adpd_datastream_odr(m2m2_hdr_t *p_pkt) {
  *****************************************************************************/
 void reset_agc_flags(void)
 {
-    /********* AGC flags *********/
-    gb_static_agc_green_en = 1;
-    gb_static_agc_red_en = 1;
-    gb_static_agc_ir_en = 1;
-    gb_static_agc_blue_en = 1;
-
-    gb_static_agc_green_done = 0;
-    gb_static_agc_red_done = 0;
-    gb_static_agc_ir_done = 0;
-    gb_static_agc_blue_done = 0;
-
     gn_led_slot_g = 0;
     gn_led_slot_r = 0;
     gn_led_slot_ir = 0;
     gn_led_slot_b = 0;
+    gn_agc_active_slots = 0;
 
-    g_mwl_view = 0;
-    agc_count = 0;
-    agc_complete = false;
-    agc_deinit_done = false;
     gRun_agc = false;
    /****************************/
+}
+
+/*!
+ ****************************************************************************
+ * @brief Update PPG settings for current and gain from lcfg if static agc disabled
+ *
+ * @param[in]    slot_id: specify slot used for PPG
+                          (Default Slot-F, Slot_id = 5)
+ *
+ * @return       None
+ *****************************************************************************/
+static void update_ppg_default_current_gain(uint8_t slot_id){
+uint32_t ReadLCFGvalue;
+uint16_t nTIAgain = 0x0000;
+uint16_t nTsCtrl = 0x0000;
+uint8_t nCh2Enable = 0x00;
+uint16_t CurrRegVal,nRegValue;
+
+g_adpd_reg_base = log2(gAdpd400x_lcfg->targetSlots) * ADPD400x_SLOT_BASE_ADDR_DIFF;
+MwPPG_ReadLCFG(32, &ReadLCFGvalue);/*! To read InitialCurrentTiaGain */
+uint8_t nCurrVal = ReadLCFGvalue >> 8;// getting MSB 8bit
+uint8_t nGainValue = ReadLCFGvalue & 0x003F; // previous Gain value will be maintained if the lcfg value not valid
+Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
+
+if(nCurrVal != 0){
+  CurrRegVal = Adpd400xUtilGetRegFromMonotonicCurrent(nCurrVal);
+  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_adpd_reg_base, &nRegValue);
+  nRegValue = nRegValue & (~BITM_LED_POW12_X_LED_CURRENT1_X);
+  nRegValue |= CurrRegVal << BITP_LED_POW12_X_LED_CURRENT1_X;
+  Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_adpd_reg_base, nRegValue);
+}
+  /* check if ch2 is enabled */
+Adpd400xDrvRegRead(ADPD400x_REG_TS_CTRL_A + g_adpd_reg_base, &nTsCtrl);
+nCh2Enable = (nTsCtrl & BITM_TS_CTRL_A_CH2_EN_A) >> BITP_TS_CTRL_A_CH2_EN_A;
+Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_adpd_reg_base, &nTIAgain);
+if((nGainValue & BITM_AFE_TRIM_X_TIA_GAIN_CH1_X) <= CH1_GAIN_MAX_REG_VAL){//the maximum value of ch1 gain settings will be 4
+nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH1_X);
+nTIAgain |= (nGainValue & BITM_AFE_TRIM_X_TIA_GAIN_CH1_X) << BITP_AFE_TRIM_X_TIA_GAIN_CH1_X;
+}
+if(nCh2Enable)
+{
+  if((nGainValue & BITM_AFE_TRIM_X_TIA_GAIN_CH2_X) <= CH2_GAIN_MAX_REG_VAL){ //the maximum value of ch2 gain settings will be 32
+  nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
+  nTIAgain |= (nGainValue & BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
+  }
+}
+Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_adpd_reg_base, nTIAgain);
+Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);
 }
 

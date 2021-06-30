@@ -70,7 +70,8 @@ typedef enum {
     SMrtc_Error = -1,
     SMrtc_Pass = 0,
     SMrtc_InProgress,
-    SMrtcPreCondition,
+    SMrtc_PreCondition_NonCausal, //waiting for noncausal samples
+    SMrtc_PreCondition_Causal, //waiting for causal samples
 } SM_RetCode_t;
 
 typedef enum {
@@ -79,9 +80,9 @@ typedef enum {
   ACTIVITY_INPROCESS = 1
 } Activity_RetCode_t;
 
-SM_RetCode_t Adpd400xGetSignalMetrics(uint32_t*, SignalMetrics_t*, SignalQt_t*);
-SM_RetCode_t Adpd400xPreprocess_Metrics_Init(uint16_t, uint16_t, uint16_t);
-void Adpd400xPreprocess_Metrics_Reset(void);
+SM_RetCode_t GetSignalMetrics(uint32_t*, SignalMetrics_t*, SignalQt_t*);
+SM_RetCode_t Preprocess_Metrics_Init(uint16_t, uint16_t, uint16_t);
+void Preprocess_Metrics_Reset(void);
 
 void Preprocess_Activity_Init(uint16_t sample_rate);
 void Preprocess_Activity_Reset(void);

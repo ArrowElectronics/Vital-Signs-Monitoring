@@ -67,9 +67,11 @@ void touch_test_func(m2m2_hdr_t *p_msg)
         {
             top_touch_deinit();
 #ifdef LOW_TOUCH_FEATURE
+        if(!get_low_touch_trigger_mode2_status())
+        {
             EnableLowTouchDetection(false);
-
             bottom_touch_func_set(1);
+        }
 #endif
             Register_out1_pin_detect_func(touch1_data_send);
 #ifdef LOW_TOUCH_FEATURE
@@ -81,7 +83,8 @@ void touch_test_func(m2m2_hdr_t *p_msg)
             Unregister_out1_pin_detect_func(touch1_data_send);
 #ifdef LOW_TOUCH_FEATURE
             Unregister_out2_pin_detect_func(touch2_data_send);
-            bottom_touch_func_set(0);
+            if(!get_low_touch_trigger_mode2_status())
+                bottom_touch_func_set(0);
 #endif
             top_touch_init();
         }

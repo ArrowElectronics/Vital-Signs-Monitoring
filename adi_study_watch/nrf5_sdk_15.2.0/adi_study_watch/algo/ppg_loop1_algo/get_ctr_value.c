@@ -22,6 +22,7 @@
 *                                                                             *
 ******************************************************************************/
 #include <stdio.h>
+#include <math.h>
 #include "adpd400x_lib.h"
 #include "adpd400x_lib_common.h"
 
@@ -77,6 +78,7 @@ static uint16_t gsTiaGain;
 static uint16_t gsLedCurrentB;
 static uint16_t gsLedWidthB;
 static uint16_t gsPreDataVal;
+uint16_t gnPulseWidth, gnAfeGainNum, gnBpfGainNum;
 
 /**
   * @internal
@@ -85,7 +87,7 @@ static uint16_t gsPreDataVal;
   * @retval None
   */
 void Adpd400xGetCtrInit() {
-  // PpgLibGetSampleRate(&gsSampleRate, &gsDecimation);  // backup sampling rate
+  //PpgLibGetSampleRate(&gsSampleRate, &gsDecimation,gAdpd400x_lcfg->targetSlots);  // backup sampling rate
   g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * 0x20;
   AdpdDrvRegRead(g_reg_base + ADPD400x_REG_AFE_TRIM_A, &Reg.x104);
   AdpdDrvRegRead(g_reg_base + ADPD400x_REG_LED_POW12_A, &Reg.x105);
@@ -98,6 +100,9 @@ void Adpd400xGetCtrInit() {
   // gsAfeWidthB = Reg.x10A & 0x1F;
   gsOperateState = 0;
   gsSkipCnt = 0;
+  gnAfeGainNum = 0;
+  gnBpfGainNum = 0;
+  gnPulseWidth = 0;
 }
 
 /**
@@ -109,7 +114,7 @@ void Adpd400xGetCtrInit() {
 void Adpd400xGetCtrDeInit() {
   // AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPDDrv_SLOT_OFF, ADPDDrv_SLOT_OFF);
 
-  // PpgLibSetSampleRate(gsSampleRate, gsDecimation);    // restore sampling rate
+  // PpgLibSetSampleRate(gsSampleRate, gsDecimation,gAdpd400x_lcfg->targetSlots);    // restore sampling rate
   g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * 0x20;
   AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_AFE_TRIM_A, Reg.x104);
   AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_LED_POW12_A, Reg.x105);
@@ -130,7 +135,7 @@ void Adpd400xGetCtrDeInit() {
   */
 INT_ERROR_CODE_t Adpd400xGetCtrValue(uint32_t *rawDataB) {
   uint32_t dataVal, tempVal32, temp32;
-  uint16_t afeGainNum, bpfGainNum, temp16;
+  uint16_t temp16;
   uint16_t led12, led34;
   g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * 0x20;
 
@@ -212,22 +217,23 @@ INT_ERROR_CODE_t Adpd400xGetCtrValue(uint32_t *rawDataB) {
 
   if (gsOperateState == 10) {
     //  0=processing 1=with result 2=invalid
+    gnPulseWidth = gsLedWidthB;
     if (gsLedWidthB == 2)
-      bpfGainNum = BPF_GAIN2;
+      gnBpfGainNum = BPF_GAIN2;
     else
-      bpfGainNum = BPF_GAIN3;
-    afeGainNum = 1 << (gsTiaGain&0x3);         // R4/Rf=200/x.
+      gnBpfGainNum = BPF_GAIN3;
+    gnAfeGainNum = 1 << (gsTiaGain&0x3);         // R4/Rf=200/x.
     // should x2 here for R5. Double dynamic range
-    afeGainNum *= 2;                // R4/Rf=400/x.
+    gnAfeGainNum *= 2;                // R4/Rf=400/x.
     // Effective LED current = I*(1-degradation(~0.00156)*I)
     temp16 = 24;
 
     // Equation: dominator = bpfGainNum*pulseWidth*LED_Current*PULSE_NUM;
-    tempVal32 = bpfGainNum*gsLedWidthB*temp16*PULSE_NUM;  // afeGainNum is inverted
+    tempVal32 = gnBpfGainNum*gsLedWidthB*temp16*PULSE_NUM;  // gnBpfGainNum is inverted
     // should use sum of all ch to calculate ctr.
     dataVal = rawDataB[0];
-    temp32 = dataVal*460*afeGainNum;
-    // Equation: g_CtrValue = dataVal*460*afeGainNum/tempVal32;
+    temp32 = dataVal*460*gnAfeGainNum;
+    // Equation: g_CtrValue = dataVal*460*gnAfeGainNum/tempVal32;
     gAdpd400xPPGLibStatus.CtrValue = (uint16_t)(temp32/tempVal32);
     //debug(MODULE, "CTR=%d, mean=%u\r\n", gAdpd400xPPGLibStatus.CtrValue, tempVal32);
     //printf("CTR=%u \r\n", gAdpd400xPPGLibStatus.CtrValue);

@@ -4,8 +4,8 @@
     <configuration
       Name="Common"
       arm_core_type="Cortex-M4"
-      c_preprocessor_definitions="NRF52840_XXAA;NRF_LOG"
-      c_user_include_directories="..\\..\\..\\app\\nrf52840_app\\;..\\..\\..\\..\\components\\libraries\\log;..\\..\\..\\..\\components\\libraries\\util;..\\..\\..\\..\\components\\softdevice\\s140\\headers;..\\..\\..\\..\\modules\\nrfx\\mdk;..\\..\\..\\..\\components\\libraries\\experimental_section_vars;..\\..\\..\\..\\components\\toolchain\\cmsis\\include;..\\..\\..\\..\\components\\libraries\\log\\src;..\\..\\..\\..\\components\\libraries\\memobj;..\\..\\..\\..\\components\\libraries\\balloc;..\\..\\..\\..\\components\\libraries\\strerror"
+      c_preprocessor_definitions="NRF52840_XXAA;NRF_LOG;AGC_FEATURE;HRV;TIA_SAT_REG"
+      c_user_include_directories="..\\..\\..\\app\\nrf52840_app\\;..\\..\\..\\..\\components\\libraries\\log;..\\..\\..\\..\\components\\libraries\\util;..\\..\\..\\..\\components\\softdevice\\s140\\headers;..\\..\\..\\..\\modules\\nrfx\\mdk;..\\..\\..\\..\\components\\libraries\\experimental_section_vars;..\\..\\..\\..\\components\\toolchain\\cmsis\\include;..\\..\\..\\..\\components\\libraries\\log\\src;..\\..\\..\\..\\components\\libraries\\memobj;..\\..\\..\\..\\components\\libraries\\balloc;..\\..\\..\\..\\components\\libraries\\strerror;..\\..\\..\\algo\\sqi\\package;..\\..\\..\\algo\\hrv"
       project_directory=""
       project_type="Library" />
     <folder Name="algorithm">
@@ -40,7 +40,7 @@
       c_user_include_directories="..\\..\\..\\drivers\\adpd4000;..\\;..\\ppg_motion_reject_algo"
       gcc_enable_all_warnings="Yes"
       gcc_optimization_level="None"
-      post_build_command="cmd /c cd $(ProjectDir)\..\package &amp; makelib_ses.cmd debug lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a &amp; del $(Configuration)\lib_adpd_m4.a"
+      post_build_command="cmd /c cd $(ProjectDir)\..\package &amp; makelib_ses.cmd debug libadi_agc_m4f_Debug.a $(ProjectDir)\..\..\sqi\package\Debug\libadi_vsm_sqi_m4f_Debug.a $(ProjectDir)\..\..\hrv\libadi_vsm_hrv_m4f.a lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a &amp; del $(Configuration)\lib_adpd_m4.a"
       post_build_command_control="Always Run"
       pre_build_command="cmd /c cp $(ProjectDir)\..\adpd400x_lib.h $(ProjectDir)\..\package\adpd400x_lib.h"
       pre_build_command_control="Always Run" />
@@ -57,7 +57,7 @@
       c_user_include_directories="..\\..\\..\\drivers\\adpd4000;..\\;..\\ppg_motion_reject_algo"
       gcc_enable_all_warnings="Yes"
       gcc_optimization_level="Optimize For Size"
-      post_build_command="cmd /c cd $(ProjectDir)\..\package &amp; makelib_ses.cmd release lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a &amp; del $(Configuration)\lib_adpd_m4.a"
+      post_build_command="cmd /c cd $(ProjectDir)\..\package &amp; makelib_ses.cmd release libadi_agc_m4f_Release.a $(ProjectDir)\..\..\sqi\package\Release\libadi_vsm_sqi_m4f_Release.a $(ProjectDir)\..\..\hrv\libadi_vsm_hrv_m4f.a lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a &amp; del $(Configuration)\lib_adpd_m4.a"
       post_build_command_control="Always Run"
       pre_build_command="cmd /c cp $(ProjectDir)\..\adpd400x_lib.h $(ProjectDir)\..\package\adpd400x_lib.h" />
   </project>

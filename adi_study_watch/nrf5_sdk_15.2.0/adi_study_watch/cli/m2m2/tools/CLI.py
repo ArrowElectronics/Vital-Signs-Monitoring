@@ -277,8 +277,12 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts logging the ADPD4000."},
     "start_log_adpd4000_b": {   "commands":["loadAdpdCfg 43", "clockCalibration 6",  "adpdAGCControl 4:1", "fs_sub radpd9 add","sensor adpd4000 start","fs_log start"],
                 "help":"Starts logging the ADPD4000."},
-    "start_log_ppg": {   "commands":["loadAdpdCfg 40", "clockCalibration 6","setPpgLcfg 40","fs_sub rppg add","sensor ppg start","fs_log start"],
-                "help":"Starts logging the PPG."},
+    "start_log_ppg": {   "commands":["loadAdpdCfg 40", "clockCalibration 6","setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1210", "fs_sub rppg add", "sensor ppg start", "fs_log start"],
+                "help":"Starts logging the PPG with Static AGC enabled"},
+    "start_log_ppg_dynamic_agc": {   "commands":["loadAdpdCfg 40", "clockCalibration 6","setPpgLcfg 40", "fs_sub rppg add", "fs_sub ragc add", "sensor ppg start", "fs_log start"],
+                "help":"Starts logging the PPG with Static+Dynamic AGC enabled"},
+    "start_log_hrv": {   "commands":["loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "fs_sub rppg add", "fs_sub ragc add", "fs_sub rhrv add", "sensor ppg start","fs_log start"],
+                "help":"Starts logging the PPG+HRV Stream"},
     "start_log_temperature": {   "commands":["create_adpd4k_dcfg 4:2 5:3", "loadAdpdCfg 40", "fs_sub rtemperature add", "sensor temperature start","fs_log start"],
                 "help":"Start Temperature"},
     "start_log_ecg": {   "commands":["lcfgEcgWrite 0:100","fs_sub recg add","sensor ecg start","fs_log start"],
@@ -287,24 +291,23 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts the Pedometer. logging"},
     "start_log_adpd4000_r_adxl": {"commands":["loadAdpdCfg 41", "clockCalibration 6","fs_sub radpd7 add","fs_sub radxl add","fs_log start","sensor adpd4000 start","sensor adxl start"],
                     "help":"Starts the ADPD4000_r, ADXL logging"},
-    #"start_log_mv_uc1": {   "commands":["loadAdpdCfg 40", "reg w adpd4000 0x0D:0x07D0", "clockCalibration 6","fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
-    #"start_log_mv_uc1": {   "commands":["loadAdpdCfg 40", "reg w adpd4000 0x0D:0x2710", "clockCalibration 6","fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
-    "start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1 dvt1", "clockCalibration 6","fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
-                "help":"Starts logging for MV UC1 - Adpd@500Hz, Adxl, Temperature"},
-    #"start_log_mv_uc2": {   "commands":["loadAdpdCfg 40", "reg w adpd4000 0x0D:0x2710", "clockCalibration 6","fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","fs_sub rtemperature add","lcfgEdaWrite 0:30","sensor eda start","sensor adxl start","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start","fs_log start"],
-    "start_log_mv_uc2": {   "commands":["loadAdpdUCDcfg 2 dvt1","clockCalibration 6","fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","fs_sub rtemperature add","lcfgEdaWrite 0:30","sensor eda start","sensor adxl start","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start","fs_log start"],
-                "help":"Starts logging for MV UC2 - Eda@30Hz, Adxl, Adpd@100Hz, Temperature"},
-    #"start_log_mv_uc3": {   "commands":["fs_sub radpd6 add","fs_sub radxl add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:250","sensor ecg start","loadAdpdCfg 40", "clockCalibration 6","reg w adpd4000 0x0D:0x2710","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
-    "start_log_mv_uc3": {   "commands":["fs_sub radpd6 add","fs_sub radxl add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:250","sensor ecg start","loadAdpdUCDcfg 3 dvt1", "clockCalibration 6","reg w adpd4000 0x0D:0x2710","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
-                "help":"Starts logging for MV UC3 - Ecg@250Hz, Adpd@100Hz, Adxl, Temperature"},
-    #"start_log_mv_uc4": {   "commands":["fs_sub rppg add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:1000","sensor ecg start","loadAdpdCfg 40", "clockCalibration 6","setPpgLcfg 40","sensor ppg start","sensor temperature start","fs_log start"],
-    "start_log_mv_uc4": {   "commands":["fs_sub rppg add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:1000","sensor ecg start","loadAdpdUCDcfg 4 dvt1", "clockCalibration 6","setPpgLcfg 40","sensor ppg start","sensor temperature start","fs_log start"],
-                "help":"Starts logging for MV UC4 - Ecg@1000Hz, ppg, Temperature"},
-    #"start_log_mv_uc5": {   "commands":["loadAdpdCfg 44","reg w adpd4000 0x0D:0x2710","clockCalibration 6","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
-    "start_log_mv_uc5": {   "commands":["loadAdpdUCDcfg 5 dvt1","reg w adpd4000 0x0D:0x2710","clockCalibration 6","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
-                "help":"Starts logging for MV UC5 - 4 LED Slots at 100Hz, Adxl"},
-    "ppg": {    "commands":["loadAdpdCfg 40", "clockCalibration 6","setPpgLcfg 40", "sensor ppg start", "sub rppg add"],
-               "help":"Starts the PPG library with the default LCFG and DCFG."},
+    #"start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1 dvt1", "clockCalibration 6","fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 1", "clockCalibration 6", "setUCHREnab 1 6", "fs_sub rppg add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+                "help":"Starts logging for MV UC1 - Adpd@500Hz, Adxl, HR, Temperature"},
+    "start_log_mv_uc2": {   "commands":["loadAdpdUCDcfg 2 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 2", "clockCalibration 6","setUCHREnab 1 6", "fs_sub rppg add", "fs_sub rsqi add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","fs_sub rtemperature add","lcfgEdaWrite 0:30","sensor eda start","sensor adxl start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start","fs_log start"],
+                "help":"Starts logging for MV UC2 - Eda@30Hz, Adxl, SQI, Adpd@100Hz, HR, Temperature"},
+    "start_log_mv_uc3": {   "commands":["loadAdpdUCDcfg 3 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 3", "clockCalibration 6","setUCHREnab 1 6","fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radxl add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:250","sensor ecg start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+                "help":"Starts logging for MV UC3 - Ecg@250Hz, SQI, Adpd@100Hz, HR, Adxl, Temperature"},
+    "start_log_mv_uc4": {   "commands":["loadAdpdUCDcfg 4 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 4", "clockCalibration 6","fs_sub rppg add","fs_sub rsqi add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:1000","sensor ecg start","SQISetSlot 6","sensor sqi start","sensor ppg start","sensor temperature start","fs_log start"],
+                "help":"Starts logging for MV UC4 - Ecg@1000Hz, SQI, ppg, Temperature"},
+    "start_log_mv_uc5": {   "commands":["loadAdpdUCDcfg 5 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 5","clockCalibration 6","setUCHREnab 1 6", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
+                "help":"Starts logging for MV UC5 - 4 LED Slots at 100Hz, SQI, HR, Adxl"},
+    "ppg": {    "commands":["loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1210", "sensor ppg start", "sub rppg add"],
+               "help":"Starts the PPG application with Static AGC enabled"},
+    "ppg_dynamic_agc": {    "commands":["loadAdpdCfg 40", "clockCalibration 6","setPpgLcfg 40", "sensor ppg start", "sub rppg add", "sub ragc add"],
+               "help":"Starts the PPG application with Static+Dynamic AGC enabled"},
+    "hrv":{   "commands":["loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start","sub rppg add", "sub ragc add", "sub rhrv add"],
+                "help":"starts PPG+HRV stream with Static+Dynamic AGC enabled"},
     "periodic_ppg": {    "commands":["loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","lcfgPpgWrite 6 0x000F001E", "sensor ppg start", "sub rppg add"],
                "help":"Starts Duty cycle based periodic PPG, Ton=15sec,Toff=30sec"},
     "ecg": {"commands": ["lcfgEcgWrite 0:100", "sensor ecg start", "sub recg add"],
@@ -487,7 +490,7 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts the creation of file with MV UC4 log commands,  that will be put in General Block DCB, which will be used for LT application; Copies this file to dcb_cfg folder as gen_blk_dcb.lcfg"},
     "gen_blk_dcb_file_create_mv_uc5": {   "commands":[ "create_gen_blk_dcb start", "quickstart start_log_mv_uc5", "quickstop stop_log_mv_uc5", "gen_blk_dcb_file_create write", "create_gen_blk_dcb stop"],
                 "help":"Starts the creation of file with MV UC5 log commands,  that will be put in General Block DCB, which will be used for LT application; Copies this file to dcb_cfg folder as gen_blk_dcb.lcfg"},
-    "start_dcb_low_touch_test": {   "commands":[ "quickstart gen_blk_dcb_file_create_test", "write_dcb_config low_touch gen_blk_dcb.lcfg", "pm_activate_touch_sensor"],
+    "start_dcb_low_touch_test": {   "commands":[ "quickstart gen_blk_dcb_file_create_test", "write_dcb_config lt_dcb_config gen_blk_dcb.lcfg", "pm_activate_touch_sensor"],
                 "help":"Generate DCB file, write DCB, Start Low touch with DCB configurations"},
     "ppg_dark_test": {"commands":["delete_dcb_config adpd4000","write_dcb_config adpd4000 ppg_dark_test.dcfg","toggleSaveCSV","quickstart adpd4000","plot radpd6","delay 5","quickstop adpd4000","toggleSaveCSV","delete_dcb_config adpd4000"],
                 "help":"Quickstarts the PPG dark test for 5 secs and saves the PPG data as CSV file"},
@@ -606,6 +609,10 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Opens MWL view with Green, Red, IR, Blue LED from Slot F, G, H, I of ADPD4000"},
     "uc_hr_enab_adpd50_adxl50": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "sensor adxl start","sub radxl add"],
                 "help":"Starts UC HR enable test"},
+    "uc_hr_enab_adpd50": {"commands": ["sub rppg add", "setUCHREnab 1 6",  "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add"],
+                "help":"Starts UC HR enable test only with ADPD"}, 
+    "start_log_uc_hr_enab_adpd50": {"commands": ["fs_sub rppg add", "setUCHREnab 1 6",  "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "fs_sub radpd6 add","fs_log start"],
+                "help":"Starts UC HR enable test only with ADPD"},              
     "uc_hr_enab_adpd100_adxl50": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x2710", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl"],
                 "help":"Starts UC HR enable test"},
     "uc_hr_enab_adpd500_adxl50": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x07D0", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl"],
@@ -616,10 +623,18 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts UC HR enable test"},
     "uc_hr_enab_adpd100_adxl100": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x02710", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl","reg w adxl 0x2C:0x9B"],
                 "help":"Starts UC HR enable test"},
-    "start_stream_mv_uc1": {   "commands":["loadAdpdUCDcfg 1 dvt1", "clockCalibration 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add",],
-                "help":"Starts streaming for MV UC1 - Adpd@500Hz, Adxl, Temperature"},
-    "start_stream_mv_uc4_1": {   "commands":["lcfgEcgWrite 0:1000","sensor ecg start","loadAdpdUCDcfg 4 dvt1", "clockCalibration 6","setPpgLcfg 40","sensor ppg start","sensor temperature start","sub rppg add","sub recg add","sub rtemperature add"],
-                "help":"Start MV UC4 start stream cmd sequence"},
+    "start_stream_mv_uc1_1": {   "commands":["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","loadAdpdUCDcfg 1 dvt1", "clockCalibration 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
+                "help":"Starts streaming for MV UC1 - UC HR, Adpd@500Hz, Adxl@50Hz, Temperature"}, 
+    "start_stream_mv_uc2_1": {   "commands":["loadAdpdUCDcfg 2 dvt1","clockCalibration 6","lcfgEdaWrite 0:30","sensor eda start","sub reda add","sensor adxl start","sub radxl add","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor temperature start","sub rtemperature add"],
+                "help":"Starts streaming for MV UC2 - Eda@30Hz, Adxl, UC HR, SQI, Adpd@100Hz, Temperature"},
+    "start_stream_mv_uc2_2": {   "commands":["loadAdpdUCDcfg 2 dvt1","clockCalibration 6","lcfgEdaWrite 0:30","sensor eda start","sub reda add","sensor adxl start","sub radxl add","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start"],
+                "help":"Starts streaming for MV UC2(modified for testing) - Eda@30Hz, Adxl, UC HR, SQI, Adpd@100Hz, Temperature"},
+    "start_stream_mv_uc3_1": {   "commands":["lcfgEcgWrite 0:250","sensor ecg start","sub recg add","loadAdpdUCDcfg 3 dvt1", "clockCalibration 6","reg w adpd4000 0x0D:0x2710","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
+                "help":"Starts streaming for MV UC3 - Ecg@250Hz, UC HR, SQI, Adpd@100Hz, Adxl, Temperature"},
+    "start_stream_mv_uc4_1": {   "commands":["lcfgEcgWrite 0:1000","sensor ecg start","sub recg add","loadAdpdUCDcfg 4 dvt1", "clockCalibration 6","setPpgLcfg 40","SQISetSlot 6","sensor sqi start", "sub rsqi add","sensor ppg start","sub rppg add","sensor temperature start","sub rtemperature add"],
+                "help":"Starts streaming for MV UC4 - Ecg@1000Hz, SQI, ppg, Temperature"},
+    "start_stream_mv_uc5_1": {   "commands":["loadAdpdUCDcfg 5 dvt1","reg w adpd4000 0x0D:0x2710","clockCalibration 6","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 0:1","sensor adpd4000 start","sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add","sensor adxl start","sub radxl add",],
+                "help":"Starts streaming for MV UC5 - 4 LED Slots at 100Hz, SQI, UC HR, Adxl"},
     "start_log_mv_uc4_1": {   "commands":["fs_log start","fs_sub rppg add","fs_sub recg add","fs_sub rtemperature add"],
                 "help":"Start MV UC4 start log cmd sequence, in b/w streaming"},}
 
@@ -711,18 +726,26 @@ class m2m2_shell(cmd.Cmd):
                          "help": "Stops logging the Battery info."},
     "ppg": {    "commands":["sub rppg remove", "sensor ppg stop"],
                 "help":"Stops the PPG library with Unsubscribes it."},
+    "ppg_dynamic_agc": {    "commands":["sub ragc remove", "sub rppg remove", "sensor ppg stop"],
+                "help":"Stops the PPG library with Unsubscribes it."},
+    "hrv": {    "commands":["sub rhrv remove", "sub ragc remove", "sub rppg remove", "sensor ppg stop"],
+                "help":"Stops the PPG+HRV stream"},
     "periodic_ppg": {    "commands":["sub rppg remove", "sensor ppg stop"],
                 "help":"Stops the PPG library with Unsubscribes it."},
     "stop_log_adpd4000_g": {   "commands":["sensor adpd4000 stop","fs_sub radpd6 remove","fs_log stop"],
-                "help":"Starts logging the ADPD."},
+                "help":"Stops logging the ADPD_g data"},
     "stop_log_adpd4000_r": {   "commands":["sensor adpd4000 stop","fs_sub radpd7 remove","fs_log stop"],
-                "help":"Starts logging the ADPD."},
+                "help":"Stops logging the ADPD_r data "},
     "stop_log_adpd4000_ir": {   "commands":["sensor adpd4000 stop","fs_sub radpd8 remove","fs_log stop"],
-                "help":"Starts logging the ADPD."},
+                "help":"Stops logging the ADPD_ir data"},
     "stop_log_adpd4000_b": {   "commands":["sensor adpd4000 stop","fs_sub radpd9 remove","fs_log stop"],
-                "help":"Starts logging the ADPD."},
+                "help":"Stops logging the ADPD_b data"},
     "stop_log_ppg": {   "commands":["sensor ppg stop","fs_sub rppg remove","fs_log stop"],
-                "help":"Starts logging the ADPD."},
+                "help":"Stops logging the PPG data"},
+    "stop_log_ppg_dynamic_agc": {   "commands":["sensor ppg stop", "fs_sub ragc remove", "fs_sub rppg remove", "fs_log stop"],
+                "help":"Stops logging the PPG data"},
+    "stop_log_hrv": {   "commands":["sensor ppg stop", "fs_sub ragc remove", "fs_sub rhrv remove", "fs_sub rppg remove","fs_log stop"],
+                "help":"Stops logging the PPG+HRV data"},
     "stop_log_temperature": {   "commands":["sensor temperature stop","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stop Temperature"},
     "stop_log_ecg": {   "commands":["sensor ecg stop","fs_sub recg remove","fs_log stop"],
@@ -743,16 +766,17 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Stops the Pedometer application, unsubscribes it and disables the ADXL sensor."}, 
     "stop_log_adpd4000_r_adxl": {"commands":["fs_sub radpd7 remove","fs_sub radxl remove","fs_log stop","sensor adpd4000 stop","sensor adxl stop"],
                     "help":"Stops the ADPD4000_r, ADXL logging"},
-    "stop_log_mv_uc1": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","fs_sub radpd6 remove","fs_sub radxl remove","fs_sub rtemperature remove","fs_log stop"],
-                "help":"Stops logging for MV UC1 - Adpd, Adxl, Temperature"},         
-    "stop_log_mv_uc2": {   "commands":["sensor temperature stop","sensor adpd4000 stop","sensor adxl stop","sensor eda stop","fs_sub radpd6 remove","fs_sub radxl remove","fs_sub reda remove","fs_sub rtemperature remove","fs_log stop"],
-                "help":"Stops logging for MV UC2 - Eda, Adxl, Adpd, Temperature"},
-    "stop_log_mv_uc3": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor ecg stop","fs_sub radpd6 remove","fs_sub radxl remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
-                "help":"Stops logging for MV UC3 - Ecg, Adpd, Adxl, Temperature"},
-    "stop_log_mv_uc4": {   "commands":["sensor temperature stop","sensor ppg stop","sensor ecg stop","fs_sub rppg remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
-                "help":"Stops logging for MV UC4 - Ecg, ppg, Temperature"},
-    "stop_log_mv_uc5": {   "commands":["sensor adxl stop","sensor adpd4000 stop","fs_sub radpd6 remove","fs_sub radpd7 remove","fs_sub radpd8 remove","fs_sub radpd9 remove","fs_sub radxl remove","fs_log stop"],
-                "help":"Stops logging for MV UC5- 4 LED Slots at 100Hz."},
+    #"stop_log_mv_uc1": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","fs_sub radpd6 remove","fs_sub radxl remove","fs_sub rtemperature remove","fs_log stop"],
+    "stop_log_mv_uc1": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop", "setUCHREnab 0 6", "fs_sub rppg remove", "fs_sub radpd6 remove","fs_sub radxl remove","fs_sub rtemperature remove","fs_log stop"],
+                "help":"Stops logging for MV UC1 - Adpd, Adxl, HR, Temperature"},
+    "stop_log_mv_uc2": {   "commands":["sensor temperature stop","sensor adpd4000 stop","sensor sqi stop","sensor adxl stop","sensor eda stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub reda remove","fs_sub rtemperature remove","fs_log stop"],
+                "help":"Stops logging for MV UC2 - Eda, Adxl, SQI, Adpd, HR, Temperature"},
+    "stop_log_mv_uc3": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","sensor ecg stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
+                "help":"Stops logging for MV UC3 - Ecg, SQI, Adpd, HR, Adxl, Temperature"},
+    "stop_log_mv_uc4": {   "commands":["sensor temperature stop","sensor ppg stop","sensor sqi stop","sensor ecg stop","fs_sub rppg remove","fs_sub rsqi remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
+                "help":"Stops logging for MV UC4 - Ecg, ppg, SQI,Temperature"},
+    "stop_log_mv_uc5": {   "commands":["sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radpd7 remove","fs_sub radpd8 remove","fs_sub radpd9 remove","fs_sub radxl remove","fs_log stop"],
+                "help":"Stops logging for MV UC5- 4 LED Slots at 100Hz, HR, SQI, ADXL"},
     "bcm": {"commands": ["sub rbcm remove", "sensor bcm stop"],
                  "help": "Stop BCM"},
     "mwl_view": {"commands": ["sub radpd6 remove","sub radpd7 remove","sub radpd8 remove","sub radpd9 remove","sensor adpd4000 stop"],
@@ -854,12 +878,24 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Opens MWL view with Green, Red IR, Blue LED from Slot F, G, H, I of ADPD4000"},
     "uc_hr_enab": {"commands": ["sub rppg remove","quickstop adpd4000", "quickstop adxl", "setUCHREnab 0 6"],
                 "help":"Stops UC HR enable test"},
-    "stop_stream_mv_uc1": {   "commands":["sub rtemperature remove","sensor temperature stop","sub radxl remove","sensor adxl stop","sub radpd6 remove","sensor adpd4000 stop"],
-                "help":"Stops streaming for MV UC1 - Adpd, Adxl, Temperature"},
+    "uc_hr_disable_adpd": {"commands": ["sub radpd6 remove","sub rppg remove","quickstop adpd4000", "setUCHREnab 0 6"],
+                "help":"Stops UC HR enable test only with ADPD"},  
+    "stop_log_uc_hr_disable_adpd": {"commands": ["fs_sub radpd6 remove","fs_sub rppg remove","quickstop adpd4000", "setUCHREnab 0 6","fs_log stop"],
+                "help":"Stops UC HR enable test only with ADPD"},                  
+    "stop_stream_mv_uc1_1": {   "commands":["sub rppg remove","sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sub radpd6 remove","sub radxl remove","sub rtemperature remove", "setUCHREnab 0 6"],
+                "help":"Stops streaming for MV UC1 - UC HR, Adpd@500Hz, Adxl@50Hz, Temperature"},
+    "stop_stream_mv_uc2_1": {   "commands":["sub rppg remove","sensor temperature stop","sensor adpd4000 stop","sensor adxl stop","sensor eda stop","sub radpd6 remove","sub radxl remove","sub reda remove","sub rtemperature remove", "setUCHREnab 0 6","sub rsqi remove","sensor sqi stop"],
+                "help":"Stops streaming for MV UC2 - Eda@30Hz, Adxl, UC HR, SQI, Adpd@100Hz, Temperature"},
+    "stop_stream_mv_uc2_2": {   "commands":["sub rppg remove","sensor temperature stop","sensor adpd4000 stop","sensor adxl stop","sensor eda stop","sub radxl remove","sub reda remove", "setUCHREnab 0 6","sub rsqi remove","sensor sqi stop"],
+                "help":"Stops streaming for MV UC2 - Eda@30Hz, Adxl, UC HR, SQI, Adpd@100Hz, Temperature"},
+    "stop_stream_mv_uc3_1": {   "commands":["sub rppg remove","sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor ecg stop","sub radpd6 remove","sub radxl remove","sub recg remove","sub rtemperature remove", "setUCHREnab 0 6","sub rsqi remove","sensor sqi stop"],
+                "help":"Stops streaming for MV UC3 - Ecg@250Hz, UC HR, SQI, Adpd@100Hz, Adxl, Temperature"},
+    "stop_stream_mv_uc4_1": {   "commands":["sensor temperature stop","sensor ppg stop","sensor ecg stop","sub rppg remove","sub recg remove","sub rtemperature remove","sub rsqi remove","sensor sqi stop"],
+                "help":"Stops streaming for MV UC4 - Ecg@1000Hz, SQI, ppg, Temperature"},
+    "stop_stream_mv_uc5_1": {   "commands":["sub rppg remove","sensor adxl stop","sensor adpd4000 stop","sub radpd6 remove","sub radpd7 remove","sub radpd8 remove","sub radpd9 remove","sub radxl remove", "setUCHREnab 0 6","sub rsqi remove","sensor sqi stop"],
+                "help":"Stops streaming for MV UC5- 4 LED Slots at 100Hz, SQI, UC HR, Adxl"},
     "stop_log_mv_uc4_1": {   "commands":["fs_sub rppg remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
-                "help":"Give the MV UC4 stop stream cmd sequence"},
-    "stop_stream_mv_uc4_1": {   "commands":["sensor temperature stop","sensor ppg stop","sensor ecg stop","sub rppg remove","sub recg remove","sub rtemperature remove"],
-                "help":"Give the MV UC4 stop log cmd sequence, in b/w streaming"},}
+                "help":"Give the MV UC4 stop stream cmd sequence"},}
 
     def precmd(self, line):
         """
@@ -2093,19 +2129,39 @@ Dump all the register values to a file
         print
 
     def do_status(self, arg):
+        """
+Query status of the sensor
+#>status [sensor_name] [slot_no]
+Arguments:
+    sensor_name -> is the name of the sensor
+    slot -> radpd1 to radpd12 for ADPD slot A to slot L, mandatory only when sensor_name is adpd4000
+Eg:
+#>status adxl
+#>status adpd4000 radpd6
+        """
         address = None
-        args = self._parse_args(arg, 1)
+        stream = None
+        args = self._parse_args(arg, None)
         if args == None:
             return
         for a in args:
             if a in application_name_map:
                 address = application_name_map[a]["address"]
+            if a in stream_name_map:
+                if address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000:
+                    stream = stream_name_map[a]["stream"]
         if address == None:
             self.vrb.err("Incorrect usage! You did not provide a valid device.")
             return
+        if address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000 and stream == None:
+            self.vrb.err("Incorrect usage! You did not provide a valid slot for ADPD.")
+            return
         msg = m2m2_packet(address, m2m2_app_common_status_t())
         msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_SENSOR_STATUS_QUERY_REQ
-        msg.payload.stream = address
+        if address != M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000:
+          msg.payload.stream = address
+        else:
+          msg.payload.stream = stream
         self._send_packet(msg)
         reply_msg = self._get_packet(address, m2m2_app_common_status_t(), 10)
         if reply_msg != None:
@@ -2124,7 +2180,7 @@ Dump all the register values to a file
         print "Usage:"
         print "    #>status [device]"
         print
-        print "    #>status adpd"
+        print "    #>status adpd4000"
         print "    #>status adxl"
         print "    #>status ppg"
         print
@@ -2303,7 +2359,7 @@ Set the PPG LCFG. The argument is the PPG LCFG addresses or the LCFG ID, then VA
         self._send_packet(msg)
         reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, ppg_app_lcfg_op_hdr_t(num_ops), 60)
         if reply_msg == None:
-            status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
+            #status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
             print "Writing PPG LCFG failed!"
 	    return
         self._print_ppg_lcfg_result(reply_msg)
@@ -2698,6 +2754,7 @@ Read the LT application LCFG used in the Watch. The argument are the LT LCFG add
     LT_APP_LCFG_OFFWR_TIME = 0x1
     LT_APP_LCFG_AIR_CAP_VAL = 0x2
     LT_APP_LCFG_SKIN_CAP_VAL = 0x3
+    LT_APP_LCFG_TRIGGER_METHOD = 0x4
 
       Eg: = lcfgLTAppRead addr1 addr2 ...
         """
@@ -2737,6 +2794,7 @@ Set the LT application LCFG. The argument is the LT app LCFG addresses or the LC
     LT_APP_LCFG_OFFWR_TIME = 0x1
     LT_APP_LCFG_AIR_CAP_VAL = 0x2
     LT_APP_LCFG_SKIN_CAP_VAL = 0x3
+    LT_APP_LCFG_TRIGGER_METHOD = 0x4
 
       Eg: = lcfgLTAppWrite addr1 value1 addr2 value2 ...
         """
@@ -2788,77 +2846,102 @@ Set the LT application LCFG. The argument is the LT app LCFG addresses or the LC
 
     def do_LTAppTuning(self, arg):
         """
+Steps for LT App Tuning and how to use LT App:
 1. Do the tuning of LT App lcfg paramters to change either fw lcfg or add DCB lcfg
-2. Write the LT Configuration NAND/DCB & then do LTAppTuning
-For the LT application LCFG, Note that the range of addr varies from 0x0 to 0x3 as given below:
+2. Choose the Trigger method: 0000 -> LT_APP_CAPSENSE_TUNED_TRIGGER, 0001 -> LT_APP_CAPSENSE_DISPLAY_TRIGGER, 0002 -> LT_APP_BUTTON_TRIGGER
+3. Write the LT Configuration NAND/DCB after doing the LTAppTuning
+   #>quickstart nand_config_file_create_mv_uc1 (or any other UC..)
+     OR
+   #>quickstart gen_blk_dcb_file_create_mv_uc1 (or any other UC..)
+   #>write_dcb_config lt_dcb_config gen_blk_dcb.lcfg
+4. To test the LT App:
+   For [trig_method]
+        0 -> LT_APP_CAPSENSE_TUNED_TRIGGER:
+        Wrist On/Off should turn On/Off LT logging
+   For [trig_method]
+        1 -> LT_APP_CAPSENSE_DISPLAY_TRIGGER:
+        Wear the watch on the wrist. From Watch display, LOW_TOUCH_LOGGING page, navigate to LT_APP sub-page, press select button to enable LT App and turn On LT logging
+        Remove the Watch to turn off LT logging. From LT_APP sub-page, press select button to disable the LT App.
+                   OR
+		Wear the watch on the wrist. Give pm_activate_touch_sensor command to turn On LT logging.
+        Remove the Watch to turn off LT logging. Give pm_deactivate_touch_sensor command to turn Off LT App
+   For [trig_method]
+        2 -> LT_APP_BUTTON_TRIGGER:
+        Wear the watch on the wrist. From Watch display, Home page, press Select button for 3 secs, to enter into "LOG EN" sub-page, press select button to enable and turn On LT logging
+        Remove the Watch and connect it to USB cable to turn off LT logging.
+
+------------------------------------------------------------------------------------------------
+For the LT application LCFG, Note that the range of addr varies from 0x0 to 0x4 as given below:
     LT_APP_LCFG_ONWR_TIME = 0x0
     LT_APP_LCFG_OFFWR_TIME = 0x1
     LT_APP_LCFG_AIR_CAP_VAL = 0x2
     LT_APP_LCFG_SKIN_CAP_VAL = 0x3
+    LT_APP_LCFG_TRIGGER_METHOD = 0x4
+------------------------------------------------------------------------------------------------
 Usage:
-    LTAppTuning [option] [airCap] [skinCap]
+    LTAppTuning [option] [trig_method] [airCap] [skinCap]
     [option]
-        dcb --> To Tune and write to WR_detect_DCB_blk 
+        dcb --> To Tune and write to lt_app_lcfg DCB blk
         fw  --> To Tune and replace default fw lcfg
+    [trig_method]
+        0 -> LT_APP_CAPSENSE_TUNED_TRIGGER
+        1 -> LT_APP_CAPSENSE_DISPLAY_TRIGGER
+        2 -> LT_APP_BUTTON_TRIGGER
     [airCap]
         Value in uF as observed from Display page which reads Ch2 Cap, when Watch is placed in Air, without touching bottom touch electrodes
         Try to keep a min value of the lot, observed in about 10 trials
     [skinCap]
         Value in uF as observed from Display page which reads Ch2 Cap, when Watch is placed in skin, touching the bottom touch electrodes
         Try to keep a max value of the lot, observed in about 10 trials
-      Eg: = LTAppTuning fw  1400 1380
-      Eg: = LTAppTuning dcb 1285 1250
+
+    [airCap] & [skinCap] is not required for [trig_method] = 1 or 2
+
+      Eg: = LTAppTuning fw  0 1400 1380
+      Eg: = LTAppTuning dcb 0 1285 1250
+      Eg: = LTAppTuning fw   1
+      Eg: = LTAppTuning dcb  1
+      Eg: = LTAppTuning fw  2
+      Eg: = LTAppTuning dcb 2
         """
 
         args = self._parse_args(arg, None)
-        if len(args) == 0 or len(args) != 3:
+        if len(args) == 0 or len(args) < 2:
             self.vrb.write("Wrong arguments supplied!")
             return
 
         option = args[0]
-        minCap_air = args[1]
-        maxCap_skin = args[2]
+        trig_method = args[1]
+        if trig_method == "0":
+            if len(args) != 4:
+                self.vrb.write("Wrong arguments supplied!")
+                return
+            minCap_air = args[2]
+            maxCap_skin = args[3]
+        elif trig_method == "1" or trig_method == "2":
+            minCap_air =  "1380"
+            maxCap_skin = "1340"
+        else:
+            self.vrb.write("trig_method: Wrong arguments supplied!")
+            return
 
-        #self.vrb.write("Deactivating LT app")
-        #self.do_pm_deactivate_touch_sensor("0")
-        if option == "fw" :
-            #self.vrb.write("Place Watch on Air, without touching bottom touch electrodes")
-            #self.do_delay("5")
-            #avgCap_air, minCap_air, maxCap_air = self.do_LTAppReadCh2Cap("100")
-            #
-            #self.vrb.write("Place Watch bottom touch electrodes on skin & tighten the straps")
-            #self.do_delay("5")
-            #avgCap_skin, minCap_skin, maxCap_skin = self.do_LTAppReadCh2Cap("100")
-            #
-            #cmd = "lcfgLTAppWrite 0x2 " + str(minCap_air)
-            #self.onecmd(cmd)
-            #cmd = "lcfgLTAppWrite 0x3 " + str(maxCap_skin)
-            #self.onecmd(cmd)
-
+        self.vrb.write("Deactivating LT app")
+        self.do_pm_deactivate_touch_sensor("0")
+        if option == "fw" and trig_method == "0" :
             cmd = "lcfgLTAppWrite 0x2 " + minCap_air
             self.onecmd(cmd)
             cmd = "lcfgLTAppWrite 0x3 " + maxCap_skin
             self.onecmd(cmd)
-            self.do_pm_activate_touch_sensor("0")
+        elif option == "fw" and trig_method == "1" :
+            cmd = "lcfgLTAppWrite 0x4 " + trig_method
+            self.onecmd(cmd)
+        elif option == "fw" and trig_method == "2" :
+            cmd = "lcfgLTAppWrite 0x4 " + trig_method
+            self.onecmd(cmd)
         elif option == "dcb" :
-            #self.vrb.write("Place Watch on Air, without touching bottom touch electrodes")
-            #self.do_delay("5")
-            #avgCap_air, minCap_air, maxCap_air = self.do_LTAppReadCh2Cap("100")
-            #
-            #self.vrb.write("Place Watch bottom touch electrodes on skin & tighten the straps")
-            #self.do_delay("5")
-            #avgCap_skin, minCap_skin, maxCap_skin = self.do_LTAppReadCh2Cap("100")
-
-            #Write to wrist_detect_dcb.lcfg file
-            str1 = "#wrist_detect_dcb.lcfg"
+            #Write to lt_app_lcfg_dcb.lcfg file
+            str1 = "#lt_app_lcfg_dcb.lcfg"
             str2 = "00 1B58 #ONWR_TIME hex value in ms;    7000ms = 0x1B58"
             str3 = "01 1388 #OFFWR_TIME hex value in ms;   5000ms = 0x1388"
-            #airCap = str(hex(minCap_air))
-            #airCap = airCap.replace('0x','0')
-            #str4 = "02 " +  airCap + " #AIR_CAP_VAL hex value in uF;"
-            #skinCap = str(hex(maxCap_skin))
-            #skinCap = skinCap.replace('0x','0')
-            #str5 = "03 " + skinCap + " #SKIN_CAP_VAL hex value in uF;"
 
             airCap = str(hex(int(minCap_air,10)))
             airCap = airCap.replace('0x','0')
@@ -2867,8 +2950,10 @@ Usage:
             skinCap = skinCap.replace('0x','0')
             str5 = "03 " + skinCap + " #SKIN_CAP_VAL hex value in uF;"
 
-            f = open('dcb_cfg/wrist_detect_dcb.lcfg','w')
-            #f.write('{:02X} {:02X}'.format((reply_msg.payload.dcbdata[ECnt]>>8),(reply_msg.payload.dcbdata[ECnt] & 0xff)))
+            trig_method = "000"+trig_method
+            str6 = "04 " + trig_method + " #LT_APP_LCFG_TRIGGER_METHOD hex value; 0000 -> LT_APP_CAPSENSE_TUNED_TRIGGER, 0001 -> LT_APP_CAPSENSE_DISPLAY_TRIGGER, 0002 -> LT_APP_BUTTON_TRIGGER"
+
+            f = open('dcb_cfg/lt_app_dcb.lcfg','w')
             f.write(str1)
             f.write('\n')
             f.write(str2)
@@ -2879,10 +2964,12 @@ Usage:
             f.write('\n')
             f.write(str5)
             f.write('\n')
+            f.write(str6)
+            f.write('\n')
             f.close()
 
-            #Write to wrist_detect_dcb block
-            cmd = "write_dcb_config wrist_detect wrist_detect_dcb.lcfg"
+            #Write to lt_app_lcfg_dcb block
+            cmd = "write_dcb_config lt_app_lcfg lt_app_dcb.lcfg"
             self.onecmd(cmd)
         else:
             self.vrb.write("Wrong option given, check help & retry")
@@ -3001,12 +3088,13 @@ Usage:
         status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, packet.payload.status)
         if status == None:
             status = int(packet.payload.status)
-        stream = self._get_enum_name(M2M2_ADDR_ENUM_t, packet.header.src)
+        app = self._get_enum_name(M2M2_ADDR_ENUM_t, packet.header.src)
+        stream = self._get_enum_name(M2M2_ADDR_ENUM_t, packet.payload.stream)
         if stream == None:
             stream = hex(packet.payload.stream)
         num_subscribers = int(packet.payload.num_subscribers)
         num_start_reqs = int(packet.payload.num_start_reqs)
-        self.vrb.write("Application: {}:".format(stream))
+        self.vrb.write("Application: {}:".format(app))
         self.vrb.write("  Status: '{}'".format(status))
         self.vrb.write("  Stream ID: '{}'".format(stream))
         self.vrb.write("  Number of Subscribers: '{}'".format(num_subscribers))
@@ -3510,6 +3598,55 @@ Usage:
             #self.do_reg('adpd4000 w 0x{}:0x{}'.format(addr, val_list[i]))
         self.do_reg(add_val_list)
 
+    def do_loadPpgUCLcfg(self, arg):
+        """
+Load PPG Application  with UC lcfg using "lcfgPpgWrite add:val" command. Argument to be passed is:
+ [uc] as defined below:
+        1 --> UC1
+        2 --> UC2
+        ...
+        5 --> UC5
+-----------------------------------------------
+Usage:
+        #>loadPpgUCLcfg [uc]
+        #>loadPpgUCLcfg 2
+        #>loadPpgUCLcfg 5
+        """
+        args = self._parse_args(arg, None)
+        if len(args) == 0 or len(args) != 1:
+            self._p_err("Wrong arguments supplied!")
+            return
+        uc = int(args[0])
+        curr_dir = os.getcwd()
+        dcb_cfg_dir = os.path.join(curr_dir, 'mv_uc_dcfg')
+        if uc == 1:
+            lcfg_file = os.path.join(dcb_cfg_dir, 'ppg_case1.lcfg')
+        elif uc == 2:
+            lcfg_file = os.path.join(dcb_cfg_dir, 'ppg_case2.lcfg')
+        elif uc == 3:
+            lcfg_file = os.path.join(dcb_cfg_dir, 'ppg_case3.lcfg')
+        elif uc == 4:
+            lcfg_file = os.path.join(dcb_cfg_dir, 'ppg_case4.lcfg')
+        elif uc == 5:
+            lcfg_file = os.path.join(dcb_cfg_dir, 'ppg_case5.lcfg')
+        else:
+            self.vrb.write("Wrong UC selected. Check help & retry")
+            return
+        addr_list, val_list = self.get_dcfg_data_list(lcfg_file)
+        #print addr_list
+        #print val_list
+        j=0
+        add_val = ""
+        for i, addr in enumerate(addr_list):
+            add_val += " 0x" + addr + " 0x" + val_list[i]
+            j+=1
+            if j == 30:
+                self.do_lcfgPpgWrite(add_val)
+                #print add_val
+                j=0
+                add_val = ""
+        self.do_lcfgPpgWrite(add_val)
+
     def do_delay(self, arg):
         """
 Give a fixed delay to be used in between running the test
@@ -3539,7 +3676,7 @@ Usage:
         """
 Send a command to Read the DCB Configurations of the specific sensor of the Board, 
 which is then saved into a file with name [sensor_name]_dcb_get.dcfg (ex. - adxl_dcb_get.dcfg), which will be present in 'tools/dcb_dcfg/' directory.
-Currently dcb configurations can be read for adpd4000, adxl, ppg, ecg, eda, low_touch, ad7156, wrist_detect.
+Currently dcb configurations can be read for adpd4000, adxl, ppg, ecg, eda, lt_dcb_config, ad7156, lt_app_lcfg.
 ex. read_dcb_config [sensor_name]
     #>read_dcb_config adpd4000
         """
@@ -3573,7 +3710,7 @@ ex. read_dcb_config [sensor_name]
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
             msg = m2m2_packet(Sensor_Address, m2m2_dcb_ad7156_data_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_wrist_detect_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t())
         else:
              print "The requested config dcb is not supported"
              return
@@ -3599,7 +3736,7 @@ ex. read_dcb_config [sensor_name]
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_ad7156_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
-            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_wrist_detect_data_t(), 20)
+            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t(), 20)
         else:
             pass
         if reply_msg == None:
@@ -3621,29 +3758,41 @@ ex. read_dcb_config [sensor_name]
                 ECnt+=1
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
             num_of_pkts = int(reply_msg.payload.num_of_pkts)
-            if num_of_pkts > 1:
-                reply_msg2 = self._get_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t(), 20)
-                if reply_msg2 == None:
+            reply_msg_list = []
+            status_list = []
+            p = 1 #Start with second packet
+            while p < num_of_pkts:
+                _reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t(), 20)
+                if _reply_msg == None:
                     self.vrb.err("Error! Timed out waiting for the device! at pkt 2")
                     return 1
-                status2 = self._get_enum_name(M2M2_DCB_STATUS_ENUM_t, reply_msg2.payload.status)
-                if status2 == None:
-                    status2 = format(reply_msg2.payload.status, '#04x')
+                status = self._get_enum_name(M2M2_DCB_STATUS_ENUM_t, _reply_msg.payload.status)
+                if status == None:
+                    status = format(_reply_msg.payload.status, '#04x')
+                reply_msg_list.append(_reply_msg)
+                status_list.append(status)
+                p = p+1
             f = open('dcb_cfg/adpd4000_dcb_get.dcfg','w')
             while ECnt < Array_Element_Count_r:
                 self.vrb.write("Read Settings : 0x{:08X} {}".format(int(reply_msg.payload.dcbdata[ECnt]),ECnt))
                 f.write('{:04X} {:04X}'.format((reply_msg.payload.dcbdata[ECnt]>>16),(reply_msg.payload.dcbdata[ECnt] & 0xffff)))
                 f.write('\n')
                 ECnt+=1
-            if num_of_pkts > 1:
-                Array_Element_Count_r = int(reply_msg2.payload.size)
-                ECnt = 0
-                while ECnt < Array_Element_Count_r:
-                    self.vrb.write("Read Settings : 0x{:08X} {}".format(int(reply_msg2.payload.dcbdata[ECnt]),ECnt))
-                    f.write('0x{:08X}'.format(((reply_msg2.payload.dcbdata[ECnt]))))
-                    f.write('\n')
-                    ECnt+=1
-                Array_Element_Count_r = int(reply_msg.payload.size) + int(reply_msg2.payload.size) #Update total read size
+            Array_Element_Count_r = int(reply_msg.payload.size)
+            if(len(reply_msg_list) > 0):
+                p = 0 #Start with second packet, index=0 from reply_msg_list
+                while p < (num_of_pkts-1):
+                    reply_msg = reply_msg_list[p]
+                    Array_Element_Count_r_pkt = int(reply_msg.payload.size)
+                    ECnt = 0
+                    while ECnt < Array_Element_Count_r_pkt:
+                        self.vrb.write("Read Settings : 0x{:08X} {}".format(int(reply_msg.payload.dcbdata[ECnt]),ECnt))
+                        f.write('{:04X} {:04X}'.format((reply_msg.payload.dcbdata[ECnt]>>16),(reply_msg.payload.dcbdata[ECnt] & 0xffff)))
+                        f.write('\n')
+                        ECnt+=1
+                    Array_Element_Count_r = Array_Element_Count_r + int(reply_msg.payload.size) #Update total read size
+                    p = p+1
+                status = status_list[p-2]
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG):
             f = open('dcb_cfg/ppg_dcb_get.lcfg','w')
             while ECnt < Array_Element_Count_r:
@@ -3689,15 +3838,17 @@ ex. read_dcb_config [sensor_name]
                 status_list.append(status)
                 p = p+1
             f = open('dcb_cfg/gen_blk_dcb_get.lcfg','w')
+            self.vrb.write("**********Packet {} **********".format(1))
             while ECnt < Array_Element_Count_r:
                 self.vrb.write("Read Settings : 0x{:08X} {}".format(int(reply_msg.payload.dcbdata[ECnt]),ECnt))
                 f.write('0x{:08X}'.format(((reply_msg.payload.dcbdata[ECnt]))))
                 f.write('\n')
                 ECnt+=1
-            print(len(reply_msg_list))
+            #print(len(reply_msg_list))
             Array_Element_Count_r = int(reply_msg.payload.size)
             p = 0 #Start with second packet, index=0 from reply_msg_list
             while p < (num_of_pkts-1):
+                self.vrb.write("**********Packet {} **********".format(p+2))
                 reply_msg = reply_msg_list[p]
                 Array_Element_Count_r_pkt = int(reply_msg.payload.size)
                 ECnt = 0
@@ -3708,7 +3859,8 @@ ex. read_dcb_config [sensor_name]
                     ECnt+=1
                 Array_Element_Count_r = Array_Element_Count_r + int(reply_msg.payload.size) #Update total read size
                 p = p+1
-            status = status_list[p-2]
+            if num_of_pkts > 1:
+              status = status_list[p-2]
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
             f = open('dcb_cfg/ad7156_dcb_get.dcfg','w')            
             while ECnt < Array_Element_Count_r:
@@ -3717,7 +3869,7 @@ ex. read_dcb_config [sensor_name]
                 f.write('\n')
                 ECnt+=1
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
-            f = open('dcb_cfg/wrist_detect_dcb_get.dcfg','w')      
+            f = open('dcb_cfg/lt_app_lcfg_dcb_get.dcfg','w')      
             while ECnt < Array_Element_Count_r:
                 self.vrb.write("Read Settings : 0x{:04X} {}".format(int(reply_msg.payload.dcbdata[ECnt]),ECnt))
                 f.write('{:02X} {:02X}'.format((reply_msg.payload.dcbdata[ECnt]>>8),(reply_msg.payload.dcbdata[ECnt] & 0xff)))
@@ -3726,7 +3878,7 @@ ex. read_dcb_config [sensor_name]
         else:
            pass
         f.close
-        self.vrb.write("Size  : {:02}".format(int(Array_Element_Count_r)))
+        self.vrb.write("DCB Entries: {:02} Size  : {:02} bytes".format(int(Array_Element_Count_r),int(Array_Element_Count_r)*4))
         self.vrb.write("Command return status: {}".format(status))
         if status.upper() == 'M2M2_DCB_STATUS_OK':
             return 0
@@ -3738,7 +3890,7 @@ ex. read_dcb_config [sensor_name]
         """
 Send a command to Write the DCB Configurations of the specific sensor of the Board from its dcfg file.
 Currently the dcb configuration to be written is read from a dcfg file, stored in 'tools/dcb_dcfg/' directory.
-The dcb configurations can be written for adpd4000, adxl, ppg, ecg eda, low_touch, ad7156, wrist_detect.
+The dcb configurations can be written for adpd4000, adxl, ppg, ecg eda, lt_dcb_config, ad7156, lt_app_lcfg.
 ex. write_dcb_config [sensor_name] [file_name]
     #>write_dcb_config adxl adxl_dcb.dcfg
         """
@@ -3772,17 +3924,55 @@ ex. write_dcb_config [sensor_name] [file_name]
                     adpd4000_dcb_cfg.append(int(dcb,16))
             f.close()
             msg = m2m2_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t())
-            if( len(adpd4000_dcb_cfg) <= MAXADPD4000DCBSIZE ):
+            pkt_cnt = len(adpd4000_dcb_cfg)/MAXADPD4000DCBSIZE
+            if len(adpd4000_dcb_cfg)%MAXADPD4000DCBSIZE:
+                pkt_cnt = pkt_cnt + 1
+            if pkt_cnt > 4 :
+              print "ADPD4000 DCB File Size exceed. Retry with smaller files"
+              return
+
+            if pkt_cnt == 1 :
+                msg.payload.size = 0
                 msg.payload.num_of_pkts = 1
-            elif( len(adpd4000_dcb_cfg) > MAXADPD4000DCBSIZE) and ( len(adpd4000_dcb_cfg) <= (2*MAXADPD4000DCBSIZE) ):
-                pkt_cnt = 2
+            elif pkt_cnt == 2 :
+                msg.payload.size = 0
                 msg.payload.num_of_pkts = 2
+                #2nd pkt#
                 msg2 = m2m2_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t())
+                msg2.payload.size = 0
                 msg2.payload.num_of_pkts = msg.payload.num_of_pkts
                 msg2.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
-            else:
-                print "ADPD4000 DCB File Size exceed. Retry with smaller files"
-                return
+            elif pkt_cnt == 3 :
+                msg.payload.size = 0
+                msg.payload.num_of_pkts = 3
+                #2nd pkt#
+                msg2 = m2m2_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t())
+                msg2.payload.size = 0
+                msg2.payload.num_of_pkts = msg.payload.num_of_pkts
+                msg2.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
+                #3rd pkt#
+                msg3 = m2m2_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t())
+                msg3.payload.size = 0
+                msg3.payload.num_of_pkts = msg.payload.num_of_pkts
+                msg3.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
+            elif pkt_cnt == 4 :
+                msg.payload.size = 0
+                msg.payload.num_of_pkts = 4
+                #2nd pkt#
+                msg2 = m2m2_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t())
+                msg2.payload.size = 0
+                msg2.payload.num_of_pkts = msg.payload.num_of_pkts
+                msg2.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
+                #3rd pkt#
+                msg3 = m2m2_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t())
+                msg3.payload.size = 0
+                msg3.payload.num_of_pkts = msg.payload.num_of_pkts
+                msg3.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
+                #4th pkt#
+                msg4 = m2m2_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t())
+                msg4.payload.size = 0
+                msg4.payload.num_of_pkts = msg.payload.num_of_pkts
+                msg4.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
             print "Number of pkts:{}".format(msg.payload.num_of_pkts)
             Array_Element = adpd4000_dcb_cfg
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
@@ -3908,57 +4098,24 @@ ex. write_dcb_config [sensor_name] [file_name]
                         gen_blk_dcb_cfg.append(value)
                     bytes_read = bytes_read  + len(config_buffer)
             f.close()
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t())
             pkt_cnt = len(gen_blk_dcb_cfg)/MAXGENBLKDCBSIZE
             if len(gen_blk_dcb_cfg)%MAXGENBLKDCBSIZE :
                 pkt_cnt =pkt_cnt + 1
-            if pkt_cnt > 4 :
+            if pkt_cnt > 18 : #Max no: of pkt count = 18 , to support 57*4*18 = 4104 bytes in gen block DCB
               print "GEN_BLK DCB File Size exceed.Retry with smaller files"
               return
             print "Number of pkts:{}".format(pkt_cnt)
 
-            if pkt_cnt == 1 :
+            msg_list = [] #list to hold msg of type m2m2_packet()
+            p = 0 #Start with 1st msg pkt; index from 0 to pkt_cnt-1
+            while p < pkt_cnt:
+                msg = m2m2_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t())
                 msg.payload.size = 0
-                msg.payload.num_of_pkts = 1
-            elif pkt_cnt == 2 :
-                msg.payload.size = 0
-                msg.payload.num_of_pkts = 2
-                #2nd pkt#
-                msg2 = m2m2_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t())
-                msg2.payload.size = 0
-                msg2.payload.num_of_pkts = msg.payload.num_of_pkts
-                msg2.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
-            elif pkt_cnt == 3 :
-                msg.payload.size = 0
-                msg.payload.num_of_pkts = 3
-                #2nd pkt#
-                msg2 = m2m2_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t())
-                msg2.payload.size = 0
-                msg2.payload.num_of_pkts = msg.payload.num_of_pkts
-                msg2.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
-                #3rd pkt#
-                msg3 = m2m2_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t())
-                msg3.payload.size = 0
-                msg3.payload.num_of_pkts = msg.payload.num_of_pkts
-                msg3.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
-            elif pkt_cnt == 4 :
-                msg.payload.size = 0
-                msg.payload.num_of_pkts = 4
-                #2nd pkt#
-                msg2 = m2m2_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t())
-                msg2.payload.size = 0
-                msg2.payload.num_of_pkts = msg.payload.num_of_pkts
-                msg2.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
-                #3rd pkt#
-                msg3 = m2m2_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t())
-                msg2.payload.size = 0
-                msg3.payload.num_of_pkts = msg.payload.num_of_pkts
-                msg3.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
-                #4th pkt#
-                msg4 = m2m2_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t())
-                msg4.payload.size = 0
-                msg4.payload.num_of_pkts = msg.payload.num_of_pkts
-                msg4.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
+                msg.payload.num_of_pkts = pkt_cnt
+                msg.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
+                msg_list.append(msg)
+                p+=1
+
             Array_Element = gen_blk_dcb_cfg
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
             ad7156_dcb_cfg = arr.array('I',[])
@@ -3978,7 +4135,7 @@ ex. write_dcb_config [sensor_name] [file_name]
             msg = m2m2_packet(Sensor_Address, m2m2_dcb_ad7156_data_t())
             Array_Element = ad7156_dcb_cfg
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
-            wrist_detect_dcb_cfg = arr.array('I',[])
+            lt_app_lcfg_dcb_cfg = arr.array('I',[])
             try:
                 f = open(filename)
             except:
@@ -3990,10 +4147,10 @@ ex. write_dcb_config [sensor_name] [file_name]
                 else:
                     str = line.split('#')
                     dcb = str[0].replace(' ','').replace('\t','').replace('\n','')
-                    wrist_detect_dcb_cfg.append(int(dcb,16))
+                    lt_app_lcfg_dcb_cfg.append(int(dcb,16))
             f.close()
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_wrist_detect_data_t())
-            Array_Element = wrist_detect_dcb_cfg
+            msg = m2m2_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t())
+            Array_Element = lt_app_lcfg_dcb_cfg
         else:
             Array_Element = NULL
             print "Wrong blk name selected"
@@ -4004,10 +4161,20 @@ ex. write_dcb_config [sensor_name] [file_name]
         while ECnt < Array_Element_Count_w:
             #print "{} {}".format(Array_Element_Count_w, ECnt)
             if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
-                if ECnt >= MAXADPD4000DCBSIZE:
+                if ECnt >= (3*MAXADPD4000DCBSIZE) and ECnt <= (4*MAXADPD4000DCBSIZE):
+                    msg4.payload.size = msg4.payload.size + 1
+                    msg4.payload.dcbdata[ECnt%MAXADPD4000DCBSIZE] = int(Array_Element[ECnt])
+                    self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg4.payload.dcbdata[ECnt%MAXADPD4000DCBSIZE]), int(ECnt%(MAXADPD4000DCBSIZE))))
+                elif ECnt >= (2*MAXADPD4000DCBSIZE) and ECnt <= (3*MAXADPD4000DCBSIZE):
+                    msg3.payload.size = msg3.payload.size + 1
+                    msg3.payload.dcbdata[ECnt%MAXADPD4000DCBSIZE] = int(Array_Element[ECnt])
+                    self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg3.payload.dcbdata[ECnt%MAXADPD4000DCBSIZE]), int(ECnt%(MAXADPD4000DCBSIZE))))
+                elif ECnt >= (1*MAXADPD4000DCBSIZE) and ECnt <= (2*MAXADPD4000DCBSIZE):
+                    msg2.payload.size = msg2.payload.size + 1
                     msg2.payload.dcbdata[ECnt%MAXADPD4000DCBSIZE] = int(Array_Element[ECnt])
                     self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg2.payload.dcbdata[ECnt%MAXADPD4000DCBSIZE]), int(ECnt%(MAXADPD4000DCBSIZE))))
                 else:
+                    msg.payload.size = msg.payload.size + 1
                     msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
                     self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
             elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
@@ -4026,22 +4193,14 @@ ex. write_dcb_config [sensor_name] [file_name]
                 msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
                 self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
             elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
-                if ECnt >= (3*MAXGENBLKDCBSIZE) and ECnt <= (4*MAXGENBLKDCBSIZE):
-                    msg4.payload.size = msg4.payload.size + 1
-                    msg4.payload.dcbdata[ECnt%MAXGENBLKDCBSIZE] = int(Array_Element[ECnt])
-                    self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg4.payload.dcbdata[ECnt%MAXGENBLKDCBSIZE]), int(ECnt%(MAXGENBLKDCBSIZE))))
-                elif ECnt >= (2*MAXGENBLKDCBSIZE) and ECnt <= (3*MAXGENBLKDCBSIZE):
-                    msg3.payload.size = msg3.payload.size + 1
-                    msg3.payload.dcbdata[ECnt%MAXGENBLKDCBSIZE] = int(Array_Element[ECnt])
-                    self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg3.payload.dcbdata[ECnt%MAXGENBLKDCBSIZE]), int(ECnt%(MAXGENBLKDCBSIZE))))
-                elif ECnt >= (1*MAXGENBLKDCBSIZE) and ECnt <= (2*MAXGENBLKDCBSIZE):
-                    msg2.payload.size = msg2.payload.size + 1
-                    msg2.payload.dcbdata[ECnt%MAXGENBLKDCBSIZE] = int(Array_Element[ECnt])
-                    self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg2.payload.dcbdata[ECnt%MAXGENBLKDCBSIZE]), int(ECnt%(MAXGENBLKDCBSIZE))))
-                else:
-                    msg.payload.size = msg.payload.size + 1
-                    msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
-                    self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
+                p = 0 #For M2M2_ADDR_APP_LT_APP, Start with 1st msg pkt; index from 0 to pkt_cnt-1
+                while p < pkt_cnt:
+                    if ECnt >= (p*MAXGENBLKDCBSIZE) and ECnt < ((p+1)*MAXGENBLKDCBSIZE):
+                        msg_list[p].payload.size = msg_list[p].payload.size + 1
+                        msg_list[p].payload.dcbdata[ECnt%MAXGENBLKDCBSIZE] = int(Array_Element[ECnt])
+                        self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg_list[p].payload.dcbdata[ECnt%MAXGENBLKDCBSIZE]), int(ECnt%(MAXGENBLKDCBSIZE))))
+                        break
+                    p+=1
             elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
                 msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
                 self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
@@ -4052,15 +4211,38 @@ ex. write_dcb_config [sensor_name] [file_name]
                 pass
             ECnt += 1
 
-        if pkt_cnt == 1:
-            msg.payload.size = Array_Element_Count_w
+        if(Sensor_Address != M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
+            if pkt_cnt == 1:
+                msg.payload.size = Array_Element_Count_w
+            else:
+                if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
+                    msg.payload.size = MAXADPD4000DCBSIZE
+                '''else:
+                    print"Something went wrong"
+                    return'''
+            self._send_packet(msg)
         else:
-            if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
-                msg.payload.size = MAXADPD4000DCBSIZE
-            '''else:
-                print"Something went wrong"
-                return'''
-        self._send_packet(msg)
+            p = 0 #Only for M2M2_ADDR_APP_LT_APP, Start with 1st msg pkt; index from 0 to pkt_cnt-1
+            num_bytes = 0
+            while p < pkt_cnt:
+                self.vrb.write("********** Sending gen_blk_dcb packet ({}) of size:{} ********** ".format((p+1),msg_list[p].payload.size))
+                self._send_packet(msg_list[p])
+                #time.sleep(0.01)
+                reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t(), 20)
+                if reply_msg == None:
+                  self.vrb.err("Error! Timed out waiting for the device, with {} pkt receive!".format((p+1)))
+                  return 1
+                status = self._get_enum_name(M2M2_DCB_STATUS_ENUM_t, reply_msg.payload.status)
+                if status == None:
+                    status = format(reply_msg.payload.status, '#04x')
+                self.vrb.write("Size  : {:02}".format(int(msg_list[p].payload.size)))
+                num_bytes += int(msg_list[p].payload.size)
+                self.vrb.write("Command return status: {}".format(status))
+                if status.upper() != 'M2M2_DCB_STATUS_OK':
+                    return 1
+                p+=1
+            self.vrb.write("\nWrite DCB Entries: {:02} Size  : {:02} bytes".format(num_bytes, num_bytes*4))
+            return 0
 
         if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t(), 20)
@@ -4074,12 +4256,12 @@ ex. write_dcb_config [sensor_name] [file_name]
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_eda_data_t(), 20)
         elif (Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_bcm_data_t(), 20)
-        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
-           reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t(), 20)
+        #elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
+        #   reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_ad7156_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
-           reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_wrist_detect_data_t(), 20)
+           reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t(), 20)
         else:
             pass
         if reply_msg == None:
@@ -4095,13 +4277,7 @@ ex. write_dcb_config [sensor_name] [file_name]
             return 1
 
         if pkt_cnt >= 2:
-            if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
-                self.vrb.write("Sending gen_blk_dcb packet 2 of size:{}".format(msg2.payload.size))
-                #time.sleep(0.01)
-                self._send_packet(msg2)
-                reply_msg2 = self._get_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t(), 20)
-            elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
-                msg2.payload.size = (ECnt%MAXADPD4000DCBSIZE)
+            if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
                 self.vrb.write("Sending ADPD4000 DCB packet 2 of size:{}".format(msg2.payload.size))
                 #time.sleep(0.04)
                 self._send_packet(msg2)
@@ -4119,12 +4295,12 @@ ex. write_dcb_config [sensor_name] [file_name]
                 return 1
 				
         if pkt_cnt >= 3:
-            if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
-                self.vrb.write("Sending gen_blk_dcb packet 3 of size:{}".format(msg3.payload.size))
-                #time.sleep(0.01)
+            if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
+                self.vrb.write("Sending ADPD4000 DCB packet 3 of size:{}".format(msg3.payload.size))
+                #time.sleep(0.04)
                 self._send_packet(msg3)
-                reply_msg3 = self._get_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t(), 20)
-            
+                reply_msg3 = self._get_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t(), 20)
+                
             if reply_msg3 == None:
                 self.vrb.err("Error! Timed out waiting for the device, with 3rd pkt receive!")
                 return 1
@@ -4137,11 +4313,11 @@ ex. write_dcb_config [sensor_name] [file_name]
                 return 1
 				
         if pkt_cnt >= 4:
-            if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
-                self.vrb.write("Sending gen_blk_dcb packet 4 of size:{}".format(msg4.payload.size))
-                #time.sleep(0.01)
+            if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
+                self.vrb.write("Sending ADPD4000 DCB packet 4 of size:{}".format(msg4.payload.size))
+                #time.sleep(0.04)
                 self._send_packet(msg4)
-                reply_msg4 = self._get_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t(), 20)
+                reply_msg4 = self._get_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t(), 20)
             
             if reply_msg4 == None:
                 self.vrb.err("Error! Timed out waiting for the device, with 4th pkt receive!")
@@ -4155,11 +4331,11 @@ ex. write_dcb_config [sensor_name] [file_name]
                 return 1
 
         return 0
-				
+
     def do_delete_dcb_config(self,arg):
         """
 Send a command to Delete the DCB Configurations of the specific sensor of the Board.
-Currently dcb configurations is supported for adpd4000, adxl, ppg, ecg, eda, low_touch, ad7156, wrist_detect.
+Currently dcb configurations is supported for adpd4000, adxl, ppg, ecg, eda, lt_dcb_config, ad7156, lt_app_lcfg.
 ex. delete_dcb_config [sensor_name]
     #>delete_dcb_config adpd4000
         """
@@ -4193,7 +4369,7 @@ ex. delete_dcb_config [sensor_name]
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
             msg = m2m2_packet(Sensor_Address, m2m2_dcb_ad7156_data_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_wrist_detect_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t())
         else:
             Array_Element = NULL
         msg.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_ERASE_CONFIG_REQ
@@ -4216,7 +4392,7 @@ ex. delete_dcb_config [sensor_name]
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_ad7156_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
-            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_wrist_detect_data_t(), 20)
+            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t(), 20)
         else:
             pass
         if reply_msg == None:
@@ -4234,7 +4410,7 @@ ex. delete_dcb_config [sensor_name]
     def do_query_dcb_blk_status(self,arg):
         """
 Send a command to Query the Status of DCB Block index within the Watch - whether DCB is present / absent.
-Currently dcb configurations is supported for adpd4000, adxl, ppg, ecg, eda, low_touch, ad7156, wrist_detect.
+Currently dcb configurations is supported for adpd4000, adxl, ppg, ecg, eda, lt_dcb_config, ad7156, lt_app_lcfg.
 All supported DCB Blocks are queried and presented here
 ex. query_dcb_blk_status
     #>query_dcb_blk_status
@@ -4280,10 +4456,10 @@ ex. query_dcb_blk_status
             self.vrb.write("ADI_DCB_AD7156_BLOCK_IDX Present")
         else:
             self.vrb.write("ADI_DCB_AD7156_BLOCK_IDX Absent")
-        if reply_msg.payload.dcb_blk_array[M2M2_DCB_CONFIG_BLOCK_INDEX_t.ADI_DCB_WRIST_DETECT_BLOCK_IDX]:
-            self.vrb.write("ADI_DCB_WRIST_DETECT_BLOCK_IDX Present")
+        if reply_msg.payload.dcb_blk_array[M2M2_DCB_CONFIG_BLOCK_INDEX_t.ADI_DCB_LT_APP_LCFG_BLOCK_IDX]:
+            self.vrb.write("ADI_DCB_LT_APP_LCFG_BLOCK_IDX Present")
         else:
-            self.vrb.write("ADI_DCB_WRIST_DETECT_BLOCK_IDX Absent")
+            self.vrb.write("ADI_DCB_LT_APP_LCFG_BLOCK_IDX Absent")
         self.vrb.write("-------------------------------------")
 
     def do_getTimeOffset(self, arg):
@@ -4991,8 +5167,8 @@ This command is to be preceded by 'create_gen_blk_dcb start' and succeeded by 'c
                 if (len(lowtouch.User_File)) % 4 != 0:
                     for i in range((4 - (len(lowtouch.User_File) % 4) )):
                         lowtouch.User_File += "\0" #putting it as NULL
-                #check if total no: of bytes in DCB file will be less than MAXGENBLKDCBSIZE*4*4, if its exceeding don't create the file 
-                if ( len(lowtouch.User_File) > (MAXGENBLKDCBSIZE*4*4) ):
+                #check if total no: of bytes in DCB file will be less than MAXGENBLKDCBSIZE*4*18, if its exceeding don't create the file
+                if ( len(lowtouch.User_File) > (MAXGENBLKDCBSIZE*4*18) ):
                     print("  ##########      GEN_BLK_DCB_CONFIG.LOG can't be created      ##############");
                     print("  ##########   File size exceeding MAXGENBLKDCBSIZE*4*4 bytes  ##############");
                     print("  ##########     Recheck the start-stop commands included      ##############");
@@ -5018,7 +5194,7 @@ This command is to be preceded by 'create_gen_blk_dcb start' and succeeded by 'c
             except:
                 print("ERROR: 'GEN_BLK_DCB_CONFIG.LOG' File not found")
                 return
-            chunk_len = 912 #57*4*4
+            chunk_len = 4104 #57*4*18
             bytes_read = 0
             if Fileobj != None:
                 while True:
@@ -5176,6 +5352,45 @@ format file system. Command to format file system.
             self._print_file_system_status(reply_msg)
         else:
             self.vrb.err("No response from device.Mount operation failed.")
+
+    def do_fs_block_erase(self, arg):
+        """
+Command to erase each block.
+#>fs_block_erase 1
+        """
+        args = self._parse_args(arg, 1)
+        if args == None:
+            return
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_blk_erase_cmd_t())
+        msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_BLOCK_ERASE_REQ
+        msg.payload.block_no =  int(args[0])
+        self._send_packet(msg)
+
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_blk_erase_cmd_t(), 30)
+        if reply_msg != None:
+            self._print_file_system_status(reply_msg)
+        else:
+            self.vrb.err("No response block erase failed.")    
+
+    def do_fs_write_reserved_block_page(self, arg):
+        """
+Command to write reserved block
+#>fs_write_reserved_block_page 
+        """
+        args = self._parse_args(arg, 0)
+        if args == None:
+            return
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_write_rsd_blk_cmd_t())
+        msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ
+        for i in range(20):
+                msg.payload.data[i] = i
+        self._send_packet(msg)
+
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_write_rsd_blk_cmd_t(), 30)
+        if reply_msg != None:
+            self._print_file_system_status(reply_msg)
+        else:
+            self.vrb.err("No response write failed.")            
 
 
     def do_fs_req_debug_info(self, arg):
@@ -5966,11 +6181,11 @@ read contents of file. Command is used to read file by getting data from file st
             return
         for i in range(cnt):
             print i
-            self.onecmd("write_dcb_config low_touch gen_blk_dcb.lcfg")
+            self.onecmd("write_dcb_config lt_dcb_config gen_blk_dcb.lcfg")
             #self.onecmd("delay 1")
-            self.onecmd("read_dcb_config low_touch")
+            self.onecmd("read_dcb_config lt_dcb_config")
             #self.onecmd("delay 1")
-            self.onecmd("delete_dcb_config low_touch")
+            self.onecmd("delete_dcb_config lt_dcb_config")
             #self.onecmd("delay 1")
         print "test gen blk DCB Write/Read/Erase done for count {}".format(cnt)
 
@@ -6552,12 +6767,14 @@ Compares the PPG LCFG which is loaded into adpd4000 with dcb_lcfg and f/w_lcfg. 
     def do_lcfgEcgRead(self, arg):
         """
 Read the ECG LCFG. The argument is the LCFG ID to choose from the ecg configuration structure:
-    -----------------------------
+    --------------------------------------
     |Config Element    |  Index |
     -----------------------------
-    |     FS           |    0   |
-    |  ADC_PGA_GAIN    |    1   |
-    -----------------------------
+    |     FS                    |    0   |
+    |  ADC_PGA_GAIN             |    1   |
+    |     PWR MOD               |    2   |
+    |  packetization enable     |    3   |
+    --------------------------------------
 
       Eg: = lcfgEcgRead addr1 addr2 ......
         """
@@ -6717,7 +6934,7 @@ Read the EDA LCFG. The argument is the LCFG ID to choose from the eda configurat
     |Config Element    |  Index |
     -----------------------------
     |     FS           |    0   |
-    |  ADC_PGA_GAIN    |    1   |
+    |  DFT_NUMBER      |    1   |
     -----------------------------
 
       Eg: = lcfgEdaRead addr1 addr2 ......
@@ -6763,6 +6980,10 @@ Read the EDA LCFG. The argument is the LCFG ID to choose from the eda configurat
     -----------------------------
     |     FS           |    0   |
     |  ADC_PGA_GAIN    |    1   |
+    |     POWER  MOD   |    2   |
+    |  SIN FREQ        |    3   |
+    |     BCM DFT
+        number         |    4   |
     -----------------------------
 
       Eg: = lcfgBcmRead addr1 addr2 ......
@@ -6842,6 +7063,12 @@ Set the ECG LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the ecg l
         2     /**< ADC PGA Gain of 2 */
         3     /**< ADC PGA Gain of 4 */
         4     /**< ADC PGA Gain of 9 */
+
+        AFE POWER MOD   address -->1
+        Values
+        '0' for Low power drive, '1' for High power drive, Default f/w ECG AFE Power Mod = '0'
+        0     /**< Low power Drive */
+        1     /**< High power Drive */
 
       Eg: = lcfgEcgWrite addr1:value1 addr2:value2 ...
         """

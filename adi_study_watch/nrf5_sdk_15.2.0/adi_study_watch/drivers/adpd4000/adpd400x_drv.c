@@ -72,8 +72,10 @@ uint32_t nInterruptSequence = 1;      //!< Sequence number maintained after hand
 uint32_t nWriteSequence = 1;          //!< Sequence number maintained while writing slot data from FIFO to the Buffer
 uint32_t gnLcmValue = 0;
 uint8_t  nFifoStatusByte = 0;
+uint16_t gAdpdSlotMaxODR = 0;         //!< Maximum ODR among of all the active slots
 adpd400xDrv_slot_t gsSlot[SLOT_NUM];  //!< Buffer for holding slot information
 extern uint8_t dvt2;                  //!< flag to check whether DVT2 (watch version) or not
+extern volatile uint8_t gsOneTimeValueWhenReadAdpdData; //! flag when cleared -> checks if adpd task prio to be increased based on the ODR
 /* ------------------------- Public Function Prototypes -------------------- */
 uint32_t* Adpd400xDrvGetDebugInfo();
 
@@ -98,7 +100,7 @@ static void _Adpd400xDrvGetSlotInfo(void);
 static void _Adpd400xDrvSlotSaveCurrentSetting(uint8_t nSlotNum);
 static void _Adpd400xDrvSlotApplyPreviousSetting(uint8_t nSlotNum);
 static void _Adpd400xDrvSlotApplySkipSetting(uint8_t nSlotNum);
-static void _Adpd400xDrvGetDataOutputRate(void);
+static void _Adpd400xDrvGetDataOutputRate(uint8_t nSlotNum);
 static void _Adpd400xDrvSetSlotSize(uint8_t nSlotNum, uint16_t nSlotFormat);
 static void (*gpfnADPDCallBack)(); //!< Function pointer to store ADPD data ready callback func address
 //static int16_t _Adpd400xDrvSelComMode();
@@ -138,15 +140,18 @@ int16_t Adpd400xDrvOpenDriver() {
   return nRetCode;
 }
 
-/** @brief  Close Driver, Clear up before existing by setting device to idle mode
+/** @brief  Close Driver, Clear up before exiting by setting device to idle mode
+*           See data sheet for explanation.
 *
 * @return int16_t A 16-bit integer: 0 - success; < 0 - failure
 */
 int16_t Adpd400xDrvCloseDriver() {
-  return _Adpd400xDrvSetIdleMode();
+  uint16_t nRetCode;
+  nRetCode = _Adpd400xDrvSetIdleMode();
+  return nRetCode;
 }
 
-/** @brief  Returns the communication bus type of sensor : I2C, SPI or Uknown
+/** @brief  Returns the communication bus type of sensor : I2C, SPI or Unknown
 *           See the typedef Adpd400xComMode_t
 *
 * @return nAdpd400xComMode
@@ -165,6 +170,12 @@ int16_t Adpd400xDrvRegWrite(uint16_t nAddr, uint16_t nRegValue) {
   uint8_t txData[4];
   uint8_t i = 0;
 
+  /**
+  This function Adpd400xDrvRegWrite() calls either the sub-function
+  Adpd400x_SPI_Receive() or Adpd400x_I2C_TxRx()
+  based on the communication mode ADPD400x_SPI_BUS / ADPD400x_I2C_BUS
+  */
+
   if((nAddr == ADPD400x_REG_SYS_CTL) && ((nRegValue & BITM_SYS_CTL_SW_RESET) == BITM_SYS_CTL_SW_RESET)) {
       return Adpd400xDrvSoftReset();
   } else {
@@ -176,19 +187,6 @@ int16_t Adpd400xDrvRegWrite(uint16_t nAddr, uint16_t nRegValue) {
     txData[i++] = (uint8_t)(nRegValue >> 8);
     txData[i++] = (uint8_t)(nRegValue);
 
-    /**
-    In the sub function Adpd400x_SPI_Transmit(txData, i), the first argument to 
-    the function ADPD400x_SPI_Transmit is the register address of the ADPD400x 
-    device and the 16 bits data value to be written to the device register.
-    The 1st argument to the function ADPD400x_SPI_Transmit is the pointer to the
-    buffer of the size of three bytes in which first byte is the register
-    address of the ADPD400x device.
-    The second and the third bytes are the 16 bits data value to be written
-    to the device register
-    The 2nd argument is the size of the buffer in bytes (3 bytes).
-    ADPD400x_SPI_Transmit() should be implemented in such a way that it transmits
-    the data from txData buffer of size specified in the second argument.
-    */
     if (Adpd400x_SPI_Transmit(txData, i)!= ADI_HAL_OK) {
       return ADPD400xDrv_ERROR;
     }
@@ -201,19 +199,6 @@ int16_t Adpd400xDrvRegWrite(uint16_t nAddr, uint16_t nRegValue) {
     }
     txData[i++] = (uint8_t)(nRegValue >> 8);
     txData[i++] = (uint8_t)(nRegValue);
-    /**
-    In the sub function Adpd400x_I2C_Transmit((uint8_t *) txData, i), the first argument
-    to the function ADPD400x_I2C_Transmit is the register address of the ADPD400x 
-    device and the 16 bits data value to be written to the device register.
-    The 1st argument to the function ADPD400x_I2C_Transmit is the pointer to the
-    buffer of the size of three bytes in which first byte is the register
-    address of the ADPD400x device.
-    The second and the third bytes are the 16 bits data value to be written
-    to the device register
-    The 2nd argument is the size of the buffer in bytes (3 bytes).
-    ADPD400x_I2C_Transmit() should be implemented in such a way that it transmits
-    the data from txData buffer of size specified in the second argument.
-    */
 
       if (Adpd400x_I2C_Transmit((uint8_t *) txData, i) != ADI_HAL_OK) {
         return ADPD400xDrv_ERROR;
@@ -239,36 +224,17 @@ int16_t Adpd400xDrvRegRead(uint16_t nAddr, uint16_t *pnData) {
 
     txData[i++] = (uint8_t)(nTmpAddr >> 8);
     txData[i++] = (uint8_t)(nTmpAddr);
+
     /**
-    In the sub function Adpd400x_SPI_Receive(txData, anRxData, i, 2), the first 
-    argument to the function is the register address of the
-    ADPD400x device from where the data is to be read.
-    The 2nd argument is the pointer to the buffer of received data.
-    The size of this buffer should be equal to the number of data requested.
-    The 3rd argument is the size of transmit data in bytes.
-    The 4th argument is the size of requested data in bytes.
-    Adpd400x_SPI_Receive() should be implemented in such a way that it transmits
-    the register address from the first argument and receives the data
-    specified by the address in the second argument. The received data will
-    be of size specified by 3rd argument.
+    This function Adpd400xDrvRegRead() calls either the sub-function
+    Adpd400x_SPI_Receive() or Adpd400x_I2C_TxRx()
+    based on the communication mode ADPD400x_SPI_BUS / ADPD400x_I2C_BUS
     */
+
     if (Adpd400x_SPI_Receive(txData, anRxData, i, 2)!= ADI_HAL_OK) {
       return ADPD400xDrv_ERROR;
     }
   } else if (nAdpd400xCommMode == ADPD400x_I2C_BUS) {
-    /**
-    In the sub function Adpd400x_I2C_TxRx((uint8_t *) txData, (uint8_t *) anRxData, i, 2), 
-    the first argument to the function is the register address of the
-    ADPD400x device from where the data is to be read.
-    The 2nd argument is the pointer to the buffer of received data.
-    The size of this buffer should be equal to the number of data requested.
-    The 3rd argument is the size of transmit data in bytes.
-    The 4th argument is the size of requested data in bytes.
-    Adpd400x_I2C_TxRx() should be implemented in such a way that it transmits
-    the register address from the first argument and receives the data
-    specified by the address in the second argument. The received data will
-    be of size specified by 3rd argument.
-    */
     if (nAddr > 0x7F) {
       txData[i++] = (uint8_t)((nAddr >> 8)|0x80);
       txData[i++] = (uint8_t)nAddr;
@@ -299,24 +265,18 @@ int16_t Adpd400xDrvRegRead32B(uint16_t nAddr, uint32_t *pnData) {
   uint16_t i = 0;
   uint16_t nTmpAddr = 0;
 
+  /**
+  This function Adpd400xDrvRegRead32B() calls either the sub-function
+  Adpd400x_SPI_Receive() or Adpd400x_I2C_TxRx()
+  based on the communication mode ADPD400x_SPI_BUS / ADPD400x_I2C_BUS
+  */
+
   if (nAdpd400xCommMode == ADPD400x_SPI_BUS) {
     nTmpAddr = (nAddr << 1 ) & ADPD400x_SPI_READ; // To set the last bit low for read operation
 
     txData[i++] = (uint8_t)(nTmpAddr >> 8);
     txData[i++] = (uint8_t)(nTmpAddr);
-    /**
-    In the sub function Adpd400x_SPI_Receive(txData, anRxData, i, 4), the first 
-    argument to the function is the register address of the
-    ADPD400x device from where the data is to be read.
-    The 2nd argument is the pointer to the buffer of received data.
-    The size of this buffer should be equal to the number of data requested.
-    The 3rd argument is the size of transmit data in bytes.
-    The 4th argument is the size of requested data in bytes.
-    Adpd400x_SPI_Receive() should be implemented in such a way that it transmits
-    the register address from the first argument and receives the data
-    specified by the address in the second argument. The received data will
-    be of size specified by 3rd argument.
-    */
+
     if (Adpd400x_SPI_Receive(txData, anRxData, i, 4)!= ADI_HAL_OK) {
       return ADPD400xDrv_ERROR;
     }
@@ -327,19 +287,6 @@ int16_t Adpd400xDrvRegRead32B(uint16_t nAddr, uint32_t *pnData) {
     } else {
       txData[i++] = (uint8_t)nAddr;
     }
-    /**
-    In the sub function Adpd400x_I2C_TxRx((uint8_t *) txData, (uint8_t *) anRxData, i, 4),
-    the first argument to the function is the register address of the
-    ADPD400x device from where the data is to be read.
-    The 2nd argument is the pointer to the buffer of received data.
-    The size of this buffer should be equal to the number of data requested.
-    The 3rd argument is the size of transmit data in bytes.
-    The 4th argument is the size of requested data in bytes.
-    Adpd400x_I2C_TxRx() should be implemented in such a way that it transmits
-    the register address from the first argument and receives the data
-    specified by the address in the second argument. The received data will
-    be of size specified by 3rd argument.
-    */
     if (Adpd400x_I2C_TxRx((uint8_t *) txData, (uint8_t *) anRxData, i, 4) != ADI_HAL_OK) {
       return ADPD400xDrv_ERROR;
     }
@@ -368,6 +315,11 @@ int16_t Adpd400xDrvSetOperationMode(uint8_t nOpMode) {
   } else if (nOpMode == ADPD400xDrv_MODE_SAMPLE) {
     // update the Slot size info
     _Adpd400xDrvGetSlotInfo();
+
+    /* Clearing this flag to run the code under if!gsOneTimeValueWhenReadAdpdData) loop
+    in fetch adpd data since gAdpdSlotMaxODR is updated in this function */
+    gsOneTimeValueWhenReadAdpdData = 0;
+
     // set the watermark for 2-bytes slotA data.
     /**   set the watermark value dynamically ,because
     *   data size(upto 4) ,
@@ -382,7 +334,7 @@ int16_t Adpd400xDrvSetOperationMode(uint8_t nOpMode) {
 
     //Check if its ADPD4000 or ADPD4100, there is change in 0x0006 register max FIFO bytes
     nMaximumFifoTh = (dvt2 == 0)?0xFF:0x1FF;
-    
+
     if(nSampleSize > (nMaximumFifoTh + 1) || nSampleSize == 0) {
       return ADPD400xDrv_ERROR;
     } else {
@@ -420,8 +372,9 @@ int16_t Adpd400xDrvSetOperationPause(uint8_t nEnable) {
 
 
 /** @brief  Enable an operation time slot
+*           See data sheet for explanation.
 *
-* @param  nSlotNum: The desired slot (any of slots A to L) is passed
+* @param  nSlotNum: The desired slot number (any of slots A(0) to L(11)) is passed
 * @param  nEnable: 1 -> enable, 0 -> disable
 * @param  nSlotFormat: Data format in FIFO = IDS (Impulse, Dark, Sig)
 * @param  nChannel: Channel selection for SlotA-L:
@@ -495,8 +448,9 @@ int16_t Adpd400xDrvSlotSetup(uint8_t nSlotNum, uint8_t nEnable, \
 
 /** @brief  Set a slot in sleep/active mode
 *           This methods set the specified time-slot into sleep mode
+*           See data sheet for explanation
 *
-* @param  nSlotNum: The desired slot (any of slots A to L) is passed
+* @param  nSlotNum: The desired slot number (any of slots A(0) to L(11)) is passed
 * @param  nActive: 0 = sleep, 1 = awake
 * @return int16_t A 16-bit integer: 0 - success; < 0 - failure
 */
@@ -527,9 +481,9 @@ int16_t Adpd400xDrvSlotSetActive(uint8_t nSlotNum, uint8_t nActive) {
 }
 
 /** @brief  Register data ready callback
-* There is an interrupt pin available for ADPD, it will trigger whenever the data is  
+* There is an interrupt pin available for ADPD, it will trigger whenever the data is
 * ready in FIFO based on sampling period. To configure the interrupt pin, need to connect
-* a GPIO pin to this ADPD INT pin from MCU. Then this GPIO pin from MCU should be configured as 
+* a GPIO pin to this ADPD INT pin from MCU. Then this GPIO pin from MCU should be configured as
 * int handler. This means when this GPIO pin is high, a function handler has to be called to serve those interrupt.
 * That handler is adpd_int_handler. This adpd_int_handler will call the ADPDISR function.
 *
@@ -565,7 +519,8 @@ uint32_t Adpd400xDrvGetISRDebugInfo() {
   return gnAccessCnt[0];
 }
 
-/** @brief Set/Configure a parameter for the device 
+/** @brief Set/Configure a parameter for the device
+*          See data sheet for explanation of registers used
 *
 * @param eCommand command for Watermark value
 * @param nPar: Not used now
@@ -618,7 +573,7 @@ int16_t Adpd400xDrvGetParameter(Adpd400xCommandStruct_t eCommand, uint8_t nPar, 
     *pnValue = gnAdpdFifoWaterMark;
     break;
   case ADPD400x_OUTPUTDATARATE:
-    _Adpd400xDrvGetDataOutputRate();
+    _Adpd400xDrvGetDataOutputRate(nPar);
     *pnValue = gsOutputDataRate;
     break;
   case ADPD400x_FIFOLEVEL:
@@ -682,6 +637,12 @@ int16_t Adpd400xDrvReadFifoData(uint8_t *pnData, uint16_t nDataSetSize) {
   uint8_t txData[2];
   uint8_t i = 0;
 
+  /**
+  This function Adpd400xDrvReadFifoData() calls Adpd400xDrvRegRead()
+  It also calls either the sub-function Adpd400x_SPI_Receive() or Adpd400x_I2C_TxRx()
+  based on the communication mode ADPD400x_SPI_BUS / ADPD400x_I2C_BUS
+  */
+
   Adpd400xDrvRegRead(ADPD400x_REG_INT_STATUS_FIFO, &gnFifoLevel);
   gnFifoLevel = gnFifoLevel & 0x7FF;
 #ifndef NDEBUG
@@ -699,37 +660,11 @@ int16_t Adpd400xDrvReadFifoData(uint8_t *pnData, uint16_t nDataSetSize) {
       txData[i++] = (uint8_t)(nTmpAddr >> 8);
       txData[i++] = (uint8_t)(nTmpAddr);
 
-      /**
-      In the sub function call Adpd400x_SPI_Receive(txData, pnData, 2, nDataSetSize), 
-      the first argument to the function is the register address of the
-      ADPD400x device from where the data is to be read.
-      The 2nd argument is the pointer to the buffer of received data.
-      The size of this buffer should be equal to the number of data requested.
-      The 3rd argument is the size of transmit data in bytes.
-      The 4th argument is the size of requested data in bytes.
-      Adpd400x_SPI_Receive() should be implemented in such a way that it transmits
-      the register address from the first argument and receives the data
-      specified by the address in the second argument. The received data will
-      be of size specified by 3rd argument.
-      */
       if (Adpd400x_SPI_Receive(txData, pnData, 2, nDataSetSize) != ADI_HAL_OK) {
         return ADPD400xDrv_ERROR;
       }
       break;
     case ADPD400x_I2C_BUS:
-      /**
-      In the sub function call Adpd400x_I2C_TxRx(&nAddr, pnData, 1, nDataSetSize), 
-      the first argument to the function is the register address of the
-      ADPD400x device from where the data is to be read.
-      The 2nd argument is the pointer to the buffer of received data.
-      The size of this buffer should be equal to the number of data requested.
-      The 3rd argument is the size of transmit data in bytes.
-      The 4th argument is the size of requested data in bytes.
-      Adpd400x_I2C_TxRx() should be implemented in such a way that it transmits
-      the register address from the first argument and receives the data
-      specified by the address in the second argument. The received data will
-      be of size specified by 3rd argument.
-      */
       if (Adpd400x_I2C_TxRx(&nAddr, pnData, 1, nDataSetSize) != ADI_HAL_OK) {
         return ADPD400xDrv_ERROR;
       }
@@ -737,12 +672,15 @@ int16_t Adpd400xDrvReadFifoData(uint8_t *pnData, uint16_t nDataSetSize) {
     default:
       return ADPD400xDrv_ERROR;
     }
+  }else{
+     return ADPD400xDrv_ERROR;
   }
 
   return ADPD400xDrv_SUCCESS;
 }
 
 /** @brief  Synchronous register read from the ADPD400x
+*           See data sheet for explanation of register
 *
 * @param  *pnData:     Pointer to 32-bit register data value
 * @param  nSlotNum:    8-bit slot number
@@ -759,6 +697,12 @@ int16_t Adpd400xDrvReadRegData(uint32_t *pnData, ADPD400xDrv_SlotNum_t nSlotNum,
 
   Adpd400xDrvRegRead(ADPD400x_REG_INT_STATUS_DATA, &nIntStatus);
 
+  /**
+  This function Adpd400xDrvReadRegData() calls Adpd400xDrvRegRead()
+  It also calls either the sub-function Adpd400x_SPI_Receive() or Adpd400x_I2C_TxRx()
+  based on the communication mode ADPD400x_SPI_BUS / ADPD400x_I2C_BUS
+  */
+
   if(nIntStatus & (1<<nSlotNum)) {
 
     nAddr = ADPD400x_REG_SIGNAL1_L_A + (nSlotNum << 3) + (nSignalDark << 2) + (nChNum << 1);
@@ -769,18 +713,6 @@ int16_t Adpd400xDrvReadRegData(uint32_t *pnData, ADPD400xDrv_SlotNum_t nSlotNum,
       txData[i++] = (uint8_t)(nTmpAddr >> 8);
       txData[i++] = (uint8_t)(nTmpAddr);
 
-      /**
-      The first argument to the function is the the register address of the
-      ADPD400x device from where the data is to be read.
-      The 2nd argument is the pointer to the buffer of received data.
-      The size of this buffer should be equal to the number of data requested.
-      The 3rd argument is the size of transmit data in bytes.
-      The 4th argument is the size of requested data in bytes.
-      Adpd400x_SPI_Receive() should be implemented in such a way that it transmits
-      the register address from the first argument and receives the data
-      specified by the address in the second argument. The received data will
-      be of size specified by 3rd argument.
-      */
       if (Adpd400x_SPI_Receive(txData, anRxData, i, 4)!= ADI_HAL_OK) {
         return ADPD400xDrv_ERROR;
       }
@@ -792,18 +724,6 @@ int16_t Adpd400xDrvReadRegData(uint32_t *pnData, ADPD400xDrv_SlotNum_t nSlotNum,
         txData[i++] = (uint8_t)nAddr;
       }
 
-      /**
-      The first argument to the function is the the register address of the
-      ADPD400x device from where the data is to be read.
-      The 2nd argument is the pointer to the buffer of received data.
-      The size of this buffer should be equal to the number of data requested.
-      The 3rd argument is the size of transmit data in bytes.
-      The 4th argument is the size of requested data in bytes.
-      Adpd400x_I2C_TxRx() should be implemented in such a way that it transmits
-      the register address from the first argument and receives the data
-      specified by the address in the second argument. The received data will
-      be of size specified by 3rd argument.
-      */
       if (Adpd400x_I2C_TxRx((uint8_t *) txData, (uint8_t *) anRxData, i, 4) != ADI_HAL_OK) {
         return ADPD400xDrv_ERROR;
       }
@@ -820,6 +740,7 @@ int16_t Adpd400xDrvReadRegData(uint32_t *pnData, ADPD400xDrv_SlotNum_t nSlotNum,
 
 /**
 * @brief Set the LED current level (pulse peak value)
+*        See data sheet for explanation of registers
 *
 * @param        nLedCurrent:     0 --> disable
 *                                1 --> 3mA
@@ -828,7 +749,7 @@ int16_t Adpd400xDrvReadRegData(uint32_t *pnData, ADPD400xDrv_SlotNum_t nSlotNum,
 *                                2 --> LED_2
 *                                3 --> LED_3
 *                                4 --> LED_4
-* @param        nSlotNum: The desired slot (any of slots A to L) is passed
+* @param        nSlotNum: The desired slot number (any of slots A(0) to L(11)) is passed
 *
 * @return int16_t A 16-bit integer: 0 - success; < 0 - failure
 */
@@ -873,6 +794,7 @@ int16_t Adpd400xDrvSetLedCurrent(uint16_t nLedCurrent, ADPD400xDrv_LedId_t nLedI
 
 /**
 * @brief Get the LED current level (pulse peak value)
+*        See data sheet for explanation of registers
 *
 * @param        *pLedCurrent:    0 --> disable
 *                                1 --> 3mA
@@ -881,7 +803,7 @@ int16_t Adpd400xDrvSetLedCurrent(uint16_t nLedCurrent, ADPD400xDrv_LedId_t nLedI
 *                                2 --> LED_2
 *                                3 --> LED_3
 *                                4 --> LED_4
-* @param        nSlotNum: The desired slot (any of slots A to L) is passed
+* @param        nSlotNum: The desired slot number (any of slots A(0) to L(11)) is passed
 *
 * @return int16_t A 16-bit integer: 0 - success; < 0 - failure
 */
@@ -915,11 +837,12 @@ int16_t Adpd400xDrvGetLedCurrent(uint16_t *pLedCurrent, ADPD400xDrv_LedId_t nLed
   return nRetCode;
 }
 
-/**  @brief Stops all AFE operations and resets the device to its default values, 
- *    and open the ADPD driver
-*
-* @return int16_t success
-*/
+/**  @brief Stops all AFE operations and resets the device to its default values,
+ *          and open the ADPD driver
+ *          See data sheet for explanation
+ *
+ * @return int16_t success
+ */
 int16_t Adpd400xDrvSoftReset(void) {
   return Adpd400xDrvOpenDriver();
 }
@@ -964,6 +887,7 @@ static int16_t _Adpd400xDrvSetInterrupt() {
 }
 
 /** @brief Set device to Idle mode. This mode can be used for powering down device or writing the registers
+           See data sheet for explanation.
 *
 * @return int16_t A 16-bit integer: 0 - success; < 0 - failure
 */
@@ -978,8 +902,8 @@ static int16_t _Adpd400xDrvSetIdleMode() {
 }
 
 /** @brief Get status of 12 slots.
- *  Checks if only channel-1 or both channels are enabled. 
- *  Checks the sample type:  
+ *  Checks if only channel-1 or both channels are enabled.
+ *  Checks the sample type:
  *  	Impulse mode: See data sheet for explanation of this mode.
  *  	Standard sampling mode: See data sheet for explanation of this mode.
  *  	Set slot format, slot size, total slot size and decimation factor for each slot
@@ -990,6 +914,19 @@ static int16_t _Adpd400xDrvSetIdleMode() {
 static void _Adpd400xDrvGetSlotInfo()  {
   uint16_t tempD, value, slotSize;
   gsTotalSlotSize = 0;
+  
+  uint16_t temp16;
+  uint32_t sampleFrq, lfOSC;
+  Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &temp16);
+  temp16 &= BITM_SYS_CTL_LFOSC_SEL;
+  temp16 >>= BITP_SYS_CTL_LFOSC_SEL;
+  if (temp16 == 1)
+    lfOSC = 1000000; /* 1M clock */
+  else
+    lfOSC = 32000; /* 32k clock */
+
+  Adpd400xDrvRegRead32B(ADPD400x_REG_TS_FREQ, &sampleFrq);
+  uint16_t nSamplingRate = lfOSC / sampleFrq;
 
   Adpd400xDrvRegRead(ADPD400x_REG_OPMODE, &value);
   gsHighestSelectedSlot = (value & BITM_OPMODE_TIMESLOT_EN) >> BITP_OPMODE_TIMESLOT_EN;
@@ -1023,6 +960,10 @@ static void _Adpd400xDrvGetSlotInfo()  {
       gsSlot[i].slotFormat |= (tempD << 12);
     }
 
+    Adpd400xDrvRegRead(ADPD400x_REG_DECIMATE_A + i * ADPD400x_SLOT_BASE_ADDR_DIFF, &value);
+    // extracting r_decimation factor from the register value
+    gsSlot[i].decimation = ((value & 0x7f0) >> 4) + 1;  //decimation factor = decimation_regvalue[4:10] + 1
+
     if (gsSlot[i].activeSlot == 1 && i <= gsHighestSelectedSlot)  {
       if (gsSlot[i].slotFormat & 0x100)  {
         slotSize = gsSlot[i].slotFormat & 0xFF;   // Impulse mode
@@ -1035,23 +976,33 @@ static void _Adpd400xDrvGetSlotInfo()  {
           slotSize *= 2;
       }
       gsTotalSlotSize += slotSize;
+      if(slotSize > 0)
+      {
+        gsSlot[i].odr = nSamplingRate / gsSlot[i].decimation;
+        if(gsSlot[i].odr >= gAdpdSlotMaxODR)
+        {
+           gAdpdSlotMaxODR = gsSlot[i].odr;
+        }
+      }
+      else {
+        gsSlot[i].odr = 0;
+      }
     }
-
-    Adpd400xDrvRegRead(ADPD400x_REG_DECIMATE_A + i * ADPD400x_SLOT_BASE_ADDR_DIFF, &value);
-    // extracting r_decimation factor from the register value
-    gsSlot[i].decimation = ((value & 0x7f0) >> 4) + 1;  //decimation factor = decimation_regvalue[4:10] + 1
   }
 }
 
-/** @brief  Get the output data rate of the device. Checks the low frequency oscillator used. 
+/** @brief  Get the output data rate of the device. Checks the low frequency oscillator used.
  *          Based on that, the sampling rate is found out and the ODR is calculated as
  *          Sampling Rate/Decimation
-*
-* @return None
-*/
-static void _Adpd400xDrvGetDataOutputRate(void)  {
-  uint16_t temp16;
+ *          See data sheet for explanation
+ *
+ * @param  nSlotNum: The desired slot number (any of slots A(0) to L(11)) is passed
+ * @return None
+ */
+static void _Adpd400xDrvGetDataOutputRate(uint8_t nSlotNum)  {
+  uint16_t temp16, addrOffset;
   uint32_t sampleFrq, lfOSC;
+  addrOffset = nSlotNum * ADPD400x_SLOT_BASE_ADDR_DIFF;
   Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &temp16);
   temp16 &= BITM_SYS_CTL_LFOSC_SEL;
   temp16 >>= BITP_SYS_CTL_LFOSC_SEL;
@@ -1061,7 +1012,7 @@ static void _Adpd400xDrvGetDataOutputRate(void)  {
     lfOSC = 32000;    // 32k clock
   Adpd400xDrvRegRead32B(ADPD400x_REG_TS_FREQ, &sampleFrq);
   sampleFrq = lfOSC / sampleFrq;
-  Adpd400xDrvRegRead(ADPD400x_REG_DECIMATE_A, &temp16);
+  Adpd400xDrvRegRead(ADPD400x_REG_DECIMATE_A + addrOffset, &temp16);
   temp16 &= BITM_DECIMATE_A_DECIMATE_FACTOR_A;
   temp16 >>= BITP_DECIMATE_A_DECIMATE_FACTOR_A;
   gsOutputDataRate = (uint16_t)(sampleFrq / (temp16 + 1));
@@ -1070,7 +1021,7 @@ static void _Adpd400xDrvGetDataOutputRate(void)  {
 /** @brief  Save current LED settings for a slot into pre_active_setting array.
 *          See data sheet for details on the register contents
 *
-* @param  nSlotNum: The desired slot (any of slots A to L) is passed
+* @param  nSlotNum: The desired slot number (any of slots A(0) to L(11)) is passed
 * @return None
 */
 static void _Adpd400xDrvSlotSaveCurrentSetting(uint8_t nSlotNum) {
@@ -1093,7 +1044,7 @@ static void _Adpd400xDrvSlotSaveCurrentSetting(uint8_t nSlotNum) {
 /** @brief  Applies the previous settings to the slot by writing to its registers.
 *          See data sheet for details on the register contents
 *
-* @param  nSlotNum: The desired slot (any of slots A to L) is passed
+* @param  nSlotNum: The desired slot number (any of slots A(0) to L(11)) is passed
 * @return None
 */
 static void _Adpd400xDrvSlotApplyPreviousSetting(uint8_t nSlotNum) {
@@ -1115,10 +1066,10 @@ static void _Adpd400xDrvSlotApplyPreviousSetting(uint8_t nSlotNum) {
 
 
 /** @brief  Applies the sleep mode settings to a slot.
- *          This API is called when a slot is to be put into a sleep mode
-*          See data sheet for details on the register contents
+*           This API is called when a slot is to be put into a sleep mode
+*           See data sheet for details on the register contents
 *
-* @param  nSlotNum: The desired slot (any of slots A to L) is passed
+* @param  nSlotNum: The desired slot number (any of slots A(0) to L(11)) is passed
 * @return None
 */
 static void _Adpd400xDrvSlotApplySkipSetting(uint8_t nSlotNum) {
@@ -1150,7 +1101,7 @@ static void _Adpd400xDrvSlotApplySkipSetting(uint8_t nSlotNum) {
 }
 
 /** @brief  Set the slot data size
-* @param  nSlotNum: The desired slot (any of slots A to L) is passed
+* @param  nSlotNum: The desired slot number (any of slots A(0) to L(11)) is passed
 * @param  nSlotFormat: Dark, Signal format. See data sheet for details
 * @return none
 */

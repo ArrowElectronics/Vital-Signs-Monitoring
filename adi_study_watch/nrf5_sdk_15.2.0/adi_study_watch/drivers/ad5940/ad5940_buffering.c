@@ -65,7 +65,7 @@
 #define AD5940_RX_BUFFER_SIZE            20
 
 /****** Driver related declarations start ********/
-#define WATERMARK_VALUE 16
+#define WATERMARK_VALUE 20
 
 /************************************************* Structures ***********************************************************/
 
@@ -87,13 +87,15 @@ typedef struct Ad5940_Rx_Buffer_Def_Struct {
 
 
 /************************************************* Private variables ***********************************************************/
-uint16_t gnAd5940TimeGap=10;
-uint16_t gnAd5940TimeGap1=10;
-uint16_t gnAd5940TimeGap2=10;
+uint16_t gnAd5940TimeGap = 0;
+#if DEBUG_ECG
+uint16_t gnAd5940TimeGap1 = 10;
+uint16_t gnAd5940TimeGap2 = 10;
+#endif
 uint8_t gnAd5940NumberOfEcgData = 0;
 uint8_t bMeasureVolt = 1;
 uint8_t gnAd5940TimeIrqSet = 0, gnAd5940TimeIrqSet1 = 0;
-uint32_t gn_DivErr_Cnt =0, gn_ecg_fetch_data_cnt =0;
+uint32_t gn_DivErr_Cnt = 0, gn_ecg_fetch_data_cnt = 0;
 uint32_t gn_ad5940_isr_cnt = 0;
 uint32_t gn_eda_fetch_data_cnt = 0;
 uint32_t BcmFifoCount;
@@ -105,10 +107,10 @@ AD5940_RX_BUFFER_DEF *Ad5940WtBufferPtr, *Ad5940RdBufferPtr;
 volatile uint8_t gnAd5940DataReady;
 uint32_t gnAd5940TimeCurVal = 0, gnAd5940TimePreVal = 0;
 uint32_t gnAd5940TimeCurVal_copy = 0;
-uint32_t gnAd5940TimeCurValInMicroSec=0;
+uint32_t gnAd5940TimeCurValInMicroSec = 0;
 uint32_t gnAd5940TimePrevVal = 0;
 uint32_t FifoCount;
-int var=0;
+AD5950_APP_ENUM_t gnAd5940App = AD5940_APP_NONE;
 #ifdef DEBUG_EDA
 uint32_t eda_tick=0,eda_tick_prev=0;
 uint32_t eda_load_time_diff=0;
@@ -256,16 +258,16 @@ void Ad5940FifoCallBack(void) {
     /* Increment isr count */
     gn_ad5940_isr_cnt++;
 
-    switch(var){
+    switch(gnAd5940App){
 #ifdef ENABLE_ECG_APP
       /* Case 1: ECG Interrupt */
-      case 1:
+      case AD5940_APP_ECG:
                 /* post ecg semaphore */
                 adi_osal_SemPost(ecg_task_evt_sem);
       break;
 #endif
 #ifdef ENABLE_EDA_APP
-      case 2:
+      case AD5940_APP_EDA:
       /* Case 2: EDA Interrupt */
 #ifdef DEBUG_EDA
                 /* timing obtained to know difference between successive EDA Interrupts */
@@ -279,7 +281,7 @@ void Ad5940FifoCallBack(void) {
       break;
 #endif
 #ifdef ENABLE_BCM_APP
-      case 3:
+      case AD5940_APP_BCM:
       /* Case 3: BCM Interrupt */
 #ifdef DEBUG_BCM
                 /* timing obtained to know difference between successive BCM Interrupts */
@@ -445,7 +447,7 @@ int8_t ad5940_read_ecg_data_to_buffer() {
       AD5940_INTCClrFlag(AFEINTSRC_DATAFIFOTHRESH);
       /* If there is need to do AFE re-configure, do it here when AFE is in active state */
       AppECGRegModify(pRegReadData, &Fifolevel);
-      /* Allow AFE to enter sleep mode. AFE will stay at active mode untill sequencer trigger sleep */
+      /* Allow AFE to enter sleep mode. AFE will stay at active mode until sequencer trigger sleep */
       AD5940_SleepKeyCtrlS(SLPKEY_UNLOCK);
       /* Read fifo data */
       AppECGDataProcess(pRegReadData,&Fifolevel);
@@ -490,12 +492,12 @@ int8_t ad5940_read_ecg_data_to_buffer() {
       /* Normally, data processed time > interrupt occured time , hence update
       current time value by difference between current time when data is processed and
       time corresponding to interrupt occured */
-      if ((nTcv > gnAd5940TimeCurVal) && (gnAd5940TimeGap != 0))  {
+      /*if ((nTcv > gnAd5940TimeCurVal) && (gnAd5940TimeGap != 0))  {
         //gnAd5940TimeCurVal += nTcv - gnAd5940TimeCurVal;
-      }
+      }*/
       /* If current data processed time < Interrupt occured time, this could be case of
        roll over, update current time based on data processes time */
-      else if((nTcv < gnAd5940TimeCurVal) && (gnAd5940TimeGap != 0))  {
+      if((nTcv < gnAd5940TimeCurVal) && (gnAd5940TimeGap != 0))  {
         gnAd5940TimeCurVal = nTcv;
         day_roll_over = true;
       }
@@ -550,8 +552,10 @@ AD5940Err AppEDAISR(void *pBuff, uint32_t *pCount)  {
     /* Wakeup Failed */
      return AD5940ERR_WAKEUP;
     }
+#ifndef EXTERNAL_TRIGGER_EDA
     /* We are operating registers, so we don't allow AFE enter sleep mode which is done in our sequencer */
     AD5940_SleepKeyCtrlS(SLPKEY_LOCK);  /* Don't enter hibernate */
+#endif
     *pCount = 0;
 
     /* increment fetch count variable */
@@ -578,11 +582,12 @@ AD5940Err AppEDAISR(void *pBuff, uint32_t *pCount)  {
       AD5940_INTCClrFlag(AFEINTSRC_DATAFIFOTHRESH);
        /* If there is need to do AFE re-configure, do it here when AFE is in active state */
       AppEDARegModify(pBuff, &FifoCount);
+#ifndef EXTERNAL_TRIGGER_EDA	      
       /* Manually put AFE back to hibernate mode. This operation only takes effect when register value is ACTIVE previously */
       AD5940_EnterSleepS();
       /* Don't enter hibernate */
       AD5940_SleepKeyCtrlS(SLPKEY_UNLOCK);  /* Don't enter hibernate */
-
+#endif
       /* Process data */
       AppEDADataProcess((int32_t*)pBuff,&FifoCount);
       *pCount = FifoCount;

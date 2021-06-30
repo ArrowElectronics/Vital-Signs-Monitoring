@@ -8,6 +8,8 @@ import common
 from common import ConditionCheckFailure
 from utils import qa_utils, meas_check
 
+capture_time = 120
+
 
 def ad5940_dev_id_test():
     """
@@ -34,20 +36,18 @@ def ecg_dcb_stream_test():
     capture_time = 30
     freq_hz = 200
     ecg_dcb_test()
+    qa_utils.enable_ecg_without_electrodes_contact()
 
-    common.watch_shell.do_sub('recg add')
-    common.watch_shell.do_sensor('ecg start')
-    common.watch_shell.do_plot("recg")
+    common.quick_start_ecg(samp_freq_hz=freq_hz)
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('ecg')
-    common.close_plot_after_run(['ECG Data Plot'])
+    common.watch_shell.quick_stop('ecg', 'ecg')
 
     f_path = common.rename_stream_file(common.ecg_stream_file_name, '_ecg_dcb_stream{}hz_test.csv'.format(freq_hz))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'ecg', 1, freq_hz)
-    common.logging.info('ECG {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('ECG {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** ECG {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** ECG {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
@@ -68,20 +68,19 @@ def ecg_stream_test(freq_hz=100):
     """
     capture_time = 30
     common.dcb_cfg('d', 'ecg')
+    qa_utils.enable_ecg_without_electrodes_contact()
 
-    common.quick_start_ecg(freq_hz)
-    common.watch_shell.do_plot("recg")
+    common.quick_start_ecg(samp_freq_hz=freq_hz)
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('ecg')
-    common.close_plot_after_run(['ECG Data Plot'])
+    common.watch_shell.quick_stop('ecg', 'ecg')
     common.dcb_cfg('d', 'ecg')
 
     f_path = common.rename_stream_file(common.ecg_stream_file_name, '_ecg_stream{}hz_test.csv'.format(freq_hz))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'ecg', 1, freq_hz)
-    common.logging.info('ECG {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('ECG {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** ECG {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** ECG {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
@@ -91,22 +90,22 @@ def ecg_fs_stream_test(freq_hz=100):
     :param freq_hz: Frequency in which the Sampling should happen(HZ)
     :return:
     """
-    capture_time = 30
     common.dcb_cfg('d', 'ecg')
     qa_utils.clear_fs_logs('ecg')
+    qa_utils.enable_ecg_without_electrodes_contact()
 
-    common.watch_shell.do_quickstart("start_log_ecg")
+    common.quick_start_ecg_fs(samp_freq_hz=freq_hz)
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('stop_log_ecg')
-    common.dcb_cfg('d', 'ecg')
+    common.quick_stop_ecg_fs()
     log_file_name, csv_file_name_dict = qa_utils.get_fs_log('ecg')
+    common.dcb_cfg('d', 'ecg')
 
-    f_path = common.rename_stream_file(csv_file_name_dict["ecg"], '_ecg_stream{}hz_test.csv'.format(freq_hz))
+    f_path = common.rename_stream_file(csv_file_name_dict["ecg"], '_ecg_stream{}hz_fs_test.csv'.format(freq_hz))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'ecg', 1, freq_hz, True)
-    common.logging.info('ECG {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('ECG {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** ECG {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** ECG {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
@@ -128,18 +127,16 @@ def eda_dcb_stream_test():
     freq_hz = 25
     eda_dcb_test()
 
-    common.watch_shell.do_sub('reda add')
-    common.watch_shell.do_sensor('eda start')
-    common.watch_shell.do_plot("reda")
+    common.quick_start_eda(freq_hz)
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('eda')
-    common.close_plot_after_run(['EDA Data Plot'])
+    common.watch_shell.quick_stop('eda', 'eda')
+    common.dcb_cfg('d', 'eda')
     f_path = common.rename_stream_file(common.eda_stream_file_name, '_eda_stream{}hz_test.csv'.format(freq_hz))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'eda', 1, freq_hz)
-    common.logging.info('EDA {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('EDA {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** EDA {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** EDA {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
@@ -162,17 +159,15 @@ def eda_stream_test(freq_hz=4):
     common.dcb_cfg('d', 'eda')
 
     common.quick_start_eda(freq_hz)
-    common.watch_shell.do_plot("reda")
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('eda')
-    common.close_plot_after_run(['EDA Data Plot'])
+    common.watch_shell.quick_stop('eda', 'eda')
     common.dcb_cfg('d', 'eda')
     f_path = common.rename_stream_file(common.eda_stream_file_name, '_eda_stream{}hz_test.csv'.format(freq_hz))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'eda', 1, freq_hz)
-    common.logging.info('EDA {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('EDA {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** EDA {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** EDA {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
@@ -182,23 +177,21 @@ def eda_fs_stream_test(freq_hz=4):
     :param freq_hz: Frequency in which the Sampling should happen(HZ)
     :return:
     """
-    capture_time = 30
     common.dcb_cfg('d', 'eda')
     qa_utils.clear_fs_logs('eda')
 
-    common.set_eda_stream_freq(samp_freq_hz=freq_hz)
-    common.watch_shell.do_quickstart("start_log_eda")
+    common.quick_start_eda_fs(samp_freq_hz=freq_hz)
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('stop_log_eda')
-    common.dcb_cfg('d', 'eda')
+    common.quick_stop_eda_fs()
     log_file_name, csv_file_name_dict = qa_utils.get_fs_log('eda')
+    common.dcb_cfg('d', 'eda')
 
-    f_path = common.rename_stream_file(csv_file_name_dict["eda"], '_eda_stream{}hz_test.csv'.format(freq_hz))
+    f_path = common.rename_stream_file(csv_file_name_dict["eda"], '_eda_stream{}hz_fs_test.csv'.format(freq_hz))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'eda', 1, freq_hz, True)
-    common.logging.info('EDA {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('EDA {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** EDA {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** EDA {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
@@ -211,38 +204,35 @@ def ad5940_switch_test():
     capture_time = 10
     freq_hz = 0
     common.dcb_cfg('d', 'ecg')
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
+    common.watch_shell.do_disable_electrode_switch('3')
+    common.watch_shell.do_disable_electrode_switch('2')
+    common.watch_shell.do_disable_electrode_switch('1')
 
-    common.watch_shell.do_quickstart('ecg')
-    common.watch_shell.do_plot('recg')
+    common.watch_shell.quick_start('ecg', 'ecg')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('ecg')
-    common.close_plot_after_run(['ECG Data Plot'])
+    common.watch_shell.quick_stop('ecg', 'ecg')
     f_path_sw_off = common.rename_stream_file(common.ecg_stream_file_name, '_ad5940_switch_off_test.csv')
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path_sw_off, 'ecg', 1, freq_hz)
-    common.logging.info('ECG {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('ECG {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** ECG {}Hz SW OFF Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** ECG {}Hz SW OFF Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
     freq_hz = 100
     common.dcb_cfg('d', 'ecg')
-    common.watch_shell.do_set_ecg_dcb_lcfg("")
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 1')
-    common.watch_shell.do_quickstart('ecg')
-    common.watch_shell.do_plot('recg')
+    common.watch_shell.do_disable_electrode_switch('3')
+    common.watch_shell.do_disable_electrode_switch('2')
+    common.watch_shell.do_enable_electrode_switch('1')
+
+    common.quick_start_ecg(freq_hz)
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('ecg')
-    common.close_plot_after_run(['ECG Data Plot'])
+    common.watch_shell.quick_stop('ecg', 'ecg')
+    common.dcb_cfg('d', 'ecg')
     f_path_sw_on = common.rename_stream_file(common.ecg_stream_file_name, '_ad5940_switch_on_test.csv')
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path_sw_on, 'ecg', 1, freq_hz)
-    common.logging.info('ECG {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('ECG {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** ECG {}Hz SW On Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** ECG {}Hz SW On Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
@@ -284,25 +274,54 @@ def eda_repeatability_sweep_test():
         eda_freq_sweep_test()
 
 
+def ecg_fs_freq_sweep_test():
+    """
+    Sweep ECG across Valid Frequencies
+    :return:
+    """
+    freq = [12, 25, 50, 100, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
+    for freq_hz in freq:
+        ecg_fs_stream_test(freq_hz=freq_hz)
+
+
+def eda_fs_freq_sweep_test():
+    """
+    Sweep ECG across Valid Frequencies
+    :return:
+    """
+    freq = [4, 10, 15, 20, 25, 30]
+    for freq_hz in freq:
+        eda_fs_stream_test(freq_hz=freq_hz)
+
+
 def bcm_stream_test(freq_hz=10):
 
     capture_time = 30
-    common.dcb_cfg('d', 'ecg')
+    # common.dcb_cfg('d', 'bcm')
 
     common.quick_start_bcm(freq_hz)
-    common.watch_shell.do_plot("rbcm")
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('BCM')
-    common.close_plot_after_run(['BCM Data Plot'])
+    common.watch_shell.quick_stop('bcm', 'bcm')
+    # common.dcb_cfg('d', 'bcm')
 
     f_path = common.rename_stream_file(common.bcm_stream_file_name, '_BCM_stream{}hz_test.csv'.format(freq_hz))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'BCM', 1, freq_hz)
-    common.logging.info('BCM {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
-    common.watch_shell.do_lcfgBcmRead("0")
+    common.test_logger.info('BCM {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** BCM {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** BCM {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
+
+
+def bcm_freq_sweep_test():
+    """
+    Sweep BCM across Valid Frequencies
+    :return:
+    """
+    freq = [4, 10, 15, 20, 22]
+    for freq_hz in freq:
+        time.sleep(30)
+        bcm_stream_test(freq_hz=freq_hz)
 
 
 def bcm_dcb_test():
@@ -321,10 +340,9 @@ def bcm_dcb_stream_test():
     bcm_dcb_test()
 
     common.quick_start_bcm(freq_hz)
-    common.watch_shell.do_plot("rbcm")
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('BCM')
-    common.close_plot_after_run(['BCM Data Plot'])
+    common.watch_shell.quick_stop('bcm', 'bcm')
+    common.dcb_cfg('d', 'bcm')
 
     f_path = common.rename_stream_file(common.bcm_stream_file_name, '_BCM_stream{}hz_test.csv'.format(freq_hz))
 
@@ -332,7 +350,7 @@ def bcm_dcb_stream_test():
     common.logging.info('BCM {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     common.watch_shell.do_lcfgBcmRead("0")
     if err_status:
-        common.logging.error('*** BCM {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** BCM {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 

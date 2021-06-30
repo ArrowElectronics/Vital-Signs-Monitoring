@@ -167,6 +167,7 @@
             <file file_name="../display/page/about/page_trade_mark.c" />
           </folder>
           <file file_name="../display/page/page_about.c" />
+          <file file_name="../display/page/page_LT_mode2_log_enable.c" />
         </folder>
         <file file_name="../display/display_app.c" />
         <configuration Name="Debug" build_exclude_from_build="No" />
@@ -177,7 +178,6 @@
       <file file_name="../../../modules/system/file_system_task.c">
         <configuration Name="Debug" build_exclude_from_build="No" />
       </file>
-      <file file_name="../../../modules/system/logger_task.c" />
       <file file_name="../../../modules/adxl362/adxl_task.c" />
       <file file_name="../../../modules/ad5940_eda/eda_application_task.c">
         <configuration
@@ -196,7 +196,7 @@
       <folder Name="low_touch_app">
         <file file_name="../../../modules/ad7156_lt/dcb_general_block.c" />
         <file file_name="../../../modules/ad7156_lt/low_touch_task.c" />
-        <file file_name="../../../modules/ad7156_lt/wrist_detect_block.c" />
+        <file file_name="../../../modules/ad7156_lt/lt_app_lcfg_block.c" />
       </folder>
       <file file_name="../../../modules/system/watch_dog_task.c" />
       <file file_name="../../../modules/ad5940_ecg/ecg_application_task.c">
@@ -220,6 +220,7 @@
       <file file_name="../../../modules/adpd4000_sqi/sqi_task.c" />
       <file file_name="../../../modules/adpd4000_sqi/adi_vsm_cycle_count.c" />
       <file file_name="../../../modules/system/ble_services_m2m2_protocol.c" />
+      <file file_name="../../../modules/system/logger_task.c" />
     </folder>
     <folder Name="Middleware">
       <folder Name="FreeRTOS">
@@ -496,10 +497,17 @@
         <configuration Name="Release" build_exclude_from_build="Yes" />
         <configuration Name="Debug" build_exclude_from_build="Yes" />
       </folder>
-      <file file_name="../../../modules/ad5940_ecg/adi_ad5940_main.c" />
-      <file file_name="../../../modules/ad5940_ecg/adi_ecg.c" />
       <folder Name="manufacture_date">
         <file file_name="../../../modules/system/manufacture_date.c" />
+      </folder>
+      <folder Name="ECG">
+        <file file_name="../../../modules/ad5940_ecg/adi_ecg.c" />
+      </folder>
+      <folder Name="EDA">
+        <file file_name="../../../modules/ad5940_eda/adi_eda.c" />
+      </folder>
+      <folder Name="BCM">
+        <file file_name="../../../modules/ad5940_bcm/adi_bcm.c" />
       </folder>
     </folder>
     <configuration
@@ -511,7 +519,7 @@
       c_preprocessor_definitions="HIBERNATE_MD_EN;TEMP_PROTECT_FUNC_EN"
       c_user_include_directories="..\\..\\..\\modules\\adpd4000_temp."
       gcc_optimization_level="Optimize For Size"
-      linker_pre_build_command="cmd /c cd $(ProjectDir)\..\..\..\algo\ppg_loop1_algo\package &amp; makelib_ses.cmd release lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a"
+      linker_pre_build_command="cmd /c cd $(ProjectDir)\..\..\..\algo\ppg_loop1_algo\package &amp; makelib_ses.cmd release libadi_agc_m4f_Release.a $(ProjectDir)\..\..\..\algo\sqi\package\Release\libadi_vsm_sqi_m4f_Release.a $(ProjectDir)\..\..\..\algo\hrv\libadi_vsm_hrv_m4f.a lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a"
       post_build_command="cmd /c cd $(ProjectDir)\..\..\..\algo\ppg_loop1_algo\package &amp; del $(Configuration)\lib_adpd_m4.a"
       pre_build_command="cmd /c cd $(ProjectDir)&amp;&amp;$(ProjectDir)\..\..\..\utilities\git_utils\git_versioner.bat $(ProjectDir)\..\..\..\modules\system\system_version.c &quot;Rl&quot;"
       pre_build_command_control="Always Run"
@@ -530,7 +538,7 @@
       compile_post_build_command=""
       gcc_optimization_level="Debug"
       linker_additional_files=""
-      linker_pre_build_command="cmd /c cd $(ProjectDir)\..\..\..\algo\ppg_loop1_algo\package &amp; makelib_ses.cmd debug lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a"
+      linker_pre_build_command="cmd /c cd $(ProjectDir)\..\..\..\algo\ppg_loop1_algo\package &amp; makelib_ses.cmd debug libadi_agc_m4f_Debug.a $(ProjectDir)\..\..\..\algo\sqi\package\Debug\libadi_vsm_sqi_m4f_Debug.a $(ProjectDir)\..\..\..\algo\hrv\libadi_vsm_hrv_m4f.a lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a"
       post_build_command="cmd /c cd $(ProjectDir)\..\..\..\algo\ppg_loop1_algo\package &amp; del $(Configuration)\lib_adpd_m4.a"
       pre_build_command="cmd /c cd $(ProjectDir)&amp;&amp;$(ProjectDir)\..\..\..\utilities\git_utils\git_versioner.bat $(ProjectDir)\..\..\..\modules\system\system_version.c &quot;Dg&quot;"
       pre_build_command_control="Always Run"
@@ -612,12 +620,6 @@
       <file file_name="..\..\..\hal\hal_spi.c" />
       <file file_name="../../../hal/hal_twi0.c" />
     </folder>
-    <file file_name="../../../algo/sqi/package/Debug/libadi_vsm_sqi_m4f_Debug.a">
-      <configuration Name="Release" build_exclude_from_build="Yes" />
-    </file>
-    <file file_name="../../../algo/sqi/package/Release/libadi_vsm_sqi_m4f_Release.a">
-      <configuration Name="Debug" build_exclude_from_build="Yes" />
-    </file>
     <file file_name="../../../algo/ecg/package/Debug/lib_QRSDetector_debug.a">
       <configuration Name="Release" build_exclude_from_build="Yes" />
     </file>

@@ -16,10 +16,14 @@ Pass Fail Check
 	testPassFailCheck	${cmd}	${check_type}	${args} 
 
 *** Variables ***
-${DUT_COMPORT}	COMXX
+${DUT_COMPORT}	COMxx
 ${CONNECT_MODE}	usb
 
 *** Test Cases ***
+VariableTest
+  ${lib} =   Get Library Instance   m2m2_test_lib
+  Log    Variable Val is ${lib.pointer_info}
+
 PM Basic Connectivity
 	[Documentation]	Connectivity Test\n\n
 	...				1.Check Version\n\n\
@@ -30,6 +34,7 @@ PM Basic Connectivity
 	Set test message	Ping test to check Connectivity Passed!
 
 FS Sanity
+
 	[Documentation]	Test FS functionality\n\n
 	...				1. Format Written area.\n\n
 	...				2. Format complete flash and reset file system\n\n
@@ -45,7 +50,7 @@ FS Sanity
 	Cmd Must Contain	fs_format				Status: 'M2M2_FILE_SYS_STATUS_OK'
 	Cmd Must Contain	fs_get_bad_blocks		No: of bad blocks: 
 	Cmd Must Contain	fs_ls					Status: 'M2M2_FILE_SYS_END_OF_DIR'
-	Cmd Must Contain	fs_vol_info				FS_TOTAL_MEMORY	536870656	FS_USED_MEMORY	FS_AVAILABLE_MEMORY	Status: 'M2M2_FILE_SYS_STATUS_OK'
+	Cmd Must Contain	fs_vol_info				FS_TOTAL_MEMORY	535822336	FS_USED_MEMORY	FS_AVAILABLE_MEMORY	Status: 'M2M2_FILE_SYS_STATUS_OK'
 	Cmd Must Contain	fs_sub_status radxl		Application: M2M2_ADDR_SENSOR_ADXL_STREAM	FS_SUBS_STATUS: 'M2M2_FILE_SYS_UNSUBSCRIBED'
 	Cmd Must Contain	fs_log start				Status: 'M2M2_FILE_SYS_STATUS_OK' 
 	Cmd Must Contain	fs_sub radxl add			Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
@@ -58,8 +63,73 @@ FS Sanity
 	Cmd Must Contain	quickstart config_write_test		Status: 'M2M2_FILE_SYS_STATUS_OK'
 	Cmd Must Contain	delete_config_file					Status: 'M2M2_FILE_SYS_STATUS_OK'
 	Cmd Must Contain	get_file_cnt				Status: 'M2M2_APP_COMMON_STATUS_OK'	No. of Files Present:
-		
+ 	Cmd Must Contain	fs_format				Status: 'M2M2_FILE_SYS_STATUS_OK'
+	#Cmd Must Contain	pattern_write 4096 0 1 1 1			Status: 'M2M2_APP_COMMON_STATUS_OK'
+	#Cmd Must Contain     	fs_req_debug_info
+ 	#${lib} =   Get Library Instance   m2m2_test_lib
+    	#Cmd Must Contain     	page_read_test ${lib.pointer_info} 1 4	Samples of Data read :	1: '222'	2: '173'	3: '190'	4: '239'
+	#Cmd Must Contain	fs_format				Status: 'M2M2_FILE_SYS_STATUS_OK'
+	
 	Set test message	Tested FS functionality - Get_Vol._Info. Directory_Listing, FS_Format, start/stop FS logging, Get_File_Count.
+
+ECG_EDA_BCM_COMBO Start stop
+	[Documentation]	Test ECG->EDA->BCM->EDA->ECG->BCM stream start/stop\n\n
+	...				1.start-stop ECG stream sequence\n\n
+	...				2.start-stop EDA stream sequence\n\n
+	...				3.start-stop BCM stream sequence\n\n
+	...				4.start-stop ECG stream sequence\n\n
+	...				5.start-stop BCM stream sequence\n\n
+	...				6.start-stop EDA stream sequence\n\n
+	[Tags]	ECG_EDA_BCM_COMBO
+	Cmd Must Contain	lcfgEcgWrite 0:1000				M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	sensor ecg start				Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub recg add					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
+	Cmd Must Contain	delay 3
+	Cmd Must Contain	status ecg						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub recg remove					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor ecg stop					Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+
+	Cmd Must Contain	lcfgEdaWrite 0:4				M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	sensor eda start 				Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub reda add					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 3
+	Cmd Must Contain	status eda						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub reda remove					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor eda stop					Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+
+	Cmd Must Contain	lcfgBcmWrite 0:4				Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	sensor bcm start				Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub rbcm add					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 3
+	Cmd Must Contain	status bcm						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub rbcm remove					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor bcm stop					Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+
+	Cmd Must Contain	lcfgEcgWrite 0:1000				M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	sensor ecg start				Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub recg add					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
+	Cmd Must Contain	delay 3
+	Cmd Must Contain	status ecg						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub recg remove					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor ecg stop					Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+
+	Cmd Must Contain	lcfgBcmWrite 0:4				Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	sensor bcm start				Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub rbcm add					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 3
+	Cmd Must Contain	status bcm						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub rbcm remove					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor bcm stop					Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+
+	Cmd Must Contain	lcfgEdaWrite 0:4				M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	sensor eda start 				Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub reda add					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 3
+	Cmd Must Contain	status eda						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub reda remove					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor eda stop					Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+
+	Set test message	Tested ECG_EDA_BCM_COMBO - stream start/stop sequence.
 
 ADXL_ADPD_TEMP_EDA_COMBO Start stop
 	[Documentation]	Test ADXL->ADPD4000->TEMP->EDA stream start/stop\n\n
@@ -118,7 +188,7 @@ ADXL_ADPD_EDA_TEMP_COMBO Start stop
 	Cmd Must Contain	sensor eda stop			M2M2_APP_COMMON_STATUS_STREAM_STOPPED
 	Cmd Must Contain	sub rtemperature remove		M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED
 	Cmd Must Contain	sensor temperature stop		M2M2_APP_COMMON_STATUS_STREAM_STOPPED
-	Cmd Must Contain	status adpd4000	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '0'	Number of Start Requests: '0'	
+	Cmd Must Contain	status adpd4000 radpd1	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '0'	Number of Start Requests: '0'	
 	Set test message	Tested ADXL-ADPD-EDA-TEMP stream start/stop sequence.	
 
 
@@ -203,25 +273,25 @@ ADPD Status Check
 	[Tags]	ADPD4000
 	Cmd Must Contain	getDecSample radpd1	Decimation Factor: '1'	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	getAdpdVersion	Version info from 'M2M2_ADDR_SENSOR_ADPD4000'
-	Cmd Must Contain	status adpd4000	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '0'	Number of Start Requests: '0'
+	Cmd Must Contain	status adpd4000 radpd1	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '0'	Number of Start Requests: '0'	
 	Cmd Must Contain	sub radpd1 add	M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
 	Cmd Must Contain	sub radpd1 add	M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
 	Cmd Must Contain	sub radpd1 add	M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
-	Cmd Must Contain	status adpd4000	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '3'	Number of Start Requests: '0'
+	Cmd Must Contain	status adpd4000 radpd1	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '3'	Number of Start Requests: '0'	
 	Cmd Must Contain	sub radpd1 remove	Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT'
 	Cmd Must Contain	sub radpd1 remove	Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT'
-	Cmd Must Contain	status adpd4000	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '1'	Number of Start Requests: '0'
+	Cmd Must Contain	status adpd4000 radpd1	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '1'	Number of Start Requests: '0'	
 	Cmd Must Contain	sub radpd1 remove	Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
-	Cmd Must Contain	status adpd4000	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '0'	Number of Start Requests: '0'
+	Cmd Must Contain	status adpd4000 radpd1	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '0'	Number of Start Requests: '0'	
 	Cmd Must Contain	sensor adpd4000 start	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sensor adpd4000 start	Status: 'M2M2_APP_COMMON_STATUS_STREAM_IN_PROGRESS'
 	Cmd Must Contain	sensor adpd4000 start	Status: 'M2M2_APP_COMMON_STATUS_STREAM_IN_PROGRESS'
-	Cmd Must Contain	status adpd4000	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'	Number of Subscribers: '0'	Number of Start Requests: '3'
+	Cmd Must Contain	status adpd4000 radpd1	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'	Number of Subscribers: '0'	Number of Start Requests: '3'	
 	Cmd Must Contain	sensor adpd4000 stop	Status: 'M2M2_APP_COMMON_STATUS_STREAM_COUNT_DECREMENT'
 	Cmd Must Contain	sensor adpd4000 stop	Status: 'M2M2_APP_COMMON_STATUS_STREAM_COUNT_DECREMENT'
-	Cmd Must Contain	status adpd4000	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'	Number of Subscribers: '0'	Number of Start Requests: '1'
+	Cmd Must Contain	status adpd4000 radpd1	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'	Number of Subscribers: '0'	Number of Start Requests: '1'	
 	Cmd Must Contain	sensor adpd4000 stop	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
-	Cmd Must Contain	status adpd4000	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '0'	Number of Start Requests: '0'
+	Cmd Must Contain	status adpd4000 radpd1	Application: M2M2_ADDR_SENSOR_ADPD4000:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '0'	Number of Start Requests: '0'	
 	Set test message	Checked ADPD4000 status in case of subscriber added/removed and sensor start/stop.
 	
 ADPD Register Access
@@ -638,6 +708,27 @@ PPG_DCB_Test
 	Cmd Must Contain 	lcfgPpgCheck 40 ppg_dcb.lcfg			Command return status: M2M2_APP_COMMON_STATUS_OK	Command return status: FW LCFG Present
 	Set test message	Tested PPG DCB read/write/erase. Loaded Lcfg is verified.
 
+HRV_Test
+	[Documentation]	Test HRV functionality\n\n
+	...				1. Verify - \n\n
+	...				-> HRV stream start/stop sequence
+	[Tags]	HRV
+	Cmd Must Contain 	loadAdpdCfg 40							Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	clockCalibration 6						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	setPpgLcfg 40							Device: '40'	Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	sensor ppg start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain 	sub rppg add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain 	sub ragc add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain 	sub rhrv add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	
+	Cmd Must Contain    delay 5
+	
+	Cmd Must Contain 	sub rhrv remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain 	sub ragc remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain 	sub rppg remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain 	sensor ppg stop							Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+	Set test message	Tested HRV stream start/stop
+	
 EDA_DCB_Test
 	[Documentation]	Test DCB functionality of EDA\n\n
 	...				1. Verify - \n\n
@@ -703,17 +794,62 @@ ECG_DCB_Test
 	Cmd Must Contain	sub recg remove						Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
 	Cmd Must Contain	sensor ecg stop						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
 	Cmd Must Contain	lcfgEcgRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	64
-	Cmd Must Contain	write_dcb_config ecg ecg_dcb1.lcfg		Command return status: M2M2_DCB_STATUS_OK
-	Cmd Must Contain	delay 2
-	Cmd Must Contain	set_ecg_dcb_lcfg						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	set_ecg_dcb_lcfg						Status: 'M2M2_APP_COMMON_STATUS_ERROR'
 	Cmd Must Contain	sensor ecg start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub recg add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
 	Cmd Must Contain	delay 10
 	Cmd Must Contain	sub recg remove						Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
 	Cmd Must Contain	sensor ecg stop						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+	Cmd Must Contain	lcfgEcgRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	
+	Cmd Must Contain	delete_dcb_config ecg					Command return status: M2M2_DCB_STATUS_ERR_ARGS
+	Cmd Must Contain 	write_dcb_config ecg ecg_dcb.lcfg				Command return status: M2M2_DCB_STATUS_OK
+	Cmd Must Contain	set_ecg_dcb_lcfg						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	delay 2
+	Cmd Must Contain 	read_dcb_config ecg						Command return status: M2M2_DCB_STATUS_OK
+	Cmd Must Contain	delay 2
+	Cmd Must Contain	compare_cfg_files ecg_dcb.lcfg ecg_dcb_get.lcfg			Command return status: Cfg. in both files matched
 	Cmd Must Contain	lcfgEcgRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	c8
-	Cmd Must Contain	delete_dcb_config ecg					Command return status: M2M2_DCB_STATUS_OK
+	Cmd Must Contain	lcfgEcgRead 1							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	0
+	Cmd Must Contain	lcfgEcgRead 2							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	0
+	Cmd Must Contain	lcfgEcgRead 3							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	Cmd Must Contain	delete_dcb_config ecg						Command return status: M2M2_DCB_STATUS_OK
+	
 	Set test message	Tested ECG DCB read/write/erase. Loaded Lcfg is verified.
+
+BCM_DCB_Test
+	[Documentation]	Test DCB functionality of bcm\n\n
+	...				1. Verify - \n\n
+	...				-> Default FW LCFG is loaded when DCB LCFG is not present.\n\n
+	...				-> DCB LCFG is loaded when LCFG is present in DCB.
+	[Tags]	DCB
+	Cmd Must Contain	set_bcm_dcb_lcfg						Status: 'M2M2_APP_COMMON_STATUS_ERROR'
+	Cmd Must Contain	sensor bcm start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub rbcm add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 2
+	Cmd Must Contain	sub rbcm remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor bcm stop							Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+	Cmd Must Contain	lcfgBcmRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	Cmd Must Contain	write_dcb_config bcm bcm_dcb.lcfg				Command return status: M2M2_DCB_STATUS_OK
+	Cmd Must Contain	delay 2
+	Cmd Must Contain	set_bcm_dcb_lcfg						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	sensor bcm start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub rbcm add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 10
+	Cmd Must Contain	sub rbcm remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor bcm stop							Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+	Cmd Must Contain	lcfgBcmRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	Cmd Must Contain	lcfgBcmRead 2							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	Cmd Must Contain	delete_dcb_config bcm					Command return status: M2M2_DCB_STATUS_OK
+	Cmd Must Contain	set_bcm_dcb_lcfg						Status: 'M2M2_APP_COMMON_STATUS_ERROR'
+	Cmd Must Contain	sensor bcm start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub rbcm add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 10
+	Cmd Must Contain	sub rbcm remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor bcm stop							Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+	Cmd Must Contain	lcfgBcmRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	Cmd Must Contain	lcfgBcmRead 2							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	Set test message	Tested BCM DCB read/write/erase. Loaded Lcfg is verified.
+
 	
 Combined_DCB_Test
 	[Documentation]	Test DCB functionality of ADPD4000 ,ADXL ,PPG, ECG and EDA.\n\n
@@ -763,8 +899,8 @@ Combined_DCB_Test
 	Cmd Must Contain	sub radxl add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
 	Cmd Must Contain	reg r adxl 0x20 0x2C 0x2E							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '3'	M2M2_APP_COMMON_STATUS_OK	1	9b	1
-	Cmd Must Contain	sub radxl remove	Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
-	Cmd Must Contain	sensor adxl stop	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+	Cmd Must Contain	sub radxl remove						Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor adxl stop						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
 	
 	Cmd Must Contain	delete_dcb_config ppg					Command return status: M2M2_DCB_STATUS_ERR_ARGS
 	Cmd Must Contain 	loadAdpdCfg 40							Status: 'M2M2_APP_COMMON_STATUS_OK'
@@ -793,7 +929,7 @@ Combined_DCB_Test
 	Cmd Must Contain	delay 10
 	Cmd Must Contain	sub recg remove						Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
 	Cmd Must Contain	sensor ecg stop						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
-	Cmd Must Contain	lcfgEcgRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	64
+	Cmd Must Contain	lcfgEcgRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	c8
 	Cmd Must Contain	write_dcb_config ecg ecg_dcb.lcfg		Command return status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	set_ecg_dcb_lcfg						Status: 'M2M2_APP_COMMON_STATUS_OK'
@@ -823,6 +959,26 @@ Combined_DCB_Test
 	Cmd Must Contain	sensor eda stop						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
 	Cmd Must Contain	lcfgEdaRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	19
 	Cmd Must Contain	lcfgEdaRead 2							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	
+	Cmd Must Contain	delete_dcb_config bcm						Command return status: M2M2_DCB_STATUS_ERR_ARGS
+	Cmd Must Contain	set_bcm_dcb_lcfg						Status: 'M2M2_APP_COMMON_STATUS_ERROR'
+	Cmd Must Contain	sensor bcm start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub rbcm add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 10
+	Cmd Must Contain	sub rbcm remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor bcm stop							Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+	Cmd Must Contain	lcfgBcmRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	Cmd Must Contain	lcfgBcmRead 1							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	Cmd Must Contain	write_dcb_config bcm bcm_dcb.lcfg				Command return status: M2M2_DCB_STATUS_OK
+	Cmd Must Contain	delay 2
+	Cmd Must Contain	set_bcm_dcb_lcfg						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	sensor bcm start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub rbcm add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 10
+	Cmd Must Contain	sub rbcm remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor bcm stop							Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+	Cmd Must Contain	lcfgBcmRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	Cmd Must Contain	lcfgBcmRead 1							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
 	
 	Cmd Must Contain	delete_dcb_config adxl					status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 2
@@ -873,6 +1029,16 @@ Combined_DCB_Test
 	Cmd Must Contain	sensor eda stop						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
 	Cmd Must Contain	lcfgEdaRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	4
 	Cmd Must Contain	lcfgEdaRead 2							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	2
+	
+	Cmd Must Contain	delete_dcb_config bcm						Command return status: M2M2_DCB_STATUS_OK
+	Cmd Must Contain	set_bcm_dcb_lcfg						Status: 'M2M2_APP_COMMON_STATUS_ERROR'
+	Cmd Must Contain	sensor bcm start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub rbcm add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 10
+	Cmd Must Contain	sub rbcm remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain	sensor bcm stop							Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+	Cmd Must Contain	lcfgBcmRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
+	Cmd Must Contain	lcfgBcmRead 1							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	1
 	
 	Set test message	Tested DCB read/write/erase for ADXL/ADPD4000/ECG/EDA/PPG together. Loaded Dcfg/Lcfg is verified.
 

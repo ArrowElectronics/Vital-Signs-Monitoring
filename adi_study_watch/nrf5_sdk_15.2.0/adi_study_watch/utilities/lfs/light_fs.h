@@ -60,6 +60,9 @@
 #define FSVERSION       2
 #define FSREVISION      0
 
+#define MAX_NUM_OF_BYTES_FOR_PAGE_READ_TEST 100
+#define TOC_REPEATED_UPDATE_SIZE 16384
+
 //prints
 // debug
 //#define DEBUG_CODES
@@ -74,8 +77,12 @@
 #define MAX_NO_LFS_STATUS_REGISTERS                        3
 #define NUM_OF_TOC_PAGES_TO_DEL_FOR_HEADER_UPD             2
 #define MAX_NUM_OF_VARIABLES_IN_TABLE_PAGE                 4
+#define TOC_BLOCK_FIRST_PAGE 64
+#define TOC_BLOCK_LAST_PAGE(x, y) (x + y)
+
+
 // macros
-#define DATA_FLASH_SIZE (MEM_SIZE-(FILEBLOCK*PAGES_PER_BLOCK))
+#define DATA_FLASH_SIZE (MEM_SIZE-(FILEBLOCK*PAGES_PER_BLOCK*PAGE_SIZE))
 /*! macro which enables the debug code for reading the content of a block from LFS*/
 #define FS_TEST_BLOCK_READ_DEBUG
 
@@ -136,7 +143,7 @@ struct _memory_buffer {
   struct _page_header next_page_data;
   uint8_t data[PAGE_SIZE];
 };
-typedef struct _fs_info {
+typedef struct _fs_info { 
   char foot_print[FOOT_PRINT_LEN];
   uint32_t version;
   uint32_t revision;
@@ -155,8 +162,8 @@ typedef struct _file_header{
 
 typedef struct _table_file_header{
   uint32_t bad_block_marker[MAX_NO_OF_WORDS];
-  int32_t head_pointer; // For circular buffer this has page precison
-  int32_t tail_pointer;// this has block precision
+  uint32_t head_pointer; // For circular buffer this has page precison
+  uint32_t tail_pointer;// this has block precision
   uint8_t initialized_circular_buffer;// this for first time initialization and first time check before first time write
   struct _memory_buffer *tmp_write_mem;
   uint16_t mem_full_flag;
@@ -233,7 +240,8 @@ elfs_result lfs_read_config_file(uint8_t *out_buffer,
      _file_handler *file_handler);
 elfs_result get_bad_block(uint32_t *bad_block_num);
 elfs_result lfs_flash_reset();
-elfs_result lfs_reset_file_system();
+elfs_result lfs_reset_reserved_block();
+elfs_result lfs_reset_toc_block_info();
 elfs_result lfs_update_pattern_file(uint8_t *in_buffer,
                           uint16_t start_block_num,
                           uint16_t size,

@@ -231,8 +231,10 @@ INT_ERROR_CODE_t Adpd400xheartRate(uint32_t *slotBCh,
 }
 
 void Adpd400xHeartRateSignalAlgNewSetting()  {
-  Adpd400xAlgHrFrontEnd_Reset();
-  gsFrontEndReset = 1;
+  if(HrStage == STARTED){
+    Adpd400xAlgHrFrontEnd_Reset();
+    gsFrontEndReset = 1;
+  }
 
   //gsPrevRawData.slotBCh = gAdpd400xSlotBChOrg[0] + gAdpd400xSlotBChOrg[1] + gAdpd400xSlotBChOrg[2] + gAdpd400xSlotBChOrg[3];
   gsPrevRawData.slotBCh = gAdpd400xSlotBChOrg[0];

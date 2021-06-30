@@ -50,6 +50,7 @@ typedef enum {
   BCM_LCFG_ADC_PGA_GAIN,
   BCM_LCFG_PWR_MOD,
   BCM_LCFG_SIN_FREQ,
+  BCM_DFT_NUM,
   BCM_LCFG_MAX,
 } BCM_LCFG_t;
 

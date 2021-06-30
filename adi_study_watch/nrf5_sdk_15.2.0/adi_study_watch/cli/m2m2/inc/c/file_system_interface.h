@@ -7,6 +7,7 @@
 #include "m2m2_core.h"
 #include <stdint.h>
 
+#define MAX_NUM_OF_CHAR 20
 
 /* Explicitly enforce struct packing so that the nested structs and unions are laid out
     as expected. */
@@ -99,6 +100,10 @@ typedef enum M2M2_FILE_SYS_CMD_ENUM_t {
   M2M2_FILE_SYS_CMD_GET_FILE_INFO_RESP = 141,
   M2M2_FILE_SYS_CMD_PAGE_READ_TEST_REQ = 142,
   M2M2_FILE_SYS_CMD_PAGE_READ_TEST_RESP = 143,
+  M2M2_FILE_SYS_CMD_BLOCK_ERASE_REQ = 144,
+  M2M2_FILE_SYS_CMD_BLOCK_ERASE_RESP = 145,
+  M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ = 146,
+  M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_RESP = 147,
 } M2M2_FILE_SYS_CMD_ENUM_t;
 STATIC_ASSERT_PROJ(sizeof(M2M2_FILE_SYS_CMD_ENUM_t) == 1, INCORRECT_SIZE_M2M2_FILE_SYS_CMD_ENUM_t);
 
@@ -146,6 +151,18 @@ typedef struct _m2m2_file_sys_cmd_t {
   uint8_t  command;
   uint8_t  status;
 } m2m2_file_sys_cmd_t;
+
+typedef struct _m2m2_file_sys_blk_erase_cmd_t {
+  uint8_t  command;
+  uint8_t  status;
+  uint16_t  block_no;
+} m2m2_file_sys_blk_erase_cmd_t;
+
+typedef struct _m2m2_file_sys_write_rsd_blk_cmd_t {
+  uint8_t  command;
+  uint8_t  status;
+  uint32_t data[MAX_NUM_OF_CHAR];
+} m2m2_file_sys_write_rsd_blk_cmd_t;
 
 typedef struct _m2m2_file_sys_ls_req_t {
   uint8_t  command;

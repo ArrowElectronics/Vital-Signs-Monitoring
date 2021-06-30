@@ -42,8 +42,8 @@
 
 /* ------------------------- Defines  -------------------------------------- */
 #define SLOT_NUM                    12    //!< total number of slots on ADPD4100
-#define ADPD400xDrv_SUCCESS         (0)   //!< return code for SUCCESS 
-#define ADPD400xDrv_ERROR           (-1)  //!< return code for ERROR  
+#define ADPD400xDrv_SUCCESS         (0)   //!< return code for SUCCESS
+#define ADPD400xDrv_ERROR           (-1)  //!< return code for ERROR
 /*  REGISTER Values */
 #define ADPD400x_OP_IDLE_MODE       0     //!< ENUM for Idle mode of ADPD4100
 #define ADPD400x_OP_RUN_MODE        1     //!< ENUM for Run/active mode of ADPD4100
@@ -56,13 +56,15 @@
 
 /*!
  * @brief:  Data type to store ADPD slot information
+            See data sheet for explanation.
  */
 typedef struct {
   uint8_t  activeSlot;      //!< Make the slot Active from sleep
   uint8_t  pre_activeSlot;  //!< Whether the slot was active earlier
-  uint16_t slotFormat;      //!< Dark,Sig,Lit,Ttl bytes of each slot
-  uint8_t  channelNum;      //!< Check whether only channel1 is enabled or both channels of a slot  
+  uint8_t  channelNum;      //!< Check whether only channel1 is enabled or both channels of a slot
   uint8_t  decimation;      //!< decimation factor for each slot
+  uint16_t odr;             //!< Slot ODR
+  uint16_t slotFormat;      //!< Dark,Signal,Lit,Total bytes of each slot
 } adpd400xDrv_slot_t;
 
 /*!
@@ -79,7 +81,7 @@ typedef enum {
  * @brief:  Data type to store the data formats in ADPD4100
  */
 typedef enum {
-  ADPD400xDrv_SIZE_0  = 0x00, //!< Data is not there 
+  ADPD400xDrv_SIZE_0  = 0x00, //!< Data is not there
   ADPD400xDrv_SIZE_8  = 0x01, //!< Data is 8bit wide
   ADPD400xDrv_SIZE_16 = 0x02, //!< Data is 16bit wide
   ADPD400xDrv_SIZE_24 = 0x03, //!< Data is 24bit wide
@@ -90,13 +92,13 @@ typedef enum {
  * @brief:  ADPD4100 Get and Set Parameters Enums
  */
 typedef enum {
-  ADPD400x_WATERMARKING = 0, //!< Setting/Getting ADPD FIFO watermark 
+  ADPD400x_WATERMARKING = 0, //!< Setting/Getting ADPD FIFO watermark
   ADPD400x_FIFOLEVEL,        //!< Setting/Getting ADPD FIFO level
   ADPD400x_OUTPUTDATARATE,   //!< Setting/Getting ADPD Output Data Rate
-  ADPD400x_TIMEGAP,          //!< Getting ADPD Intersample timestamp difference 
+  ADPD400x_TIMEGAP,          //!< Getting ADPD Intersample timestamp difference
   ADPD400x_LATEST_SLOT_DATASIZE, //!< Getting ADPD Latest slot datasize after a load configuration
-  ADPD400x_THIS_SLOT_DATASIZE,   //!< Getting Current Slot Size in Sample mode 
-  ADPD400x_SUM_SLOT_DATASIZE,    // !< Getting total slots size 
+  ADPD400x_THIS_SLOT_DATASIZE,   //!< Getting Current Slot Size in Sample mode
+  ADPD400x_SUM_SLOT_DATASIZE,    // !< Getting total slots size
   ADPD400x_IS_SLOT_ACTIVE,       //!< Check if a slot is active
   ADPD400x_IS_SLOT_SELECTED,     //!< Check if slot selected is active
   ADPD400x_HIGHEST_SLOT_NUM,     //!< Get the highest selected slot
@@ -109,7 +111,7 @@ typedef enum {
  */
 typedef enum {
   ADPD400xDrv_SIGNAL = 0x00, //!< Signal Part of data
-  ADPD400xDrv_DARK           //!< Dark part of data  
+  ADPD400xDrv_DARK           //!< Dark part of data
 } ADPDDrvCl_SignalDark_t;
 
 /*!
@@ -128,7 +130,7 @@ typedef enum {
   ADPD400xDrv_SLOTJ,        //!< Tenth Slot
   ADPD400xDrv_SLOTK,        //!< Eleventh Slot
   ADPD400xDrv_SLOTL         //!< Twelfth Slot
-} ADPD400xDrv_SlotNum_t;    
+} ADPD400xDrv_SlotNum_t;
 
 /*!
  * @brief:  Enum for ADPD4100 LEDs: There are 4 LEDs on watch
@@ -165,18 +167,18 @@ int16_t Adpd400xDrvSlotSetActive(uint8_t nSlotNum, uint8_t nSleep);
 int16_t Adpd400xDrvSetOperationMode(uint8_t nOpMode);
 int16_t Adpd400xDrvSetOperationPause(uint8_t nEnable);
 int16_t Adpd400xDrvReadFifoData(uint8_t *pnData, uint16_t nDataSetSize);
-int16_t Adpd400xDrvReadRegData(uint32_t *pnData, 
+int16_t Adpd400xDrvReadRegData(uint32_t *pnData,
                                ADPD400xDrv_SlotNum_t nSlotNum,
                                uint8_t nSignalDark, uint8_t nChNum);
-int16_t Adpd400xDrvSetParameter(Adpd400xCommandStruct_t eCommand, 
+int16_t Adpd400xDrvSetParameter(Adpd400xCommandStruct_t eCommand,
                                 uint8_t nPar, uint16_t nValue);
-int16_t Adpd400xDrvGetParameter(Adpd400xCommandStruct_t eCommand, 
+int16_t Adpd400xDrvGetParameter(Adpd400xCommandStruct_t eCommand,
                                 uint8_t nPar, uint16_t *pnValue);
 void Adpd400xDrvDataReadyCallback(void (*pfAdpdDataReady)());
-int16_t Adpd400xDrvSetLedCurrent(uint16_t nLedCurrent, 
+int16_t Adpd400xDrvSetLedCurrent(uint16_t nLedCurrent,
                                  ADPD400xDrv_LedId_t nLedId,
                                  ADPD400xDrv_SlotNum_t nSlotNum);
-int16_t Adpd400xDrvGetLedCurrent(uint16_t *pLedCurrent, 
+int16_t Adpd400xDrvGetLedCurrent(uint16_t *pLedCurrent,
                                  ADPD400xDrv_LedId_t nLedId,
                                  ADPD400xDrv_SlotNum_t nSlotNum);
 void Adpd400xISR();

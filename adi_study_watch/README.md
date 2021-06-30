@@ -1,23 +1,43 @@
-v0.0.3 28 June 2019
+Fw 1.0.1 16 June 2021
 
 ## Contents of WatchV4 Source Framework
 
 SES version used is "SEGGER Embedded Studio for ARM Release 4.12  Build 2018112601.37855 Windows x64"
 
-The SES project file location is $PERSEUS_PROJ_LOCATION\nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\ses\watchv4_nrf52840.emProject, where $PERSEUS_PROJ_LOCATION is the local file path where it has been downloaded.
-HR library project is located at $PERSEUS_PROJ_LOCATION\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\ses
+The SES project file location is  nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\ses\watchv4_nrf52840.emProject, where $PERSEUS_PROJ_LOCATION is the local file path where it has been downloaded.
+HR library project is located at  nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\ses
 To build this library you need to add C:\Program Files\SEGGER\SEGGER Embedded Studio for ARM 4.12\gcc\arm-none-eabi\bin to the system environment $PATH variable
 
-As of now, there is IAR project also maintained at file location is $PERSEUS_PROJ_LOCATION\nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\iar\watchv4_nrf52840.eww
-This project uses IAR Toolchain for compilation: you need to install IAR 8.32.2 version to build the project.
+nRF5_SDK_15.2.0 is used in this project
 
-nRF5_SDK_15.2.0 is used in this project and put in the location $PERSEUS_PROJ_LOCATION\nRF5_SDK_15.2.0
+FreeRTOS V10.0.0 source code is being used from  nrf5_SDK_15.2.0\external\freertos
 
-FreeRTOS V10.0.0 source code is being used from $PERSEUS_PROJ_LOCATION\nrf5_SDK_15.2.0\external\freertos
+The command line interface may be started using  nrf5_SDK_15.2.0\adi_study_watch\cli\m2m2\tools\CLI.py
 
-The command line interface may be started using $PERSEUS_PROJ_LOCATION\nrf5_SDK_15.2.0\adi_study_watch\cli\m2m2\tools\CLI.py
+This project has FreeRTOS Framework with ADXL, ADPD4000, PPG, USBD CDC ACM BLE UART, Post Office and System Task as FreeRTOS tasks.
 
-This project has FreeRTOS Framework with ADXL, ADPD4000, PPG, USBD CDC ACM BLE UART, Post Office and Comms Task as FreeRTOS tasks.
+### FAQ with Firmware build from SES
+1.	SES project build fails:
+	The SES .emProject file is created and tested only from SES IDE "SEGGER Embedded Studio for ARM Release 4.12  Build 2018112601.37855 Windows x64"
+	Please don't try from any other SES IDE version.
+	
+	 nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\ses\watchv4_nrf52840.emProject maybe opened and build to prepare the Watch firmware hex file.
+	Other library project dependencies have been set already and gets built from watchv4_nrf52840.emProject
+	
+2.	HR library build fails:
+	Make sure that C:\Program Files\SEGGER\SEGGER Embedded Studio for ARM 4.12\gcc\arm-none-eabi\bin is added to the system environment $PATH variable
+	If SES IDE is already kept opened and after that a $PATH change is done, then please restart the SES IDE before a project rebuild.
+	
+3.	Facing SES license issue due to having multiple SES IDE versions installed:
+	Uninstall completely all SES versions from the Windows (5.50 and 4.12)
+	Reinstall only 4.12 SES windows 64 bit, request for license.
+	Then the build issues would be resolved.
+	
+4.	SES build issue due to license expiry:
+	The SES build issue, following license expiry can be fixed after renewing the license.
+	The SES license can be renewed by using the following link:
+	https://license.segger.com/Nordic.cgi 
+	by filling in basic details(name, mail, company etc.) and PC MAC ID. Upon submitting the details, the renewed license will be sent to the mail id given.
 
 
 ### Python Tool Setup
@@ -52,7 +72,7 @@ From Windows cmd prompt or Windows power shell, start the python code
 >python CLI.py
 
 Run the tool and peruse the help text:
->cd $PERSEUS_PROJ_LOCATION\nrf5_SDK_15.2.0\adi_study_watch\cli\m2m2\tools\
+>cd  nrf5_SDK_15.2.0\adi_study_watch\cli\m2m2\tools\
 
 >python CLI.py
 
@@ -83,17 +103,13 @@ This is m2m2 UART shell. Type help or ? to list commands
 1.	SES project of Debug configuration RTT logging is enabled by default using ENAB_RTT_LOGGING preprocessor macro.
 nRF logs come on SES Debug Terminal.
 
-### IAR Project Options
-
-1.	IAR Project free-rtos configuration(Debug) has Percipio tracealyser tool integrated.
-
 ### Robot Framework
 
-1.	Added basic robot framework tests for PM, ADXL, ADPD4000 and PPG path $PERSEUS_PROJ_LOCATION\adi_study_watch\tst\robot_framework\
+1.	Added basic robot framework tests for PM, ADXL, ADPD4000 and PPG path nrf5_sdk_15.2.0\adi_study_watch\tst\robot_framework\
 After installing “pip install robotframework”
 Read up more on robot framework from http://robotframework.org/
 
-Need to run from path $PERSEUS_PROJ_LOCATION\adi_study_watch\tst\robot_framework,
+Need to run from path nrf5_sdk_15.2.0\adi_study_watch\tst\robot_framework,
 >robot -v DUT_COMPORT:COM28 --timestampoutputs --outputdir ./log m2m2_tests.txt
 
 Before making commits, it will be good if you run robot tests once for a basic sanity test.
@@ -231,10 +247,19 @@ $ diff $PATH/nRF5_SDK_15.2.0_9412b96/nRF5_SDK_15.2.0_9412b96/integration/nrfx/le
 
 ```
 
+### Watch Bring Up Guide
+
+How to bring up the Watch using Jlink debugger and loading the code from SES IDE is explained in nrf5_sdk_15.2.0/adi_study_watch/doc/ADI_VSM_Watch_IV_Bringup_Guide.pdf
+
 ### BLE Dongle
 
-How to use BLE Dongle is explained in $PATH/perseus/study_watch/nrf5_sdk_15.2.0/adi_study_watch/tst/ble_dongle/ble_dongle_usage.docx
+How to use BLE Dongle is explained in nrf5_sdk_15.2.0/adi_study_watch/tst/ble_dongle/ble_dongle_usage.docx
 
-### Watch Frmware Update
+### Watch Firmware Update
 
-How to update the Watch firmware though DFU is expalined in $PATH/perseus/study_watch/nrf5_sdk_15.2.0/adi_study_watch/bootloader/Watch Firmware Upgrade.docx
+How to update the Watch firmware through DFU is explained in nrf5_sdk_15.2.0/adi_study_watch/bootloader/Watch Firmware Upgrade.docx
+
+### Watch Help Documents
+
+Documents providing help of Watch Firmware and Watch usage is captured in nrf5_sdk_15.2.0/adi_study_watch/doc
+

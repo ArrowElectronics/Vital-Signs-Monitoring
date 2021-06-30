@@ -14,13 +14,13 @@ def adxl_self_test():
 
     :return:
     """
-    err_stat = common.watch_shell.do_adxl_self_test('')
+    packet = common.watch_shell.do_adxl_self_test('')
 
-    if err_stat:
-        common.logging.error('*** ADXL Self Test - FAIL ***')
+    if packet["payload"]["status"].value[0] != 0:
+        common.test_logger.error('*** ADXL Self Test - FAIL ***')
         raise ConditionCheckFailure("\n\n" + 'ADXL Self Test returned failure!')
     else:
-        common.logging.info('*** ADXL Self Test - PASS ***')
+        common.test_logger.info('*** ADXL Self Test - PASS ***')
 
 
 def adxl_stream_test():
@@ -30,13 +30,9 @@ def adxl_stream_test():
     """
     capture_time = 10
     common.easygui.msgbox('Press OK and move the accelerometer for 10 seconds!', 'Move Accelerometer')
-    # common.watch_shell.do_toggleSaveCSV('')
-    common.watch_shell.do_quickstart('adxl')
-    common.watch_shell.do_plot('radxl')
+    common.watch_shell.quick_start('adxl', 'adxl')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('adxl')
-
-    common.close_plot_after_run(['ADXL Data'])
+    common.watch_shell.quick_stop('adxl', 'adxl')
 
     # TODO: Read and compare the two captured files to verify if the switch is working
     test_status = 'pass'

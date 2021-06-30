@@ -224,8 +224,11 @@
                     <state>DETECTION_GREEN_LED</state>
                     <state>HRMPLUS</state>
                     <state>STATIC_AGC</state>
+                    <state>AGC_FEATURE</state>
                     <state>NRF52840_XXAA</state>
                     <state>NRF_LOG</state>
+                    <state>HRV</state>
+                    <state>TIA_SAT_REG</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -353,6 +356,8 @@
                     <state>$PROJ_DIR$\..\..\..\drivers\adpd4000</state>
                     <state>$PROJ_DIR$\..\</state>
                     <state>$PROJ_DIR$\..\ppg_motion_reject_algo</state>
+                    <state>$PROJ_DIR$\..\..\sqi\package\</state>
+                    <state>$PROJ_DIR$\..\..\hrv\</state>
                     <state>$PROJ_DIR$\..\..\..\..\components\libraries\log\src</state>
                     <state>$PROJ_DIR$\..\..\..\..\components\libraries\log</state>
                     <state>$PROJ_DIR$\..\..\..\..\components\libraries\util</state>
@@ -698,7 +703,7 @@
             <archiveVersion>1</archiveVersion>
             <data>
                 <prebuild>cmd /c "copy /Y $PROJ_DIR$\..\adpd400x_lib.h  $PROJ_DIR$\..\package\adpd400x_lib.h"</prebuild>
-                <postbuild>cmd /c "cd $PROJ_DIR$\..\package &amp; makelib.cmd debug lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a &amp; del debug\lib_adpd_m4.a"</postbuild>
+                <postbuild>cmd /c "cd $PROJ_DIR$\..\package &amp; makelib.cmd debug AGClibM4_Debug.a $PROJ_DIR$\..\..\sqi\iar\package\Debug\libadi_vsm_sqi_m4f_Debug.a $PROJ_DIR$\..\..\hrv\libadi_vsm_hrv_m4f.a lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a &amp; del debug\lib_adpd_m4.a"</postbuild>
             </data>
         </settings>
         <settings>
@@ -1283,6 +1288,9 @@
                     <state>HRMPLUS</state>
                     <state>NRF52840_XXAA</state>
                     <state>STATIC_AGC</state>
+                    <state>AGC_FEATURE</state>
+                    <state>HRV</state>
+                    <state>TIA_SAT_REG</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -1410,6 +1418,8 @@
                     <state>$PROJ_DIR$\..\..\..\drivers\adpd4000</state>
                     <state>$PROJ_DIR$\..\</state>
                     <state>$PROJ_DIR$\..\ppg_motion_reject_algo</state>
+                    <state>$PROJ_DIR$\..\..\sqi\package\</state>
+                    <state>$PROJ_DIR$\..\..\hrv\</state>
                     <state>$PROJ_DIR$\..\..\..\..\components\libraries\log\src</state>
                     <state>$PROJ_DIR$\..\..\..\..\components\libraries\log</state>
                     <state>$PROJ_DIR$\..\..\..\..\components\libraries\util</state>
@@ -1755,7 +1765,7 @@
             <archiveVersion>1</archiveVersion>
             <data>
                 <prebuild>cmd /c "copy /Y $PROJ_DIR$\..\adpd400x_lib.h  $PROJ_DIR$\..\package\adpd400x_lib.h"</prebuild>
-                <postbuild>cmd /c "cd $PROJ_DIR$\..\package &amp; makelib.cmd release lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a &amp; del release\lib_adpd_m4.a"</postbuild>
+                <postbuild>cmd /c "cd $PROJ_DIR$\..\package &amp; makelib.cmd release AGClibM4Rel.a $PROJ_DIR$\..\..\sqi\iar\package\Release\libadi_vsm_sqi_m4f_Release.a $PROJ_DIR$\..\..\hrv\libadi_vsm_hrv_m4f.a lib_adi_vsm_hrm_m3.a lib_adi_vsm_toolbox_m3.a &amp; del release\lib_adpd_m4.a"</postbuild>
             </data>
         </settings>
         <settings>

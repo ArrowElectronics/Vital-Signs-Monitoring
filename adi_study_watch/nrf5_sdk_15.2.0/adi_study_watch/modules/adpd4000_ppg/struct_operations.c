@@ -53,7 +53,7 @@
 
 /* ------------------------- Defines  --------------------------------------- */
 #define LCFG_SIZE   56
-#define ADPD400xLCFG_SIZE   53
+#define ADPD400xLCFG_SIZE   56
 /* ------------------------- Public Function Prototypes -------------------- */
 /* Functions to do operations of lcfg structure */
 int stricmp(char const *a, char const *b);
@@ -78,7 +78,7 @@ char *str_array[] = {
                       "devicemode", "uint16_t",
                       "skipstate", "uint16_t",
                       "drTime", "uint16_t",
-                      "res32_1", "uint32_t",
+                      "staticAgcRecalTime", "uint32_t",
                       "hrmInputRate", "uint16_t",
                       "syncmode", "uint8_t",
                       "proximityRate", "uint32_t",
@@ -154,37 +154,40 @@ char *Adpd400x_str_array[] = {
                       "proximityTimeout", "uint16_t",
                       "proximityOnLevel", "uint16_t",
 
-                      "detectionRate", "uint32_t",
-                      "detectOntimeout", "uint16_t",
-                      "detectOnSettlingCnt", "uint8_t",
-                      "triggerOnLevel", "uint16_t",
-                      "triggerOnAirLevel", "uint16_t",
-                      "triggerOnStablizeVR", "uint32_t",
-                      "res16_2", "uint16_t",
+                      "staticAgcRecalTime", "uint32_t",
+                      "Res16_1", "uint16_t",
+                      "Res8_1", "uint8_t",
+                      "Res16_2", "uint16_t",
+                      "Res16_3", "uint16_t",
+                      "Res32_2", "uint32_t",
+                      "initialLedPulse", "uint16_t",
 
-                      "detectOffSettlingCnt", "uint8_t",
-                      "triggerOffPercentage", "uint8_t",
-                      "triggerOffStablizeVR", "uint32_t",
-                      "res16_3", "uint16_t",
-                      "res8_1", "uint8_t",
+                      "Res8_2", "uint8_t",
+                      "Res8_3", "uint8_t",
+                      "Res32_3", "uint32_t",
+                      "rmssdSampleWindow", "uint16_t",
+                      "Res8_4", "uint8_t",
 
+                      "Res16_4", "uint16_t",	  
+                      "Res16_5", "uint16_t",
                       "maxSamplingRate", "uint16_t",
                       "targetDcPercent", "uint8_t",
                       "maxLedCurrent", "uint16_t",
                       "maxPulseNum",  "uint8_t",
-                      "floatModeCtr", "uint8_t",
-                      "ledG_Voltage", "uint8_t",
-                      "modIndex", "uint16_t",
+                      "satAdjustPercentForStaticAgc", "uint8_t",
+                      "Res8_5", "uint8_t",
+                      "InitialCurrentTiaGain", "uint16_t",
 
                       "motionThreshold", "uint32_t",
                       "motionCheckPeriod", "uint32_t",
                       "motionThresholdHigh", "uint32_t",
                       "motionCheckPeriodHigh", "uint32_t",
-                      "mt2Th", "uint16_t",
-                      "mt3Th", "uint16_t",
+                      "Res8_6", "uint8_t",
+                      "Res16_6", "uint16_t",
+                      "Res16_7", "uint16_t",
 
-                      "ambientChk", "uint16_t",
-                      "ambientTh", "uint16_t",
+                      "sqiLowPowerThreshold", "uint16_t",
+                      "sqiHighPowerThreshold", "uint16_t",
 #if ALGO_ADI
                       "spotalgosamplerate","int16_t",
                       "spotalgodecimation","int16_t",
@@ -228,7 +231,7 @@ void InitOffsetsLcfgStruct()  {
     stroffset_array[i++] = offsetof(AdpdLibConfig_t, devicemode);
     stroffset_array[i++] = offsetof(AdpdLibConfig_t, skipstate);
     stroffset_array[i++] = offsetof(AdpdLibConfig_t, drTime);
-    stroffset_array[i++] = offsetof(AdpdLibConfig_t, res32_1);
+    stroffset_array[i++] = offsetof(AdpdLibConfig_t, staticAgcRecalTime);
     stroffset_array[i++] = offsetof(AdpdLibConfig_t, hrmInputRate);
     stroffset_array[i++] = offsetof(AdpdLibConfig_t, syncmode);
     stroffset_array[i++] = offsetof(AdpdLibConfig_t, proximityRate);
@@ -311,38 +314,41 @@ void InitOffsetsAdpd400xLcfgStruct()  {
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, proximityTimeout);
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, proximityOnLevel);
 
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, detectionRate);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, detectOntimeout);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, detectOnSettlingCnt);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, triggerOnLevel);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, triggerOnAirLevel);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, triggerOnStablizeVR);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, res16_2);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, staticAgcRecalTime);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res16_1);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res8_1);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res16_2);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res16_3);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res32_2);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, initialLedPulse);
 
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, detectOffSettlingCnt);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, triggerOffPercentage);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, triggerOffStablizeVR);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, res16_3);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, res8_1);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res8_2);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res8_3);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res32_3);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, rmssdSampleWindow);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res8_4);
 
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res16_4);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res16_5);
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, maxSamplingRate);
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, targetDcPercent);
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, maxLedCurrent);
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, maxPulseNum);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, floatModeCtr);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, ledG_Voltage);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, modIndex);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, satAdjustPercentForStaticAgc);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res8_5);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, InitialCurrentTiaGain);
 
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, motionThreshold);
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, motionCheckPeriod);
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, motionThresholdHigh);
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, motionCheckPeriodHigh);
 
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, mt2Th);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, mt3Th);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res8_6);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res16_6);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, Res16_7);
 
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, ambientChk);
-    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, ambientTh);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, sqiLowPowerThreshold);
+    stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, sqiHighPowerThreshold);
 
 #ifdef ALGO_ADI
     stroffset_Adpd400xarray[i++] = offsetof(Adpd400xLibConfig_t, spotalgosamplerate);

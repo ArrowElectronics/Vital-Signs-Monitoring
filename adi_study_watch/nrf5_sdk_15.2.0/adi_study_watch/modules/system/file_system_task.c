@@ -109,6 +109,7 @@ static char PatternFileName[16] = "PATTERN.LOG";
 
 /* Size of flash in bytes = 2048 * 64 * 4096 */
 #define FLASH_SIZE                      536870912
+#define PATTERN_WRITE_ENABLED                     
 /* Total num of pages in Flash */
 #define TOTAL_NUM_OF_PAGES              (FLASH_SIZE/PAGE_SIZE)
 /* ADI_FS_FILE_MAX_SIZE is the no of pages allocated
@@ -160,6 +161,8 @@ extern uint8_t ConfigFileName[16];
 NRF_LOG_MODULE_REGISTER();
 
 ADI_OSAL_SEM_HANDLE   qspi_task_evt_sem;
+/* semaphore handler for low touch task */
+extern ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
 
 extern uint8_t setFsDownloadFlag(uint8_t flag);
 extern uint8_t get_file_download_chunk_count();
@@ -201,6 +204,7 @@ struct _fs_stream {
   M2M2_ADDR_ENUM_t pkt_dest;
 }fs_stream;
 
+
 /*!
 * @brief:  Array used for checking the subscription of a stream to file system
 */
@@ -223,6 +227,8 @@ static file_routing_table_entry file_routing_table[] = {
   {M2M2_ADDR_MED_SYNC_ADPD_ADXL,    M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM,  M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_MED_BCM,               M2M2_ADDR_MED_BCM_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_MED_SQI,               M2M2_ADDR_MED_SQI_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_PPG,               M2M2_ADDR_SYS_AGC_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_PPG,               M2M2_ADDR_SYS_HRV_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_APP_CLI,               M2M2_ADDR_APP_CLI_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_APP_IOS,               M2M2_ADDR_APP_IOS_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_APP_WT,                M2M2_ADDR_APP_WT_STREAM,              M2M2_FILE_SYS_UNSUBSCRIBED},
@@ -345,7 +351,6 @@ void file_system_task_init(void) {
 *****************************************************************************/
 static void InitTestBuffer(uint8_t *pBuff, uint32_t nBufSize)
 {
-    NRF_LOG_INFO("Buffer size of test buffer=%d",nBufSize);
     for (uint32_t nIndex = 0; nIndex < nBufSize; nIndex += 4)
     {
         pBuff[nIndex] = 0xDE;
@@ -353,6 +358,7 @@ static void InitTestBuffer(uint8_t *pBuff, uint32_t nBufSize)
         pBuff[nIndex + 2] = 0xBE;
         pBuff[nIndex + 3] = 0xEF;
     }
+   NRF_LOG_INFO("Verify test pattern");
 }
 
 /*!
@@ -729,7 +735,8 @@ void file_system_task(void *pArgument) {
 
   FindConfigFile(&gsCfgFileFoundFlag);
 #ifdef LOW_TOUCH_FEATURE
-  send_message_lt_task(NULL);
+
+  adi_osal_SemPost(lt_task_evt_sem);
 #endif
 
   while (1) {
@@ -823,7 +830,60 @@ void file_system_task(void *pArgument) {
         }
         break;
        } /* response_mail != NULL */
-
+#ifdef FS_TEST_CODE        
+        case M2M2_FILE_SYS_CMD_BLOCK_ERASE_REQ: {
+        m2m2_file_sys_blk_erase_cmd_t *block_erase_req = (m2m2_file_sys_blk_erase_cmd_t *)&pkt->data[0];
+        response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_blk_erase_cmd_t));
+        if (response_mail != NULL) {
+          m2m2_file_sys_blk_erase_cmd_t *erase_resp = (m2m2_file_sys_blk_erase_cmd_t *)&response_mail->data[0];
+          /* Switch on and mount memory */
+          if (fs_flash_power_on(true) == FS_STATUS_OK) {
+            /* Format memory partition */
+            /* Deletes only the data files; preserves config files */
+            if(fs_block_erase(block_erase_req->block_no) != FS_STATUS_OK) {
+              erase_resp->status = M2M2_FILE_SYS_STATUS_ERROR;
+            }
+            else{
+              erase_resp->status = M2M2_FILE_SYS_STATUS_OK;
+            }
+          } else {
+            erase_resp->status = M2M2_FILE_SYS_STATUS_ERROR;
+          }
+          erase_resp->command = M2M2_FILE_SYS_CMD_FORMAT_RESP;
+          /* send response packet */
+          response_mail->src = pkt->dest;
+          response_mail->dest = pkt->src;
+          post_office_send(response_mail, &err);
+          /* Power off Flash */
+          fs_flash_power_on(false);
+        }
+        break;
+       }       
+        case M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ: {
+        m2m2_file_sys_write_rsd_blk_cmd_t *input_payload = (m2m2_file_sys_write_rsd_blk_cmd_t *)&pkt->data[0];
+        response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_write_rsd_blk_cmd_t));
+        if (response_mail != NULL) {
+          m2m2_file_sys_write_rsd_blk_cmd_t *random_data = (m2m2_file_sys_write_rsd_blk_cmd_t *)&response_mail->data[0];
+          for(int i=0;i<MAX_NUM_OF_CHAR;i++){
+            NRF_LOG_INFO("%d",input_payload->data[i]);
+          }
+          /* Switch on and mount memory */
+          if (fs_flash_power_on(true) == FS_STATUS_OK) {
+            if(fs_write_rsd_block(input_payload->data,MAX_NUM_OF_CHAR) != FS_STATUS_OK){
+              random_data->status = M2M2_FILE_SYS_STATUS_ERROR;
+            }
+            random_data->command = M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_RESP;
+            /* send response packet */
+            response_mail->src = pkt->dest;
+            response_mail->dest = pkt->src;
+            post_office_send(response_mail, &err);
+            /* Power off Flash */
+            fs_flash_power_on(false);
+          }
+        }
+        break;
+       }
+#endif
 	case M2M2_FILE_SYS_CMD_VOL_INFO_REQ: {
         uint32_t VolumeInfo[3] = {0};
         response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_vol_info_resp_t));
@@ -870,7 +930,7 @@ void file_system_task(void *pArgument) {
 #endif
 
                 fs_free_space_resp->status =(M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_FILE_SYS_STATUS_OK;
-#ifdef DEBUG_LOG_START                
+#ifdef DEBUG_LOG_START
                 vol_info_timer_gap = get_micro_sec() - vol_info_timer_start;
 #endif
             } else {
@@ -1016,25 +1076,19 @@ void file_system_task(void *pArgument) {
               response_mail->src = pkt->dest;
               response_mail->dest = pkt->src;
               page_read_test_resp->page_num = page_read_test_req->page_num;
-              page_read_test_t page_read_info;
               /* read the data and spare area of a page */
-              fs_err_status = fs_hal_page_read_test(&page_read_test_req->page_num,&page_read_info,page_read_test_req->num_bytes);
+              page_read_test_resp->num_bytes = page_read_test_req->num_bytes;
+              fs_err_status = fs_hal_page_read_test(&page_read_test_req->page_num,page_read_test_resp,\
+              page_read_test_req->num_bytes);
               if (fs_err_status != FS_STATUS_OK) {
                 page_read_test_resp->status = fs_err_status;
               } else {
                 page_read_test_resp->status = M2M2_FILE_SYS_STATUS_OK;
-                page_read_test_resp->ecc_zone_status = page_read_info.ecc_status;
-                page_read_test_resp->next_page = page_read_info.next_page;
-                page_read_test_resp->occupied = page_read_info.occupied;
-                page_read_test_resp->data_region_status = page_read_info.data_status;
-                page_read_test_resp->num_bytes=page_read_test_req->num_bytes;
-                NRF_LOG_INFO("bytes to copy=%d",page_read_test_req->num_bytes);
-                //memset(page_read_test_resp->sample_data, 0, 100); /* uint8_t sample_data[100]; */
-                memcpy(&page_read_test_resp->sample_data,&page_read_info.data_samples,sizeof(page_read_info.data_samples));
+
               }
               post_office_send(response_mail, &err);
             }
-
+            
           /* Power off Flash */
           if(fs_flash_power_on(false) != FS_STATUS_OK) {
             NRF_LOG_INFO("Error flash power on");
@@ -1480,8 +1534,11 @@ void file_system_task(void *pArgument) {
             /*update the config file availability flag*/
             SetCfgFileAvailableFlag(false);
             NRF_LOG_INFO("LT NAND User Cfg file deleted");
-            if (!gen_blk_get_dcb_present_flag() && !gsCfgFileFoundFlag)
-              EnableLowTouchDetection(false);
+            if( check_lt_app_capsense_tuned_trigger_status() )
+            {
+              if (!gen_blk_get_dcb_present_flag() && !gsCfgFileFoundFlag)
+                EnableLowTouchDetection(false);
+            }
 #endif
            }
            /* send logging in progress */
@@ -1533,6 +1590,7 @@ void file_system_task(void *pArgument) {
               /* send response packet */
               post_office_send(response_mail, &err);
             }
+            /*error handling for closing file which is not proper */
           }
         } else {
           /* Send log not started response */
@@ -1617,7 +1675,10 @@ void file_system_task(void *pArgument) {
                 /*update the config file availability flag*/
                 SetCfgFileAvailableFlag(true);
                 NRF_LOG_INFO("LT NAND User Cfg file written");
-                EnableLowTouchDetection(true);
+                if( check_lt_app_capsense_tuned_trigger_status() )
+                {
+                  EnableLowTouchDetection(true);
+                }
 #endif
               } else {
                 file_stream_stop_resp->status = M2M2_FILE_SYS_STATUS_ERROR;
@@ -2232,7 +2293,7 @@ void file_system_task(void *pArgument) {
               ctrl->command = M2M2_FILE_SYS_CMD_TEST_LOG_RESP;
               if(fs_error != FS_STATUS_OK) {
                 ctrl->status = M2M2_APP_COMMON_STATUS_ERROR;
-              } 
+              }
               else {
                 ctrl->status = M2M2_APP_COMMON_STATUS_OK;
               }
@@ -2286,6 +2347,9 @@ void file_system_task(void *pArgument) {
       m2m2_file_sys_pattern_write_req_pkt_t *pattern_write_req = (m2m2_file_sys_pattern_write_req_pkt_t*)&pkt->data[0];
         M2M2_FILE_SYS_STATUS_ENUM_t fs_err_open_status;
         InitTestBuffer(pArr, sizeof(pArr));
+        for(uint32_t nIndex = 0; nIndex < 4;nIndex++){
+          NRF_LOG_INFO("%d",pArr[ nIndex]);
+        }
         /* power on flash */
         if(fs_flash_power_on(true) != FS_STATUS_OK) {
            NRF_LOG_INFO("Flash power on error");

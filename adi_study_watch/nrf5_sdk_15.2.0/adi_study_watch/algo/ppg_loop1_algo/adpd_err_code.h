@@ -57,6 +57,11 @@ typedef enum {
     IERR_AGC_ADJUSTED               = -9,
     IERR_IN_PROGRESS                = -10,
     IERR_TIMEOUT                    = -11,
+    IERR_HRM_TIMEOUT                = -12,
+    IERR_ADC_SATURATION             = -13,// Due to pulse 
+    IERR_AFE_SATURATION             = -14,// no variance 
+    IERR_ALGO_INPUT_OVERFLOW        = -15,// algo input limit exceeded
+    IERR_STATIC_AGC_ADJUSTED        = -16,
     // IERR_IN_PROGRESS                = -100,
     // IERR_TIMEOUT                    = -101,
     IERR_NULL_ERROR                 = -102,

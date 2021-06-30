@@ -3,8 +3,8 @@
 * @file         agc.c
 * @author       ADI
 * @version      V1.0.0
-* @date          10-June-2019
-* @brief        Source file contains the static agc fucntions.
+* @date         10-June-2019
+* @brief        Source file contains the static agc functions.
 ***************************************************************************
 * @attention
 ***************************************************************************
@@ -50,6 +50,7 @@
 #include "adpd400x_reg.h"
 #include "adpd400x_lib_common.h"
 #include "agc.h"
+#include "adpd4000_dcfg.h"
 #include "sensor_adpd_application_interface.h"
 #include <math.h>
 #define MODULE ("Agc.c")
@@ -58,69 +59,159 @@
 #include "nrf_log.h"
 
 /*--------------------------- Defines ----------------------------------------*/
-#define LED LED_SLOTS
 #define INIT_AGCLED_PHASE2 0x08
 #define INIT_AGCLED_PHASE1 0x0D
+//Initial TIA gain 12.5k
+#define INIT_TIA_GAIN_PHASE2 (0x03E4)
+#define INIT_TIA_GAIN_PHASE1 (0xE3E4)
+
+ /* 127(0x7F) -> 200mA-> Max. Current per LED Driver */
+#define MAX_200MA_LED_REG_VAL 127
+ /* 254 -> 400mA ->  Max. Current for all 4 LED drivers combined together */
+#define MAX_400MA_LED_REG_VAL 254
+
+/* 
+Max factor by which a signal can be amplified considering 
+a single LED driver enabled with max current limit of 200mA
+
+200k [max TIA gain]/12.5k [measurement TIA gain]*(127 [max LED current]/8 [measurement LED current]) = 254
+*/
+#define MAX_AMP_FACTOR_200MA 254
+
+/* 
+Max factor by which a signal can be amplified considering
+multiple LED drivers enabled with max current limit of 400mA
+
+200k [max TIA gain]/12.5k [measurement TIA gain]*(254 [max LED current]/8 [measurement LED current]) = 508
+*/
+#define MAX_AMP_FACTOR_400MA 508
+
+/* 5 Different values of TIA Gain
+3-bits used in 0x01X4 register to specify TIA gain
+for each channel in the slot
+0(000) -> 200k
+1(001) -> 100k
+2(010) -> 50k
+3(011) -> 25k
+4(100) -> 12.5k
+*/
+#define NUM_TIA_GAINS 5
 /*--------------------------- Typedef ----------------------------------------*/
 
 /*--------------------------- Public Variable --------------------------------*/
-agc_data_t agc_data[LED_SLOTS];
-bool stop = false;
+agc_data_t agc_data[SLOT_NUM];
+static uint16_t gHighestSlotActive;
 static uint16_t hrmInputRate;
 #ifdef STATIC_AGC
 extern uint8_t agc_samples;
 extern uint8_t skip_first_10_samples;
 #endif
-extern uint8_t gb_static_agc_green_en;
-extern uint8_t gb_ppg_static_agc_green_en;
-extern uint8_t gb_static_agc_red_en;
-extern uint8_t gb_static_agc_ir_en;
-extern uint8_t gb_static_agc_blue_en;
+extern uint8_t dvt2;/* flag to check if phase-2 chip is used */
 extern uint32_t gn_led_slot_g;
 extern uint32_t gn_led_slot_r;
 extern uint32_t gn_led_slot_ir;
 extern uint32_t gn_led_slot_b;
+extern uint32_t gn_agc_active_slots;
 #ifdef ENABLE_PPG_APP
 extern uint32_t  Ppg_Slot;
 #endif
-
 /*--------------------------- Public Function Prototype --------------------- */
 
 /*--------------------------- Private variables ------------------------------*/
-//Slot F to I pulse registers
-typedef struct Register {
-  uint16_t x1A7;
-  uint16_t x1C7;
-  uint16_t x1E7;
-  uint16_t x207;
-}Reg_t;
 
-static uint16_t g_reg_base;
-//Initial TIA gain 12.5k
-#define INIT_TIA_GAIN_PHASE2 (0x03E4)
-#define INIT_TIA_GAIN_PHASE1 (0xE3E4)
+typedef struct SlotRegister {
+  uint16_t pulse[SLOT_NUM];
+}SlotRegisters_t;
+
+static uint16_t g_agc_reg_base;
 static uint16_t Init_gain = INIT_TIA_GAIN_PHASE2;
-//Initial LED current 8mA
-//uint32_t new_current[LED] = {INIT_AGCLED_PHASE2};
 //LED full scale calculation with no of pulses
-uint32_t FullScale[LED]={0};
-static Reg_t PulseReg,PulseValue;
+uint32_t FullScale[SLOT_NUM]={0};
+static SlotRegisters_t SlotRegisters;
 //DC level calculation for TIA gain 12.5_25_50_100_200k
 agc_DC_level_cal_t DC0_init_check, dc_normal_diff, dc_div_diff, DC0, DC125, DC25, DC50, DC100, DC200, TIA_ch1, TIA_ch2;
 //DC0 calculation with initial TIA gain and LED current
 agc_DC0_cal_t DC0_cal, DC0_cal_div;
 //AGC final LED current and TIA gains
-uint16_t DC0_LEDcurrent[LED]={0},TIA_ch1_i[LED]={0},TIA_ch2_i[LED]={0};
-agc_data_avg_t avg_data, gain_factor;
+uint16_t DC0_LEDcurrent[SLOT_NUM]={0},TIA_ch1_i[SLOT_NUM]={0},TIA_ch2_i[SLOT_NUM]={0};
 //Backup initial TIA Gain
-uint16_t gAFE_Trim[LED] = {0};
+uint16_t gAFE_Trim[SLOT_NUM] = {0};
+//No. of LED drivers used per slot
+uint8_t gNum_led_drivers[SLOT_NUM] = {0};
+agc_data_avg_t avg_data, gain_factor;
+
+#ifdef TEST_AGC
+uint16_t gAFE_Trim_init[SLOT_NUM] = {0};
+uint16_t gInteg_offset[SLOT_NUM] = {0};
+uint16_t gInteg_offset_init[SLOT_NUM] = {0};
+uint16_t gLedCurrInit[SLOT_NUM][2] = {0};
+#endif
 /*--------------------------- Private Function Prototype ---------------------*/
 void set_led_current(uint16_t *current);
 void do_average (agc_data_avg_t *avg_data);
 void calculate_DC0(agc_DC0_cal_t *DC0_cal);
 void set_TIA_gain(uint16_t *slot_ch1_i, uint16_t *slot_ch2_i);
 
-#if 1
+/************************************************************************/
+/* ----// LED Driver Current Max Limit //----
+*
+* If num_driver == 1:
+*     led_curr_val <= 127 (200 mA)
+*
+* If num_driver >= 2:
+*     led_curr_val <= 254 (400 mA)
+*
+* ----// ------------------------------// ----
+*/
+
+/* NOTE: Below Integrator offset value to be updated - for now keeping default
+   values at each TIA gain for each of the wavelengths */
+
+/* 
+  Integrator offset at different TIA gains for each of the wavelengths,
+  to align zero-crossing of BPF ouput response with integerator sequence
+  to improve SNR 
+*/
+
+/* Red LED - Integrator offset register val for {phase-1, phase2} chip */
+const uint16_t r_integ_offset_reg_val[NUM_TIA_GAINS][2] = {
+  {0x1010, 0x0210}, /* 16500ns at 200k */
+  {0x1010, 0x0210}, /* 16500ns at 100k */
+  {0x1010, 0x0210}, /* 16500ns at 50k */
+  {0x1010, 0x0210}, /* 16500ns at 25k */
+  {0x1010, 0x0210} /* 16500ns at 12.5k */
+};
+
+/* IR LED - Integrator offset register val for {phase-1, phase2} chip */
+const uint16_t ir_integ_offset_reg_val[NUM_TIA_GAINS][2] = {
+  {0x1010, 0x0210}, /* 16500ns at 200k */
+  {0x1010, 0x0210}, /* 16500ns at 100k */
+  {0x1010, 0x0210}, /* 16500ns at 50k */
+  {0x1010, 0x0210}, /* 16500ns at 25k */
+  {0x1010, 0x0210} /* 16500ns at 12.5k */ 
+};
+
+/* Green LED - Integrator offset register val for {phase-1, phase2} chip */
+const uint16_t g_integ_offset_reg_val[NUM_TIA_GAINS][2] = {
+  {0x1010, 0x0210}, /* 16500ns at 200k */
+  {0x1010, 0x0210}, /* 16500ns at 100k */
+  {0x1010, 0x0210}, /* 16500ns at 50k */
+  {0x1010, 0x0210}, /* 16500ns at 25k */
+  {0x1010, 0x0210} /* 16500ns at 12.5k */
+};
+
+/* Blue LED integ. offeset for optimal zero crossing not avail.
+Hence, setting same Integ offset for all the diff. TIA gains */
+const uint16_t b_integ_offset_reg_val[NUM_TIA_GAINS][2] = {
+  {0x1010, 0x0210}, /* 16500ns at 200k */
+  {0x1010, 0x0210}, /* 16500ns at 100k */
+  {0x1010, 0x0210}, /* 16500ns at 50k */
+  {0x1010, 0x0210}, /* 16500ns at 25k */
+  {0x1010, 0x0210} /* 16500ns at 12.5k */
+};
+
+/************************************************************************/
+
 //LUT to convert from phase2 index to phase1 index ; index is ADPD4100
 /* AGC algorithm calculates LED current reg setting for ADPD4100
    LUT mapping is required for ADPD4000 register setting
@@ -257,7 +348,38 @@ const uint8_t gan_lut_phase1_reg[128] =
 126,
 127,
 };
-#endif
+
+/*!***************************************************************************
+*
+*  \brief       Setting Integrator offset
+*
+*  \param[in]   slot_id: specify slot idx (0 to 12 -> A to L)
+*
+*  \param[in]   tia_gain_idx: specify TIA gain idx (0 to 4 -> 200k to 12.5k)
+*
+*  \return      None
+*****************************************************************************/
+void set_integ_offset(uint8_t slot_id, uint8_t tia_gain_idx)
+{
+  g_agc_reg_base = slot_id * ADPD400x_SLOT_BASE_ADDR_DIFF;
+  /* if dvt2 = 1 -> set integ offset for phase2 chip else phase1 chip */
+  if(gn_led_slot_g & (1 << slot_id))
+  {
+    Adpd400xDrvRegWrite(ADPD400x_REG_INTEG_OFFSET_A + g_agc_reg_base, g_integ_offset_reg_val[tia_gain_idx][dvt2]);
+  }
+  else if(gn_led_slot_r & (1 << slot_id))
+  {
+    Adpd400xDrvRegWrite(ADPD400x_REG_INTEG_OFFSET_A + g_agc_reg_base, r_integ_offset_reg_val[tia_gain_idx][dvt2]);
+  }
+  else if(gn_led_slot_ir & (1 << slot_id))
+  {
+    Adpd400xDrvRegWrite(ADPD400x_REG_INTEG_OFFSET_A + g_agc_reg_base, ir_integ_offset_reg_val[tia_gain_idx][dvt2]);
+  }
+  else if(gn_led_slot_b & (1 << slot_id))
+  {
+    Adpd400xDrvRegWrite(ADPD400x_REG_INTEG_OFFSET_A + g_agc_reg_base, b_integ_offset_reg_val[tia_gain_idx][dvt2]);
+  }
+}
 
 /*!****************************************************************************
 *
@@ -280,7 +402,7 @@ void agc_data_process() {
 
   //Apply AGC final TIA gain settings
   set_TIA_gain(&TIA_ch1_i[0], &TIA_ch2_i[0]);
-  stop = true;
+
   Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);
 
 }
@@ -295,79 +417,101 @@ void agc_data_process() {
 *****************************************************************************/
 void set_led_current(uint16_t *current) {
   static uint16_t nRegValue = 0x0000;
-  uint16_t chip_id;
-  uint8_t i;
-  uint8_t lut_index[LED]={0};
-  static uint8_t new_reg_val[LED];
-
-  //Read ADPD chip ID
-  Adpd400xDrvRegRead(ADPD400x_REG_CHIP_ID, &chip_id);
+  uint16_t total_led_current = 0, led_curr_per_driver = 0;
+  uint8_t i, num_drivers = 0;
+  uint8_t lut_index[SLOT_NUM]={0};
+  static uint8_t new_reg_val[SLOT_NUM];
 
   //Check if its phase1 chip, if so do corresponding mapping from LUT
-  if( chip_id == 0xc0 )
+  if(!dvt2)
   {
-    for( i=0;i<LED;i++)
+    for(i=0; i <= gHighestSlotActive; i++)
     {
-      lut_index[i] = current[i];
-      new_reg_val[i] =  gan_lut_phase1_reg[ lut_index[i] ];
-      NRF_LOG_INFO("LED Slot:%d lut_index:%d current[0]:%d lut val:%d", i, lut_index[i], current[i], gan_lut_phase1_reg[ lut_index[i] ]);
+      if (gn_agc_active_slots & (0x01 << i)){	
+        lut_index[i] = current[i];
+        new_reg_val[i] =  gan_lut_phase1_reg[ lut_index[i] ];
+        NRF_LOG_INFO("LED Slot:%d lut_index:%d current[0]:%d lut val:%d", i, lut_index[i], current[i], gan_lut_phase1_reg[ lut_index[i] ]);
+      }
     }
   }
   else
   {
-    for( i=0;i<LED;i++)
+    for(i=0; i <= gHighestSlotActive; i++)
     {
-      new_reg_val[i] = current[i];
+      if (gn_agc_active_slots & (0x01 << i)){	
+        new_reg_val[i] = current[i];
+      }
     }
   }
 
-if(gn_led_slot_g!=0 && gb_static_agc_green_en==1)
+if(gn_agc_active_slots != 0)
   {
-  // Slot F LED 1A Green
-  g_reg_base = log2(gn_led_slot_g) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &nRegValue);
-  nRegValue = nRegValue & (~BITM_LED_POW12_X_LED_CURRENT1_X);
-  nRegValue |= new_reg_val[AGC_LED_SLOT_GREEN] << BITP_LED_POW12_X_LED_CURRENT1_X;
-  Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, nRegValue);
+    for(int slot = 0; slot <= gHighestSlotActive; slot++){
+      if (gn_agc_active_slots & (0x01 << slot))
+      {
+        total_led_current = new_reg_val[slot];
+        num_drivers = gNum_led_drivers[slot];
+        if(num_drivers == 0)
+        {
+          return;
+        }
+        led_curr_per_driver = total_led_current / num_drivers;
+        g_agc_reg_base = slot * ADPD400x_SLOT_BASE_ADDR_DIFF;
+
+        /*Led current setting for LED1A or LED1B */
+        Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, &nRegValue);
+        if((nRegValue & BITM_LED_POW12_X_LED_CURRENT1_X) != 0){
+          if(num_drivers == 1)
+          {
+            led_curr_per_driver = total_led_current - ((gNum_led_drivers[slot] - 1) * led_curr_per_driver);
+          }
+          nRegValue = nRegValue & (~BITM_LED_POW12_X_LED_CURRENT1_X);
+          nRegValue |= led_curr_per_driver << BITP_LED_POW12_X_LED_CURRENT1_X;
+          Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, nRegValue);
+          num_drivers--;
+        }
+
+        /*Led current setting for LED2A or LED2B */
+        Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, &nRegValue);
+        if((nRegValue & BITM_LED_POW12_X_LED_CURRENT2_X) != 0){
+          if(num_drivers == 1)
+          {
+            led_curr_per_driver = total_led_current - ((gNum_led_drivers[slot] - 1) * led_curr_per_driver);
+          }
+          nRegValue = nRegValue & (~BITM_LED_POW12_X_LED_CURRENT2_X);
+          nRegValue |= led_curr_per_driver << BITP_LED_POW12_X_LED_CURRENT2_X;
+          Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, nRegValue);
+          num_drivers--;
+        }
+
+        /*Led current setting for LED3A or LED3B */
+        Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, &nRegValue); 
+        if((nRegValue & BITM_LED_POW34_X_LED_CURRENT3_X) != 0){
+          if(num_drivers == 1)
+          {
+            led_curr_per_driver = total_led_current - ((gNum_led_drivers[slot] - 1) * led_curr_per_driver);
+          }
+          nRegValue = nRegValue & (~BITM_LED_POW34_X_LED_CURRENT3_X);
+          nRegValue |= led_curr_per_driver << BITP_LED_POW34_X_LED_CURRENT3_X;
+          Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, nRegValue);
+          num_drivers--;
+        }
+
+        /*Led current setting for LED4A or LED4B */
+        Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, &nRegValue); 
+        if((nRegValue & BITM_LED_POW34_X_LED_CURRENT4_X) != 0){
+          if(num_drivers == 1)
+          {
+            led_curr_per_driver = total_led_current - ((gNum_led_drivers[slot] - 1) * led_curr_per_driver);
+          }
+          nRegValue = nRegValue & (~BITM_LED_POW34_X_LED_CURRENT4_X);
+          nRegValue |= led_curr_per_driver << BITP_LED_POW34_X_LED_CURRENT4_X;
+          Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, nRegValue);
+          num_drivers--;
+        }      
+      }
+    }
  }
-
-  // Slot G LED 3A Red
-if(gn_led_slot_r!=0 && gb_static_agc_red_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_r) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &nRegValue);
-  nRegValue = nRegValue & (~BITM_LED_POW34_X_LED_CURRENT3_X);
-  nRegValue |= new_reg_val[AGC_LED_SLOT_RED] << BITP_LED_POW34_X_LED_CURRENT3_X;
-  Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, nRegValue);
-  }
-
-  // Slot H LED 2A IR
-if(gn_led_slot_ir!=0 && gb_static_agc_ir_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_ir) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &nRegValue);
-  nRegValue = nRegValue & (~BITM_LED_POW12_X_LED_CURRENT2_X);
-  nRegValue |= new_reg_val[AGC_LED_SLOT_IR] << BITP_LED_POW12_X_LED_CURRENT2_X;
-  Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, nRegValue);
-  }
-
-  // Slot I LED 4A Blue
-if(gn_led_slot_b!=0 && gb_static_agc_blue_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_b) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &nRegValue);
-  nRegValue = nRegValue & (~BITM_LED_POW34_X_LED_CURRENT4_X);
-  nRegValue |= new_reg_val[AGC_LED_SLOT_BLUE] << BITP_LED_POW34_X_LED_CURRENT4_X;
-  Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, nRegValue);
-  }
-
-  g_reg_base = log2(gn_led_slot_g) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &nRegValue);
-  NRF_LOG_INFO("Green Reg:%d", nRegValue);
-
-  g_reg_base = log2(gn_led_slot_r) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &nRegValue);
-  NRF_LOG_INFO("Red Reg:%d", nRegValue);
 }
 
 /*!****************************************************************************
@@ -384,107 +528,91 @@ void set_TIA_gain(uint16_t *slot_ch1_i, uint16_t *slot_ch2_i){
   uint16_t nTIAgain = 0x0000;
   uint16_t nTsCtrl = 0x0000;
   uint8_t nCh2Enable = 0x00;
-if(gn_led_slot_g!=0 && gb_static_agc_green_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_g) * 0x20;
+  uint8_t nTiaGainIdx = 0x00; /* Find idx of Min(CH1_TIA_GAIN, CH2_TIA_GAIN) */
+  if(gn_agc_active_slots != 0)
+   {
+    for(int slot = 0; slot <= gHighestSlotActive; slot++){
+      if (gn_agc_active_slots & (0x01 << slot))
+      { 
+        g_agc_reg_base = slot * ADPD400x_SLOT_BASE_ADDR_DIFF;
+        /* check if ch2 is enabled */
+        Adpd400xDrvRegRead(ADPD400x_REG_TS_CTRL_A + g_agc_reg_base, &nTsCtrl);
+        nCh2Enable = (nTsCtrl & BITM_TS_CTRL_A_CH2_EN_A) >> BITP_TS_CTRL_A_CH2_EN_A;
 
-  /* check if ch2 is enabled */
-  Adpd400xDrvRegRead(ADPD400x_REG_TS_CTRL_A + g_reg_base, &nTsCtrl);
-  nCh2Enable = (nTsCtrl & BITM_TS_CTRL_A_CH2_EN_A) >> BITP_TS_CTRL_A_CH2_EN_A;
-
-  Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &nTIAgain);
-  nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH1_X);
-  nTIAgain |= (slot_ch1_i[AGC_LED_SLOT_GREEN]) << BITP_AFE_TRIM_X_TIA_GAIN_CH1_X;
-  if(nCh2Enable)
-  {
-    nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
-    nTIAgain |= (slot_ch2_i[AGC_LED_SLOT_GREEN]) << BITP_AFE_TRIM_X_TIA_GAIN_CH2_X;
-  }
-  else
-  {
-    /* if ch2 not enabled - restore default value */
-    nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
-    nTIAgain |= gAFE_Trim[AGC_LED_SLOT_GREEN] & BITM_AFE_TRIM_X_TIA_GAIN_CH2_X;
-  }
-  Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, nTIAgain);
-  }
-
-  // Slot G TIA gain
-if(gn_led_slot_r!=0 && gb_static_agc_red_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_r) * 0x20;
-  /* check if ch2 is enabled */
-  Adpd400xDrvRegRead(ADPD400x_REG_TS_CTRL_A + g_reg_base, &nTsCtrl);
-  nCh2Enable = (nTsCtrl & BITM_TS_CTRL_A_CH2_EN_A) >> BITP_TS_CTRL_A_CH2_EN_A;
-
-  Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &nTIAgain);
-  nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH1_X);
-  nTIAgain |= (slot_ch1_i[AGC_LED_SLOT_RED]) << BITP_AFE_TRIM_X_TIA_GAIN_CH1_X;
-  if(nCh2Enable)
-  {
-    nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
-    nTIAgain |= (slot_ch2_i[AGC_LED_SLOT_RED]) << BITP_AFE_TRIM_X_TIA_GAIN_CH2_X;
-  }
-  else
-  {
-    /* if ch2 not enabled - restore default value */
-    nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
-    nTIAgain |= gAFE_Trim[AGC_LED_SLOT_RED] & BITM_AFE_TRIM_X_TIA_GAIN_CH2_X;
-  }
-  Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, nTIAgain);
-  }
-
-  // Slot H TIA gain
-if(gn_led_slot_ir!=0 && gb_static_agc_ir_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_ir) * 0x20;
-  /* check if ch2 is enabled */
-  Adpd400xDrvRegRead(ADPD400x_REG_TS_CTRL_A + g_reg_base, &nTsCtrl);
-  nCh2Enable = (nTsCtrl & BITM_TS_CTRL_A_CH2_EN_A) >> BITP_TS_CTRL_A_CH2_EN_A;
-
-  Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &nTIAgain);
-  nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH1_X);
-  nTIAgain |= (slot_ch1_i[AGC_LED_SLOT_IR]) << BITP_AFE_TRIM_X_TIA_GAIN_CH1_X;
-  if(nCh2Enable)
-  {
-    nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
-    nTIAgain |= (slot_ch2_i[AGC_LED_SLOT_IR]) << BITP_AFE_TRIM_X_TIA_GAIN_CH2_X;
-  }
-  else
-  {
-    /* if ch2 not enabled - restore default value */
-    nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
-    nTIAgain |= gAFE_Trim[AGC_LED_SLOT_IR] & BITM_AFE_TRIM_X_TIA_GAIN_CH2_X;
-  }
-  Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, nTIAgain);
-  }
-
-  // Slot I TIA gain
-if(gn_led_slot_b!=0 && gb_static_agc_blue_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_b) * 0x20;
-  /* check if ch2 is enabled */
-  Adpd400xDrvRegRead(ADPD400x_REG_TS_CTRL_A + g_reg_base, &nTsCtrl);
-  nCh2Enable = (nTsCtrl & BITM_TS_CTRL_A_CH2_EN_A) >> BITP_TS_CTRL_A_CH2_EN_A;
-
-  Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &nTIAgain);
-  nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH1_X);
-  nTIAgain |= (slot_ch1_i[AGC_LED_SLOT_BLUE]) << BITP_AFE_TRIM_X_TIA_GAIN_CH1_X;
-  if(nCh2Enable)
-  {
-    nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
-    nTIAgain |= (slot_ch2_i[AGC_LED_SLOT_BLUE]) << BITP_AFE_TRIM_X_TIA_GAIN_CH2_X;
-  }
-  else
-  {
-    /* if ch2 not enabled - restore default value */
-    nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
-    nTIAgain |= gAFE_Trim[AGC_LED_SLOT_BLUE] & BITM_AFE_TRIM_X_TIA_GAIN_CH2_X;
-  }
-  Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, nTIAgain);
+        Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_agc_reg_base, &nTIAgain);
+        nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH1_X);
+        nTIAgain |= (slot_ch1_i[slot]) << BITP_AFE_TRIM_X_TIA_GAIN_CH1_X;
+        if(nCh2Enable)
+        {
+          nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
+          nTIAgain |= (slot_ch2_i[slot]) << BITP_AFE_TRIM_X_TIA_GAIN_CH2_X;
+        }
+        else
+        {
+          /* if ch2 not enabled - restore default value */
+          nTIAgain = nTIAgain & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
+          nTIAgain |= gAFE_Trim[slot] & BITM_AFE_TRIM_X_TIA_GAIN_CH2_X;
+        }
+        Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_agc_reg_base, nTIAgain);
+        if(nCh2Enable)
+        {
+          /* get idx of lowest gain among ch1 and ch2,
+          higher the gain idx, lower will be the gain value */
+          nTiaGainIdx = (slot_ch1_i[slot] >= slot_ch2_i[slot]) ? slot_ch1_i[slot] : slot_ch2_i[slot];
+          /* set the integrator offset as per TIA gain */
+          set_integ_offset(slot, nTiaGainIdx);
+        }
+        else
+        {
+          /* set the integrator offset as per TIA gain */
+          set_integ_offset(slot, slot_ch1_i[slot]);
+        }
+#ifdef TEST_AGC
+        /* read the integrator offset */
+        Adpd400xDrvRegRead(ADPD400x_REG_INTEG_OFFSET_A + g_agc_reg_base, &gInteg_offset[slot]);
+#endif
+      }
+    }
   }
 }
 
+/*!***************************************************************************
+*
+*  \brief       Get the count of LED drivers enabled for the slot specified
+*
+*  \param[in]   slot_id: specify slot idx (0 to 12 -> A to L)
+*
+*  \return      None
+*****************************************************************************/
+void get_led_drv_count(uint8_t slot_id)
+{
+    uint16_t nRegValue = 0x0000;
+    g_agc_reg_base = slot_id * ADPD400x_SLOT_BASE_ADDR_DIFF;
+
+    /* check if LED1A or LED1B enabled */
+    Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, &nRegValue);
+    if((nRegValue & BITM_LED_POW12_X_LED_CURRENT1_X) != 0){
+    gNum_led_drivers[slot_id]++;
+    }
+
+    /* check if LED2A or LED2B enabled */
+    Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, &nRegValue);
+    if((nRegValue & BITM_LED_POW12_X_LED_CURRENT2_X) != 0){
+    gNum_led_drivers[slot_id]++;
+    }
+
+    /* check if LED3A or LED3B enabled */
+    Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, &nRegValue); 
+    if((nRegValue & BITM_LED_POW34_X_LED_CURRENT3_X) != 0){
+    gNum_led_drivers[slot_id]++;
+    }
+         
+    /* check if LED4A or LED4B enabled */
+    Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, &nRegValue); 
+    if((nRegValue & BITM_LED_POW34_X_LED_CURRENT4_X) != 0){
+    gNum_led_drivers[slot_id]++;
+    }
+}
 /*!****************************************************************************
 *
 *  \brief       Static AGC initialization
@@ -494,18 +622,20 @@ if(gn_led_slot_b!=0 && gb_static_agc_blue_en==1)
 void agc_init() {
   uint16_t nRegValue = 0x0000;
   uint16_t nLedCurrent = INIT_AGCLED_PHASE2;
-  uint16_t adpdFreq, chip_id;
-
-  //Read ADPD chip ID
-  Adpd400xDrvRegRead(ADPD400x_REG_CHIP_ID, &chip_id);
+  uint16_t adpdFreq;
+  uint16_t total_led_current = 0, led_curr_per_driver = 0;
+  uint8_t num_drivers = 0;
+  
+  /* Highest active slot */
+  Adpd400xDrvGetParameter(ADPD400x_HIGHEST_SLOT_NUM, 0, &gHighestSlotActive);
 
   //Check if its phase1 chip and set corresponding INIT_AGCLED
-  if( chip_id == 0xc0 )
+  if(!dvt2)
   {
     nLedCurrent = INIT_AGCLED_PHASE1;
     Init_gain = INIT_TIA_GAIN_PHASE1;
   }
-
+  
   memset(&agc_data[0], 0x00, sizeof(agc_data));
   memset(&avg_data, 0x00, sizeof(avg_data));
   memset(&DC0_init_check, 0x00, sizeof(DC0_init_check));
@@ -527,8 +657,12 @@ void agc_init() {
   memset(&DC0_cal_div, 0x00, sizeof(DC0_cal_div));
   memset(&FullScale[0],0x00, sizeof(FullScale));
   memset(&gAFE_Trim[0], 0x00, sizeof(gAFE_Trim));
-
-  stop = false;
+  memset(&gNum_led_drivers[0], 0x00, sizeof(gNum_led_drivers));
+#ifdef TEST_AGC
+  memset(&gAFE_Trim_init[0], 0x00, sizeof(gAFE_Trim_init));
+  memset(&gInteg_offset[0], 0x00, sizeof(gInteg_offset));
+  memset(&gInteg_offset_init[0], 0x00, sizeof(gInteg_offset_init));
+#endif
 
 #ifdef ENABLE_PPG_APP
 if(Ppg_Slot != 0)
@@ -542,130 +676,103 @@ if(Ppg_Slot != 0)
   else                           //50Hz
     adpdFreq = 0x4e20;
 #ifndef SLOT_SELECT
-  Adpd400xDrvRegWrite(0x000D, adpdFreq);
+  Adpd400xDrvRegWrite(0x000D, adpdFreq); /*TODO: handle slot switching case */
 #endif
   Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);
   }
 #endif
-  //new_current[0] = INIT_AGCLED;
-#if 0
-  new_current[1] = INIT_AGCLED;
-  new_current[2] = INIT_AGCLED;
-  new_current[3] = INIT_AGCLED;
+
+if(gn_agc_active_slots != 0){ 
+  for(int slot = 0; slot <= gHighestSlotActive; slot++){
+    if (gn_agc_active_slots & (0x01 << slot)){ 
+      g_agc_reg_base = slot * ADPD400x_SLOT_BASE_ADDR_DIFF;
+      Adpd400xDrvRegRead(ADPD400x_REG_COUNTS_A + g_agc_reg_base, &SlotRegisters.pulse[slot]);
+      SlotRegisters.pulse[slot] = (SlotRegisters.pulse[slot] & 0x00FF);
+      FullScale[slot] = SlotRegisters.pulse[slot] * 8192;
+
+      /* take backup of default TIA gain set in the DCFG */
+      Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_agc_reg_base, &gAFE_Trim[slot]);
+      /* set initial TIA gain for agc */
+      Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_agc_reg_base, &nRegValue);
+      nRegValue = nRegValue & (~BITM_AFE_TRIM_X_TIA_GAIN_CH1_X);
+      nRegValue |= (Init_gain & BITM_AFE_TRIM_X_TIA_GAIN_CH1_X);
+      nRegValue = nRegValue & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
+      nRegValue |= (Init_gain & BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
+      Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_agc_reg_base, nRegValue);
+      /* set the integrator offset as per TIA gain */
+      set_integ_offset(slot, Init_gain & BITM_AFE_TRIM_X_TIA_GAIN_CH1_X);/* ch1 and ch2 TIA gain is same */
+
+#ifdef TEST_AGC
+      /* take backup of TIA gain set during Init */
+      Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_agc_reg_base, &gAFE_Trim_init[slot]);
+      /* take backup of Integrator offset set during Init */
+      Adpd400xDrvRegRead(ADPD400x_REG_INTEG_OFFSET_A + g_agc_reg_base, &gInteg_offset_init[slot]);
 #endif
+      /* get the count of led drivers enabled per slot */
+      get_led_drv_count(slot);
+      total_led_current = nLedCurrent;
+      num_drivers = gNum_led_drivers[slot];
+      if(num_drivers == 0)
+      {
+        return;
+      }
+      led_curr_per_driver = total_led_current/ num_drivers;
 
-  // Calculating full scale DC based on pulse count
-  // Slot F to I
-if(gn_led_slot_g!=0 && gb_static_agc_green_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_g) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_COUNTS_A + g_reg_base, &PulseReg.x1A7);
-  PulseValue.x1A7 = (PulseReg.x1A7 & 0x00FF);
-  FullScale[0] = PulseValue.x1A7 * 8192;
+      /*Led current setting for LED1A or LED1B */
+      Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, &nRegValue);
+      if((nRegValue & BITM_LED_POW12_X_LED_CURRENT1_X) != 0){
+        if(num_drivers == 1)
+        {
+          led_curr_per_driver = total_led_current - ((gNum_led_drivers[slot] - 1) * led_curr_per_driver);
+        }
+        nRegValue = nRegValue & (~BITM_LED_POW12_X_LED_CURRENT1_X);
+        nRegValue |= (led_curr_per_driver) << BITP_LED_POW12_X_LED_CURRENT1_X;
+        Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, nRegValue);
+        num_drivers--;
+      }
+      /*Led current setting for LED2A or LED2B */
+      Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, &nRegValue);
+      if((nRegValue & BITM_LED_POW12_X_LED_CURRENT2_X) != 0){
+        if(num_drivers == 1)
+        {
+          led_curr_per_driver = total_led_current - ((gNum_led_drivers[slot] - 1) * led_curr_per_driver);
+        }
+        nRegValue = nRegValue & (~BITM_LED_POW12_X_LED_CURRENT2_X);
+        nRegValue |= (led_curr_per_driver) << BITP_LED_POW12_X_LED_CURRENT2_X;
+        Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, nRegValue);
+        num_drivers--;
+      }
+      /*Led current setting for LED3A or LED3B */
+      Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, &nRegValue);
+      if((nRegValue & BITM_LED_POW34_X_LED_CURRENT3_X) != 0){
+        if(num_drivers == 1)
+        {
+          led_curr_per_driver = total_led_current - ((gNum_led_drivers[slot] - 1) * led_curr_per_driver);
+        }
+        nRegValue = nRegValue & (~BITM_LED_POW34_X_LED_CURRENT3_X);
+        nRegValue |= (led_curr_per_driver) << BITP_LED_POW34_X_LED_CURRENT3_X;
+        Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, nRegValue);
+        num_drivers--;
+      }      
+      /*Led current setting for LED4A or LED4B */
+      Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, &nRegValue);
+      if((nRegValue & BITM_LED_POW34_X_LED_CURRENT4_X) != 0){
+        if(num_drivers == 1)
+        {
+          led_curr_per_driver = total_led_current - ((gNum_led_drivers[slot] - 1) * led_curr_per_driver);
+        }
+        nRegValue = nRegValue & (~BITM_LED_POW34_X_LED_CURRENT4_X);
+        nRegValue |= (led_curr_per_driver) << BITP_LED_POW34_X_LED_CURRENT4_X;
+        Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, nRegValue);
+        num_drivers--;
+      }
+#ifdef TEST_AGC
+     Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_agc_reg_base, &gLedCurrInit[slot][0]);
+     Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_agc_reg_base, &gLedCurrInit[slot][1]); 
+#endif
+    }
   }
-
-if(gn_led_slot_r!=0 && gb_static_agc_red_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_r) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_COUNTS_A + g_reg_base, &PulseReg.x1C7);
-  PulseValue.x1C7 = (PulseReg.x1C7 & 0x00FF);
-  FullScale[1] = PulseValue.x1C7 * 8192;
-  }
-
-if(gn_led_slot_ir!=0 && gb_static_agc_ir_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_ir) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_COUNTS_A + g_reg_base, &PulseReg.x1E7);
-  PulseValue.x1E7 = (PulseReg.x1E7 & 0x00FF);
-  FullScale[2] = PulseValue.x1E7 * 8192;
-  }
-
-if(gn_led_slot_b!=0 && gb_static_agc_blue_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_b) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_COUNTS_A + g_reg_base, &PulseReg.x207);
-  PulseValue.x207 = (PulseReg.x207 & 0x00FF);
-  FullScale[3] = PulseValue.x207 * 8192;
-  }
-
-  // Set Initial TIA gain as '12.5K'
-  // Slot F-I
-if(gn_led_slot_g!=0 && gb_static_agc_green_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_g) * 0x20;
-  /* take backup of default TIA gain set in the DCFG */
-  Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &gAFE_Trim[AGC_LED_SLOT_GREEN]);
-  /* set initial TIA gain for agc */
-  Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, Init_gain);
-  }
-
-if(gn_led_slot_r!=0 && gb_static_agc_red_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_r) * 0x20;
-  /* take backup of default TIA gain set in the DCFG */
-  Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &gAFE_Trim[AGC_LED_SLOT_RED]);
-  /* set initial TIA gain for agc */
-  Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, Init_gain);
-  }
-
-if(gn_led_slot_ir!=0 && gb_static_agc_ir_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_ir) * 0x20;
-  /* take backup of default TIA gain set in the DCFG */
-  Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &gAFE_Trim[AGC_LED_SLOT_IR]);
-  /* set initial TIA gain for agc */
-  Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, Init_gain);
-  }
-
-if(gn_led_slot_b!=0 && gb_static_agc_blue_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_b) * 0x20;
-  /* take backup of default TIA gain set in the DCFG */
-  Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &gAFE_Trim[AGC_LED_SLOT_BLUE]);
-  /* set initial TIA gain for agc */
-  Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, Init_gain);
-  }
-
-  //Set Initial current as 0x0008
-  // Slot F LED 1A Green
-if(gn_led_slot_g!=0 && gb_static_agc_green_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_g) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &nRegValue);
-  nRegValue = nRegValue & (~BITM_LED_POW12_X_LED_CURRENT1_X);
-  nRegValue |= (nLedCurrent) << BITP_LED_POW12_X_LED_CURRENT1_X;
-  Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, nRegValue);
-  }
-
-  // Slot G LED 3A Red
-if(gn_led_slot_r!=0 && gb_static_agc_red_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_r) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &nRegValue);
-  nRegValue = nRegValue & (~BITM_LED_POW34_X_LED_CURRENT3_X);
-  nRegValue |= (nLedCurrent) << BITP_LED_POW34_X_LED_CURRENT3_X;
-  Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, nRegValue);
-  }
-
-  // Slot H LED 2A IR
-if(gn_led_slot_ir!=0 && gb_static_agc_ir_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_ir) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &nRegValue);
-  nRegValue = nRegValue & (~BITM_LED_POW12_X_LED_CURRENT2_X);
-  nRegValue |= (nLedCurrent) << BITP_LED_POW12_X_LED_CURRENT2_X;
-  Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, nRegValue);
-  }
-
-  // Slot I LED 4A Blue
-if(gn_led_slot_b!=0 && gb_static_agc_blue_en==1)
-  {
-  g_reg_base = log2(gn_led_slot_b) * 0x20;
-  Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &nRegValue);
-  nRegValue = nRegValue & (~BITM_LED_POW34_X_LED_CURRENT4_X);
-  nRegValue |= (nLedCurrent) << BITP_LED_POW34_X_LED_CURRENT4_X;
-  Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, nRegValue);
-  }
+ }
 }
 
 /*!****************************************************************************
@@ -676,6 +783,7 @@ if(gn_led_slot_b!=0 && gb_static_agc_blue_en==1)
 *****************************************************************************/
 void agc_deinit(void)
 {
+  gn_agc_active_slots = 0;
   //ReLoad register settings after AGC, to default for ppg application
 }
 
@@ -688,16 +796,20 @@ void agc_deinit(void)
 *  \return       None
 *****************************************************************************/
 void do_average (agc_data_avg_t *avg_data) {
-  for (uint8_t slot = 0; slot < LED ; slot++) {
-    for (uint8_t sample = 0; sample < SAMPLE_AVG_NUM ; sample++) {
-      avg_data->ch1[slot] = avg_data->ch1[slot] + agc_data[slot].ch1[sample];
-      avg_data->ch2[slot] = avg_data->ch2[slot] + agc_data[slot].ch2[sample];
+  for (uint8_t slot = 0; slot <= gHighestSlotActive ; slot++) {
+    if (gn_agc_active_slots & (0x01 << slot)){
+      for (uint8_t sample = 0; sample < SAMPLE_AVG_NUM ; sample++) {
+        avg_data->ch1[slot] = avg_data->ch1[slot] + agc_data[slot].ch1[sample];
+        avg_data->ch2[slot] = avg_data->ch2[slot] + agc_data[slot].ch2[sample];
+      }
     }
   }
 
-  for(uint8_t slot = 0; slot < LED; slot++) {
-    avg_data->ch1[slot] = avg_data->ch1[slot] / SAMPLE_AVG_NUM;
-    avg_data->ch2[slot] = avg_data->ch2[slot] / SAMPLE_AVG_NUM;
+  for(uint8_t slot = 0; slot <= gHighestSlotActive; slot++) {
+    if (gn_agc_active_slots & (0x01 << slot)){
+      avg_data->ch1[slot] = avg_data->ch1[slot] / SAMPLE_AVG_NUM;
+      avg_data->ch2[slot] = avg_data->ch2[slot] / SAMPLE_AVG_NUM;
+    }
   }
 }
 
@@ -710,7 +822,9 @@ void do_average (agc_data_avg_t *avg_data) {
 *  \return       None
 *****************************************************************************/
 void calculate_DC0(agc_DC0_cal_t *DC0_cal){
-  for(uint8_t slot = 0; slot <LED ; slot++){
+  uint16_t mul_factor = 0x0000;
+  for(uint8_t slot = 0; slot <= gHighestSlotActive ; slot++){
+   if (gn_agc_active_slots & (0x01 << slot)){
     DC0_cal->ch1[slot] = ((avg_data.ch1[slot]*100)/(float) FullScale[slot]);
     DC0_cal->ch2[slot] = ((avg_data.ch2[slot]*100)/(float) FullScale[slot]);
     if(DC0_cal->ch1[slot]> DC0_cal->ch2[slot]){
@@ -721,10 +835,16 @@ void calculate_DC0(agc_DC0_cal_t *DC0_cal){
       DC0_init_check.ch[slot] = DC0_cal->ch2[slot];
       DC0.ch[slot] = DC0_cal->ch2[slot];
     }
-    if((DC0_init_check.ch[slot] * 254)<70){
+    /* In case no. of active led driver is more than 1, 
+           - use multiplication factor corresponding to max current of 400mA, 
+       else 
+           - use multiplication factor corresponding to max current of 200mA 
+    */
+    mul_factor = (gNum_led_drivers[slot] > 1) ? MAX_AMP_FACTOR_400MA : MAX_AMP_FACTOR_200MA;
+    if((DC0_init_check.ch[slot] * mul_factor)<70){
       TIA_ch1_i[slot] = 0;
       TIA_ch2_i[slot] = 0;
-      DC0_LEDcurrent[slot] = 127;
+      DC0_LEDcurrent[slot] = (gNum_led_drivers[slot] > 1) ? MAX_400MA_LED_REG_VAL : MAX_200MA_LED_REG_VAL;
     }
     else{
        if(DC0_cal->ch1[slot]> DC0_cal->ch2[slot]){
@@ -765,7 +885,7 @@ void calculate_DC0(agc_DC0_cal_t *DC0_cal){
       DC50.ch[slot] = DC25.ch[slot]*2;
       DC100.ch[slot] = DC50.ch[slot]*2;
       DC200.ch[slot] = DC100.ch[slot]*2;
-      if((slot == 1) ||(slot == 2))
+      if((gn_led_slot_r & (0x01 << slot)) || (gn_led_slot_ir & (0x01 << slot)))
       {
         if(DC125.ch[slot]>=70){
           DC0_LEDcurrent[slot] = (uint16_t)((70/(DC0.ch[slot]/8)));
@@ -810,8 +930,16 @@ void calculate_DC0(agc_DC0_cal_t *DC0_cal){
           TIA_ch1.ch[slot] =(float) (200 * gain_factor.ch1[slot]);
           TIA_ch2.ch[slot] =(float) (200 * gain_factor.ch2[slot]);
         }
-        if(DC0_LEDcurrent[slot]>=127){
-          DC0_LEDcurrent[slot] = 127;
+        if(gNum_led_drivers[slot] > 1)
+        {
+           if(DC0_LEDcurrent[slot] >= MAX_400MA_LED_REG_VAL){
+            DC0_LEDcurrent[slot] = MAX_400MA_LED_REG_VAL;
+          }
+        }
+        else{
+          if(DC0_LEDcurrent[slot] >= MAX_200MA_LED_REG_VAL){
+            DC0_LEDcurrent[slot] = MAX_200MA_LED_REG_VAL;
+          }
         }
       }
       else
@@ -859,8 +987,16 @@ void calculate_DC0(agc_DC0_cal_t *DC0_cal){
           TIA_ch1.ch[slot] =(float) (200 * gain_factor.ch1[slot]);
           TIA_ch2.ch[slot] =(float) (200 * gain_factor.ch2[slot]);
         }
-        if(DC0_LEDcurrent[slot]>=127){
-          DC0_LEDcurrent[slot] = 127;
+        if(gNum_led_drivers[slot] > 1)
+        {
+           if(DC0_LEDcurrent[slot] >= MAX_400MA_LED_REG_VAL){
+            DC0_LEDcurrent[slot] = MAX_400MA_LED_REG_VAL;
+          }
+        }
+        else{
+          if(DC0_LEDcurrent[slot] >= MAX_200MA_LED_REG_VAL){
+            DC0_LEDcurrent[slot] = MAX_200MA_LED_REG_VAL;
+          }
         }
       }
 
@@ -898,7 +1034,8 @@ void calculate_DC0(agc_DC0_cal_t *DC0_cal){
         TIA_ch2_i[slot]=0;
       }
     }
-  }
+   }
+ }
 }
 
 /*!****************************************************************************

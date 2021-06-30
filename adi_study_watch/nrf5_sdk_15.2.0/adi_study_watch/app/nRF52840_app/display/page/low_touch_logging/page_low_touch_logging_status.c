@@ -45,13 +45,14 @@
 * POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 #ifdef ENABLE_WATCH_DISPLAY
-#ifdef LOW_TOUCH_FEATURE
+#if defined(LOW_TOUCH_FEATURE)
 #include "display_app.h"
 #include "lcd_driver.h"
 #include "key_detect.h"
 #include "lygl.h"
 #include "image_declare.h"
 #include "display_m2m2_protocol.h"
+#include "low_touch_task.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -94,17 +95,24 @@ static void key_handle(uint8_t key_value)
     {
         case KEY_SELECT_SHORT:
         {
-
+            if(get_low_touch_trigger_mode2_status())
+                dis_page_jump(&page_menu);
         }
         break;
         case KEY_NAVIGATION_SHORT:
         {
-            dis_page_jump(&page_low_touch_config);
+            if(get_low_touch_trigger_mode2_status())
+                dis_page_jump(&page_menu);
+            else
+                dis_page_jump(&page_low_touch_config);
         }
         break;
         case KEY_SELECT_LONG_VALUE:
         {
-            dis_page_jump(&page_low_touch_logging);
+            if(get_low_touch_trigger_mode2_status())
+                dis_page_jump(&page_menu);
+            else
+                dis_page_jump(&page_low_touch_logging);
         }
         break;
         default:break;

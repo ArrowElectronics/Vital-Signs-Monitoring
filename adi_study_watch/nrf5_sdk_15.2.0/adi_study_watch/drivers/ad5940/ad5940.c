@@ -3976,7 +3976,7 @@ AD5940Err AD5940_LPRtiaCal(LPRTIACal_Type *pCalCfg, void *pResult)
     hs_loop.WgCfg.OffsetCalEn = bFALSE;
     AD5940_HSLoopCfgS(&hs_loop);
     AD5940_INTCClrFlag(AFEINTSRC_DFTRDY);
-
+  /* direct reg/write operations*/
     AD5940_AFECtrlS(AFECTRL_HSTIAPWR|AFECTRL_INAMPPWR, bTRUE);
     AD5940_Delay10us(100);      /* Wait for loop stable. */
     pADCBaseCfg = &dsp_cfg.ADCBaseCfg;

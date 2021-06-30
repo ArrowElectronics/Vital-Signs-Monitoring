@@ -975,7 +975,6 @@
                     <name>IlinkAdditionalLibs</name>
                     <state>$PROJ_DIR$\..\..\..\algo\ppg_loop1_algo\package\debug\lib_adpd_m4_debug.a</state>
                     <state>$PROJ_DIR$\..\..\..\algo\pedometer\package\debug\lib_pedometer_debug.a</state>
-                    <state>$PROJ_DIR$\..\..\..\algo\sqi\iar\package\Debug\libadi_vsm_sqi_m4f_Debug.a</state>
                 </option>
                 <option>
                     <name>IlinkOverrideProgramEntryLabel</name>
@@ -2171,7 +2170,6 @@
                     <name>IlinkAdditionalLibs</name>
                     <state>$PROJ_DIR$\..\..\..\algo\ppg_loop1_algo\package\release\lib_adpd_m4_release.a</state>
                     <state>$PROJ_DIR$\..\..\..\algo\pedometer\package\release\lib_pedometer_release.a</state>
-                    <state>$PROJ_DIR$\..\..\..\algo\sqi\iar\package\Release\libadi_vsm_sqi_m4f_Release.a</state>
                 </option>
                 <option>
                     <name>IlinkOverrideProgramEntryLabel</name>
@@ -3507,16 +3505,4 @@
             <name>$PROJ_DIR$\..\..\..\modules\system\printf.c</name>
         </file>
     </group>
-    <file>
-        <name>$PROJ_DIR$\..\..\..\algo\sqi\package\Debug\libadi_vsm_sqi_m4f_Debug.a</name>
-        <excluded>
-            <configuration>Release</configuration>
-        </excluded>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\..\..\..\algo\sqi\package\Release\libadi_vsm_sqi_m4f_Release.a</name>
-        <excluded>
-            <configuration>freertos</configuration>
-        </excluded>
-    </file>
 </project>

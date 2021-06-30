@@ -15,17 +15,17 @@ def fw_version_test():
 
     :return:
     """
-    err_stat, fw_ver_info_dict = common.watch_shell.do_getVersion('')
+    err_stat, fw_ver_info_dict = common.watch_shell.get_version()
     # date_str = datetime.now().strftime("%Y-%m-%d")
     if not err_stat:
         ver_info_str = 'Firmware Version: V{}.{}.{}  |  Build Date: {}'.format(fw_ver_info_dict['major'],
                                                                                fw_ver_info_dict['minor'],
                                                                                fw_ver_info_dict['patch'],
-                                                                               fw_ver_info_dict['date'])
+                                                                               fw_ver_info_dict['info'])
         common.update_robot_suite_doc(ver_info_str)
-        common.logging.info(ver_info_str)
+        common.test_logger.info(ver_info_str)
     else:
-        common.logging.error('*** Firmware Version Test - FAIL ***')
+        common.test_logger.error('*** Firmware Version Test - FAIL ***')
         raise ConditionCheckFailure("\n\n" + 'Error in reading firmware version!')
 
 
@@ -34,16 +34,18 @@ def date_time_test():
 
     :return:
     """
-    common.watch_shell.do_setDateTime('')
-    err_stat, date_time_dict = common.watch_shell.do_getDateTime('')
+    common.watch_shell.do_set_datetime('')
+    pkt = common.watch_shell.do_get_datetime('')
+    date_time_dict = pkt["payload"]
+    print(date_time_dict)
     dt_str = '{}-{}-{} {}:{}:{}'.format(date_time_dict['year'], date_time_dict['month'], date_time_dict['day'],
-                                        date_time_dict['hour'], date_time_dict['min'], date_time_dict['sec'])
-    common.logging.info('Watch Time: {}'.format(dt_str))
+                                        date_time_dict['hour'], date_time_dict['minute'], date_time_dict['second'])
+    common.test_logger.info('Watch Time: {}'.format(dt_str))
     dt_watch = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S")
     dt_now = datetime.now()
     delta_dt = dt_now - dt_watch
     if not delta_dt.seconds < 10:
-        common.logging.error('*** Date & Time Test - FAIL ***')
+        common.test_logger.error('*** Date & Time Test - FAIL ***')
         raise ConditionCheckFailure("\n\n" + 'Set date and time does not match with the current date and time!')
 
 

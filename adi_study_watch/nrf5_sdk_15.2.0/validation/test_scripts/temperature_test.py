@@ -18,10 +18,9 @@ def temperature_accuracy_test():
                                                    'over the RTD and press OK.'
                                                    'Change the temperature in steps and verify the capture')
     # common.watch_shell.do_toggleSaveCSV('')
-    common.watch_shell.do_quickstart('temperature')
-    common.watch_shell.do_plot('rtemperature')
+    common.watch_shell.quick_start('temp', 'temp')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('temperature')
+    common.watch_shell.quick_stop('temp', 'temp')
 
     common.close_plot_after_run(['Temperature Data Plot'])
 

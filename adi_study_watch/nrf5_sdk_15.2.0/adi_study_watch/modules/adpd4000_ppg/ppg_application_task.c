@@ -34,8 +34,8 @@
 * ****************************************************************************
 */
 #include <includes.h>
-volatile uint8_t gb_adxl_raw_start =1;  /* Flag to handle whether ADXL sensor was 'start'ed to get raw data(CLI_USB/CLI_BLE) or if it was started by internal applications like PPG */
-volatile uint8_t gb_adpd_raw_start = 1; /* Flag to handle whether ADPD sensor was 'start'ed to get raw data(CLI_USB/CLI_BLE) or if it was started by internal applications like PPG/Temp */
+volatile uint8_t gb_adxl_raw_start_ppg =1;  /* Flag to handle whether ADXL sensor was 'start'ed to get raw data(CLI_USB/CLI_BLE) or if it was started by internal applications like PPG */
+volatile uint8_t gb_adpd_raw_start_ppg = 1; /* Flag to handle whether ADPD sensor was 'start'ed to get raw data(CLI_USB/CLI_BLE) or if it was started by internal applications like PPG */
 #ifdef ENABLE_PPG_APP
 /* -------------------------------- Includes --------------------------------*/
 #include "ppg_application_task.h"
@@ -72,6 +72,11 @@ volatile uint8_t gb_adpd_raw_start = 1; /* Flag to handle whether ADPD sensor wa
 #define PPG_MINOR_VERSION     5
 #define PPG_PATCH_VERSION     0
 #define SKIP_ADPD_ADXL_SAMPLES     16
+/*SKIP_AGC_SAMPLES - First AGC stream will happen during the initial static AGC process in few samples(20-30) of ADPD ,
+ this stream will not get capture at higher rate(500Hz) when nand flash logging start command given at last of sensor start
+ Skip samples will delay the packetization of AGC stream*/
+#define SKIP_AGC_SAMPLES     40
+#define PPG_PACKET_FREQUENCY  50
 /* ------------------------- Type Definition --------------------------------*/
 typedef struct _ppgpacketizer_t {
   m2m2_hdr_t                *p_pkt;
@@ -85,6 +90,12 @@ typedef struct _syncpacketizer_t {
   uint32_t                   nPrevAdxlTS;
 } syncpacketizer_t;
 
+typedef struct _hrvpacketizer_t {
+  m2m2_hdr_t                *p_pkt;
+  uint8_t                    packet_nsamples;
+  uint32_t                   nPrevTS;
+} hrvpacketizer_t;
+
 typedef struct _SyncAppBuff {
   uint32_t  gFifoDataB[2];
   uint8_t   gFifoDataBcount;
@@ -95,15 +106,23 @@ typedef struct _SyncAppBuff {
 }SyncAppBuff_t;
 
 /* -------------------------Public variables -------------------------------*/
-uint32_t  Ppg_Slot = 0;
+uint32_t Ppg_Slot = 0;
+/* flag to check if agc ON for PPG or UC HR */
+uint8_t gPpg_agc_en = 0;
+/* 
+following flag is set in two cases for PPG or UC HR
+    - AGC is ON and AGC calibration done
+    - AGC is OFF and Setting Default Curr/Gain from LCFG done 
+*/
+uint8_t gPpg_agc_done = 0;
+/* Flag to differentiate first Static AGC settings and AGC recalibration settings */
+uint8_t gnFirstAGCcal = 0;
 #ifdef DEBUG_PKT
 uint32_t g_ppg_hr_pkt_cnt =0, g_sync_ppg_pkt_cnt = 0;
 #endif
-extern uint8_t g_mwl_view;
-extern uint8_t agc_count;
 extern uint32_t gn_led_slot_g;
-extern uint8_t gb_static_agc_green_en;
-extern uint8_t gb_static_agc_green_done;
+extern uint32_t gn_agc_active_slots;
+extern bool gRun_agc;
 extern g_state_t       g_state;
 extern g_state_adxl_t  g_state_adxl;
 #ifdef ENABLE_TEMPERATURE_APP
@@ -114,12 +133,15 @@ extern uint8_t gb_ppg_static_agc_green_en;
 extern uint32_t gsSampleCount1;
 extern uint8_t gsOneTimeValueWhenReadAdpdData;
 extern volatile uint8_t gn_uc_hr_enable;
+extern Adpd400xLibConfig_t gAdpd400xLibCfg;
 #ifdef SLOT_SELECT
 extern bool check_ppg_slot_set;
 #endif
 /* ------------------------- Public Function Prototypes -------------------- */
+void packetize_ppg_agc_data();
+void packetize_ppg_hrv_data(uint32_t timestamp);
 void packetize_ppg_data(uint32_t *pPpgData, int16_t *pAdxlData, TimeStamps_t timeStamp);
-void packetize_ppg_HR_debug_data(LibResultX_t lib_result, ppgpacketizer_t *p_pktizer);
+void packetize_ppg_HR_debug_data(LibResultX_t lib_result,ADPDLIB_ERROR_CODE_t retcode, ppgpacketizer_t *p_pktizer);
 int16_t PpgSetOperationMode(uint8_t eOpState);
 void event_from_sync(void);
 void RegisterPpgCB(int16_t (*pfppg_set_opmode)(uint8_t));
@@ -154,7 +176,7 @@ ADPD_TS_DATA_TYPE gsyncADPD_dready_ts;
 volatile uint8_t gnSyncAdpdDataReady, gnSyncAdxlDataReady;
 #endif
 uint32_t gIntCnt = 0;
-static uint16_t g_reg_base;
+static uint16_t g_ppg_reg_base;
 
 static struct _g_state_syncapp {
   uint16_t  num_subs;
@@ -176,7 +198,22 @@ static struct _g_state_ppgapp {
   ppgpacketizer_t  ppgapp_pktizer;
 } g_state_ppgapp;
 
-/*! structure for stroing library result*/
+static struct _g_state_ppg_agc {
+  uint16_t  num_subs;
+  uint16_t  num_starts;
+  uint16_t  data_pkt_seq_num;
+  uint16_t  skip_samples;
+  ppgpacketizer_t  agc_pktizer;
+} g_state_ppg_agc;
+
+static struct _g_state_ppg_hrv {
+  uint16_t  num_subs;
+  uint16_t  num_starts;
+  uint16_t  data_pkt_seq_num;
+  hrvpacketizer_t hrv_pktizer;
+} g_state_ppg_hrv;
+
+/*! structure for storing library result*/
 LibResultX_t lib_result;
 
 /* ------------------------- Private Function Prototypes ------------------- */
@@ -249,6 +286,16 @@ void send_message_ppg_application_task(m2m2_hdr_t *p_pkt) {
 */
 void reset_syncapp_packetization(){
  g_state_syncapp.syncapp_pktizer.packet_nsamples = 0;
+}
+
+/**@brief   resets HRV packetization process
+*
+* @param[in]  None
+*
+* @return     None
+*/
+void reset_hrv_packetization(){
+ g_state_ppg_hrv.hrv_pktizer.packet_nsamples = 0;
 }
 
 APP_TIMER_DEF(m_ppg_timer_id);     /**< Handler for repeated timer for ppg. */
@@ -367,6 +414,19 @@ void ppg_application_task_init(void) {
   g_state_syncapp.decimation_nsamples = 0;
   g_state_syncapp.data_pkt_seq_num = 0;
   reset_syncapp_packetization();
+  
+  /*! Initialize app state */
+  g_state_ppg_agc.num_subs = 0;
+  g_state_ppg_agc.skip_samples = 0;
+  g_state_ppg_hrv.num_subs = 0;
+  g_state_ppg_agc.num_starts = 0;
+  g_state_ppg_hrv.num_starts = 0;
+  /* reset pkt seq no. */
+  g_state_ppg_agc.data_pkt_seq_num = 0;
+  g_state_ppg_hrv.data_pkt_seq_num = 0;
+  reset_hrv_packetization();
+  /*! Initialize the PPG LCFG */
+  MwPpg_LoadppgLCFG(M2M2_SENSOR_PPG_LCFG_ID_ADPD4000);
 
   ADI_OSAL_STATUS eOsStatus = ADI_OSAL_SUCCESS;
   ppg_application_task_attributes.pThreadFunc = ppg_application_task;
@@ -511,6 +571,8 @@ static void ppg_application_task(void *pArgument) {
 
   post_office_add_mailbox(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_PPG_STREAM);
   post_office_add_mailbox(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM);
+  post_office_add_mailbox(M2M2_ADDR_MED_PPG, M2M2_ADDR_SYS_AGC_STREAM);
+  post_office_add_mailbox(M2M2_ADDR_MED_PPG, M2M2_ADDR_SYS_HRV_STREAM);
   ppg_timer_init();
   PpgInit();
   while (1) {
@@ -524,7 +586,6 @@ static void ppg_application_task(void *pArgument) {
       if(hr_mode_on)
       {
       packetize_ppg_data(&(GetSyncAdpdData())[0], GetSyncAccelData(), timeStamp);
-
 #define STORE_SAMPLES_USED_FOR_HR_LIB 0
 #ifdef STORE_SAMPLES_USED_FOR_HR_LIB
       static volatile uint32_t storeAdpd[200], SampAdpdCnt=0;
@@ -543,8 +604,11 @@ static void ppg_application_task(void *pArgument) {
       }
 #endif
 
-      if(!gn_uc_hr_enable)
+      if(!gn_uc_hr_enable){
         packetize_ppg_sync_data(&(GetSyncAdpdData())[0], GetSyncRawAccelData(), timeStamp.tsADPD,timeStamp.tsADXL);
+      }
+      packetize_ppg_agc_data();
+      packetize_ppg_hrv_data(timeStamp.tsADPD);
       }
       else
       {
@@ -634,6 +698,7 @@ int16_t PpgSetOperationMode(uint8_t eOpState) {
 */
 void packetize_ppg_data(uint32_t *pPpgData, int16_t *pAdxlData, TimeStamps_t timeStamp)  {
   ADPDLIB_ERROR_CODE_t retVal;
+
   if ((pPpgData == NULL) || (pAdxlData == NULL)) {
     return;
   }
@@ -654,13 +719,16 @@ void packetize_ppg_data(uint32_t *pPpgData, int16_t *pAdxlData, TimeStamps_t tim
 
          if (g_state_ppgapp.CurLibState != g_state_ppgapp.PreLibState)  {
 
-           packetize_ppg_HR_debug_data(lib_result,&g_state_ppgapp.ppgapp_pktizer);
+           packetize_ppg_HR_debug_data(lib_result,retVal,&g_state_ppgapp.ppgapp_pktizer);
 
         } else if (g_state_ppgapp.CurLibState == ADPDLIB_STAGE_HEART_RATE)  {
-            if(g_state_ppgapp.PpgHrCounter++ >= 50)
+        /* send ppg pkt every second or in case there is register setting change due to Dynamic AGC */
+            if((g_state_ppgapp.PpgHrCounter++ >= PPG_PACKET_FREQUENCY) ||( retVal == ADPDLIB_ERR_AFE_SATURATION))
             {
-              g_state_ppgapp.PpgHrCounter = 0;
-              packetize_ppg_HR_debug_data(lib_result,&g_state_ppgapp.ppgapp_pktizer);
+              if(g_state_ppgapp.PpgHrCounter > PPG_PACKET_FREQUENCY){
+                g_state_ppgapp.PpgHrCounter = 0;
+              }
+              packetize_ppg_HR_debug_data(lib_result,retVal,&g_state_ppgapp.ppgapp_pktizer);
             }
         }
       }
@@ -677,8 +745,7 @@ void packetize_ppg_data(uint32_t *pPpgData, int16_t *pAdxlData, TimeStamps_t tim
 *
 * @return None
 */
-
-void packetize_ppg_HR_debug_data(LibResultX_t lib_result, ppgpacketizer_t *p_pktizer) {
+void packetize_ppg_HR_debug_data(LibResultX_t lib_result, ADPDLIB_ERROR_CODE_t retcode, ppgpacketizer_t *p_pktizer) {
   ADI_OSAL_STATUS         err;
   uint16_t debugInfo[DEBUG_INFO_SIZE];
   adi_osal_EnterCriticalRegion();
@@ -700,15 +767,128 @@ void packetize_ppg_HR_debug_data(LibResultX_t lib_result, ppgpacketizer_t *p_pkt
     p_payload_ptr->adpdlibstate = (uint16_t) g_state_ppgapp.CurLibState;
     for (uint8_t i = 0; i < DEBUG_INFO_SIZE; i++){
       p_payload_ptr->debugInfo[i] = debugInfo[i];
+    }    
+    if(retcode == ADPDLIB_ERR_AFE_SATURATION){
+      p_payload_ptr->debugInfo[DEBUG_INFO_SIZE-1] = abs(retcode);// capture the library return code 
     }
     g_state_ppgapp.ppgapp_pktizer.p_pkt->src = M2M2_ADDR_MED_PPG;
     g_state_ppgapp.ppgapp_pktizer.p_pkt->dest = M2M2_ADDR_MED_PPG_STREAM;
     p_payload_ptr->sequence_num = g_state_ppgapp.data_pkt_seq_num++;
+#ifdef DEBUG_PKT
+        post_office_msg_cnt(g_state_ppgapp.ppgapp_pktizer.p_pkt);
+#endif
     post_office_send(g_state_ppgapp.ppgapp_pktizer.p_pkt, &err);
     g_state_ppgapp.ppgapp_pktizer.p_pkt = NULL;
   }
   adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
+}
 
+/** 
+* @brief Packetize and send AGC data
+*
+* @return None
+*
+*/
+void packetize_ppg_agc_data() {
+  ADI_OSAL_STATUS err;
+  AGCStat_t agcInfo;
+  if((g_state_ppg_agc.num_subs > 0) && (g_state_ppg_agc.skip_samples >= SKIP_AGC_SAMPLES))
+  {
+     Adpd400xLibGetAgcState(&agcInfo);
+     if(agcInfo.setting[0] == 0)
+     {
+       return;
+     }
+     adi_osal_EnterCriticalRegion();
+     g_state_ppg_agc.agc_pktizer.p_pkt = post_office_create_msg(sizeof(ppg_app_agc_info_t) + M2M2_HEADER_SZ);
+     if(g_state_ppg_agc.agc_pktizer.p_pkt != NULL){
+       PYLD_CST(g_state_ppg_agc.agc_pktizer.p_pkt, ppg_app_agc_info_t, p_payload_ptr);
+       p_payload_ptr->command = M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
+       p_payload_ptr->status = (M2M2_SENSOR_INTERNAL_STATUS_ENUM_t)M2M2_SENSOR_INTERNAL_STATUS_PKT_READY;
+       p_payload_ptr->timestamp = get_sensor_time_stamp(); // Since nand flash log start command given at last , capturing TS before that will create negative delta in epoch calculation
+       for(int i = 0; i < 6; i++)
+       {
+         p_payload_ptr->mts[i] = agcInfo.mts[i];
+       }
+       for(int i = 0; i < 10; i++)
+       {
+         p_payload_ptr->setting[i] = agcInfo.setting[i];
+       }
+       g_state_ppg_agc.agc_pktizer.p_pkt->src = M2M2_ADDR_MED_PPG;
+       g_state_ppg_agc.agc_pktizer.p_pkt->dest = M2M2_ADDR_SYS_AGC_STREAM;
+       p_payload_ptr->sequence_num = g_state_ppg_agc.data_pkt_seq_num++;
+#ifdef DEBUG_PKT
+        post_office_msg_cnt(g_state_ppg_agc.agc_pktizer.p_pkt);
+#endif
+       post_office_send(g_state_ppg_agc.agc_pktizer.p_pkt, &err);
+       g_state_ppg_agc.agc_pktizer.p_pkt = NULL;
+     }
+     adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
+  }else{
+    g_state_ppg_agc.skip_samples++;
+  }
+}
+
+/** 
+* @brief Packetize and send HRV data
+*
+* @return None
+*
+*/
+void packetize_ppg_hrv_data(uint32_t timestamp) {
+  ADI_OSAL_STATUS err;
+  static ppg_app_hrv_info_t hrv_pkt;
+  
+  if(g_state_ppg_hrv.num_subs > 0)
+  {
+   if(g_state_ppg_hrv.hrv_pktizer.packet_nsamples == 0)
+   {
+     hrv_pkt.timestamp = timestamp;
+     hrv_pkt.first_rr_interval = lib_result.RRinterval;
+     hrv_pkt.first_is_gap = lib_result.IsHrvValid;
+     hrv_pkt.first_rmssd = lib_result.RMSSD;
+     g_state_ppg_hrv.hrv_pktizer.nPrevTS = timestamp;
+   }
+   else{
+    if(timestamp < g_state_ppg_hrv.hrv_pktizer.nPrevTS)
+    {
+      /* MAX_RTC_TICKS_FOR_24_HOUR:- Max RTC Count value returned by get_sensor_timestamp() after 24hrs.
+             Adding that value to have correct timestamp value during day roll-over */
+      hrv_pkt.hrv_data[g_state_ppg_hrv.hrv_pktizer.packet_nsamples -1].timestamp = \
+                MAX_RTC_TICKS_FOR_24_HOUR + timestamp - g_state_ppg_hrv.hrv_pktizer.nPrevTS;
+    }
+    else
+    {
+      hrv_pkt.hrv_data[g_state_ppg_hrv.hrv_pktizer.packet_nsamples -1].timestamp = timestamp - g_state_ppg_hrv.hrv_pktizer.nPrevTS;
+    }
+    hrv_pkt.hrv_data[g_state_ppg_hrv.hrv_pktizer.packet_nsamples -1].rr_interval = lib_result.RRinterval;
+    hrv_pkt.hrv_data[g_state_ppg_hrv.hrv_pktizer.packet_nsamples -1].is_gap = lib_result.IsHrvValid;
+    hrv_pkt.hrv_data[g_state_ppg_hrv.hrv_pktizer.packet_nsamples -1].rmssd = lib_result.RMSSD;
+    g_state_ppg_hrv.hrv_pktizer.nPrevTS = timestamp;
+   }
+  
+   if(++g_state_ppg_hrv.hrv_pktizer.packet_nsamples >= M2M2_SENSOR_HRV_NSAMPLES) /* M2M2_SENSOR_HRV_NSAMPLES = 4 */
+   {
+    g_state_ppg_hrv.hrv_pktizer.packet_nsamples = 0;
+    adi_osal_EnterCriticalRegion();
+    g_state_ppg_hrv.hrv_pktizer.p_pkt = post_office_create_msg(sizeof(ppg_app_hrv_info_t) + M2M2_HEADER_SZ);
+    if(g_state_ppg_hrv.hrv_pktizer.p_pkt != NULL){
+       PYLD_CST(g_state_ppg_hrv.hrv_pktizer.p_pkt, ppg_app_hrv_info_t, p_payload_ptr);
+       memcpy(&p_payload_ptr->command, &hrv_pkt, sizeof(ppg_app_hrv_info_t));
+       p_payload_ptr->command = M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
+       p_payload_ptr->status = (M2M2_SENSOR_INTERNAL_STATUS_ENUM_t)M2M2_SENSOR_INTERNAL_STATUS_PKT_READY;
+       g_state_ppg_hrv.hrv_pktizer.p_pkt->src = M2M2_ADDR_MED_PPG;
+       g_state_ppg_hrv.hrv_pktizer.p_pkt->dest = M2M2_ADDR_SYS_HRV_STREAM;
+       p_payload_ptr->sequence_num = g_state_ppg_hrv.data_pkt_seq_num++;
+#ifdef DEBUG_PKT
+        post_office_msg_cnt(g_state_ppg_hrv.hrv_pktizer.p_pkt);
+#endif
+       post_office_send(g_state_ppg_hrv.hrv_pktizer.p_pkt, &err);
+       g_state_ppg_hrv.hrv_pktizer.p_pkt = NULL;
+     }
+     adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
+   }
+  }
 }
 
 /**
@@ -850,9 +1030,9 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
       {
           for(uint8_t i=0 ; i<SLOT_NUM ; i++)
            {
-              g_reg_base = i * 0x20;
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, led_reg.reg_val[i].reg_pow12); /*!enable led */
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, led_reg.reg_val[i].reg_pow34);
+              g_ppg_reg_base = i * ADPD400x_SLOT_BASE_ADDR_DIFF;
+              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_ppg_reg_base, led_reg.reg_val[i].reg_pow12); /*!enable led */
+              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_ppg_reg_base, led_reg.reg_val[i].reg_pow34);
            }
       }
 #endif //ENABLE_TEMPERATURE_APP
@@ -863,7 +1043,6 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
       if(check_ppg_slot_set)
       {
       MwPPG_WriteLCFG(lcfgIndex, Ppg_Slot);
-      gn_led_slot_g = Ppg_Slot;
       check_ppg_slot_set = false;
       }
       else
@@ -872,20 +1051,16 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
       }
 #else
       MwPPG_ReadLCFG(lcfgIndex, &Ppg_Slot);
-      gn_led_slot_g = Ppg_Slot;
 #endif
-      if(!g_mwl_view)
-      {
-        lcfgIndex = 4; /*! To read featureSelect */
-        MwPPG_ReadLCFG(lcfgIndex, &temp_val);
-        gb_static_agc_green_en = ((uint16_t)temp_val & (uint16_t)(1<<9)) >> 9;
-        gb_static_agc_green_done = 0; /*! Flag to handle ADPD led and TIA reg setting for both static AGC enable/disable */
-        /*! agc_count = 1; */
-      }
-      else
-      {
-        /*! do Nothing, since AGC settings would be done from MWL view */
-      }
+
+      lcfgIndex = 4; /*! To read featureSelect */
+      MwPPG_ReadLCFG(lcfgIndex, &temp_val);
+      gPpg_agc_en = ((uint16_t)temp_val & (uint16_t)(STATIC_AGC_EN)) >> STATIC_AGC_BIT_P;
+      gn_led_slot_g = (gPpg_agc_en == 1) ? Ppg_Slot : 0;
+      gn_agc_active_slots = (gPpg_agc_en == 1) ? Ppg_Slot : 0;
+      gRun_agc = (gPpg_agc_en == 1) ? true: false;
+      gPpg_agc_done = 0;
+
       gsOneTimeValueWhenReadAdpdData = 0;
       if (MwPPG_HeartRateInit() == ADPDLIB_ERR_SUCCESS)
       {
@@ -916,10 +1091,12 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
         g_state_ppgapp.PpgHrCounter = 0;
         g_state_ppgapp.num_starts = 1;
         g_state_syncapp.num_starts = 1;
+        g_state_ppg_agc.num_starts = 1;
+        g_state_ppg_hrv.num_starts = 1;
         g_state.num_starts++;
-        gb_adpd_raw_start = 0;
+        gb_adpd_raw_start_ppg = 0;
         g_state_adxl.num_starts++;
-        gb_adxl_raw_start = 0;
+        gb_adxl_raw_start_ppg = 0;
         status  = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
       }
       else
@@ -931,10 +1108,12 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
     {
       g_state_ppgapp.num_starts++;
       g_state_syncapp.num_starts++;
+      g_state_ppg_agc.num_starts++;
+      g_state_ppg_hrv.num_starts++;
       g_state.num_starts++;
-      gb_adpd_raw_start = 0;
+      gb_adpd_raw_start_ppg = 0;
       g_state_adxl.num_starts++;
-      gb_adxl_raw_start = 0;
+      gb_adxl_raw_start_ppg = 0;
       status = M2M2_APP_COMMON_STATUS_STREAM_IN_PROGRESS;
     }
     command = M2M2_APP_COMMON_CMD_STREAM_START_RESP;
@@ -968,32 +1147,36 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
           off_time_count = 0;
           }
           /***********AGC Flags**********/
-          gb_static_agc_green_en = 1;
-          gb_static_agc_green_done = 0;
           gn_led_slot_g = 0;
+          gn_agc_active_slots = 0;
+          gRun_agc = false;
+          gPpg_agc_en = 0;
+          gPpg_agc_done = 0;
           /*****************************/
           Ppg_Slot = 0;
           g_state_ppgapp.num_starts = 0;
           g_state_syncapp.num_starts = 0;
+          g_state_ppg_agc.num_starts = 0;
+          g_state_ppg_hrv.num_starts = 0;
           (0 < g_state.num_starts) ? g_state.num_starts-- : (g_state.num_starts = 0);
-          gb_adpd_raw_start = 1;
+          gb_adpd_raw_start_ppg = 1;
           (0 < g_state_adxl.num_starts) ? g_state_adxl.num_starts-- : (g_state_adxl.num_starts = 0);
-          gb_adxl_raw_start = 1;
+          gb_adxl_raw_start_ppg = 1;
 #ifndef SLOT_SELECT
 #ifdef ENABLE_TEMPERATURE_APP
    if((g_state.num_starts > 0) && (g_state.num_starts == gsTemperatureStarts))
    {
       for(uint8_t i=0 ; i<SLOT_NUM ; i++)
       {
-          g_reg_base = i * 0x20;
-          if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &led_reg.reg_val[i].reg_pow12) == ADPD400xDrv_SUCCESS)
+          g_ppg_reg_base = i * ADPD400x_SLOT_BASE_ADDR_DIFF;
+          if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_ppg_reg_base, &led_reg.reg_val[i].reg_pow12) == ADPD400xDrv_SUCCESS)
             {
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, 0x0);
+              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_ppg_reg_base, 0x0);
             }/*! disable led for slot-A - I */
 
-          if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &led_reg.reg_val[i].reg_pow34) == ADPD400xDrv_SUCCESS)
+          if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_ppg_reg_base, &led_reg.reg_val[i].reg_pow34) == ADPD400xDrv_SUCCESS)
             {
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, 0x0);
+              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_ppg_reg_base, 0x0);
             }/*! disable led for slot-> A - I */
        }
    }
@@ -1020,6 +1203,8 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
       default:
         g_state_ppgapp.num_starts--;
         g_state_syncapp.num_starts--;
+        g_state_ppg_agc.num_starts--;
+        g_state_ppg_hrv.num_starts--;
         (0 < g_state.num_starts) ? g_state.num_starts-- : (g_state.num_starts = 0);
         (0 < g_state_adxl.num_starts) ? g_state_adxl.num_starts-- : (g_state_adxl.num_starts = 0);
         status = M2M2_APP_COMMON_STATUS_STREAM_COUNT_DECREMENT;
@@ -1036,27 +1221,73 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
       break;
 
   case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
-    g_state_ppgapp.num_subs++;
-    g_state_syncapp.num_subs++;
-    post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_PPG_STREAM, p_pkt->src, true);
-    post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM, p_pkt->src, true);
+    if(p_in_payload->stream == M2M2_ADDR_SYS_HRV_STREAM)
+    {
+      g_state_ppg_hrv.num_subs++;
+      post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_SYS_HRV_STREAM, p_pkt->src, true);
+    }
+    else if(p_in_payload->stream == M2M2_ADDR_SYS_AGC_STREAM)
+    {
+      g_state_ppg_agc.num_subs++;
+      post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_SYS_AGC_STREAM, p_pkt->src, true);
+    }
+    else
+    {
+      g_state_ppgapp.num_subs++;
+      g_state_syncapp.num_subs++;
+      post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_PPG_STREAM, p_pkt->src, true);
+      post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM, p_pkt->src, true);
+    }  
     status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
     command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;
     break;
   case M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_REQ:
-    if (g_state_ppgapp.num_subs <= 1) {
-      g_state_ppgapp.num_subs = 0;
-      g_state_syncapp.num_subs = 0;
-      reset_ppgapp_packetization();
-      reset_syncapp_packetization();
-      status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
-    } else {
-      g_state_ppgapp.num_subs--;
-      g_state_syncapp.num_subs--;
-      status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
+    if(p_in_payload->stream == M2M2_ADDR_SYS_HRV_STREAM)
+    {
+      if(g_state_ppg_hrv.num_subs <= 1)
+      {
+        g_state_ppg_hrv.num_subs = 0;
+        reset_hrv_packetization();
+        status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
+      }
+      else {
+        g_state_ppg_hrv.num_subs--;
+        status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
+      }
+      post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_SYS_HRV_STREAM, p_pkt->src, false);
     }
-    post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_PPG_STREAM, p_pkt->src, false);
-    post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM, p_pkt->src, false);
+    else if(p_in_payload->stream == M2M2_ADDR_SYS_AGC_STREAM)
+    {
+      if(g_state_ppg_agc.num_subs <= 1)
+      {
+        g_state_ppg_agc.num_subs = 0;
+        g_state_ppg_agc.skip_samples = 0;
+        gnFirstAGCcal = 0;
+        status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
+      }
+      else {
+        g_state_ppg_agc.num_subs--;
+        status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
+      }
+      post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_SYS_AGC_STREAM, p_pkt->src, false);
+    }
+    else
+    {
+      if (g_state_ppgapp.num_subs <= 1) {
+       g_state_ppgapp.num_subs = 0;
+       g_state_syncapp.num_subs = 0;
+       reset_ppgapp_packetization();
+       reset_syncapp_packetization();
+       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
+      } 
+      else{
+       g_state_ppgapp.num_subs--;
+       g_state_syncapp.num_subs--;
+       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
+      }
+      post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_PPG_STREAM, p_pkt->src, false);
+      post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM, p_pkt->src, false);
+    }
     command = M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP;
     break;
   default:
@@ -1150,7 +1381,7 @@ static m2m2_hdr_t *ppg_app_get_last_states(m2m2_hdr_t *p_pkt) {
 
     p_resp_payload->command = M2M2_PPG_APP_CMD_GET_LAST_STATES_RESP;
     p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
-    
+
     memset(&p_resp_payload->states[0], 0, sizeof(p_resp_payload->states));
     if (MwPPG_GetStates(&(p_resp_payload->states[0])) == PPG_SUCCESS) {
       /*!  Fill out the response packet header */
@@ -1349,10 +1580,26 @@ void SyncAppDataSend(uint32_t *p_data,uint32_t adpdtimestamp,int16_t *pAdxlData,
   SyncErrorStatus SyncRet = SYNC_ERROR;
   if (g_state_syncapp.num_subs > 0 ) {
     if (p_data != NULL) {
-      g_SyncAppBuff.gFifoDataB[0] = p_data[0];
-      g_SyncAppBuff.gFifoDataB[1] = p_data[1];
+      if((gAdpd400xLibCfg.targetChs & 0xF) == TARGET_CH2){
+        g_SyncAppBuff.gFifoDataB[0] = p_data[1]; // ch2 data will be used by the HRM library
+        g_SyncAppBuff.gFifoDataB[1] = p_data[0]; // ch1 required to check saturation
+      }else if(((gAdpd400xLibCfg.targetChs & 0xF) == TARGET_CH4)){
+        g_SyncAppBuff.gFifoDataB[0] = (p_data[0] >> ((gAdpd400xLibCfg.targetChs & 0xF0) >> 4)) + \
+                                      (p_data[1] >> ((gAdpd400xLibCfg.targetChs & 0xF0) >> 4));
+        g_SyncAppBuff.gFifoDataB[1] = p_data[1]; // ch2 required to check saturation
+      }else{//TARGET_CH1 and TARGET_CH3
+        g_SyncAppBuff.gFifoDataB[0] = p_data[0]; // ch1 data will be used by the HRM library
+        g_SyncAppBuff.gFifoDataB[1] = p_data[1]; // ch2 required to check saturation
+      }
       g_SyncAppBuff.gTsAdpd = adpdtimestamp;
       g_SyncAppBuff.gFifoDataBcount = 1;
+      if (g_state_adxl.num_starts == 0) {// pass adxl with zero data when ADXL is not started but ADPD started for UCHR
+        g_SyncAppBuff.gAccelData[0] = 0;
+        g_SyncAppBuff.gAccelData[1] = 0;
+        g_SyncAppBuff.gAccelData[2] = 0;
+        g_SyncAppBuff.gTsAdxl = adpdtimestamp;
+        g_SyncAppBuff.gAccelDatacount = 1;
+      }
     }
     if (pAdxlData != NULL) {
       g_SyncAppBuff.gAccelData[0] = pAdxlData[0];

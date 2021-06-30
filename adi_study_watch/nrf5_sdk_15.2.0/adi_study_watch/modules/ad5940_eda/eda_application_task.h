@@ -151,11 +151,13 @@ typedef struct
 #define EDACTRL_SETBASE        103    /**< Set base line of EDA result */
 #define EDACTRL_GETAVR         104    /**< Get average value of all measured impedance */
 #define EDACTRL_STATUS         105    /**< Get if EDA is running. */
+#define MAX_NUM_OF_FFT_POINTS 4
 
 /* Error message */
 #define EDAERR_ERROR            AD5940ERR_APPERROR    /**< General error */
 #define EDAERR_VOLTMEASURE      AD5940ERR_APPERROR-1  /**< Excitation voltage measurment error. Points not match */
 
+void InitCfg();
 AD5940Err AppEDAGetCfg(void *pCfg);
 AD5940Err AppEDAInit(uint32_t *pBuffer, uint32_t BufferSize);
 AD5940Err AppEDAISR(void *pBuff, uint32_t *pCount);
@@ -167,4 +169,10 @@ void send_message_ad5940_eda_task(m2m2_hdr_t *p_pkt);
 AD5940Err EDACalculateImpedance(void *pData, uint32_t DataCount);
 AD5940Err AppEDARegModify(int32_t * const pData, uint32_t *pDataCount);
 AD5940Err AppEDADataProcess(int32_t * const pData, uint32_t *pDataCount);
+void ad5940_eda_start(void);
+AD5940Err AppEDASeqCfgGen(void) ;
+AD5940Err AppEDASeqMeasureGen(void);
+uint32_t EDARtiaAutoScaling(
+    fImpCar_Type *const pImpedance, uint32_t uiDataCount);
+
 #endif

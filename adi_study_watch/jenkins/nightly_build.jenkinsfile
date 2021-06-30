@@ -27,7 +27,7 @@ gitlabCommitStatus("Jenkins - Nightly") {
     system_build(builder, params.BUILD_MODE, builder_type)
     app_zip_gen(params.BUILD_MODE, params.EMAIL_LIST)
     
-    qa_regression(params.TEST_TAGS, params.BUILD_MODE)
+    qa_regression(params.TEST_TAGS, params.BUILD_MODE, params.QA_TS_Tolerance)
     
     if (currentBuild.result != 'SUCCESS') {
         error("The build failed!")

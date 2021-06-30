@@ -93,9 +93,9 @@ def use_case_qa_ecg_all_combination_test():
     Use Case - 4 all_combination
     :return:
     """
-    start_stream_list = rand_utils.randomize_list(stream_list=["ecg", "adxl", "temperature", "ppg"],
+    start_stream_list = rand_utils.randomize_list(stream_list=["ecg", "temperature", "ppg"],
                                                   all_possible_combination=True)
-    stop_stream_list = rand_utils.randomize_list(stream_list=["ecg", "adxl", "temperature", "ppg"], 
+    stop_stream_list = rand_utils.randomize_list(stream_list=["ecg", "temperature", "ppg"],
                                                  all_possible_combination=True)
     for start_seq, stop_seq in zip(start_stream_list, stop_stream_list):
         use_case_qa_ecg(start_stream=start_seq, stop_stream=stop_seq)
@@ -106,9 +106,9 @@ def use_case_qa_ecg_fs_all_combination_test():
     Use Case - 4 all_combination
     :return:
     """
-    start_stream_list = rand_utils.randomize_list(stream_list=["ecg", "adxl", "temperature", "ppg"],
+    start_stream_list = rand_utils.randomize_list(stream_list=["ecg", "temperature", "ppg"],
                                                   all_possible_combination=True)
-    stop_stream_list = rand_utils.randomize_list(stream_list=["ecg", "adxl", "temperature", "ppg"], 
+    stop_stream_list = rand_utils.randomize_list(stream_list=["ecg", "temperature", "ppg"],
                                                  all_possible_combination=True)
     for start_seq, stop_seq in zip(start_stream_list, stop_stream_list):
         use_case_qa_ecg_fs(start_stream=start_seq, stop_stream=stop_seq)

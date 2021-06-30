@@ -47,55 +47,36 @@ NRF_LOG_MODULE_REGISTER();
 /**< Flag variable to check if gen_blk DCB entry is present or not. This is
  * updated for every DCB Write/Read and on bootup */
 static volatile bool g_dcb_Present = false;
-/**< RAM buffer which holds the gen_blk DCB contents */
-static uint32_t g_curr_gen_blk_dcb[(MAXGENBLKDCBSIZE * 4)] = {'\0'};
-
-// ================== GENERAL_DCB Section ====================== //
 
 /**
- * @brief    Clear the RAM buffer to hold gen blk DCB contents
- * @retval   None
- */
-void gen_blk_dcb_content_clear(void) {
-  memset(&g_curr_gen_blk_dcb[0], 0xFF, sizeof(g_curr_gen_blk_dcb));
-}
-/**
- * @brief    Load General block Default DCB configuration
- * @retval   Status: OK if DCB content is read
- *                 : ERR if DCB read failed
- */
-GEN_BLK_DCB_STATUS_t load_gen_blk_dcb() {
-  // Load General Block DCB for LT configs
-  NRF_LOG_INFO("Load General Block DCB for LT configs");
-  uint16_t dcb_sz = (uint16_t)(MAXGENBLKDCBSIZE * 4);
-  gen_blk_dcb_content_clear();
-  if (read_gen_blk_dcb(&g_curr_gen_blk_dcb[0], &dcb_sz) == GEN_BLK_DCB_STATUS_OK) {
-    return GEN_BLK_DCB_STATUS_OK;
-  } else {
-    NRF_LOG_INFO("General Block DCB Read failed!");
-    return GEN_BLK_DCB_STATUS_ERR;
-  }
-}
-
-/**
- * @brief  Copy the contents from RAM buffer which has the DCB contents to the
+ * @brief  Reads gen blk DCB and copy the contents to the
  * location passed
  * @param  dest_ptr - pointer location to where contents are copied
  * @param  dest_len - no: of bytes from the RAM buffer, which gets copied to the
  * dest_ptr
- * @retval   None
+ * @return return value of type GEN_BLK_DCB_STATUS_t
  */
-void copy_lt_config_from_gen_blk_dcb(uint8_t *dest_ptr, uint16_t *dest_len) {
-  uint16_t src_len = 0;
+GEN_BLK_DCB_STATUS_t copy_lt_config_from_gen_blk_dcb(uint8_t *dest_ptr, uint16_t *dest_len) {
+  // Read General Block DCB for LT configs
+  uint16_t dcb_sz = (uint16_t)(MAXGENBLKDCBSIZE * MAX_GEN_BLK_DCB_PKTS * DCB_BLK_WORD_SZ); //Sz in bytes
 
-  for (src_len = 0; g_curr_gen_blk_dcb[src_len] != 0xFFFFFFFF; src_len++)
-    ;
+  memset(dest_ptr, 0, dcb_sz);
 
-  src_len =
-      src_len * sizeof(g_curr_gen_blk_dcb[0]); // converting array length to total
-                                          // no: of valid bytes in the array
-  memcpy(dest_ptr, g_curr_gen_blk_dcb, src_len);
-  *dest_len = src_len;
+  uint32_t *dcbdata = (uint32_t *)dest_ptr;
+  dcb_sz = dcb_sz/DCB_BLK_WORD_SZ; // Max words that can be read from FDS
+
+  NRF_LOG_INFO("Read General Block DCB for LT configs");
+
+  if (read_gen_blk_dcb(dcbdata, &dcb_sz) == GEN_BLK_DCB_STATUS_OK) {
+    NRF_LOG_INFO("General Block DCB Read success! %d",dcb_sz);
+  } else {
+    NRF_LOG_INFO("General Block DCB Read failed!");
+    return GEN_BLK_DCB_STATUS_ERR;
+  }
+  *dest_len = dcb_sz*DCB_BLK_WORD_SZ; // converting words read from DCB into
+                        // no: of valid bytes in the array
+
+  return GEN_BLK_DCB_STATUS_OK;
 }
 
 /**@brief   Gets the entire General Blk DCB configuration written in flash
@@ -144,8 +125,6 @@ GEN_BLK_DCB_STATUS_t delete_gen_blk_dcb(void) {
   GEN_BLK_DCB_STATUS_t dcb_status = GEN_BLK_DCB_STATUS_ERR;
 
   if (adi_dcb_delete_fds_settings(ADI_DCB_GENERAL_BLOCK_IDX) == DEF_OK) {
-    // gen_blk_curr_cmd_content_clear();
-    gen_blk_dcb_content_clear();
     dcb_status = GEN_BLK_DCB_STATUS_OK;
   }
 

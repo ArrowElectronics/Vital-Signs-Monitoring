@@ -39,6 +39,6 @@ int16_t AdpdSelectSlot(uint8_t SlotAMode,uint8_t SlotBMode);
 int16_t AdpdSetOperationMode(uint8_t eOpState);
 int16_t AdpdClSetOperationMode(uint8_t eOpState);
 int16_t AdpdClSelectSlot(uint8_t eSlotAMode,uint8_t eSlotBMode);
-int8_t GetAdpdClOutputRate(uint16_t* sampleRate, uint16_t* decimation, uint8_t slotN);
-int8_t SetAdpdClOutputRate(uint16_t sampleRate, uint16_t decimation, uint8_t slotNum);
+int8_t GetAdpdClOutputRate(uint16_t* sampleRate, uint16_t* decimation, uint16_t slotN);
+int8_t SetAdpdClOutputRate(uint16_t sampleRate, uint16_t decimation, uint16_t slotNum);
 #endif /* __MAIN_H */

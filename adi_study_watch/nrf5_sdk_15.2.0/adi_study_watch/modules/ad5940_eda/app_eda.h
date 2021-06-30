@@ -74,4 +74,5 @@ EDA_ERROR_CODE_t EDAAppDeInit();
 EDA_ERROR_CODE_t EDAAppInit();
 EDA_ERROR_CODE_t EDAReadLCFG(uint8_t index, uint16_t *value);
 EDA_ERROR_CODE_t EDAWriteLCFG(uint8_t field, uint16_t value);
+
 #endif  // _APP_ECG_H

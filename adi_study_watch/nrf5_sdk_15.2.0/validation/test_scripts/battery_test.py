@@ -31,11 +31,11 @@ def ble_advertising_stage_current_consumption_test():
     # TODO: Update Current Threshold below
     check_pass, avg_curr, failure_curr = meas_check.check_battery_charge(f_path, curr_threshold=17e-3)
     if not check_pass:
-        common.logging.error('*** BLE Advertising Stage Current Consumption Test - FAIL ***')
+        common.test_logger.error('*** BLE Advertising Stage Current Consumption Test - FAIL ***')
         raise common.ConditionCheckFailure('\n\nFailure Current: {} | Average Current: {}'.format(failure_curr,
                                                                                                   avg_curr))
     else:
-        common.logging.info('Average BLE Advertising Stage Current: {}'.format(avg_curr))
+        common.test_logger.info('Average BLE Advertising Stage Current: {}'.format(avg_curr))
 
 
 def shipment_mode_current_consumption_test():
@@ -46,7 +46,7 @@ def shipment_mode_current_consumption_test():
     local_file_name = 'shipment_mode_curr.csv'
     common.sm.setup_battery_mode()
     common.sm.cfg_setup_buff(10)
-    common.watch_shell.do_setPowerMode('3')
+    common.watch_shell.do_set_power_mode('3')
     ret = common.sm.measure_current()
     time.sleep(1)
     with open(local_file_name, 'w') as f_ref:
@@ -57,11 +57,11 @@ def shipment_mode_current_consumption_test():
     # TODO: Update Current Threshold below
     check_pass, avg_curr, failure_curr = meas_check.check_battery_charge(f_path, curr_threshold=17e-3)
     if not check_pass:
-        common.logging.error('*** Shipment Mode Current Consumption Test - FAIL ***')
+        common.test_logger.error('*** Shipment Mode Current Consumption Test - FAIL ***')
         raise common.ConditionCheckFailure('\n\nFailure Current: {} | Average Current: {}'.format(failure_curr,
                                                                                                   avg_curr))
     else:
-        common.logging.info('Average Shipment Mode Current: {}'.format(avg_curr))
+        common.test_logger.info('Average Shipment Mode Current: {}'.format(avg_curr))
 
 
 def streaming_stage_current_consumption_test():
@@ -72,14 +72,10 @@ def streaming_stage_current_consumption_test():
     local_file_name = 'streaming_stage_curr.csv'
     common.sm.setup_battery_mode()
     # ***** Starting ECG, ADXL and PPG stream ******
-    common.watch_shell.do_quickstart('ecg')
-    common.watch_shell.do_plot('recg')
-    common.watch_shell.do_quickstart('adxl')
-    common.watch_shell.do_plot('radxl')
+    common.watch_shell.quick_start('ecg', 'ecg')
+    common.watch_shell.quick_start('adxl', 'adxl')
     # PPG capture - start
-    common.watch_shell.do_sub('radpd6 add')
-    common.watch_shell.do_sensor('adpd4000 start')
-    common.watch_shell.do_plot('radpd6')
+    common.watch_shell.quick_start('adpd', 'adpd6')
     # **********************************************
     time.sleep(5)
     common.sm.cfg_setup_buff(10)
@@ -96,21 +92,18 @@ def streaming_stage_current_consumption_test():
     f_path = common.rename_stream_file(local_file_name, '_consumption.csv', 0, 0)  # step copies report to shared drive
     #print ret
     #common.messagebox.showinfo('Streaming Current Value', 'Current Value = %f press OK!' % ret)
-    common.watch_shell.do_quickstop('ecg')
-    common.watch_shell.do_quickstop('adxl')
-    common.watch_shell.do_quickstop('adpd4000')
-    common.close_plot_after_run(['ECG Data Plot'])
-    common.close_plot_after_run(['ADXL Data'])
-    common.close_plot_after_run(['ADPDCL Data'])
+    common.watch_shell.quick_stop('ecg', 'ecg')
+    common.watch_shell.quick_stop('adxl', 'adxl')
+    common.watch_shell.quick_stop('adpd', 'adpd6')
     #common.sm.cfg_output_state(0)
     # TODO: Update Current Threshold below
     check_pass, avg_curr, failure_curr = meas_check.check_battery_charge(f_path, curr_threshold=17e-3)
     if not check_pass:
-        common.logging.error('*** Streaming Stage Current Consumption Test - FAIL ***')
+        common.test_logger.error('*** Streaming Stage Current Consumption Test - FAIL ***')
         raise common.ConditionCheckFailure('\n\nFailure Current: {} | Average Current: {}'.format(failure_curr,
                                                                                                   avg_curr))
     else:
-        common.logging.info('Average Streaming Stage Current: {}'.format(avg_curr))
+        common.test_logger.info('Average Streaming Stage Current: {}'.format(avg_curr))
 
 
 if __name__ == '__main__':

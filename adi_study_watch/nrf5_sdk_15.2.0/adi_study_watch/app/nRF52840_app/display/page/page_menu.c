@@ -55,6 +55,7 @@
 #include "nrf_log.h"
 #include "adp5360.h"
 #include "display_m2m2_protocol.h"
+#include "low_touch_task.h"
 
 char rtc_string[6] = {0};
 static char memory_string[6] = {0};
@@ -216,9 +217,10 @@ static void display_func(void)
     lcd_display_refresh_all();
 
 }
-
+uint8_t g_key_val_passed =0;
 static void key_handle(uint8_t key_value)
 {
+    g_key_val_passed = key_value;
     switch(key_value)
     {
         case KEY_SELECT_SHORT:
@@ -248,11 +250,18 @@ static void key_handle(uint8_t key_value)
             dis_page_jump(&page_hr);
         }
         break;
+        case KEY_SELECT_LONG_VALUE:
+        {
+            if(get_low_touch_trigger_mode2_status())
+                dis_page_jump(&page_LT_mode2_log_enable);
+        }
+        break;
         /*can add other key handle*/
         default:break;
     }
 
 }
+
 /*used to handle signal except key,
   for example
 */

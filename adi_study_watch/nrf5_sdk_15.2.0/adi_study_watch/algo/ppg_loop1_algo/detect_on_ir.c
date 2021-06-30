@@ -64,7 +64,7 @@ static uint32_t gsDetectDataA1, gsDetectDataA2;
   * @retval None
   */
 void Adpd400xDetectObjectOnInitIR() {
-  PpgLibGetSampleRate(&gsSampleRate, &gsDecimation);  // backup sampling rate
+  PpgLibGetSampleRate(&gsSampleRate, &gsDecimation,gAdpd400x_lcfg->targetSlots);  // backup sampling rate
   AdpdDrvRegRead(REG_LED2_DRV, &Reg.x24);
   AdpdDrvRegRead(REG_LED_TRIM, &Reg.x25);
   AdpdDrvRegRead(REG_PULSE_PERIOD_A, &Reg.x31);
@@ -86,7 +86,7 @@ void Adpd400xDetectObjectOnInitIR() {
   */
 void Adpd400xDetectObjectOnDeInitIR() {
   AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPDDrv_SLOT_OFF, ADPDDrv_SLOT_OFF);
-  PpgLibSetSampleRate(gsSampleRate, gsDecimation);    // restore sampling rate
+  PpgLibSetSampleRate(gsSampleRate, gsDecimation,gAdpd400x_lcfg->targetSlots);    // restore sampling rate
   AdpdDrvRegWrite(REG_LED2_DRV, Reg.x24);
   AdpdDrvRegWrite(REG_LED_TRIM, Reg.x25);
   AdpdDrvRegWrite(REG_PULSE_PERIOD_A, Reg.x31);
@@ -118,7 +118,7 @@ INT_ERROR_CODE_t Adpd400xDetectObjectOnIR(uint32_t *rawDataB) {
   if (gsDetectState == 0) {
     AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPDDrv_SLOT_OFF, ADPDDrv_SLOT_OFF);
     PpgLibSetSampleRate((gAdpd400x_lcfg->detectionRate)>>16, \
-                        (gAdpd400x_lcfg->detectionRate)&0xFFFF);
+                        (gAdpd400x_lcfg->detectionRate)&0xFFFF,gAdpd400x_lcfg->targetSlots);
     AdpdDrvRegWrite(REG_PULSE_MASK, 0x0200);              // Turn on IR LED
     AdpdDrvRegWrite(REG_LED2_DRV, (Reg.x24&0xFFF0)|0x3);  // change to 70mA
     AdpdDrvRegWrite(REG_LED_TRIM, 0x630C);                // set to default

@@ -127,7 +127,7 @@ AD5940Err AppBIAGetCfg(void *pCfg);
 AD5940Err AppBIAInit(uint32_t *pBuffer, uint32_t BufferSize);
 AD5940Err AppBIACtrl(int32_t BcmCtrl, void *pPara);
 void AD5940BIAStructInit(void);
-static int32_t AD5940PlatformCfg(void);
+int32_t AD5940PlatformCfg(void);
 BCM_ERROR_CODE_t BcmAppInit();
 BCM_ERROR_CODE_t BcmAppDeInit();
 void ad5940_bcm_task_init(void);

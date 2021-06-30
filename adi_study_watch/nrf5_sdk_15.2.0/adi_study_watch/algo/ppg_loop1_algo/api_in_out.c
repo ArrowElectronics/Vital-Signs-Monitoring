@@ -2,8 +2,8 @@
     ****************************************************************************
     * @file     APIInOut.c
     * @author   ADI
-    * @version  V1.0
-    * @date     29-Jan-2016
+    * @version  V1.1
+    * @date     08-June-2021
     ******************************************************************************
     * @attention
     ******************************************************************************
@@ -12,7 +12,7 @@
 *                                                                             *
 * License Agreement                                                           *
 *                                                                             *
-* Copyright (c) 2019 Analog Devices Inc.                                      *
+* Copyright (c) 2021 Analog Devices Inc.                                      *
 * All rights reserved.                                                        *
 *                                                                             *
 * This source code is intended for the recipient only under the guidelines of *
@@ -105,9 +105,9 @@ uint8_t Adpd400xLibGetAlgorithmVendorAndVersion(uint8_t *nAlgoInfo) {
 
 
 /**
-  * @brief Initializes the library for use. This must be called before the
-  * library AdpdLibGetHr can be called. Before the library can be
-  * opened again it must be closed with a call to AdpdLibCloseHr().
+  * @brief Initializes the HRM library for use. This must be called before the
+  * library AdpdLibGetHr can be called. Initial pulse from lcfg will be updated to ADPD. 
+  * Before the library can be opened again it must be closed with a call to Adpd400xLibCloseHr().
   * @retval ERROR_CODE_t indicating whether or not the operation was successful.
   */
 ADPDLIB_ERROR_CODE_t Adpd400xLibOpenHr() {
@@ -115,7 +115,8 @@ ADPDLIB_ERROR_CODE_t Adpd400xLibOpenHr() {
 }
 
 /**
-  * @brief Closes the HR library; must be called when shutting down.
+  * @brief Deinit the HRM library; Restore the sample rate changed by dynamic AGC
+           ,clears the saturation detection bit and clears the library state.
   * @retval ERROR_CODE_t indicating whether or not the operation was successful.
   */
 ADPDLIB_ERROR_CODE_t Adpd400xLibCloseHr() {
@@ -127,6 +128,7 @@ ADPDLIB_ERROR_CODE_t Adpd400xLibCloseHr() {
 
 /**
   * @brief Set the device library configuration used by the library.
+  *        User can change the library configuration from application using this API 
   *        This must be called before AdpdLibOpenHr is called.
   * @param lcfg pointer to the LCFG array
   * @retval none.
@@ -158,30 +160,17 @@ uint8_t Adpd400xLibGetDetectOnValues(uint32_t *val,
 }
 
 /**
-  * @brief Returns the current mode of the ADPD device as seen by ADPDLib
-  * @retval int32_t current ADPD device mode; see ADPDDrv
-  */
-int32_t Adpd400xLibGetMode(uint16_t *mode) {
-  *mode = g_Adpd400xdeviceMode;
-
-  return 0;
-}
-
-
-/**
-  * @brief Set function points for library instrumentation, aka logging support
+  * @brief Function to get HRM result from library, After Adpd400xLibOpenHr function called, 
+           this function has to be called continuously to get HR result.This is the wrapper 
+           to call statemachine process of library.If the statemachine returns
+           IERR_SUCCESS_WITH_RESULT,the result structure from statemachine will be 
+           copied to the application result structure 
   * @param result pointer to where the results will be stored.
-  * @param slotACh pointer to an array containing slot A channel data;
-  *                where index 0, 1, 2 and 3 are used for channels
-  *                1, 2, 3 and 4 respectively.
-  * @param slotData pointer to an array containing slot A channel data;
-  *                where index 0, 1, 2 and 3 are used for channels
-  *                1, 2, 3 and 4 respectively.
+  * @param slotData pointer to an array containing ADPD data;
+  *                where index 0 and 1 are used for channel 1 and 2 respectively.
   * @param acceldata pointer to an array containing the accelerometer data;
   *                  where index 0, 1 and 2 are used for x, y and z
-  *                  respectively. Please see the section Library Configuration
-  *                  for details on configuring the input type for the
-  *                  accelerometer data.
+  *                  respectively. 
   * @param timeStamp a milliseconds resolution time stamp.
   * @retval ERROR_CODE_t from the state machine
   */
@@ -195,7 +184,7 @@ ADPDLIB_ERROR_CODE_t Adpd400xLibGetHr(LibResultX_t *result,
 
   ret = Adpd400xStateMachine(&output, slotData, acceldata, timeStamp);
 
-  if (ret == IERR_SUCCESS_WITH_RESULT) {
+  if ((ret == IERR_SUCCESS_WITH_RESULT)  || (ret == IERR_ALGO_INPUT_OVERFLOW)) {
     if (output.HR_Type >= 0) {              // in HearRate show time
       result->HR = output.HR;
       result->confidence = output.confidence;
@@ -214,8 +203,10 @@ ADPDLIB_ERROR_CODE_t Adpd400xLibGetHr(LibResultX_t *result,
 }
 
 /**
-  * @brief Returns the AGC state and other AGC related information.
-  * @param AGC state pointer.
+  * @brief Returns the AGC state and other AGC related information
+  *        Whenever the Dynamic/static AGC change power settings, new LED power settings captured in the
+  *        gAdpd400xAGCStatInfo structure
+  * @param AGC state pointer gets the updated settings from AGC info structure.
   * @retval none.
   */
 void Adpd400xLibGetAgcState(AGCStat_t* agcInfo) {
@@ -224,11 +215,27 @@ void Adpd400xLibGetAgcState(AGCStat_t* agcInfo) {
 }
 
 /**
-  * @brief Returns the ppg lib AFE operation mode of the device.
+  * @brief Function to update the AGC info structure 
+  *        when there is change in LED power happens, eg This function called in AGC recalibration,
+  *        AFE saturation etc
+  * @param ENUM for AGC LOG indicator,reason to update the AGC info struct.
+  *        eg, ADPD400xLIB_AGCLOG_STATIC_AGC_RECAL 
   * @retval none
   */
-void Adpd400xLibGetLibStat_AFE_OP_MODE(Adpd400xLib_AFEMODE_t *afe_mode) {
-  *afe_mode = gAdpd400xPPGLibStatus.AFE_OpMode;
+void Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_Indicator_t agcindicator) {
+    gAdpd400xAGCStatInfo.setting[0] = (uint16_t)agcindicator;
+    Adpd400xUpdateAGCInfoSettings();    
+}
+
+/**
+  * @brief Returns the Algo raw data captured in the HRM algorithm wrapper.
+  *        Not all the data from ADPD data passed to HRM algorithm wrapper, sometimes ADPD data skipped
+  *        when there is power change happens.The data captures at HRM algorithm wrapper for simulation purpose.
+  * @param Algo raw data struct pointer.
+  * @retval none.
+  */
+void Adpd400xLibGetAlgoRawData(AlgoRawDataStruct_t* algoInfo) {
+  memcpy(algoInfo, &gGetAlgoInfo, sizeof(AlgoRawDataStruct_t));
 }
 
 /**
@@ -240,24 +247,25 @@ void Adpd400xLibGetLibStat_CTR_Value(uint16_t *ctr_val) {
 }
 
 /**
-  * @brief Returns the ppg lib AGC Signal metrics of the device.
+  * @brief Returns the signal quality for the PPG signal.
+  *        This value will be updated from SQI library whenever the Dynamic AGC checks the signal quality
+  * @param uint16_t pointer gets the signal quality value.
   * @retval none
   */
 void Adpd400xLibGetLibStat_AGC_SIGM(uint16_t *sig_val) {
-  sig_val[0] = gAdpd400xAGCStatInfo.mts[0];
-  sig_val[1] = gAdpd400xAGCStatInfo.mts[1];
-  sig_val[2] = gAdpd400xAGCStatInfo.mts[2];
-  sig_val[3] = gAdpd400xAGCStatInfo.mts[3];
+  *sig_val = gAdpd400xAGCStatInfo.mts[0];
 }
 
-
 /**
-  * @brief Returns the current stage of the library stage machine.
+  * @brief Returns the current state of the library state machine.
   * @retval uint8_t state machine stage
-  *                 0 - Start
-  *                 2 - Detection
-  *                 4,6,9 - Calibration
-  *                 7 - Heart Rate
+            ADPDLIB_STAGE_START = 1,
+            ADPDLIB_STAGE_DARKOFFSET_CALIBRATION = 3,
+            ADPDLIB_STAGE_DETECT_PERSON = 5,
+            ADPDLIB_STAGE_HEART_RATE_INIT = 6,
+            ADPDLIB_STAGE_HEART_RATE = 7,
+            ADPDLIB_STAGE_END_CALIBRATION = 15,
+            ADPDLIB_STAGE_DETECT_OFF = 20
   */
 uint8_t Adpd400xLibGetState() {
   return (uint8_t)gAdpd400xPpgLibState;
@@ -265,7 +273,10 @@ uint8_t Adpd400xLibGetState() {
 
 /**
   * @brief Returns an input state's info of the library state machine.
-  * @param input, the state of interest.
+  *        The debug info captures the required information like current,gain,pulse in each stage of library
+  *        The first 10 bytes captures the loop1 settings(AGC) and 
+  *        second 10 bytes captures whenever power change happens on loop2(dynamic AGC) 
+  * @param input, library state for details required.
   * @param output, the state's related infomation.
   * @retval ADPDLIB_ERROR_CODE_t Error or Fail
   */
@@ -316,7 +327,7 @@ ADPDLIB_ERROR_CODE_t Adpd400xLibGetStateInfo(uint8_t state, uint16_t* debugData)
     debugData[1] = (uint16_t)(gAdpd400xOptmVal.ledB_Trim);
     debugData[2] = (uint16_t)(gAdpd400xOptmVal.ledB_Pulse);
     debugData[3] = (uint16_t)(gAdpd400xOptmVal.sampleRate);
-    debugData[4] = (uint16_t)(gAdpd400xPPGLibStatus.CtrValue);
+    debugData[4] = (uint16_t)(gAdpd400xOptmVal.tiaB_Gain);
 
     // if AGC, record loop2 setting
     if (gAdpd400xOptmVal.SelectedLoop == 1)  {
@@ -340,8 +351,3 @@ ADPDLIB_ERROR_CODE_t Adpd400xLibGetStateInfo(uint8_t state, uint16_t* debugData)
   }
   return ADPDLIB_ERR_SUCCESS;
 }
-#if 0
-void Adpd400xLibAdjestAmbient()  {
-  Adpd400xFloatModeAdjestAmbient();
-}
-#endif

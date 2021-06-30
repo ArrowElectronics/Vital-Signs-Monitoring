@@ -116,7 +116,9 @@ StaticTask_t g_ble_app_task_tcb;
 ADI_OSAL_QUEUE_HANDLE gh_ble_app_task_msg_queue = NULL;
 /* Semaphore to block until ble_nus_data_send() is done &
  * BLE_NUS_EVT_TX_RDY received */
-ADI_OSAL_SEM_HANDLE g_ble_task_evt_sem;
+//ADI_OSAL_SEM_HANDLE g_ble_nus_evt_sem;
+/* Semaphore to block and wakeup ble_tx_task */
+ADI_OSAL_SEM_HANDLE g_ble_tx_task_evt_sem;
 
 /* For BLE Services Sensor FreeRTOS Task Creation */
 /* Create the stack for task */
@@ -277,6 +279,8 @@ static volatile bool gb_ble_force_stream_stop = false;
 /* Maximum length of data (in bytes) that can be transmitted to the peer by
  * the Nordic UART service module. */
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;
+/* Flag to mark that ble tx task is suspended or not(active) */
+uint8_t gn_ble_tx_task_suspended = 0;
 /* Universally unique service identifier. */
 #ifdef BLE_CUSTOM_PROFILE1
 static ble_uuid_t m_adv_uuids_more[] = {
@@ -450,8 +454,8 @@ static void gap_params_init(void) {
   sd_ble_gap_addr_get(&ble_addr_t);
 
 #ifdef BLE_CUSTOM_PROFILE1
-  sprintf((char *)device_name, "%X%X",
-      ble_addr_t.addr[0], ble_addr_t.addr[1]);
+  sprintf((char *)device_name, "ADI_%X",
+      ble_addr_t.addr[0]);
 #else
   sprintf((char *)device_name, "%s_%X%X%X%X%X%X", DEVICE_NAME,
       ble_addr_t.addr[0], ble_addr_t.addr[1], ble_addr_t.addr[2],
@@ -551,17 +555,18 @@ static void nus_data_handler(ble_nus_evt_t *p_evt) {
     g_ble_tx_rdy_cnt++;
     if (gsErrResources) {
       gsErrResources = 0;
-      // adi_osal_SemPost(g_ble_task_evt_sem);
+      // adi_osal_SemPost(g_ble_nus_evt_sem);
     }
-    //adi_osal_SemPost(g_ble_task_evt_sem);
+    //adi_osal_SemPost(g_ble_nus_evt_sem);
   } else if (BLE_NUS_EVT_COMM_STARTED == p_evt->type) {
     gb_ble_status = BLE_PORT_OPENED;
     gb_ble_force_stream_stop = false;
     adi_osal_ThreadResumeFromISR(gh_ble_app_task_handler);
-
+    adi_osal_SemPost(g_ble_tx_task_evt_sem);
   } else if (BLE_NUS_EVT_COMM_STOPPED == p_evt->type) {
     gb_ble_status = BLE_PORT_CLOSED;
     gb_ble_force_stream_stop = true;
+	adi_osal_SemPost(g_ble_tx_task_evt_sem);
   }
 }
 
@@ -1277,6 +1282,7 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
     hibernate_mode_entry();
 #endif
     gb_ble_force_stream_stop = true;
+    adi_osal_SemPost(g_ble_tx_task_evt_sem);
 #ifdef BLE_PEER_ENABLE
     dis_page_back();
 #endif
@@ -1727,11 +1733,15 @@ uint8_t get_ble_nus_status() {
 
 /*!
  ****************************************************************************
- * @brief  BLE NUS transmit task - handle post office messages to control ble tx
- * activities
- * @param  pArgument not used
+ * @brief  Reset the msg queue of BLE NUS transmit task
+ * @param  None
  * @return None
  ******************************************************************************/
+void ble_tx_msg_queue_reset()
+{
+  xQueueReset( gh_ble_app_task_msg_queue );
+}
+
 #ifdef DEBUG_PKT
 uint32_t present_ecg_packet_number=0,max_retry_sending_ecg=0;
 uint32_t total_ecg_stream_recv=0,ecg_stream_packet=0;
@@ -1740,6 +1750,13 @@ uint32_t total_ecg_stream_recv=0,ecg_stream_packet=0;
  uint16_t ble_stop_resp_rx=0;
  uint16_t ble_packet_freed_count=0;
 #endif
+/*!
+ ****************************************************************************
+ * @brief  BLE NUS transmit task - handle post office messages to control ble tx
+ * activities
+ * @param  pArgument not used
+ * @return None
+ ******************************************************************************/
 static void ble_tx_task(void *arg) {
   m2m2_hdr_t *p_in_pkt = NULL;
   uint16_t msg_len;
@@ -1748,9 +1765,15 @@ static void ble_tx_task(void *arg) {
   /* To hold no: of retries to do when ble_nus_send fails with resource err */
   static volatile uint8_t tx_retry_cnt = 0;
 
+  /* Suspend BLE task */
+  gn_ble_tx_task_suspended = 1;
+  vTaskSuspend(NULL);
+
   while (1) {
+    adi_osal_SemPend(g_ble_tx_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+    gn_ble_tx_task_suspended = 0;
     if (gb_ble_status == BLE_PORT_OPENED) {
-      p_in_pkt =post_office_get(ADI_OSAL_TIMEOUT_FOREVER, APP_OS_CFG_BLE_TASK_INDEX);
+      p_in_pkt =post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_BLE_TASK_INDEX);
       if (p_in_pkt == NULL) {
         /* No m2m2 messages to process, so fetch some data from the device. */
         continue;
@@ -1870,7 +1893,7 @@ static void ble_tx_task(void *arg) {
               gsErrResources = 1;
               // adi_osal_ThreadSleep(15);//15*40=600ms. to prevent sometime the
               // BLE signal unstable lead to data transmit fail.
-              // adi_osal_SemPend(g_ble_task_evt_sem, 1000);
+              // adi_osal_SemPend(g_ble_nus_evt_sem, 1000);
               //                  nrf_pwr_mgmt_run();
 
             } else
@@ -1898,7 +1921,7 @@ static void ble_tx_task(void *arg) {
           }
 #endif
           //if (!gsErrResources)
-          //  adi_osal_SemPend(g_ble_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+          //  adi_osal_SemPend(g_ble_nus_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
           g_ble_tx_byte_cnt += tx_pkt_len_comb;
           /* reset */
           tx_pkt_len_comb = 0;
@@ -1945,6 +1968,9 @@ static void ble_tx_task(void *arg) {
     else if ((gb_ble_status == BLE_PORT_CLOSED) ||
              (gb_ble_status == BLE_DISCONNECTED)) {
       if (!gb_ble_force_stream_stop) {
+        gn_ble_tx_task_suspended = 1;
+        ble_tx_msg_queue_reset();
+        ble_pkt_src = M2M2_ADDR_UNDEFINED;
         /* Suspend BLE task */
         vTaskSuspend(NULL);
       } else {
@@ -1968,7 +1994,7 @@ static void ble_tx_task(void *arg) {
           NRF_LOG_INFO("Sending Force stream stop cmd from BLE");
           post_office_send(req_pkt, &err);
           gb_ble_force_stream_stop = false;
-          ble_pkt_src = M2M2_ADDR_UNDEFINED;
+          adi_osal_SemPost(g_ble_tx_task_evt_sem);
         }
       }
     }
@@ -2005,7 +2031,11 @@ void ble_application_task_init(void) {
     Debug_Handler();
   }
 
-  eOsStatus = adi_osal_SemCreate(&g_ble_task_evt_sem, 0U);
+  /*eOsStatus = adi_osal_SemCreate(&g_ble_nus_evt_sem, 0U);
+  if (eOsStatus != ADI_OSAL_SUCCESS) {
+    Debug_Handler();
+  }*/
+  eOsStatus = adi_osal_SemCreate(&g_ble_tx_task_evt_sem, 0U);
   if (eOsStatus != ADI_OSAL_SUCCESS) {
     Debug_Handler();
   }
@@ -2079,6 +2109,7 @@ void send_message_ble_tx_task(m2m2_hdr_t *p_pkt) {
   else
     gBleTaskMsgPostCnt++;
 #endif
+  adi_osal_SemPost(g_ble_tx_task_evt_sem);
 }
 
 /*!

@@ -59,6 +59,7 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#define PPG_DATA_VALIDBITS 0xFFFFFFFF
 static lygl_graph_param_t ppg_graph_param =
 {
      .x0 = 4,
@@ -165,9 +166,9 @@ static void m2m2_protocol_handle(void * ptr)//typic ppg 50Hz,display 4s waveform
         if(payload->command == M2M2_SENSOR_COMMON_CMD_STREAM_DATA)
         {
             ppg_value = payload->syncData.ppgData[0];
-            lygl_send_graph_data((uint16_t *)&ppg_value,1);
+            lygl_send_graph_data(&ppg_value,1,PPG_DATA_VALIDBITS);
             ppg_value = payload->syncData.ppgData[2];
-            lygl_send_graph_data((uint16_t *)&ppg_value,1);
+            lygl_send_graph_data(&ppg_value,1,PPG_DATA_VALIDBITS);
         }
     }
     else if(p_m2m2_->src==M2M2_ADDR_MED_PPG_STREAM)

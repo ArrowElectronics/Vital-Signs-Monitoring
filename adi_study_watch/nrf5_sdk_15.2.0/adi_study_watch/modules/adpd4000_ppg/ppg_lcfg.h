@@ -391,51 +391,55 @@ const AdpdLibConfig_t AdpdLibCfg188 = {
 const Adpd400xLibConfig_t AdpdLibCfg4000 = {
   0x00C0,         /* 16-bit. Device ID: Reg08 value . */
   0x0020,         /* 16-bit. Bit[11:0]=selected slot. 1=slotA, 2-slotB, 4=slotC */
-  0x01,           /* 8-bit.  bit[1:0]=Selected Channels. 1=channel 1, 2=channel 2 */
-  0x0004,         /* 16-bit. FIFO Data size in bytes. */
-  0x1210,         /* 16-bit. Enable some preprocess features */ //Static AGC enabled by default //0x1010--> to disable STATIC AGC
+  0x01,           /* 8-bit.  bit[3:0]=Selected Channels. 1=channel 1, 2=channel 2, 3=PD1+PD2 to ch1 ,4=ch1,ch2 shift by MSB[4:7]bit and sum*/
+  0x0004,         /* 16-bit. Not used */
+  0x1310,         /* 16-bit. Enable some preprocess features - Static AGC + Dynamic AGC enabled by default
+                             0x1210--> Static_AGC - ON, Dynamic_AGC - OFF */
   0,              /* 16-bit. Interval to check data rate. in Seconds */
-  0x00000000,     /* 32-bit. DutyCycle Ton[0:15] , Toff[16:31], By Default Ton=Toff=0->continous PPG, if Ton>0 & Toff>0 ->Periodic PPG */
-  0x0032,         /* 16-bit. Reserved */  //0x32->50Hz, 0x64->100Hz, 0x1F4->500Hz
-  0x3,            /* 8-bit.  Sync Mode, Default to H/W sync */
+  0x00000000,     /* 32-bit. Not used */
+  0x0032,         /* 16-bit. HRM will support 50Hz only*/
+  0x3,            /* 8-bit.  Not used */
 
   0x000A0001,     /* 32-bit. Proximity fs and decimation 10/1=10hz */
   10000,          /* 16-bit. Proximity detection timeout */
   0x600,          /* 16-bit. Proximity Detect On level */
 
-  0x01900008,     /* 32-bit. Detect ON Sampling rate of 400/8=50 Hz */
-  (-1),           /* 16-bit. Detect on timeout: infinite second */
-  3,              /* 8-bit.  Settling occurrence number for detect on: 5 counts */
-  400,            /* 16-bit. Detect ON level */
-  10,             /* 16-bit. Detect ON AIR Level */
-  500000,         /* 32-bit. Detect ON Stable Threshold (variance*16)*/
-  0x1217,         /* 16-bit. Reserved */
+  0x00000000,     /* 32-bit. staticAgcRecalTime; Time in minutes for static AGC recalibration. Set this value to 0x00 to disable this feature  */
+  (-1),           /* 16-bit. Reserved  */
+  3,              /* 8-bit.  Reserved  */
+  400,            /* 16-bit. Reserved  */
+  10,             /* 16-bit. Reserved  */
+  500000,         /* 32-bit. Reserved  */
+  0x0040,         /* 16-bit. Initial LED Pulse = 64 */
 
-  10,             /* 8-bit.  Settling occurrence number for detect off: 10 counts */
-  70,             /* 8-bit.  Detect OFF percentage, trigger at: 70% */
-  20000000,       /* 32-bit. Detect OFF Stable Threshold (variance*16) */
-  0x1221,         /* 16-bit. Reserved */
+  10,             /* 8-bit.  Reserved  */
+  97,             /* 8-bit.  Reserved  */
+  20000000,       /* 32-bit. Reserved  */
+  0x0066,         /* 16-bit. rmssdSampleWindow, Maximum = 102 */
 
-  80,             /* 8-bit.  Detect OFF percentage during calibration */
+  80,             /* 8-bit.  Reserved  */ 
+  100,            /* 16-bit. Reserved  */
+  0,              /* 16-bit. Reserved  */
 
   200,            /* 16-bit. Max sampling rate after optimization. 1-26*/
   70,             /* 8-bit.  Target DC level in percentage */
-  380,            /* 16-bit. LED Calibration: Maximum LED current */
+  127,            /* 16-bit. LED Calibration: Maximum LED current */
   254,            /* 8-bit.  Max amount of pulses for each repeat cycle */
-  70,             /* 8-bit.  Threshold to switch to Float Mode */
-  50,             /* 8-bit.  Green LED voltage = 5v */
-  10000,          /* 16-bit.  1000/MI. ie. Mi=0.2, this value = 5000 */
+  90,             /* 8-bit.  Target current adjust percentage for saturation check-only for non-dynamic agc case */
+  50,             /* 8-bit.  Reserved  */
+  0x3212,         /* 16-bit. Initial LED current = 50 mA, bit[15:8] , Initial Gain 50k channel2 [5:3] 50k channel1[0:2] */
 
   0x19999,        /* 32-bit. motion detection threshold */
   0x00780003,     /* 32-bit. upper = check period. lower = rested time */
   0x29999,        /* 32-bit  Reserved. High motion detection threshold. x/2^20=MI in matlab */
   0x0006,         /* 16-bit  time interval to check high motion */
 
-  0xDC99,         /* 16-bit. Reserved Mt2 threshold */
-  0x53CC,         /* 16-bit. Reserved Mt3 threshold */
+  0x00,           /* 8-bit.  Reserved  */
+  0xDC99,         /* 16-bit. Reserved  */
+  0x53CC,         /* 16-bit. Reserved  */
 
-  0x0001,         /* float mode, ambient check interval */
-  0xA800,         /* ambient threshold for 100K mode */
+  0x100,          /* SQI threshold(>) to decrease the power if the signal is very good (0.25) */
+  0x9A,           /*  SQI threshold(<=) to Increase the power if the signal is bad (0.15) */
 
   /***ADI_algo parameters**/
   50,     /*spotalgosamplerate*/

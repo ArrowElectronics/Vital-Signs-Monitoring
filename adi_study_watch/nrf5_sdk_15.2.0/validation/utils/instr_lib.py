@@ -1,4 +1,7 @@
-import visa
+try:
+    import pyvisa as visa
+except ImportError as e:
+    import visa
 import os
 
 visa_dll_path = 'C:\\Program Files\\IVI Foundation\\VISA\\Win64\\ktvisa\\ktbin\\visa32.dll'

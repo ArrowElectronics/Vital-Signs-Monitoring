@@ -50,6 +50,7 @@
 #include "key_detect.h"
 #include "lygl.h"
 #include "image_declare.h"
+#include "low_touch_task.h"
 
 static void display_func(void)
 {
@@ -71,9 +72,12 @@ static void key_handle(uint8_t key_value)
         case KEY_NAVIGATION_SHORT:
         {
 #ifdef LOW_TOUCH_FEATURE
-            dis_page_jump(&page_low_touch_logging);
+          if(!get_low_touch_trigger_mode2_status())
+              dis_page_jump(&page_low_touch_logging);
+          else
+              dis_page_jump(&page_setting);
 #else
-            dis_page_jump(&page_setting);
+              dis_page_jump(&page_setting);
 #endif
         }
         break;

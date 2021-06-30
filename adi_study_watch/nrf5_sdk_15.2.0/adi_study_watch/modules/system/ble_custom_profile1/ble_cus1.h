@@ -179,8 +179,8 @@ typedef void (* ble_cus1_evt_handler_t) (ble_cus1_evt_t * p_evt);
  * Values below are as required by the custom profile
  */
 #define ECG_RANGE_MAX  (12230) //!< Max ECG value in uV
-#define ECG_RANGE_MIN  (2630)  //!< Min ECG value in uV
-#define ADC_RESOLUTION (15)    //!< Equivalent ADC resolution
+#define ECG_RANGE_MIN  (2570)  //!< Min ECG value in uV
+#define ADC_RESOLUTION (16)    //!< Equivalent ADC resolution
 
 /**
  * Explicitly enforce struct packing so that the nested structs and unions are laid out

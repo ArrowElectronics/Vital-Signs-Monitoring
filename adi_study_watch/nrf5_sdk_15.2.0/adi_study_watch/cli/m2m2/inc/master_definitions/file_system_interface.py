@@ -85,7 +85,11 @@ M2M2_FILE_SYS_CMD_ENUM_t = {
     ("M2M2_FILE_SYS_CMD_GET_FILE_INFO_RESP",            0x8D),
     ("M2M2_FILE_SYS_CMD_PAGE_READ_TEST_REQ",            0x8E),
     ("M2M2_FILE_SYS_CMD_PAGE_READ_TEST_RESP",           0x8F),
-     ]
+    ("M2M2_FILE_SYS_CMD_BLOCK_ERASE_REQ",               0x90),
+    ("M2M2_FILE_SYS_CMD_BLOCK_ERASE_RESP",              0x91),
+    ("M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ",  0x92),
+    ("M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_RESP", 0x93),
+    ]
 }
 
 M2M2_FILE_SYS_STATUS_ENUM_t = {
@@ -137,6 +141,29 @@ m2m2_file_sys_cmd_t = {
   "struct_fields": [
     {"name":None,
     "type":common_application_interface._m2m2_app_common_cmd_t},
+  ]
+}
+
+m2m2_file_sys_blk_erase_cmd_t = {
+  "struct_fields": [
+    {"name":"command",
+    "type":c_uint8},
+    {"name":"status",
+    "type":c_uint8},
+    {"name":"block_no",
+    "type":c_uint16},
+    ]
+}
+
+m2m2_file_sys_write_rsd_blk_cmd_t = {
+  "struct_fields": [
+  {"name":"command",
+  "type":c_uint8},
+  {"name":"status",
+  "type":c_uint8},
+  {"name":"data",
+  "length":20,
+  "type":c_ulong},
   ]
 }
 
@@ -339,6 +366,18 @@ m2m2_file_sys_debug_info_resp_t = {
     "type":c_uint32},
     {"name":"packets_missed",
     "type":c_uint32},
+    {"name":"last_page_read",
+    "type":c_uint32},
+    {"name":"last_page_read_offset",
+    "type":c_uint32},
+    {"name":"last_page_read_status",
+    "type":c_uint8},
+    {"name":"num_bytes_transferred",
+    "type":c_uint32},
+    {"name":"bytes_read",
+    "type":c_uint32},
+    {"name":"usb_cdc_write_failed",
+    "type":c_uint8},
   ]
 }
 
@@ -383,7 +422,7 @@ m2m2_file_sys_user_config_data = {
     {"name":"len_configstream",
     "type":c_uint16},
     {"name":"byte_configstream",
-    "length":80,
+    "length":70,
     "type":c_uint8},
   ]
 }

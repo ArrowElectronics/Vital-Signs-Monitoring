@@ -25,7 +25,7 @@ def call(String test_tags, String build_mode) {
                   ).trim()
                 }
                 echo bin_image
-                bat label: 'EnterBootloader', script: '''call conda activate py27
+                bat label: 'EnterBootloader', script: '''call conda activate py37
                 python jenkins/enter_bootloader.py'''
                 sleep 1
                 sh "cp ${bin_image} ADI_project.hex"

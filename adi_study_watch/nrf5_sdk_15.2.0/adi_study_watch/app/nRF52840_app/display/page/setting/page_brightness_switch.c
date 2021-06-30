@@ -51,6 +51,7 @@
 #include "key_detect.h"
 #include "lygl.h"
 #include "image_declare.h"
+#include "low_touch_task.h"
 static uint8_t user_backlight_flag = 1;//default turn on backlight function.
 
 uint8_t get_user_backlight_flag(void)

@@ -58,6 +58,7 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#define ECG_DATA_VALIDBITS     0xFFFF
 static lygl_graph_param_t ecg_graph_param =
 {
      .x0 = 4,
@@ -162,12 +163,12 @@ static void m2m2_protocol_handle(void * ptr)
         payload3 = (ecg_app_stream_t *)&p_m2m2_->data[0];
         if(payload3->command == M2M2_SENSOR_COMMON_CMD_STREAM_DATA)
         {
-            ecg_value = payload3->firstecgdata;
-            lygl_send_graph_data((uint16_t *)&ecg_value,1);
-            ecg_value = payload3->ecg_data[3].ecgdata;
-            lygl_send_graph_data((uint16_t *)&ecg_value,1);
-            ecg_value = payload3->ecg_data[7].ecgdata;
-            lygl_send_graph_data((uint16_t *)&ecg_value,1);
+            ecg_value = (uint32_t)(payload3->firstecgdata);
+            lygl_send_graph_data(&ecg_value,1,ECG_DATA_VALIDBITS);
+            ecg_value = (uint32_t)(payload3->ecg_data[3].ecgdata);
+            lygl_send_graph_data(&ecg_value,1,ECG_DATA_VALIDBITS);
+            ecg_value = (uint32_t)(payload3->ecg_data[7].ecgdata);
+            lygl_send_graph_data(&ecg_value,1,ECG_DATA_VALIDBITS);
 
             lygl_draw_rectangle(69,141,119,181,COLOR_BACKGROUND);
             lygl_dis_value_middle(&lygl_font_32,94,165,COLOR_WHITE,payload3->HR,0);

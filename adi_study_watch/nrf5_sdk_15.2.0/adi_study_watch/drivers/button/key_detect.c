@@ -72,32 +72,52 @@ ADI_OSAL_THREAD_HANDLE key_task_handler;
 #include "nrf_log_default_backends.h"
 #endif
 
-#define KEY_USER_MAX (2)
+#define KEY_USER_MAX (2)  //!< Maximum number of key handlers can be registered
+
+
+/*------------------------- Private Function Prototypes ----------------------*/
 static Send_key_func key_user_handle[KEY_USER_MAX] = {NULL};
 
-void Register_key_send_func(Send_key_func hander)
+/**
+  * @brief  Registers the handler into the key user handler array
+  * @param  handler: handler to be added into the key user handler array
+  * @retval None
+  */
+void Register_key_send_func(Send_key_func handler)
 {
     for(int i = 0;i<KEY_USER_MAX;i++)
     {
         if(NULL == key_user_handle[i])
         {
-            key_user_handle[i] = hander;
+            key_user_handle[i] = handler;
             break;
         }
     }
 }
 
-void Unregister_key_send_func(Send_key_func hander)
+/**
+  * @brief  Removes the handler from key user handler array
+  * @param  handler: handler to be removed from the key user handler array
+  * @retval None
+  */
+
+void Unregister_key_send_func(Send_key_func handler)
 {
     for(int i = 0;i<KEY_USER_MAX;i++)
     {
-        if(hander == key_user_handle[i])
+        if(handler == key_user_handle[i])
         {
             key_user_handle[i] = NULL;
             break;
         }
     }
 }
+
+/**
+  * @brief  Clears the key user handler array
+  * @param  None
+  * @retval None
+  */
 
 void Clear_register_key_func(void)
 {
@@ -107,7 +127,14 @@ void Clear_register_key_func(void)
     }
 }
 
-
+/**
+  * @brief Returns key value based on the key(s) pressed
+  * @param  None
+  * @retval uint8_t 0: No key is pressed
+  * @retval  KEY_SELECT_VALUE: when only Select key is pressed
+  * @retval  KEY_NAVIGATION_VALUE: when only Navigation key is pressed
+  * @retval  (KEY_SELECT_VALUE | KEY_NAVIGATION_VALUE): when both the keys are pressed
+  */
 uint8_t key_value_get(void)
 {
     uint8_t value = 0;
@@ -122,6 +149,12 @@ uint8_t key_value_get(void)
     return value;
 }
 
+/** @brief  gpio interrupt callback handler
+*
+* @param  pin pin number of which gpio event is triggered
+* @param  action polarity of the gpio pin changes
+* @return None
+*/
 static void gpiote_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
     if(0 == nrf_drv_gpiote_in_is_set(pin))
@@ -131,6 +164,11 @@ static void gpiote_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t
     }
 }
 
+/** @brief  Initializes the gpios required for key press detection
+*
+* @param  None
+* @retval uint32_t 0: SUCCESS, 1: ERROR 
+*/
 uint32_t key_port_init(void)
 {
     uint32_t err_code = NRF_SUCCESS;
@@ -172,6 +210,13 @@ uint32_t key_port_init(void)
 * @note: combination short press can't be detect, because it very hard to keep release at the same time.
          but we don't need short press, so ignore it for the moment.
 */
+
+/*!
+ **************************************************************************************
+ * @brief    Identifies the key pressed and calls the corresponding handlers registered
+ * @param    arg not used
+ * @retval   None
+ *************************************************************************************/
 void key_detect_thread(void * arg)
 {
     static uint8_t key_value = 0;
@@ -243,6 +288,23 @@ void key_detect_thread(void * arg)
     }
 }
 
+/*!
+ ****************************************************************************
+ * @brief    Destroys the key/button action detection task
+ * @param    None
+ * @retval   None
+ *****************************************************************************/
+void destroy_key_detect_task(void)
+{
+  adi_osal_ThreadDestroy(key_task_handler);
+}
+
+/*!
+ ****************************************************************************
+ * @brief key detection task initialization
+ * @param[in]     None
+ * @return        None
+ *****************************************************************************/
 void key_detect_init(void) {
   ADI_OSAL_STATUS eOsStatus;
 

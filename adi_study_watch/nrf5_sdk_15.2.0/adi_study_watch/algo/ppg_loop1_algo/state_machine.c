@@ -36,6 +36,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <time.h>
+#include <math.h>
 #include "adpd400x_lib.h"
 #include "adpd400x_lib_common.h"
 #include "heart_rate_internal.h"
@@ -71,6 +72,8 @@
 #endif
 
 #define HR_ALGOR_PPG_LIMIT      600000      // ~(2^31-1 / 3200)
+#define MAX_SIGNAL_LEVEL_FOR_PULSE_ADJ 600000
+#define SINGLE_PULSE_SATURATION_VALUE 8000
 
 /************************************************************
  Type Definitions
@@ -96,6 +99,7 @@ uint32_t            gAdpd400xSlotBChOrg[2];
 int16_t             gAdpd400xAdxlOrg[3];
 uint32_t            gAdpd400xPpgTimeStamp;
 AGCStat_t           gAdpd400xAGCStatInfo;
+AlgoRawDataStruct_t gGetAlgoInfo;
 uint16_t            gAdpd400xSlotAmode;
 
 typedef enum {
@@ -109,9 +113,10 @@ typedef enum {
   AgcLog_Start = 1,
   AgcLog_Stop_Normal = 2,
   AgcLog_Stop_Motion = 3,
-  AgcLog_Saturation = 4,
-  AgcLog_Drift = 5,
-  AgcLog_Loop1 = 6
+  AgcLog_Adc_Saturation = 4,
+  AgcLog_Afe_Saturation = 5,
+  AgcLog_Loop1 = 6,
+  AgcLog_AGC_recal = 7
 } AgcLog_Indicator_t;
 
 typedef enum {
@@ -123,6 +128,7 @@ typedef enum {
 #ifdef STATIC_AGC
 //extern agc_data_t agc_data[LED_SLOTS];
 #endif // STATIC_AGC
+extern uint16_t gnPulseWidth, gnAfeGainNum, gnBpfGainNum,gDVT2;
 /************************************************************
  Extern function Prototype
  ************************************************************/
@@ -139,23 +145,29 @@ extern INT_ERROR_CODE_t Adpd400xGetCtrValue(uint32_t *rawData);
 extern void Adpd400xOptimizationInit_108(void);
 extern void Adpd400xOptimizationDeInit_108(void);
 extern INT_ERROR_CODE_t Adpd400xOptimizeSetting_108(uint32_t *rawData);
-extern INT_ERROR_CODE_t Adpd400xACOptDoOptimization(uint32_t* rData, uint8_t* status );
 extern void AdpdMwLibAdjustRate(void);
 extern void Adpd400xUtilSetLoop1Config(void);
-
+#if defined(AGC_FEATURE) 
+extern void Adpd400xACOptReset(uint8_t);
+extern void Adpd400xMDResetTimers(void);
+extern INT_ERROR_CODE_t Adpd400xACOptDoOptimization(uint32_t* rData, uint8_t* status );
+extern INT_ERROR_CODE_t Adpd400xACOptInit(uint16_t);
+//extern void ACOptDeInit(void);
+#endif
 /************************************************************
  Private Variables
  ************************************************************/
 static uint32_t gsSampleCnt;
+static uint16_t gRegInputs,gRegTrim;
 static uint8_t gsHrSampleCnt, gsNewSetting_SkipSampleNum;
+#if defined(AGC_FEATURE) 
 static uint32_t gsHighMotionCounter, gsLowMotionCounter;
 static uint8_t gsHighMotionTrue, gsLowMotionTrue;
 static uint16_t gsMotionCheckCount;
-static uint16_t gsSampleRate, gsDecimation;
 // static uint8_t gsFloatModeUsed;
-#if defined(AGC_FEATURE)
 static Agc_State_t gsAgcStarted, gsPreAgcState;
 #endif
+static uint16_t gsSampleRate, gsDecimation;
 static Flag_State_t gsChangeSetting;
 #ifdef STATIC_AGC
 //static uint32_t gsAgcSampleCnt;
@@ -172,10 +184,11 @@ static void SMDoAGCInit(void);
 static void SMDoAGC(uint32_t *rAdpdData, int16_t *rAdxlData);
 #endif
 static void PostNewSettingSetUp(uint8_t);
-static void SaturationAdjust(uint8_t);
-static void SettingForHighMotion(void);
+static uint8_t SaturationAdjust(uint8_t,uint32_t);
+static void SaturationAdjustCurrent(void);
 
 #if defined(AGC_FEATURE)
+static void SettingForHighMotion(void);
 extern void Adpd400xMDCheckMotionInit();
 extern INT_ERROR_CODE_t Adpd400xMDInstantCheck(int16_t *acceldata, uint8_t*);
 extern INT_ERROR_CODE_t Adpd400xMDDurationCheck(void);
@@ -198,12 +211,27 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
   * @retval SUCCESS = Initialization successful
   */
 INT_ERROR_CODE_t Adpd400xStateMachineInit() {
+  uint16_t nPulseRegVal,nTempReg,nDevId;
+  Adpd400xDrvRegRead(ADPD400x_REG_CHIP_ID, &nDevId);
+  /* Check if its DVT2 chip */
+  gDVT2 = (nDevId != 0xC0) ? 1 : 0;
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
   AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
+  if((gAdpd400x_lcfg->targetChs & 0xF) == TARGET_CH3){
+   AdpdDrvRegRead(ADPD400x_REG_INPUTS_A + g_reg_base,&gRegInputs);
+   nTempReg = ((gRegInputs & 0xFFF0) | 0x0007);/*! IN1 and IN2 to channel 1 as single ended input */
+   AdpdDrvRegWrite(ADPD400x_REG_INPUTS_A + g_reg_base,nTempReg); 
+  }
+
+  /* set initial LED*/
+  uint8_t nPulseVal = gAdpd400x_lcfg->initialLedPulse & BITM_COUNTS_A_NUM_REPEAT_A;
+  AdpdDrvRegRead(ADPD400x_REG_COUNTS_A + g_reg_base, &nPulseRegVal);
+  nPulseRegVal = (nPulseRegVal & (~BITM_COUNTS_A_NUM_REPEAT_A)) | nPulseVal;
+  AdpdDrvRegWrite(ADPD400x_REG_COUNTS_A + g_reg_base, nPulseRegVal);
   SMStartInit();
-  gAdpd400xPPGLibStatus.AFE_OpMode = ADPD400xLIB_AFE_OPMODE_NORMAL;
+  gAdpd400xPPGLibStatus.AFE_OpMode = ADPD400xLIB_AFE_OPMODE_NORMAL; 
   Adpd400xStoreOpModeSetting();  // store intial settings
   AdpdMwLibSetMode(ADPD400xDrv_MODE_SAMPLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_32);
-  // gsFloatModeUsed = 0;
 #ifndef STATIC_AGC
   gAdpd400xPpgLibState = ADPDLIB_STAGE_START;
 #else 
@@ -213,18 +241,14 @@ INT_ERROR_CODE_t Adpd400xStateMachineInit() {
 #if defined(AGC_FEATURE)
   gsAgcStarted = Agc_Stop_Normal;
   gsPreAgcState = Agc_Stop_Normal;
-#endif
   gsChangeSetting = Flag_Clr;
   gsNewSetting_SkipSampleNum = 0;
   gsHighMotionCounter = 0;
   gsLowMotionCounter = 0;
   gsHighMotionTrue = 0;
   gsLowMotionTrue = 1;
-#ifdef STATIC_AGC
-  //gsAgcSampleCnt = 0;
-  //gsAgcFlag = 0;
-  //gsAgcCount = 0;
-#endif // STATIC_AGC
+#endif
+  memset(&gAdpd400xAGCStatInfo,0,sizeof(gAdpd400xAGCStatInfo));
   return IERR_SUCCESS;
 }
 
@@ -233,10 +257,28 @@ INT_ERROR_CODE_t Adpd400xStateMachineInit() {
   * @retval SUCCESS = Initialization successful
   */
 INT_ERROR_CODE_t Adpd400xStateMachineDeInit() {
-    // if (gPpgLibState == ADPDLIB_STAGE_PROXIMITY_DETECT)
-    //    DetectProximityDeInit();        // if stops at prximity stage.
+    uint16_t nTemp;
+#ifndef STATIC_AGC
     gAdpd400xPpgLibState = ADPDLIB_STAGE_START;
-
+#else 
+    gAdpd400xPpgLibState = ADPDLIB_STAGE_HEART_RATE_INIT;
+#endif // STATIC_AGC
+    g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
+    Adpd400xDrvRegRead(ADPD400x_REG_OPMODE, &nTemp);
+    AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
+    if((gAdpd400x_lcfg->targetChs & 0xF) == 3){//restore on sum mode
+      AdpdDrvRegWrite(ADPD400x_REG_INPUTS_A + g_reg_base,gRegInputs);
+    }
+    if (gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN) //Restore Sample Rate if changed by Dynamic AGC
+    {
+      PpgLibSetSampleRate(gAdpd400xOptmVal.sampleRate,gAdpd400xOptmVal.decimation,gAdpd400x_lcfg->targetSlots);
+    }
+    if(gDVT2){ 
+      AdpdDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, gRegTrim);
+    }
+    if(nTemp & 0x0001){ // put back to sample mode only if its running previously
+      AdpdMwLibSetMode(ADPD400xDrv_MODE_SAMPLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_32);
+    }
     return IERR_SUCCESS;
 }
 
@@ -257,8 +299,11 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
                           TimeStamps_t timeStamp) {
   INT_ERROR_CODE_t errorCode = IERR_SUCCESS;
   INT_ERROR_CODE_t ret = IERR_SUCCESS;
-  uint32_t dc_mean, dc_variance;
+  uint32_t dc_mean, dc_varianceCh1,dc_varianceCh2;
   uint8_t gotAverage, isSaturated = 0;
+    
+  uint16_t nslotDetectionCh1 = 0,nslotDetectionCh2 = 0,nTsCtrl = 0,nCh2Enable = 0;
+  uint32_t nppgData = 0;
 
   // log entrance data
   memcpy(gAdpd400xSlotBChOrg, slotData, sizeof(gAdpd400xSlotBChOrg));
@@ -267,6 +312,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
   // g_resultlog.SUM_SLOTB = slotBCh[0] + slotBCh[1] + slotBCh[2] + slotBCh[3];
  
   if (gAdpd400xPpgLibState == ADPDLIB_STAGE_HEART_RATE) {
+    memset(&gGetAlgoInfo, 0, sizeof(gGetAlgoInfo));
     result->HR = 0;
     result->confidence = 0;
     result->HR_Type = 0;
@@ -281,49 +327,85 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
       }
       return ret;   // skip few samples after setting change
     }
-
-    #if 0
-        // if in float mode, check Ambient bigDark bit
-        if ((gAdpd400x_lcfg->featureSelect & SKIP_AMBIENT_CHECK) == 0)  {
-          if (gAdpd400xPPGLibStatus.AFE_OpMode == ADPDLIB_AFE_OPMODE_FLOAT) {
-            if (AdpdCheckAmbientIRQ() == 1)  {    // chk ambient. It is auto clear
-              // Idle->clear buffer->adjust->notify algorithm->op mode
-              Adpd400xFloatModeAdjestAmbient();
-              PostNewSettingSetUp(1);
-              AdpdCheckAmbientIRQ();    // clear irq again
-            }
-          } else {
-            // in Normal mode, use connection mode every 30s to check ambient
-          }
+    /* check if ch2 is enabled */
+    g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET; 
+    Adpd400xDrvRegRead(ADPD400x_REG_TS_CTRL_A + g_reg_base, &nTsCtrl);
+    nCh2Enable = (nTsCtrl & BITM_TS_CTRL_A_CH2_EN_A) >> BITP_TS_CTRL_A_CH2_EN_A;
+    if(gDVT2){
+      nppgData = slotData[0];
+      isSaturated = 0;
+      Adpd400xDrvRegRead(ADPD400x_REG_INT_STATUS_TC1, &nslotDetectionCh1);
+      if((nslotDetectionCh1 >> (int)log2(gAdpd400x_lcfg->targetSlots))== 1){
+        isSaturated = 1;
+      } 
+      if(nCh2Enable && ((gAdpd400x_lcfg->targetChs & 0xF) != TARGET_CH3)){ // In sum mode or ch2 disable case, saturation check not needed
+        Adpd400xDrvRegRead(ADPD400x_REG_INT_STATUS_TC2, &nslotDetectionCh2);
+        if((nslotDetectionCh2 >> (int)log2(gAdpd400x_lcfg->targetSlots))== 1){
+          isSaturated = 1;
         }
-    #endif
-    if (Adpd400xUtilGetMeanVar(slotData, &dc_mean, &dc_variance) == IERR_SUCCESS)  {
-      gotAverage = 1;
-      Adpd400xUtilGetMeanVarInit(0, 1);
-      // check saturation
-      // or: dc_mean / channel num + dc_offset > 16k * puls num
-      if (dc_mean > HR_ALGOR_PPG_LIMIT)  {   // HR PPG input limit
-        SaturationAdjust(1);
-        isSaturated = 1;
-      } else if (dc_variance == 0)   {
-        SaturationAdjust(0);
-        isSaturated = 1;
       }
-      if (isSaturated == 1)  {
+      if(isSaturated){
+        if (gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN){ // Saturation check only available for dynamic AGC        
+          SaturationAdjust(0,nppgData);
+          gAdpd400xAGCStatInfo.setting[0] = AgcLog_Afe_Saturation;      // Saturation indication
+        }else{
+          SaturationAdjustCurrent();//reduce current by gAdpd400x_lcfg->satAdjustPercentForStaticAgc %
+          Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_AFE_SATURATION);          
+        }
+        ret = IERR_AFE_SATURATION;
         PostNewSettingSetUp(1);
-#if defined(AGC_FEATURE)        
-        gAdpd400xAGCStatInfo.setting[0] = AgcLog_Saturation;      // Saturation indication
-#endif        
-        ret = IERR_SATURATED;
-        /*debug(MODULE, "@@ saturated DC=%u, var=%u, LED=%x, Puls=%x", \
-              dc_mean, dc_variance, \
-              gAdpd400xAGCStatInfo.setting[1], gAdpd400xAGCStatInfo.setting[3]);*/
-	NRF_LOG_DEBUG("@@ saturated DC=%u, var=%u, LED=%x, Pulse=%x \r\n",
-          dc_mean, dc_variance,\
-          gAdpd400xAGCStatInfo.setting[1], gAdpd400xAGCStatInfo.setting[3]);
+        Adpd400xDrvRegWrite(ADPD400x_REG_INT_STATUS_TC1, nslotDetectionCh1);//clear the detection bit ch1 register
+        if((gAdpd400x_lcfg->targetChs & 0xF) != TARGET_CH3){
+        Adpd400xDrvRegWrite(ADPD400x_REG_INT_STATUS_TC2, nslotDetectionCh2);//clear the detection bit ch2 register
+        }
         return ret;
       }
-
+    }
+    if (Adpd400xUtilGetMeanVar(slotData, &dc_mean, &dc_varianceCh1, &dc_varianceCh2) == IERR_SUCCESS)  {
+      gotAverage = 1;
+      isSaturated = 0;
+      Adpd400xUtilGetMeanVarInit(0, 1);
+      if (gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN)
+      {
+        // check saturation
+        // or: dc_mean / channel num + dc_offset > 16k * puls num
+        if (dc_mean > HR_ALGOR_PPG_LIMIT)  {   // HR PPG input limit
+          SaturationAdjust(1,dc_mean); /* changes pulse count, agc pkt is sent */
+          isSaturated = 1;
+          ret = IERR_ADC_SATURATION;
+        } 
+        if (isSaturated == 1)  {
+          PostNewSettingSetUp(1);
+  #if defined(AGC_FEATURE)
+          gAdpd400xAGCStatInfo.setting[0] = AgcLog_Adc_Saturation;      // Saturation indication
+  #endif        
+          NRF_LOG_DEBUG("@@ saturated DC=%u, varch1=%u,varch2=%u, LED=%x, Pulse=%x \r\n",
+            dc_mean, dc_varianceCh1,dc_varianceCh2,\
+            gAdpd400xAGCStatInfo.setting[1], gAdpd400xAGCStatInfo.setting[3]);
+          return ret;
+        }
+      }
+      if(!gDVT2){//for DVT1 watch TIA saturation register not available, using variance method for saturation check   
+        if(dc_varianceCh1 == 0){
+          isSaturated = 1;
+        }
+        if((dc_varianceCh2 == 0) && nCh2Enable && ((gAdpd400x_lcfg->targetChs & 0xF) != TARGET_CH3)){ // In sum mode or ch2 disable case, saturation check not needed
+          isSaturated = 1;
+        }
+        if (isSaturated == 1){
+          if (gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN){ // Saturation check only available for dynamic AGC        
+            SaturationAdjust(0,dc_mean);
+            gAdpd400xAGCStatInfo.setting[0] = AgcLog_Afe_Saturation;      // Saturation indication
+          }else{
+            SaturationAdjustCurrent();//reduce current by gAdpd400x_lcfg->satAdjustPercentForStaticAgc %
+            Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_AFE_SATURATION);           
+          }
+          ret = IERR_AFE_SATURATION;
+          PostNewSettingSetUp(1);
+          return ret;
+        }
+      }
+      
       // after new setting, the next mean is used as detect off level
       if (gsChangeSetting == Flag_Ack)  {   // 1st packet of new setting
         gsChangeSetting = Flag_Clr;
@@ -331,12 +413,12 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
         gAdpd400xDetectVal.curDcLevelG = dc_mean;
         //debug(MODULE, "@@ New detect level=%u", dc_mean);
 		NRF_LOG_INFO("@@ New detect level=%u \r\n",dc_mean);
-        Adpd400xDetectObjectOffInit();
+        //Adpd400xDetectObjectOffInit();
       }
     }
-
+#if 0
     if ((gAdpd400x_lcfg->featureSelect & DETECT_OFF_EN) != 0 && gotAverage == 1) {
-      if (Adpd400xDetectObjectOFF(dc_mean, dc_variance) == IERR_SUCCESS) {
+      if (Adpd400xDetectObjectOFF(dc_mean, dc_varianceCh1) == IERR_SUCCESS) {
         gAdpd400xPpgLibState = ADPDLIB_STAGE_DETECT_OFF;
         // SMDataLogging(slotBCh);
         ret = IERR_OFF_SENSOR;
@@ -345,9 +427,10 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
         return ret;
       }
     }
+#endif
 
 #if defined(AGC_FEATURE)
-    if (gAdpd400x_lcfg->featureSelect & AGC_EN) {
+    if (gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN) {
       SMDoAGC(slotData, acceldata);
       if (gsAgcStarted == Agc_Start && gsPreAgcState != Agc_Start)  {
         gAdpd400xAGCStatInfo.setting[0] = AgcLog_Start;         // first started
@@ -367,7 +450,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
 		NRF_LOG_DEBUG("@@ AGC stopped due to motion");
       }
       gsPreAgcState = gsAgcStarted;
-      gAdpd400xAGCStatInfo.timestamp = timeStamp.tsADPD;
+      gAdpd400xAGCStatInfo.timestamp = AdpdLibGetSensorTimeStamp();
       if (gsChangeSetting == Flag_Set)  {
         ret = IERR_AGC_ADJUSTED;
         gsChangeSetting = Flag_Ack;
@@ -388,6 +471,9 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
     }
 
     gsHrSampleCnt++;
+    if ((errorCode == IERR_HRM_TIMEOUT) || (errorCode == IERR_ALGO_INPUT_OVERFLOW)){
+           return errorCode;
+    }
     /*heart rate range 39 to 223 in fixed point format*/
     if (errorCode == IERR_SUCCESS_WITH_RESULT && \
       result->HR > 624 && result->HR < 3568) {
@@ -408,17 +494,12 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
 
   result->HR_Type = -1;
   if (gAdpd400xPpgLibState == ADPDLIB_STAGE_START) {
-    // if (gsFloatModeUsed == 1)  {
-    // FloatModeDeInit();  // clear up from previous
-    // gsFloatModeUsed = 0;
-    // }
     SMEndDeInit();          // clear up from previous failure
-    gsSampleCnt = 0;
+#ifndef STATIC_AGC
     gAdpd400xPpgLibState = ADPDLIB_STAGE_DARKOFFSET_CALIBRATION;
-
-    if (gAdpd400x_lcfg->featureSelect == HR_ALGO_EN) {
-      gAdpd400xPpgLibState = ADPDLIB_STAGE_HEART_RATE_INIT;
-    }
+#else 
+    gAdpd400xPpgLibState = ADPDLIB_STAGE_HEART_RATE_INIT;
+#endif // STATIC_AGC
     gsSampleCnt = 0;
   }
 
@@ -442,7 +523,6 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
     }
 
     ret = IERR_SUCCESS;
-    // SMDataLogging(slotBCh);
     return ret;
   }
 
@@ -493,7 +573,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
     // SMDataLogging(slotBCh);
     return ret;
   }
-
+#if 0
   if (gAdpd400xPpgLibState == ADPDLIB_STAGE_GETCTR)  {
     if (gsSampleCnt++ == 0) {
       Adpd400xGetCtrInit();
@@ -514,7 +594,6 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
       // return ret;
     }
     Adpd400xGetCtrDeInit();
-
     if ((gAdpd400x_lcfg->featureSelect & OPTIMIZE_EN) != 0) {
       gAdpd400xPpgLibState = ADPDLIB_STAGE_OPTIMIZATION;
     } else {
@@ -571,7 +650,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
     ret = IERR_SUCCESS;
     return ret;
   }
-
+#endif
   // use Loop1 Normal mode if float mode fail
   if (gAdpd400xPpgLibState == ADPDLIB_STAGE_FLOAT_MODE) {
 #if 0
@@ -681,15 +760,17 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
       return ret;
     }
 
-    Adpd400xDetectObjectOffInit();
+    //Adpd400xDetectObjectOffInit();
     // LedDriftInit();
 #if defined(AGC_FEATURE)    
-    Adpd400xMDCheckMotionInit();
+    if ((gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN) != 0) {
+      Adpd400xMDCheckMotionInit();
+    }
 #endif    
     // todo: AmbientCheckInit();
     Adpd400xheartRateInit();
 #if defined(AGC_FEATURE)    
-    if ((gAdpd400x_lcfg->featureSelect & AGC_EN) != 0) {
+    if ((gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN) != 0) {
       SMDoAGCInit();
       gAdpd400xAGCStatInfo.mts[0] = 0xFFFF;
       gAdpd400xAGCStatInfo.setting[1] = gAdpd400xOptmVal.ledB_Cur;
@@ -699,7 +780,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
       gAdpd400xAGCStatInfo.setting[5] = gAdpd400xOptmVal.sampleRate;
       gAdpd400xAGCStatInfo.setting[6] = g_Adpd400xchannelNums;
       gAdpd400xAGCStatInfo.setting[8] = gAdpd400xPPGLibStatus.CtrValue;
-      gAdpd400xAGCStatInfo.timestamp = timeStamp.tsADPD;
+      gAdpd400xAGCStatInfo.timestamp = AdpdLibGetSensorTimeStamp();
     }
 #endif    
     /*debug(MODULE, "LED12:%x, LED34:%x, Pulse:%x\r\n",  \
@@ -750,10 +831,70 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
     }
 #endif
     Adpd400xheartRateInit();
-#endif // STATIC_AGC
-    gAdpd400xPpgLibState = ADPDLIB_STAGE_HEART_RATE;
-    gsSampleCnt = 0;
-  }
+    uint16_t ledCurrent,ledTrim,tiaGain;
+    g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
+    Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &ledCurrent);
+    gAdpd400xOptmVal.ledB_Cur = ledCurrent;
+    if((ledCurrent & BITM_LED_POW12_X_LED_CURRENT1_X) != 0)
+      gAdpd400xOptmVal.ledB_CurVal = ledCurrent;
+
+    Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &ledTrim);
+    if((ledTrim & BITM_LED_POW34_X_LED_CURRENT3_X) != 0)
+      gAdpd400xOptmVal.ledB_Trim = ledTrim;
+
+    Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &tiaGain);
+    gAdpd400xOptmVal.tiaB_Gain = tiaGain;
+#if defined(AGC_FEATURE)
+     if(gPpg_agc_done)
+     {
+      /* Adpd400xDetectObjectOffInit(); */
+      if ((gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN) != 0) {
+       Adpd400xMDCheckMotionInit();
+      }
+
+      if ((gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN) != 0) {
+        SMDoAGCInit();
+        gAdpd400xAGCStatInfo.mts[0] = 0xFFFF;
+        gAdpd400xAGCStatInfo.setting[1] = gAdpd400xOptmVal.ledB_Cur;
+        gAdpd400xAGCStatInfo.setting[2] = gAdpd400xOptmVal.ledB_Trim;
+        gAdpd400xAGCStatInfo.setting[3] = gAdpd400xOptmVal.ledB_Pulse;
+        gAdpd400xAGCStatInfo.setting[4] = gAdpd400xOptmVal.tiaB_Gain;
+        gAdpd400xAGCStatInfo.setting[5] = gAdpd400xOptmVal.sampleRate;
+        gAdpd400xAGCStatInfo.setting[6] = g_Adpd400xchannelNums;
+        gAdpd400xAGCStatInfo.setting[8] = gAdpd400xPPGLibStatus.CtrValue;
+        gAdpd400xAGCStatInfo.timestamp = AdpdLibGetSensorTimeStamp();
+      }
+    //gb_static_agc_green_done = 0; /* not required */
+    //gAdpd400xPpgLibState = ADPDLIB_STAGE_HEART_RATE;
+    //gsSampleCnt = 0;    
+     }
+     else
+     {
+       return ret;
+     }
+#endif //AGC_FEATURE
+#endif // STATIC_AGC 
+      uint16_t nRegTrim;
+      if(gDVT2){
+        g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
+        AdpdDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &gRegTrim);
+        nRegTrim = gRegTrim | (BITM_AFE_TRIM_X_TIA_CEIL_DETECT_EN_X);
+        AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
+        AdpdDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, nRegTrim);
+        AdpdMwLibSetMode(ADPD400xDrv_MODE_SAMPLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_32);
+      }
+          // initialize loop2 setting.
+      gAdpd400xOptmVal.ledB_Cur2 = gAdpd400xOptmVal.ledB_Cur;
+      gAdpd400xOptmVal.ledB_Trim2 = gAdpd400xOptmVal.ledB_Trim;
+      gAdpd400xOptmVal.ledB_Pulse2 = gAdpd400xOptmVal.ledB_Pulse;
+      gAdpd400xOptmVal.tiaB_Gain2 = gAdpd400xOptmVal.tiaB_Gain;
+      gAdpd400xOptmVal.sampleRate2 = gAdpd400xOptmVal.sampleRate;
+      gAdpd400xOptmVal.ledB_CurVal2 = gAdpd400xOptmVal.ledB_CurVal;
+
+      gAdpd400xPpgLibState = ADPDLIB_STAGE_HEART_RATE;
+      gsSampleCnt = 0;
+      gsNewSetting_SkipSampleNum = 3;// For meanvariance init
+    }
 
   // Offsensor: back to ADPDLIB_STAGE_START stage.
   if (gAdpd400xPpgLibState == ADPDLIB_STAGE_DETECT_OFF) {
@@ -781,7 +922,7 @@ static void SMStartInit() {
   gAdpd400xOptmVal.ledB_Pulse = gSlotOri.led_Pulse;
   gAdpd400xOptmVal.tiaB_Gain = gSlotOri.tia_Gain;
 
-  PpgLibGetSampleRate(&gsSampleRate, &gsDecimation);  // backup sampling rate
+  PpgLibGetSampleRate(&gsSampleRate, &gsDecimation,gAdpd400x_lcfg->targetSlots);  // backup sampling rate
   gAdpd400xOptmVal.sampleRate = gsSampleRate;
   gAdpd400xOptmVal.decimation = gsDecimation;
 
@@ -796,27 +937,18 @@ static void SMStartInit() {
   */
 static void SMEndDeInit() {
   Adpd400xUtilRestoreCriticalSetting();
-  // PpgLibSetSampleRate(gsSampleRate, gsDecimation);    // restore sampling rate
+  // PpgLibSetSampleRate(gsSampleRate, gsDecimation,gAdpd400x_lcfg->targetSlots);    // restore sampling rate
 }
 
 #if defined(AGC_FEATURE)
 static void SMDoAGCInit()  {
-  // Todo: ACOptInit(g_lcfg->partNum);
-  // find the ODR
-  /* gsHighMotionCheckCount = gOptmVal.sampleRate / gOptmVal.decimation \
-                           * g_lcfg->motionCheckPeriodHigh;*/
+  Adpd400xACOptInit(gAdpd400x_lcfg->partNum); /* partNum val? */
   gsMotionCheckCount = gAdpd400x_lcfg->hrmInputRate * gAdpd400x_lcfg->motionCheckPeriodHigh;
-
-  // PpgLibGetSampleRate(&sampleRate, &decimation);
 }
 
 static void SMDoAGC(uint32_t *rAdpdData, int16_t *rAdxlData)  {
   uint8_t status;
   uint8_t motionLevel;
-#if 0
-  if (gAdpd400xPPGLibStatus.CtrValue < gAdpd400x_lcfg->ctrTh)
-    return;   // use high power setting from loop1
-#endif // 0
   // check motion
   if (Adpd400xMDInstantCheck(rAdxlData, &motionLevel) == IERR_FAIL) {
     gsAgcStarted = Agc_Stop_Motion;   // to stop the AGC segment.
@@ -826,8 +958,10 @@ static void SMDoAGC(uint32_t *rAdpdData, int16_t *rAdxlData)  {
         gsHighMotionTrue = 1;
       gsLowMotionCounter = 0;
     } else {
-      if (++gsLowMotionCounter >= gsMotionCheckCount)
+      if (++gsLowMotionCounter >= gsMotionCheckCount) {
         gsLowMotionTrue = 1;
+        gsHighMotionTrue = 0;
+      }
       gsHighMotionCounter = 0;
     }
 
@@ -884,7 +1018,7 @@ static void PostNewSettingSetUp(uint8_t newSetting)   {
     gsNewSetting_SkipSampleNum = 3;
   }
 #if defined(AGC_FEATURE)
-  if ((gAdpd400x_lcfg->featureSelect & AGC_EN) != 0)  {
+  if ((gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN) != 0)  {
     Adpd400xMDResetTimers();
     Adpd400xMDPeriodicCheckStart();     // no need to wait for 90s
     gsAgcStarted = Agc_Stop_Normal;
@@ -893,55 +1027,62 @@ static void PostNewSettingSetUp(uint8_t newSetting)   {
 }
 
 // 1 = adc_saturation, 0 = afe_saturation
-static void SaturationAdjust(uint8_t adc_saturation)  {
-  uint16_t ledCurrent, ledPulses, ledReg12, ledReg34;
+static uint8_t SaturationAdjust(uint8_t adc_saturation,uint32_t dc_mean)  {
+  uint16_t ledCurrent, ledPulses, ledReg12, ledReg34, temp,sampleRate, decimateVal;
   double tempDouble;
+  uint8_t retVal, ori_pulse_value;
   
-  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * 0x20;
+  PpgLibGetSampleRate(&sampleRate, &decimateVal,gAdpd400x_lcfg->targetSlots);  // backup sampling rate
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
 
-  //ledPulses = Adpd400xUtilGetPulseNum(PPG_SLOTA);
-  ledPulses = Adpd400xUtilGetPulseNum(gAdpd400x_lcfg->targetSlots);
+  AdpdDrvRegRead((ADPD400x_REG_COUNTS_A  + g_reg_base), &temp);
+  ledPulses = (temp&0xFF);
+  ori_pulse_value = ledPulses;
   if (adc_saturation == 1)  {    // ADC saturation, adjust pulses
     AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
-    // reduce to targetDcPercent
-    ledPulses = (uint16_t)((ledPulses * gAdpd400x_lcfg->targetDcPercent + 50) / 100);
-    //Adpd400xUtilSetPulseNum(PPG_SLOTA, ledPulses, 1);
-    Adpd400xUtilSetPulseNum(gAdpd400x_lcfg->targetSlots, ledPulses, 1);
+
+    ledPulses = ledPulses * gAdpd400x_lcfg->targetDcPercent / 100; 
+
+    retVal = ADPDLibPostPulseDecreaseAdjust(&ledPulses,&ori_pulse_value,&sampleRate, &decimateVal, &dc_mean);
+    
+    temp = (temp & 0xFF00) | (ledPulses);
+    AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
+    AdpdDrvRegWrite((ADPD400x_REG_COUNTS_A  + g_reg_base), temp);
+    PpgLibSetSampleRate(sampleRate, decimateVal,gAdpd400x_lcfg->targetSlots);
+
     PpgLibSetMode(ADPD400xDrv_MODE_SAMPLE, \
                   ADPD400xDrv_SIZE_0, \
                   (ADPDDrv_Operation_Slot_t)(gAdpd400x_lcfg->deviceMode));
-    gAdpd400xOptmVal.ledB_Pulse2 = ledPulses;
+    gAdpd400xOptmVal.ledB_Pulse2 = temp;
     gAdpd400xOptmVal.SelectedLoop = 2;  // dont change loop1 setting
     gAdpd400xAGCStatInfo.setting[3] = gAdpd400xOptmVal.ledB_Pulse2;
-    return;
+    return 1;
   }
 
-  // saturation in afe
-  //ledCurrent = Adpd400xUtilGetCurrentFromSlot(PPG_SLOTA);
   ledCurrent = Adpd400xUtilGetCurrentFromSlot(gAdpd400x_lcfg->targetSlots);
   ledCurrent *= gAdpd400x_lcfg->targetDcPercent;
   ledCurrent /= 100;  // Adjust to valid range
 
-#if 0   // add pulses to makeup the same performance lost from less led current
-  tempDouble = gAdpd400x_lcfg->targetDcPercent * gAdpd400x_lcfg->targetDcPercent;
-  tempDouble = 10000 / tempDouble;
-  ledPulses *= tempDouble;   // gain back the same SNR by therory
-#else   // add pulses by the same percentage
+
   tempDouble = 200 - gAdpd400x_lcfg->targetDcPercent;
-  ledPulses = (uint16_t)(((ledPulses * tempDouble) + 50) / 100); // add pulses
-#endif
+  ledPulses = (uint16_t)(ledPulses * tempDouble / 100); // add pulses
 
-  //gAdpd400xOptmVal.ledB_Pulse2 = Adpd400xUtilGetPulseNum(PPG_SLOTA);
-  gAdpd400xOptmVal.ledB_Pulse2 = Adpd400xUtilGetPulseNum(gAdpd400x_lcfg->targetSlots);
+  retVal = ADPDLibPostPulseIncreaseAdjust(&ledPulses,&ori_pulse_value,&sampleRate, &decimateVal,&dc_mean);
 
+  // if the ledPulses increment is too high as indicated by return value of 9, 
+  //  then revert to original pulse
+  if(retVal == IERR_FAIL) {
+    ledPulses = (temp & 0xFF);
+  }
+  temp = (temp & 0xFF00) | (ledPulses);
+  gAdpd400xOptmVal.ledB_Pulse2 =temp;
+  
   AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
   Adpd400xUtilGetCurrentRegValue(ledCurrent, &ledReg12, &ledReg34);
   AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_LED_POW12_A, ledReg12);
   AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_LED_POW34_A, ledReg34);
-  // limitation on pulses (timing, and even number etc).
-  //Adpd400xUtilSetPulseNum(PPG_SLOTA, ledPulses, 1);
-  Adpd400xUtilSetPulseNum(gAdpd400x_lcfg->targetSlots, ledPulses, 1);
-
+  AdpdDrvRegWrite((ADPD400x_REG_COUNTS_A  + g_reg_base), temp);
+  PpgLibSetSampleRate(sampleRate, decimateVal,gAdpd400x_lcfg->targetSlots)
   PpgLibSetMode(ADPD400xDrv_MODE_SAMPLE, \
                 ADPD400xDrv_SIZE_0, \
                 (ADPDDrv_Operation_Slot_t)(gAdpd400x_lcfg->deviceMode));
@@ -952,17 +1093,43 @@ static void SaturationAdjust(uint8_t adc_saturation)  {
   gAdpd400xOptmVal.SelectedLoop = 2;
   gAdpd400xAGCStatInfo.setting[1] = gAdpd400xOptmVal.ledB_Cur2;
   gAdpd400xAGCStatInfo.setting[2] = gAdpd400xOptmVal.ledB_Trim2;
+  return 1;
 }
 
+static void SaturationAdjustCurrent()  {
+  uint16_t ledCurrent,ledReg12, ledReg34;
+
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
+  
+  ledCurrent = Adpd400xUtilGetCurrentFromSlot(gAdpd400x_lcfg->targetSlots);
+  ledCurrent *= gAdpd400x_lcfg->satAdjustPercentForStaticAgc;
+  ledCurrent /= 100;  // Adjust to valid range
+  if(ledCurrent != 0){
+  AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
+  Adpd400xUtilGetCurrentRegValue(ledCurrent, &ledReg12, &ledReg34);
+  AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_LED_POW12_A, ledReg12);
+  AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_LED_POW34_A, ledReg34);
+  PpgLibSetMode(ADPD400xDrv_MODE_SAMPLE, \
+                ADPD400xDrv_SIZE_0, \
+                (ADPDDrv_Operation_Slot_t)(gAdpd400x_lcfg->deviceMode));
+  //Update for debug info
+  gAdpd400xOptmVal.ledB_Cur2 = ledReg12;
+  gAdpd400xOptmVal.ledB_Trim2 = ledReg34;
+  gAdpd400xOptmVal.ledB_CurVal2 = Adpd400xUtilGetCurrentFromReg(ledReg12, ledReg34);
+  gAdpd400xOptmVal.SelectedLoop = 2;
+  }
+}
+
+#if defined(AGC_FEATURE) 
 static void SettingForHighMotion()  {
   uint32_t dcPower, acPower;
 
   // if in loop2 and previous highMotion is false
   if (gAdpd400xOptmVal.SelectedLoop == 2)  {
     // check current setting power compare to loop1
-    dcPower = gAdpd400xOptmVal.ledB_CurVal * (gAdpd400xOptmVal.ledB_Pulse>>8);
+    dcPower = gAdpd400xOptmVal.ledB_CurVal * (gAdpd400xOptmVal.ledB_Pulse & (0xFF));
     dcPower *= gAdpd400xOptmVal.sampleRate;
-    acPower = gAdpd400xOptmVal.ledB_CurVal2 * (gAdpd400xOptmVal.ledB_Pulse2>>8);
+    acPower = gAdpd400xOptmVal.ledB_CurVal2 * (gAdpd400xOptmVal.ledB_Pulse2 & (0xFF));
     acPower *= gAdpd400xOptmVal.sampleRate2;
 
     if (dcPower > acPower)  {   // loop1 > loop2
@@ -971,27 +1138,25 @@ static void SettingForHighMotion()  {
       AdpdMwLibSetMode(ADPD400xDrv_MODE_SAMPLE,
                       ADPD400xDrv_SIZE_0,
                       (ADPDDrv_Operation_Slot_t)(gAdpd400x_lcfg->deviceMode));
-      PostNewSettingSetUp(1);
-#if defined(AGC_FEATURE)      
+      PostNewSettingSetUp(1);   
       gAdpd400xAGCStatInfo.setting[1] = gAdpd400xOptmVal.ledB_Cur;
       gAdpd400xAGCStatInfo.setting[2] = gAdpd400xOptmVal.ledB_Trim;
       gAdpd400xAGCStatInfo.setting[3] = gAdpd400xOptmVal.ledB_Pulse;
       gAdpd400xAGCStatInfo.setting[4] = gAdpd400xOptmVal.tiaB_Gain;
       gAdpd400xAGCStatInfo.setting[5] = gAdpd400xOptmVal.sampleRate;
 
-      gAdpd400xAGCStatInfo.mts[0] = 0xFF;
+      gAdpd400xAGCStatInfo.mts[0] = 0xFFFF;
       gAdpd400xAGCStatInfo.mts[1] = 0;
       gAdpd400xAGCStatInfo.mts[2] = 0;
       gAdpd400xAGCStatInfo.mts[3] = 0;
       gAdpd400xAGCStatInfo.setting[0] = AgcLog_Loop1;      // Switch to loop1 indication
-#endif      
-      //adi_printf("\nHighMotion change Power!!");
+          
 	  NRF_LOG_INFO("HighMotion change Power!!\r\n");
     } else {
-      //adi_printf("\nHighMotion, Keep current Power!!");
 	  NRF_LOG_INFO("HighMotion, Keep current Power!!\r\n");
     }
     // else do nothing
   }
   return;
 }
+#endif

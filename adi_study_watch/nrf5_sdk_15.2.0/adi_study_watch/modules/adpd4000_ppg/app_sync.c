@@ -38,6 +38,7 @@
 #include <math.h>
 #include "adxl362.h"
 #include "adxl_dcfg.h"
+#include "adxl_task.h"
 #include "adpd400x_drv.h"
 #include "app_sync.h"
 #include "hw_if_config.h"
@@ -64,12 +65,15 @@
 extern g_state_t g_state;
 #ifdef ENABLE_PPG_APP
 extern volatile uint8_t gn_uc_hr_enable;
-extern volatile uint16_t gsODR; //ADPD ODR
-extern volatile uint16_t gnODR; //ADXL ODR
+extern volatile uint16_t gnAdxlODR; //ADXL ODR
+extern uint16_t gPrevSamplerate;
+extern g_state_adxl_t  g_state_adxl;
 volatile uint8_t gnAppSyncTimerStarted = 0;
 extern volatile uint8_t gsOneTimeValueWhenReadAdxlData;
 extern volatile uint8_t gsOneTimeValueWhenReadAdpdData;
 extern uint32_t  Ppg_Slot;
+extern uint16_t gn_uc_hr_slot;
+extern adpd400xDrv_slot_t gsSlot[SLOT_NUM];
 /* -------------------------Public function prototype ------------------------*/
 void DisplaySyncMode(SynchMode_t eSyncMode);
 
@@ -217,7 +221,7 @@ static AdxlRawDataBuf oHwSyncAdxlRawData;
 static SyncParameters oHwSync = {SYNC_SKIP};
 
 void SyncClearDataBuffer(){
-  SyncDataClear(4);
+  SyncDataClear(8);
 }
 #endif
 
@@ -261,7 +265,7 @@ uint16_t get_adpd_odr(void)
       lfOSC = 32000;    // 32k clock
     Adpd400xDrvRegRead32B(ADPD400x_REG_TS_FREQ, &sampleFrq);
     adpd_odr = (uint16_t) (lfOSC / sampleFrq);
-
+    
 //    Adpd400xDrvRegRead(0x01B2, &dec_reg_data);    // TODO: hardcoded for slot F, need to make it generic
 //    adpd_odr = (sampleFrq/(dec_reg_data+1));
     return adpd_odr;
@@ -276,7 +280,8 @@ void HwSyncInit(){
     nFifoWatermark = 1;
     uint8_t slot = (uint8_t)log2(Ppg_Slot);
 
-    GetAdpdClOutputRate(&samplingRate, &decimateVal, slot);
+    GetAdpdClOutputRate(&samplingRate, &decimateVal, Ppg_Slot);
+    gPrevSamplerate = samplingRate;// Initial sample rate for PPG
     Adpd400xDrvSetParameter(ADPD400x_WATERMARKING, 0, nFifoWatermark);
     /***************************************************************************
      1. GPIO0 set as Inverted O/P, becuase the Host platform configured for
@@ -340,7 +345,7 @@ void HwSyncInit(){
   oHwSync.eSyncState = SYNC_INIT;
   //oHwSync.eSyncState = SYNC_SKIP; //To skip S/w Sync Buffering
 
-  SyncDataBufferInit(4);
+  SyncDataBufferInit(8);
 }
 
 void HwSyncDeInit(){
@@ -399,8 +404,12 @@ CIRC_BUFF_STATUS_t  status = CIRC_BUFF_STATUS_ERROR;
              gnAdpdSYNC_BUFFERING_put++;
              return SYNC_BUFFERING;
            }
-           if(!gsOneAdpdDataSetRdy)
-            gsOneAdpdDataSetRdy = 1;
+           if(!gsOneAdpdDataSetRdy){
+              gsOneAdpdDataSetRdy = 1;
+              if(g_state_adxl.num_starts == 0){// This is the case for ADPD without ADXL in UCHR, zero adxl data will be passed for HRM 
+                 gsOneTimeValueWhenReadAdxlData = 1;
+              }
+           }
       }
 
       if (pnAccelData != NULL) {
@@ -456,16 +465,20 @@ CIRC_BUFF_STATUS_t  status = CIRC_BUFF_STATUS_ERROR;
 uint8_t app_sync_timer_interval()
 {
   uint8_t timer_interval;
-
-  if( (gsODR == 0) || (gnODR == 0) )
+  uint8_t slot = gn_uc_hr_slot - 1;
+  if(gsSlot[slot].odr == 0)
     return 0;
   //Make timer run at lower ODR
   /* ADPD ODR < ADXL ODR */
-  if(gsODR < gnODR)
-    timer_interval = (1000/gsODR); //interval in ms
-  else
-    timer_interval = (1000/gnODR); //interval in ms
-
+  if(gsSlot[slot].odr < gnAdxlODR){
+    timer_interval = (1000/gsSlot[slot].odr); //interval in ms
+  }else{
+    if(gnAdxlODR == 0){ // if ADPD alone running for UCHR ,ADXL ODR will be zero here.In that case using ADPD ODR.
+      timer_interval = (1000/gsSlot[slot].odr); //interval in ms
+    }else{
+      timer_interval = (1000/gnAdxlODR); //interval in ms
+    }
+  }
   NRF_LOG_INFO("App Sync Timer:%d ms", timer_interval);
   return timer_interval;
 }
@@ -527,7 +540,7 @@ static void app_sync_timeout_handler(void * p_context)
   CIRC_BUFF_STATUS_t  status = CIRC_BUFF_STATUS_ERROR;
 
   /* ADPD ODR < ADXL ODR */
-  if(gsODR < gnODR )
+  if(gsSlot[gn_uc_hr_slot - 1].odr < gnAdxlODR )
   {
     status = sync_adxl_buff_get(oHwSyncAdxlRawData.nDataValue, &oHwSyncAdxlRawData.nTimeStamp);
     if (status != CIRC_BUFF_STATUS_OK) {
@@ -543,7 +556,7 @@ static void app_sync_timeout_handler(void * p_context)
   }
 
   /* ADPD ODR >= ADXL ODR */
-  else//(gsODR >= gnODR )
+  else//(gsSlot[gn_uc_hr_slot - 1].odr >= gnAdxlODR )
   {
     gsOneAdpdDataSetRdy = gsOneAdxlDataSetRdy = 0;
     status = sync_adpd_buff_get(oHwSyncAdpdData.nDataValue, &oHwSyncAdpdData.nTimeStamp);

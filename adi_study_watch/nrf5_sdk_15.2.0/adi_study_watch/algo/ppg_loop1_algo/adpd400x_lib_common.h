@@ -33,11 +33,12 @@
 extern "C" {
 #endif
 //#include "ADPDDrv.h"
+#include "adpd400x_lib.h"
 #include "adpd_err_code.h"
 #include "adpd400x_reg.h"
 #include "adpd400x_drv.h"
 #define PPG_SLOTA                  1
-
+#define SLOT_REG_OFFSET            0x20
 //#define ADPDDrv_Operation_Mode_t   ADPD400xDrv_Operation_Mode_t
 #define ADPDDrv_Operation_Slot_t   ADPD400xDrv_FIFO_SIZE_t
 
@@ -47,8 +48,8 @@ extern "C" {
 //#define PpgLibSetMode(a,b,c)        AdpdSetSlotCb(b,c); PpgSetModeCB(a);   // hrm state with adxl
 #define PpgLibSetMode(a,b,c)        PpgAdpd400xSetModeCB(a);   // hrm state with adxl
 
-#define PpgLibSetSampleRate(a,b)    PpgAdpd400xLibSetSampleRateCb(a, b);
-#define PpgLibGetSampleRate(a,b)    PpgAdpd400xLibGetSampleRateCb(a, b);
+#define PpgLibSetSampleRate(a,b,c)    PpgAdpd400xLibSetSampleRateCb(a, b, c);
+#define PpgLibGetSampleRate(a,b,c)    PpgAdpd400xLibGetSampleRateCb(a, b, c);
 
 #define PpgGetRegAddr(a,b)          log2(a) * 0x20 + b;
 
@@ -62,6 +63,8 @@ extern "C" {
 #ifndef ABSDIFF
 #define ABSDIFF(a, b)   ((a>b) ? (a-b): (b-a))
 #endif
+
+extern int16_t PpgSetOperationMode(uint8_t eOpState);
 
 // Original slot setting  //
 typedef struct _adpdClSlotOri_t {
@@ -96,7 +99,7 @@ typedef struct _adpdOptimization_t {
   uint16_t ledB_CurVal2;
   uint16_t sampleRate2;
   uint16_t decimation2;
-  uint8_t  sigQuality;
+  uint16_t  sigQuality;
   uint16_t Mt1;
   uint16_t Mt2;
   uint16_t Mt3;
@@ -155,6 +158,7 @@ typedef struct _adpdClConfig_t {
 } AdpdClConfig_t;
 
 /* External Variables -------------------------------------------------------*/
+extern uint8_t gPpg_agc_done;
 extern Adpd400xLibConfig_t *gAdpd400x_lcfg;
 extern uint16_t g_reg_base;
 extern ADPDLIB_STAGES_t gAdpd400xPpgLibState;
@@ -164,6 +168,7 @@ extern int16_t gAdpd400xAdxlOrg[3];
 extern uint32_t gAdpd400xPpgTimeStamp;
 extern uint16_t gSlotAmode;
 extern AGCStat_t gAdpd400xAGCStatInfo;
+extern AlgoRawDataStruct_t gGetAlgoInfo;
 extern AdpdClConfig_t gAdpd400xFloatModeCfg[];
 extern AdpdClConfig_t gAdpd400xNormalModeCfg[];
 extern uint16_t gAdpd400xOpModeUsedReg[];
@@ -178,8 +183,8 @@ extern uint32_t gnAdpd400xTempData[];       // Temporary buffer
 extern void Adpd400xSetModeCB(ADPD400xDrv_Operation_Mode_t);
 extern void PpgAdpd400xSetModeCB(ADPD400xDrv_Operation_Mode_t);
 extern void Adpd400xSetSlotCb(ADPD400xDrv_Operation_Mode_t, ADPD400xDrv_Operation_Mode_t);
-extern void PpgAdpd400xLibSetSampleRateCb(uint16_t rate, uint16_t decimation);
-extern void PpgAdpd400xLibGetSampleRateCb(uint16_t* rate, uint16_t* decimation);
+extern void PpgAdpd400xLibSetSampleRateCb(uint16_t rate, uint16_t decimation,uint16_t slotnum);
+extern void PpgAdpd400xLibGetSampleRateCb(uint16_t* rate, uint16_t* decimation,uint16_t slotnum);
 extern void Adpd400xSetChannelFilter(uint16_t slotX_ch1, int16_t usedChValue);
 extern void Adpd400xUtilRecordCriticalSetting(void);
 extern void Adpd400xUtilRestoreCriticalSetting(void);
@@ -224,17 +229,22 @@ extern INT_ERROR_CODE_t Adpd400xDetectObjectOFF(uint32_t mean_val, uint32_t var)
 // functions from util.c //
 extern uint32_t Adpd400xMwLibGetCurrentTime(void);
 extern uint32_t AdpdMwLibDeltaTime(uint32_t start, uint32_t current);
+extern uint16_t Adpd400xUtilGetCurrentValue(uint16_t coarseReg, uint16_t fineReg);
 extern void Adpd400xUtilGetMeanVarInit(uint8_t avg_size, uint8_t get_var);
-extern INT_ERROR_CODE_t Adpd400xUtilGetMeanVar(uint32_t*, uint32_t*, uint32_t*);
+extern INT_ERROR_CODE_t Adpd400xUtilGetMeanVar(uint32_t*, uint32_t*, uint32_t*,uint32_t*);
 extern uint16_t Adpd400xUtilGetCurrentFromSlot(uint8_t slotNum);
 extern uint16_t Adpd400xUtilGetCurrentFromReg(uint16_t reg12, uint16_t reg34);
 extern uint8_t Adpd400xUtilGetCurrentRegValue(uint16_t cur, uint16_t* cR, uint16_t* fR);
+extern uint16_t Adpd400xUtilGetRegFromMonotonicCurrent(uint8_t ncurrent);
 extern void Adpd400xUtilSetLoop1Config(void);
 extern void Adpd400xStoreOpModeSetting(void);
 extern void Adpd400xApplyOpModeSetting(void);
 
 // functions from other
+extern uint8_t ADPDLibPostPulseDecreaseAdjust(uint16_t *npulse,uint8_t *oripulse, uint16_t *nsamplerate, uint16_t *ndecimation, uint32_t *ndcLevel);
+extern uint8_t ADPDLibPostPulseIncreaseAdjust(uint16_t *newpulse, uint8_t *oripulse, uint16_t *nsamplerate, uint16_t *ndecimation, uint32_t *ndcLevel);
 extern void Adpd400xMDResetTimers(void);
+void Adpd400xUpdateAGCInfoSettings(void); 
 /////////////////////
 
 #ifdef __cplusplus /* If this is a C++ compiler, end C linkage */

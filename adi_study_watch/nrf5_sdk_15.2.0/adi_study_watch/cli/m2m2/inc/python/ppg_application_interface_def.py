@@ -155,6 +155,7 @@ class hrv_data_set_t(Structure):
               ("timestamp", c_ushort),
               ("rr_interval", c_short),
               ("is_gap", c_ushort),
+              ("rmssd", c_ushort),
               ]
 
 class ppg_app_hrv_info_t(Structure):
@@ -166,6 +167,7 @@ class ppg_app_hrv_info_t(Structure):
               ("timestamp", c_ulong),
               ("first_rr_interval", c_short),
               ("first_is_gap", c_ushort),
+              ("first_rmssd", c_ushort),
               ("hrv_data", hrv_data_set_t * 3),
               ]
 

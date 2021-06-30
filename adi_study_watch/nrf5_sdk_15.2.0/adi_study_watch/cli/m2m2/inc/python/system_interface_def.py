@@ -384,7 +384,7 @@ class m2m2_pm_sys_sensor_apps_info_req_t(Structure):
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("num_sensor_apps", c_ushort),
-              ("app_info", m2m2_pm_sys_sensor_app_status * 15),
+              ("app_info", m2m2_pm_sys_sensor_app_status * 21),
               ]
 
 class m2m2_get_apps_running_stat_req_cmd_t(Structure):

@@ -60,7 +60,7 @@
 #include "ble_gap.h"
 #include "ble_task.h"
 #include "dcb_general_block.h"
-#include "wrist_detect_block.h"
+#include "lt_app_lcfg_block.h"
 #include "fds_drv.h"
 #include "file_system_utils.h"
 #include "mw_ppg.h"
@@ -100,7 +100,8 @@ extern uint32_t ad5940_port_Init(void);
 extern uint32_t ad5940_port_deInit(void);
 extern bool ecg_get_dcb_present_flag(void);
 extern bool eda_get_dcb_present_flag(void);
-
+extern void delete_low_touch_config_file();
+extern void load_default_low_touch_config();
 /* For system FreeRTOS Task Creation */
 /* Create the stack for task */
 uint8_t ga_system_task_stack[APP_OS_CFG_PM_TASK_STK_SIZE];
@@ -165,9 +166,9 @@ static void ping_timer_start(void);
 static void ping_timer_stop(void);
 
 #ifdef DCB
-static m2m2_hdr_t *wrist_detect_dcb_command_read_config(m2m2_hdr_t *p_pkt);
-static m2m2_hdr_t *wrist_detect_dcb_command_write_config(m2m2_hdr_t *p_pkt);
-static m2m2_hdr_t *wrist_detect_dcb_command_delete_config(m2m2_hdr_t *p_pkt);
+static m2m2_hdr_t *lt_app_lcfg_dcb_command_read_config(m2m2_hdr_t *p_pkt);
+static m2m2_hdr_t *lt_app_lcfg_dcb_command_write_config(m2m2_hdr_t *p_pkt);
+static m2m2_hdr_t *lt_app_lcfg_dcb_command_delete_config(m2m2_hdr_t *p_pkt);
 #endif
 
 /* To distinguish between stream_stop_resp/unsub_resp pkt received in s/m task
@@ -192,13 +193,15 @@ static m2m2_pm_sys_sensor_apps_info_req_t *gsSensorAppsInfoPayload = NULL;
 static uint8_t gsPsAppNumber = 0;
 /* No: of Active sensor apps */
 static uint8_t gsActivePsAppCnt = 0;
+/* Flag to specify that all slots within ADPD are being gone through
+   from M2M2_ADDR_SENSOR_ADPD4000 sensor app, while GetSensorAppStatus() */
+static uint8_t gnAdpdSensorApp = 0;
 /* 20 -> max num of sensor apps in Watch; gets updated later from the actual
  * routing table */
 static uint8_t gsRoutingTableSize = 20;
 /* to hold the source address of the command */
 static M2M2_ADDR_ENUM_t gsStausCmdSrcAddr = NULL;
 
-uint8_t gStopCmdEnable = 0;
 extern g_state_t g_state;
 
 void GetSensorAppsStatus();
@@ -213,11 +216,18 @@ static M2M2_ADDR_ENUM_t gnForceStopReqAddr = M2M2_ADDR_UNDEFINED;
 /* Flag to handle whether ADXL sensor was 'start'ed to get raw
  * data(CLI_USB/CLI_BLE) or if it was started by internal applications like PPG
  */
-extern uint8_t gb_adxl_raw_start;
+extern uint8_t gb_adxl_raw_start_ppg;
 /* Flag to handle whether ADPD sensor was 'start'ed to get raw
  * data(CLI_USB/CLI_BLE) or if it was started by internal applications like
- * PPG/Temp */
-extern uint8_t gb_adpd_raw_start;
+ * PPG */
+extern uint8_t gb_adpd_raw_start_ppg;
+/* Flag to handle whether ADPD sensor was 'start'ed to get raw
+ * data(CLI_USB/CLI_BLE) or if it was started by internal applications like
+ * Temp */
+extern uint8_t gb_adpd_raw_start_temp;
+/* Flag to handle whether ADPD sensor was 'start'ed and multiple subscribers
+* (more than 1) added to get raw data(CLI_USB/CLI_BLE) */
+extern uint8_t gb_adpd_multi_sub_start;
 
 /*To send the LT error responses */
 extern M2M2_ADDR_ENUM_t usb_pkt_src;
@@ -266,7 +276,6 @@ static void SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_ENUM_t nAlertMsg) {
 }
 #ifdef LOW_TOUCH_FEATURE
 #define MAX_CMD_RETRY_CNT 5
-#define MAX_CONFIG_FILE_SIZE 4096
 #define MAX_FILE_COUNT 62
 #define MAX_USABLE_MEMORY_SIZE 536868864
 /* // M2M2_HEADER_SZ + sizeof(m2m2_file_sys_user_cfg_summary_pkt_t) */
@@ -312,18 +321,26 @@ static m2m2_hdr_t *gsConfigCmdHdr = NULL;
 static uint8_t gsStartStatusCnt = 0, gsSubStatusCnt = 0, gsfslogStatusCnt = 0,
                gsCommonStatusCnt = 0, gsCmdRetryCnt = 0;
 /* RAM buffer which hold a copy of either DCB/NAND config file which has LT
- * start/stop sequence of commands */
-static uint8_t gsConfigTmpFile[MAX_CONFIG_FILE_SIZE];
+ * start/stop sequence of commands
+ * This buffer is to be reused between holding the copy of LT config file
+ * as well as temporary storage for DCB content during READ/WRITE DCB block
+ * for ADPD, Gen block DCB
+ * NAND config file size = 1 page size = 4096 bytes.
+ * Gen block DCB size, with MAX_GEN_BLK_DCB_PKTS=18 pkts,
+ * each having 57 * 4 bytes = 4104 bytes.
+ * ADPD4000 DCB size, with MAX_ADPD4000_DCB_PKTS=2 pkts,
+ * each having 57 * 4 bytes = 456 bytes.
+ * In the below array size definition, maximum of the above is chosen.
+ */
+uint8_t gsConfigTmpFile[MAXGENBLKDCBSIZE * DCB_BLK_WORD_SZ * MAX_GEN_BLK_DCB_PKTS];
 /* Variable to hold the index where DCB/NAND config file is to be written to */
 static uint16_t gsCfgWrIndex = 0;
 /* Variable pointer which holds the summary info on the DCB/NAND config file
  * which has LT start/stop sequence of commands */
 static m2m2_file_sys_user_cfg_summary_pkt_t *gsCfgFileSummaryPkt = NULL;
-// static uint8_t gsPsReadyFlag = 0;
 /* Variable which indicates whether LT Start or Stop sequence of cmds is being
  * executed currently */
 static uint8_t gsStartCmdsRunning = 0, gsStopCmdsRunning = 0;
-// static uint16_t gsLowTouchCmdSrc = 0;
 struct _low_touch_info {
   M2M2_ADDR_ENUM_t tool_addr; /*Tool Address*/
   uint8_t cmd;                /*Command sent from tool*/
@@ -432,6 +449,14 @@ void SendForceStopLogging() {
  * @retval   None
  ******************************************************************************/
 void SetCfgFileAvailableFlag(uint8_t nflag) { gsCfgFileFoundFlag = nflag; }
+
+/*!
+ ****************************************************************************
+ * @brief   Get the flag with NAND cfg file availablity status
+ * @param    None
+ * @retval   None
+ ******************************************************************************/
+uint8_t GetCfgFileAvailableFlag(void) { return(gsCfgFileFoundFlag); }
 
 /*!
  ****************************************************************************
@@ -637,6 +662,7 @@ static void MaxFileErr() {
 #ifdef ENABLE_WATCH_DISPLAY
   // Insert display code handling
   send_global_type_value(DIS_MAX_FILE_ALARM);//pop up max file error alam.
+  resume_key_and_lt_task();
 #endif
 }
 
@@ -646,12 +672,12 @@ static void MaxFileErr() {
  * @param    None
  * @retval   None
  ******************************************************************************/
-static void LowTouchErr(void) {
+void LowTouchErr(void) {
   //    gLowTouchRunning = 0;
-  gStopCmdEnable = 0;
 #ifdef ENABLE_WATCH_DISPLAY
   // Insert display code handling
   send_global_type_value(DIS_LOW_TOUCH_ALARM);//pop up low touch alarm.
+  resume_key_and_lt_task();
 #endif
 }
 
@@ -773,14 +799,14 @@ static void SendUserConfigCommands(void) {
 }
 #endif // LOW_TOUCH_FEATURE
 
-/*counters for tracking the number of stop command sent and senor applications
- * respecively*/
-static uint8_t gsSensorStopCnt = 0, gsSensorAppsCnt = 0;
+/* counters for tracking the number of stop command sent, Unsub cmd sent
+ * and senor applications respecively*/
+static uint8_t gsSensorStopCnt = 0, gsSensorSubCnt = 0, gsSensorAppsCnt = 0;
 
 /*!
  ****************************************************************************
- * @brief   Sends the sensor stop commands to each of the sensor applications
- * based on their sensor start count
+ * @brief   Sends the sensor unsubscribe, stop commands to each of the sensor
+ *          applications based on their sensor start count
  * @param    None
  * @retval   None
  ******************************************************************************/
@@ -796,10 +822,15 @@ void SendSensorStopCmds() {
                                 on PS till the start count becomes zero */
   {
     nAdvanceToNextApp = 0;
-    /*send the [num_start_reqs] number of stop commands to the sensor
+    /* send the [num_start_reqs] number of stop commands OR
+     * [num_subscribers] number of unsub commands to the sensor
      * application{app_info[gsSensorAppsCnt].sensor_app_id}*/
     while (gsSensorStopCnt <
-           gsSensorStatusRespPkt->app_info[gsSensorAppsCnt].num_start_reqs) {
+           gsSensorStatusRespPkt->app_info[gsSensorAppsCnt].num_start_reqs ||
+           gsSensorSubCnt <
+           gsSensorStatusRespPkt->app_info[gsSensorAppsCnt].num_subscribers
+           ) {
+      NRF_LOG_INFO("gsSensorAppsCnt:%d gsSensorSubCnt:%d, gsSensorStopCnt:%d",gsSensorAppsCnt,gsSensorSubCnt, gsSensorStopCnt);
       pkt = post_office_create_msg(
           M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
       if (pkt != NULL) {
@@ -807,6 +838,7 @@ void SendSensorStopCmds() {
             (m2m2_app_common_sub_op_t *)&pkt->data[0];
 
         if (!gb_stop_streaming_if_no_logging) {
+          NRF_LOG_INFO("No logging check required");
           nSendStopCmd = 1;
           gb_sensor_stop_cmds = 1;
           payload->command = M2M2_APP_COMMON_CMD_STREAM_STOP_REQ;
@@ -819,32 +851,24 @@ void SendSensorStopCmds() {
         // If logging is in progress, send Unsubscribe sensor stream instead of
         // Sensor Stop
         else {
+          NRF_LOG_INFO("Logging check required");
           if (gsSensorStatusRespPkt->app_info[gsSensorAppsCnt].fs_sub_stat ==
               M2M2_FILE_SYS_SUBSCRIBED) {
+            NRF_LOG_INFO("FS subscribed");
             if (gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
                     .num_subscribers > 1) {
               nSendStopCmd = 1;
+              gsSensorSubCnt++;  //Handle sub cnt for FS
+              gsSensorStopCnt++; //Handle sensor start count for FS
               NRF_LOG_DEBUG("Force Sensor Unsub Given, since Logging is in "
                             "progress for %x",
                   gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
                       .sensor_app_id);
-              if (M2M2_ADDR_SENSOR_ADPD4000 ==
-                  gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
-                      .sensor_app_id) {
-                uint8_t i;
-                // Go through total adpd slots
-                for (i = 0; i < 12; i++) {
-                  if (g_state.num_subs[i] > 1) {
-                    payload->stream =
-                        (M2M2_ADDR_ENUM_t)(i + M2M2_ADDR_SENSOR_ADPD_STREAM1);
-                    gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
-                        .sensor_stream = payload->stream;
-                  }
-                }
-              }
               gb_sensor_stop_cmds = 1;
               payload->command = M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_REQ;
               payload->status = M2M2_APP_COMMON_STATUS_OK;
+              payload->stream = gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                        .sensor_stream;
               pkt->src = M2M2_ADDR_SYS_PM;
               pkt->dest = gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
                               .sensor_app_id;
@@ -860,52 +884,31 @@ void SendSensorStopCmds() {
               }
               post_office_send(pkt, &err);
             } else {
-              // Do nothing
+              //m2m2_hdr_t *pkt unused, so free it
+              NRF_LOG_INFO("No sub count");
               post_office_consume_msg(pkt);
             }
           }
           // No logging in progress
           else {
-            if (gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
-                        .num_start_reqs >= 1 &&
-                gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
-                        .num_subscribers >= 1) {
-              nSendStopCmd = 1;
-              gb_unsub_only = 0;
-              // Skip Sensor Stop if gb_adxl_raw_start is not set
-              if (((M2M2_ADDR_SENSOR_ADXL ==
-                       gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
-                           .sensor_app_id) &&
-                      !gb_adxl_raw_start) ||
-                  ((M2M2_ADDR_SENSOR_ADPD4000 ==
-                       gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
-                           .sensor_app_id) &&
-                      !gb_adpd_raw_start)) {
-                gb_unsub_only = 1;
-                NRF_LOG_DEBUG(
-                    "Force Unsub only given(not raw sensor start) for %x",
-                    gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
-                        .sensor_app_id);
-              }
+            NRF_LOG_INFO("No FS sub count");
+            uint8_t pkt_used = 0; //Flag to track usage of m2m2_hdr_t *pkt, to free it properly
 
-              if (M2M2_ADDR_SENSOR_ADPD4000 ==
-                  gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
-                      .sensor_app_id) {
-                uint8_t i;
-                // Go through total adpd slots
-                for (i = 0; i < 12; i++) {
-                  if (g_state.num_subs[i] >= 1) {
-                    payload->stream =
-                        (M2M2_ADDR_ENUM_t)(i + M2M2_ADDR_SENSOR_ADPD_STREAM1);
-                  }
-                }
-              }
-              NRF_LOG_DEBUG("Force Unsub given for %x",
+            if ( gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                        .num_subscribers >= 1) {
+
+              nSendStopCmd = 1;
+              gb_unsub_only = 1;
+              pkt_used = 1;
+
+              NRF_LOG_DEBUG("sub cnt >= 1, Force Unsub given for %x",
                   gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
                       .sensor_app_id);
               gb_sensor_stop_cmds = 1;
               payload->command = M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_REQ;
               payload->status = M2M2_APP_COMMON_STATUS_OK;
+              payload->stream = gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                        .sensor_stream;
               pkt->src = M2M2_ADDR_SYS_PM;
               pkt->dest = gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
                               .sensor_app_id;
@@ -920,72 +923,104 @@ void SendSensorStopCmds() {
                     false);
               }
               post_office_send(pkt, &err);
+            } if (gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                        .num_start_reqs >= 1) {
+                m2m2_hdr_t *pkt1 = NULL;
 
-              if (!gb_unsub_only) {
-                NRF_LOG_DEBUG("Force Unsub and Sensor Stop Given for %x",
+                /* Skip Sensor Stop if gb_adxl_raw_start_ppg/gb_adpd_raw_start_ppg/
+                   gb_adpd_raw_start_temp is not set OR
+                   gb_adpd_multi_sub_start is set*/
+                if (((M2M2_ADDR_SENSOR_ADXL ==
+                       gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                           .sensor_app_id) &&
+                      !gb_adxl_raw_start_ppg) ||
+                  ((M2M2_ADDR_SENSOR_ADPD4000 ==
+                       gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                           .sensor_app_id) &&
+                      !gb_adpd_raw_start_ppg) ||
+                  ((M2M2_ADDR_SENSOR_ADPD4000 ==
+                       gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                           .sensor_app_id) &&
+                      !gb_adpd_raw_start_temp) ||
+                  ((M2M2_ADDR_SENSOR_ADPD4000 ==
+                       gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                           .sensor_app_id) &&
+                      gb_adpd_multi_sub_start)) {
+                  NRF_LOG_INFO(
+                    "Force Stream stop skipped(not raw sensor start) for %x",
                     gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
                         .sensor_app_id);
-                pkt = post_office_create_msg(
+                  gsSensorStopCnt++; //Handle sensor start count for raw sensor start case
+                  if(!nSendStopCmd) {
+                    NRF_LOG_DEBUG("Consuming pkt");
+                    post_office_consume_msg(pkt);
+                  }
+                  break;
+                }
+
+                nSendStopCmd = 1;
+                gb_unsub_only = 0;
+
+                NRF_LOG_DEBUG("start cnt >= 1; Force Sensor Stop Given for %x",
+                    gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                        .sensor_app_id);
+                pkt1 = post_office_create_msg(
                     M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
                 m2m2_app_common_sub_op_t *payload =
-                    (m2m2_app_common_sub_op_t *)&pkt->data[0];
+                    (m2m2_app_common_sub_op_t *)&pkt1->data[0];
 
                 gb_sensor_stop_cmds = 1;
                 payload->command = M2M2_APP_COMMON_CMD_STREAM_STOP_REQ;
                 payload->status = M2M2_APP_COMMON_STATUS_OK;
-                pkt->src = M2M2_ADDR_SYS_PM;
-                pkt->dest = gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                pkt1->src = M2M2_ADDR_SYS_PM;
+                pkt1->dest = gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
                                 .sensor_app_id;
-                post_office_send(pkt, &err);
-              }
-            } else {
-              // Do nothing
+                post_office_send(pkt1, &err);
+
+            }  if (!nSendStopCmd || pkt_used == 0) {
+              //m2m2_hdr_t *pkt unused, so free it
+              NRF_LOG_INFO("stream start < 1 or sub count < 1 or unused pkt");
               post_office_consume_msg(pkt);
             }
-          }
-        }
+          } /* else of if (gsSensorStatusRespPkt->app_info[gsSensorAppsCnt].fs_sub_stat ==
+              M2M2_FILE_SYS_SUBSCRIBED) */
+        }//else of if (!gb_stop_streaming_if_no_logging)
         break;
       } // end of if(pkt != NULL)
-    }   // end of while (gsSensorStopCnt <
-        // gsSensorStatusRespPkt->app_info[gsSensorAppsCnt].num_start_reqs)
+    }   /* end of while (gsSensorStopCnt <
+           gsSensorStatusRespPkt->app_info[gsSensorAppsCnt].num_start_reqs ||
+           gsSensorSubCnt <
+           gsSensorStatusRespPkt->app_info[gsSensorAppsCnt].num_subscribers */
 
     if (nSendStopCmd) {
+      NRF_LOG_INFO("Breaking");
       nSendStopCmd = 0;
       break;
     } else {
+      NRF_LOG_INFO("Advancing to next sensor");
       nAdvanceToNextApp = 1;
-      gsSensorAppsCnt++; /*num_start_reqs is equal to number of stop cmds
-                            sent[gsSensorStopCnt], move onto next sensor app*/
+      gsSensorAppsCnt++; /* num_start_reqs is equal to number of stop cmds
+                            sent[gsSensorStopCnt] OR
+                            num_subscribers is equal to number of unsub cmds
+                            sent[gsSensorSubCnt], move onto next sensor app*/
       gsSensorStopCnt =
           0; /*clear the sensor stop cmd cnt for the next sensor application*/
+     gsSensorSubCnt =
+          0; /*clear the sensor sub cmd cnt for the next sensor application*/
     }
   } // end of while (gsSensorAppsCnt < gsSensorStatusRespPkt->num_sensor_apps)
 
   if (nAdvanceToNextApp) {
     gsSensorAppsCnt = 0;
     gsSensorStopCnt = 0;
-    if (gStopCmdEnable) {
-      gStopCmdEnable = 0;
+    gsSensorSubCnt = 0;
 #ifdef LOW_TOUCH_FEATURE
-      if (!gb_stop_streaming_if_no_logging)
-        SendLowTouchErrResp(
-            M2M2_PM_SYS_STATUS_LOG_STOPPED_THROUGH_BUTTON_A); /*All sensor
-                                                                 applications
-                                                                 are stopped;
-                                                                 send out
-                                                                 the response*/
+      if (!gb_stop_streaming_if_no_logging) {
+        /* All sensor applications are stopped;
+          send out the response */
+        SendLowTouchErrResp(M2M2_PM_SYS_STATUS_USER_CONFIG_LOG_DISABLED);
+      }
 #endif
-    } else {
-#ifdef LOW_TOUCH_FEATURE
-      if (!gb_stop_streaming_if_no_logging)
-        SendLowTouchErrResp(
-            M2M2_PM_SYS_STATUS_USER_CONFIG_LOG_DISABLED); /*All sensor
-                                                             applications are
-                                                             stopped;
-                                                             send out the
-                                                             response*/
-#endif
-    }
   }
   gb_stop_streaming_if_no_logging = 0;
 }
@@ -1130,6 +1165,8 @@ static void system_task(void *pArgument) {
   }
   NRF_LOG_DEBUG("Entered System Application Task\n");
 
+//  delete_low_touch_config_file();
+//  load_default_low_touch_config();
 #ifdef USE_FS
   // FindConfigFile(&gsCfgFileFoundFlag);
 #endif // USE_FS
@@ -2045,7 +2082,7 @@ static void system_task(void *pArgument) {
 #ifdef USE_FS
           resp_pkt->dest = M2M2_ADDR_SYS_FS;
           resp_pkt->src = M2M2_ADDR_SYS_PM; // gsSensorAppsInfoPkt
-          resp->stream = get_file_routing_table_entry_stream(pkt->src);
+          resp->stream = in_resp->stream;//get_file_routing_table_entry_stream(pkt->src);
           resp->command = M2M2_FILE_SYS_CMD_GET_FS_STREAM_SUB_STATUS_REQ;
 #else
           resp_pkt->dest = M2M2_ADDR_SYS_PM;
@@ -2082,7 +2119,9 @@ static void system_task(void *pArgument) {
           resp_pkt->dest = M2M2_ADDR_SYS_PM;
           resp_pkt->src = M2M2_ADDR_SYS_PM; // gsSensorAppsInfoPkt
           resp->command = M2M2_PM_SYS_COMMAND_GET_APPS_INFO_REQ;
-          gsPsAppNumber++;
+          /* Handle next sensor App once M2M2_ADDR_SENSOR_ADPD4000 is completed */
+          if( !gnAdpdSensorApp )
+            gsPsAppNumber++;
           gsActivePsAppCnt++;
           post_office_send(resp_pkt, &err);
         }
@@ -2229,16 +2268,24 @@ static void system_task(void *pArgument) {
             // Load from gen Blk DCB
             find_low_touch_DCB();
             if (gbDCBCfgFoundFlag) {
-              load_gen_blk_dcb();
+              GEN_BLK_DCB_STATUS_t ret_val;
               gsCfgWrIndex = 0;
               SetCfgCopyAvailableFlag(
                   false); /*update the config file copy availability flag-since
                              new DCB is going to be loaded*/
-              copy_lt_config_from_gen_blk_dcb(
+              ret_val = copy_lt_config_from_gen_blk_dcb(
                   &gsConfigTmpFile[gsCfgWrIndex], &gsCfgWrIndex);
-              gsConfigFileSize = gsCfgWrIndex - CONFIG_FILE_SUMMARY_PKT_SIZE;
-              InitConfigParam(1); // Enable sending start commands
-              SendUserConfigCommands();
+              if(GEN_BLK_DCB_STATUS_ERR == ret_val)
+              {
+                SendLowTouchErrResp(M2M2_PM_SYS_STATUS_CONFIG_FILE_NOT_FOUND);
+                LowTouchErr(); // config file read failed
+              }
+              else
+              {
+                gsConfigFileSize = gsCfgWrIndex - CONFIG_FILE_SUMMARY_PKT_SIZE;
+                InitConfigParam(1); // Enable sending start commands
+                SendUserConfigCommands();
+              }
             } else {
 #endif
               SendFindConfigFileReq();
@@ -2282,7 +2329,6 @@ static void system_task(void *pArgument) {
       }
       case M2M2_FILE_SYS_CMD_FORCE_STOP_LOG_RESP: {
         // SendLowTouchErrResp(M2M2_PM_SYS_STATUS_USER_CONFIG_LOG_DISABLED);
-        // gStopCmdEnable = 0;
         if (ctrl_cmd->status == M2M2_FILE_SYS_ERR_MEMORY_FULL) {
           /*Force log stop response came because of memory full event*/
           SendLowTouchErrResp(M2M2_PM_SYS_STATUS_LOW_TOUCH_MEMORY_FULL_ERR);
@@ -2305,6 +2351,10 @@ static void system_task(void *pArgument) {
 #endif
       case M2M2_PM_SYS_COMMAND_GET_APPS_INFO_REQ: {
         M2M2_ADDR_ENUM_t nSensorAppAddr;
+        /*As M2M2_PM_SYS_COMMAND_GET_APPS_INFO_REQ keeps getting called in a sequence
+         to go over the apps, variable 'i' is used to go over the ADPD slots within the ADPD
+         application, hence made static, to continue using it from the previous value.*/
+        static uint8_t slot_index=0;
         m2m2_hdr_t *resp_pkt = NULL;
         ADI_OSAL_STATUS err;
 
@@ -2332,6 +2382,17 @@ static void system_task(void *pArgument) {
               resp_pkt->checksum = 0x0000;
               resp_pkt->src = M2M2_ADDR_SYS_PM;
               resp->command = M2M2_APP_COMMON_CMD_SENSOR_STATUS_QUERY_REQ;
+              if( nSensorAppAddr == M2M2_ADDR_SENSOR_ADPD4000 )
+              {
+                gnAdpdSensorApp = 1; //!< Set the flag to indicate that ADPD4000 Slots are being queried for status
+                resp->stream =
+                        (M2M2_ADDR_ENUM_t)(slot_index++ + M2M2_ADDR_SENSOR_ADPD_STREAM1);
+                if( slot_index == (ADPD4K_SLOT_L-1) )
+                {
+                  slot_index=(ADPD4K_SLOT_A-1); //!< reset after going through 12 slots
+                  gnAdpdSensorApp = 0; //!< Clear the flag to indicate ADPD4000 Slots queried for status is completed
+                }
+              }
               post_office_send(resp_pkt, &err);
               break;
             } else {
@@ -2380,7 +2441,7 @@ static void system_task(void *pArgument) {
             sizeof(
                 m2m2_pm_sys_sensor_apps_info_req_t)); /*copy the sensor status
                                                          resp pkt payload*/
-        gsSensorStopCnt = 0, gsSensorAppsCnt = 0;
+        gsSensorStopCnt = 0, gsSensorSubCnt = 0, gsSensorAppsCnt = 0;
         SendSensorStopCmds(); /*start sending the sensor stop commands*/
         post_office_consume_msg(pkt);
         break;
@@ -2452,8 +2513,16 @@ static void system_task(void *pArgument) {
       case M2M2_PM_SYS_COMMAND_ACTIVATE_TOUCH_SENSOR_REQ: {
 
         uint8_t ret_val;
-        ret_val =
-            EnableLowTouchDetection(true); // enable  the low touch detection mechanism
+        if (gen_blk_get_dcb_present_flag() || gsCfgFileFoundFlag)
+        {
+          ret_val =
+              EnableLowTouchDetection(true); // enable  the low touch detection mechanism
+        }
+        else
+        {
+          //No LT config file
+          ret_val = 1;//Error
+        }
         response_mail =
             post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_pm_sys_cmd_t));
         if (response_mail != NULL) {
@@ -2526,8 +2595,8 @@ static void system_task(void *pArgument) {
 #ifdef LOW_TOUCH_FEATURE
           resp->dcb_blk_array[ADI_DCB_GENERAL_BLOCK_IDX] =
               gen_blk_get_dcb_present_flag();
-          resp->dcb_blk_array[ADI_DCB_WRIST_DETECT_BLOCK_IDX] =
-              wrist_detect_get_dcb_present_flag();
+          resp->dcb_blk_array[ADI_DCB_LT_APP_LCFG_BLOCK_IDX] =
+              lt_app_lcfg_get_dcb_present_flag();
 #endif
           resp->dcb_blk_array[ADI_DCB_ADPD4000_BLOCK_IDX] =
               adpd4000_get_dcb_present_flag();
@@ -2567,7 +2636,7 @@ static void system_task(void *pArgument) {
 #ifdef LOW_TOUCH_FEATURE
       case M2M2_DCB_COMMAND_READ_CONFIG_REQ: {
 
-        response_mail = wrist_detect_dcb_command_read_config(pkt);
+        response_mail = lt_app_lcfg_dcb_command_read_config(pkt);
         if (response_mail != NULL) {
           post_office_send(response_mail, &err);
         }
@@ -2576,7 +2645,7 @@ static void system_task(void *pArgument) {
       }
       case M2M2_DCB_COMMAND_WRITE_CONFIG_REQ: {
 
-        response_mail = wrist_detect_dcb_command_write_config(pkt);
+        response_mail = lt_app_lcfg_dcb_command_write_config(pkt);
         if (response_mail != NULL) {
           post_office_send(response_mail, &err);
         }
@@ -2585,7 +2654,7 @@ static void system_task(void *pArgument) {
       }
       case M2M2_DCB_COMMAND_ERASE_CONFIG_REQ: {
 
-        response_mail = wrist_detect_dcb_command_delete_config(pkt);
+        response_mail = lt_app_lcfg_dcb_command_delete_config(pkt);
         if (response_mail != NULL) {
           post_office_send(response_mail, &err);
         }
@@ -2601,8 +2670,8 @@ static void system_task(void *pArgument) {
         gsSensorStopCnt++; // Increment the number of stop commands sent
         if (gb_sensor_stop_cmds) {
           gb_stop_streaming_if_no_logging = 1;
-          SendSensorStopCmds(); // Send Next stop command
           gb_sensor_stop_cmds = 0;
+          SendSensorStopCmds(); // Send Next stop command
           post_office_consume_msg(pkt);
           break;
         } else
@@ -2610,13 +2679,13 @@ static void system_task(void *pArgument) {
             // LT execute
       }
       case M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP: {
-        gsSensorStopCnt++; // Increment the number of stop commands sent
+        gsSensorSubCnt++; // Increment the number of unsub commands sent
         if (gb_sensor_stop_cmds) {
           gb_stop_streaming_if_no_logging = 1;
           if (gb_unsub_only) {
-            SendSensorStopCmds(); // Send Next stop command
             gb_unsub_only = 0;
             gb_sensor_stop_cmds = 0;
+            SendSensorStopCmds(); // Send Next stop command
           }
           post_office_consume_msg(pkt);
           break;
@@ -2680,6 +2749,8 @@ static void system_task(void *pArgument) {
               (gsCfgFileSummaryPkt->start_cmd_cnt == gsNumOfCommands)) {
             gsStartCmdsRunning = 0;
             gLowTouchRunning = 1; // Low touch logging has started
+            if(get_low_touch_trigger_mode2_status())
+                resume_low_touch_task();
             // SetCfgCopyAvailableFlag(true);  /*update the config file copy
             // availability flag*/
 #ifdef DCB
@@ -2690,13 +2761,16 @@ static void system_task(void *pArgument) {
             } else
               SendLowTouchErrResp(M2M2_PM_SYS_STATUS_DCB_CONFIG_LOG_ENABLED);
 #endif
-            //Check if OFFWrist event had come in b/w start cmd seq execution
-            if(eCurDetection_State == OFF_WRIST)
-            {
-              InitConfigParam(0);
-              SendUserConfigCommands();
-              gLowTouchRunning = 0;
-            }
+              if(!get_low_touch_trigger_mode2_status())
+              {
+                //Check if OFFWrist event had come in b/w start cmd seq execution
+                if(eCurDetection_State == OFF_WRIST) 
+                {
+                  InitConfigParam(0);
+                  SendUserConfigCommands();
+                  gLowTouchRunning = 0;
+                }
+              }
           } else if ((gsStopCmdsRunning) &&
                      (gsCfgFileSummaryPkt->stop_cmd_cnt == gsNumOfCommands)) {
             gsStopCmdsRunning = 0;
@@ -2722,19 +2796,6 @@ static void system_task(void *pArgument) {
       } // end of switch
     }   /*if(pkt != NULL)*/
     else {
-#ifdef LOW_TOUCH_FEATURE
-      if (gStopCmdEnable) {
-        if (!gsCfgFileFoundFlag && !gbDCBCfgFoundFlag) {
-          StopLowTouchLogging(); /*button A event will stop the logging incase
-                                    of normal mode*/
-        } else {
-          gStopCmdEnable =
-              0; /*button A event will be ignored incase of low touch mode*/
-        }
-        //          InitConfigParam(0);
-        //          SendUserConfigCommands();
-      }
-#endif // LOW_TOUCH_FEATURE
       StreamBatt_Info();
     } // end of else, for if(pkt != NULL)*/
   }
@@ -2781,8 +2842,7 @@ void StreamBatt_Info(void) {
       enBatstatus = M2M2_PM_SYS_BAT_STATE_NOT_CHARGING;
 #ifdef USE_FS
       if (bat_status.level <= ADI_PM_BAT_LEVEL_LOG_CRITICAL) {
-        battery_level_alerts.critical_level_flag =
-            1; /*Critical Battery level for logging*/
+        battery_level_alerts.critical_level_flag = 1; /*Critical Battery level for logging*/
         /* If File logging is in progress */
         if (fs_hal_write_access_state() == FS_FILE_ACCESS_IN_PROGRESS) {
           /* Force Stop Logging */
@@ -2947,26 +3007,26 @@ static void ping_timer_stop(void) {
   APP_ERROR_CHECK(err_code);
 }
 
-/************************** DCB for WRIST_DETECT_BLOCK **************************/
+/************************** DCB for LT_APP_LCFG_BLOCK **************************/
 
 #ifdef DCB
 /**
- * @brief  Function which handles the m2m2 command to do wrist_detect_dcb read
+ * @brief  Function which handles the m2m2 command to do lt_app_lcfg_dcb read
  * @param  p_pkt m2m2 REQ packet
  * @return m2m2 RESP packet
  */
-static m2m2_hdr_t *wrist_detect_dcb_command_read_config(m2m2_hdr_t *p_pkt)
+static m2m2_hdr_t *lt_app_lcfg_dcb_command_read_config(m2m2_hdr_t *p_pkt)
 {
     static uint16_t r_size = 0;
-    uint32_t dcbdata[MAXWRISTDETECTDCBSIZE];
+    uint32_t dcbdata[MAXLTAPPLCFGDCBSIZE];
     M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
 
-    PKT_MALLOC(p_resp_pkt, m2m2_dcb_wrist_detect_data_t, 0);
+    PKT_MALLOC(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, 0);
     // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_wrist_detect_data_t, p_resp_payload);
+    PYLD_CST(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_resp_payload);
 
-    r_size = (uint16_t)MAXWRISTDETECTDCBSIZE;
-    if(read_wrist_detect_dcb(&dcbdata[0],&r_size) == WRIST_DETECT_DCB_STATUS_OK)
+    r_size = (uint16_t)MAXLTAPPLCFGDCBSIZE;
+    if(read_lt_app_lcfg_dcb(&dcbdata[0],&r_size) == LT_APP_LCFG_DCB_STATUS_OK)
     {
         for(int i=0; i< r_size; i++)
           p_resp_payload->dcbdata[i] = dcbdata[i];
@@ -2987,26 +3047,26 @@ static m2m2_hdr_t *wrist_detect_dcb_command_read_config(m2m2_hdr_t *p_pkt)
 }
 
 /**
- * @brief  Function which handles the m2m2 command to do wrist_detect_dcb write
+ * @brief  Function which handles the m2m2 command to do lt_app_lcfg_dcb write
  * @param  p_pkt m2m2 REQ packet
  * @return m2m2 RESP packet
  */
-static m2m2_hdr_t *wrist_detect_dcb_command_write_config(m2m2_hdr_t *p_pkt)
+static m2m2_hdr_t *lt_app_lcfg_dcb_command_write_config(m2m2_hdr_t *p_pkt)
 {
     M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
-    uint32_t dcbdata[MAXWRISTDETECTDCBSIZE];
+    uint32_t dcbdata[MAXLTAPPLCFGDCBSIZE];
 
     // Declare a pointer to access the input packet payload
-    PYLD_CST(p_pkt, m2m2_dcb_wrist_detect_data_t, p_in_payload);
-    PKT_MALLOC(p_resp_pkt, m2m2_dcb_wrist_detect_data_t, 0);
+    PYLD_CST(p_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_in_payload);
+    PKT_MALLOC(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, 0);
     // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_wrist_detect_data_t, p_resp_payload);
+    PYLD_CST(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_resp_payload);
 
     for(int i=0; i<p_in_payload->size; i++)
       dcbdata[i] = p_in_payload->dcbdata[i];
-    if(write_wrist_detect_dcb(&dcbdata[0],p_in_payload->size) == WRIST_DETECT_DCB_STATUS_OK)
+    if(write_lt_app_lcfg_dcb(&dcbdata[0],p_in_payload->size) == LT_APP_LCFG_DCB_STATUS_OK)
     {
-        wrist_detect_set_dcb_present_flag(true);
+        lt_app_lcfg_set_dcb_present_flag(true);
         lt_app_lcfg_set_from_dcb();
         status = M2M2_DCB_STATUS_OK;
     }
@@ -3018,7 +3078,7 @@ static m2m2_hdr_t *wrist_detect_dcb_command_write_config(m2m2_hdr_t *p_pkt)
     p_resp_payload->status = status;
     p_resp_payload->command = M2M2_DCB_COMMAND_WRITE_CONFIG_RESP;
     p_resp_payload->size = 0;
-    for(uint16_t i=0; i< MAXWRISTDETECTDCBSIZE; i++)
+    for(uint16_t i=0; i< MAXLTAPPLCFGDCBSIZE; i++)
         p_resp_payload->dcbdata[i] = 0;
     p_resp_pkt->src = p_pkt->dest;
     p_resp_pkt->dest = p_pkt->src;
@@ -3026,21 +3086,21 @@ static m2m2_hdr_t *wrist_detect_dcb_command_write_config(m2m2_hdr_t *p_pkt)
 }
 
 /**
- * @brief  Function which handles the m2m2 command to do wrist_detect_dcb delete
+ * @brief  Function which handles the m2m2 command to do lt_app_lcfg_dcb delete
  * @param  p_pkt m2m2 REQ packet
  * @return m2m2 RESP packet
  */
-static m2m2_hdr_t *wrist_detect_dcb_command_delete_config(m2m2_hdr_t *p_pkt)
+static m2m2_hdr_t *lt_app_lcfg_dcb_command_delete_config(m2m2_hdr_t *p_pkt)
 {
     M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
 
-    PKT_MALLOC(p_resp_pkt, m2m2_dcb_wrist_detect_data_t, 0);
+    PKT_MALLOC(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, 0);
     // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_wrist_detect_data_t, p_resp_payload);
+    PYLD_CST(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_resp_payload);
 
-    if(delete_wrist_detect_dcb() == WRIST_DETECT_DCB_STATUS_OK)
+    if(delete_lt_app_lcfg_dcb() == LT_APP_LCFG_DCB_STATUS_OK)
     {
-        wrist_detect_set_dcb_present_flag(false);
+        lt_app_lcfg_set_dcb_present_flag(false);
         lt_app_lcfg_set_fw_default();
         status = M2M2_DCB_STATUS_OK;
     }
@@ -3052,7 +3112,7 @@ static m2m2_hdr_t *wrist_detect_dcb_command_delete_config(m2m2_hdr_t *p_pkt)
     p_resp_payload->status = status;
     p_resp_payload->command = M2M2_DCB_COMMAND_ERASE_CONFIG_RESP;
     p_resp_payload->size = 0;
-    for(uint16_t i=0; i< MAXWRISTDETECTDCBSIZE; i++)
+    for(uint16_t i=0; i< MAXLTAPPLCFGDCBSIZE; i++)
         p_resp_payload->dcbdata[i] = 0;
     p_resp_pkt->src = p_pkt->dest;
     p_resp_pkt->dest = p_pkt->src;

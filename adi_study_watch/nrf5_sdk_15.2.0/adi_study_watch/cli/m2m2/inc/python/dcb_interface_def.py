@@ -7,13 +7,13 @@ from m2m2_core_def import *
 
 MAXADPD4000DCBSIZE = (57) #//Max size of adpd4000 DCB size in double word length; 57 uint32_t elements in dcfg
 MAXADXLDCBSIZE = (25)
-MAXPPGDCBSIZE = (53)
-MAXECGDCBSIZE = (2)
+MAXPPGDCBSIZE = (56)
+MAXECGDCBSIZE = (4)
 MAXEDADCBSIZE = (2)
-MAXBCMDCBSIZE = (2)
+MAXBCMDCBSIZE = (5)
 MAXGENBLKDCBSIZE = (57)
 MAXAD7156DCBSIZE = (20)
-MAXWRISTDETECTDCBSIZE = (4)
+MAXLTAPPLCFGDCBSIZE = (5)
 
 class M2M2_DCB_COMMAND_ENUM_t(c_ubyte):
     __M2M2_DCB_COMMAND_LOWEST = 0x96
@@ -91,7 +91,7 @@ class m2m2_dcb_bcm_data_t(Structure):
               ("status", c_ubyte),
               ("size", c_uint16),
               ("dcbdata", c_uint32 * MAXBCMDCBSIZE),
-              ]              
+              ]
 
 class m2m2_dcb_gen_blk_data_t(Structure):
     _pack_ = 1
@@ -124,13 +124,13 @@ class m2m2_dcb_ad7156_data_t(Structure):
               ("dcbdata", c_uint32 * MAXAD7156DCBSIZE),
               ]
 
-class m2m2_dcb_wrist_detect_data_t(Structure):
+class m2m2_dcb_lt_app_lcfg_data_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("size", c_uint16),
-              ("dcbdata", c_uint32 * MAXWRISTDETECTDCBSIZE),
+              ("dcbdata", c_uint32 * MAXLTAPPLCFGDCBSIZE),
               ]
 
 class M2M2_DCB_CONFIG_BLOCK_INDEX_t(c_uint32):
@@ -144,7 +144,7 @@ class M2M2_DCB_CONFIG_BLOCK_INDEX_t(c_uint32):
     ADI_DCB_AD7156_BLOCK_IDX = 7
     ADI_DCB_PEDOMETER_BLOCK_IDX = 8
     ADI_DCB_TEMPERATURE_BLOCK_IDX = 9
-    ADI_DCB_WRIST_DETECT_BLOCK_IDX = 10
+    ADI_DCB_LT_APP_LCFG_BLOCK_IDX = 10
     ADI_DCB_UI_CONFIG_BLOCK_IDX = 11
     ADI_DCB_USER0_BLOCK_IDX = 12
     ADI_DCB_USER1_BLOCK_IDX = 13

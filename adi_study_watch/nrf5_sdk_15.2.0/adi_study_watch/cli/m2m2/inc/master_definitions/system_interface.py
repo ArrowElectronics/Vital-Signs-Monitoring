@@ -506,7 +506,7 @@ class m2m2_pm_sys_sensor_apps_info_req_t = {
   {"name":"num_sensor_apps",
   "type": c_ushort},
   {"name":"app_info",
-  "type": m2m2_pm_sys_sensor_app_status * 15},
+  "type": m2m2_pm_sys_sensor_app_status * 21},
   ]
 }
 

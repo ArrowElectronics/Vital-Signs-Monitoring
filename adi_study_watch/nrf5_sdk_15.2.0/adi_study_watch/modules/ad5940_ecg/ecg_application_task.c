@@ -77,6 +77,13 @@ ECG_ERROR_CODE_t delete_ecg_dcb(void);
 #endif
 /////////////////////////////////////////
 g_state_ecg_t g_state_ecg;
+
+/* Buffer is reused in ECG,EDA,BCM applications to minmize RAM usage */
+uint32_t AppBuff[APPBUFF_SIZE];
+#ifdef EXTERNAL_TRIGGER_EDA	
+uint8_t ecg_start_req=0;
+#endif
+
 #ifdef DEBUG_PKT
 uint32_t g_ecg_pkt_cnt =0;
 #endif
@@ -122,7 +129,8 @@ ADI_OSAL_STATIC_THREAD_ATTR sensor_ecg_task_attributes;
 StaticTask_t ecgTaskTcb;
 ADI_OSAL_SEM_HANDLE ecg_task_evt_sem;
 AppECGCfg_Type AppECGCfg;
-extern int var;
+extern AD5950_APP_ENUM_t gnAd5940App;
+uint8_t send_packets=0;
 void send_key_value(uint8_t  k_value);
 #if DEBUG_ECG
 extern uint32_t time_stamps_deviated[50];
@@ -169,6 +177,8 @@ void ad5940_ecg_task_init(void) {
   /* Initialize app state */
   g_state_ecg.num_subs = 0;
   g_state_ecg.num_starts = 0;
+  g_state_ecg.leads_on_samplecount = 0;
+  g_state_ecg.leads_off_samplecount = 0;
   /* Default behaviour is to send every packet */
   g_state_ecg.decimation_factor = 1;
   g_state_ecg.decimation_nsamples = 0;
@@ -210,7 +220,7 @@ void send_message_ad5940_ecg_task(m2m2_hdr_t *p_pkt) {
     post_office_consume_msg(p_pkt);
   adi_osal_SemPost(ecg_task_evt_sem);
 }
-void AD5940_Main(void);
+
 void ad5940_ecg_start(void);
 void ad5940_fetch_data(void);
 //#define ECG_POLLING
@@ -280,6 +290,8 @@ static void sensor_ecg_task(void *pArgument) {
  ******************************************************************************/
 static void reset_ecg_packetization(void) {
   g_state_ecg.ecg_pktizer.packet_nsamples = 0;
+  g_state_ecg.leads_on_samplecount = 0;
+  g_state_ecg.leads_off_samplecount = 0;
 }
 
 #ifdef DEBUG_ECG
@@ -308,11 +320,10 @@ static void fetch_ecg_data(void) {
 #ifdef ECG_HR_ALGO
   uint16_t nEcgQRS = 0;
   AppECGCfg_Type *pCfg;
-
   AppECGGetCfg(&pCfg);
 #endif
 
-  M2M2_SENSOR_ECG_APP_INFO_BITSET_ENUM_t ecg_info =M2M2_SENSOR_ECG_APP_INFO_BITSET_LEADSOFF;
+  M2M2_SENSOR_ECG_APP_INFO_BITSET_ENUM_t ecg_info = M2M2_SENSOR_ECG_APP_INFO_BITSET_LEADSOFF;
   ad5940_read_ecg_data_to_buffer();
   status = ad5950_buff_get(&ecgData, &ecgTS);
   while (status == AD5940Drv_SUCCESS) {
@@ -341,18 +352,39 @@ static void fetch_ecg_data(void) {
       if (g_state_ecg.ecg_pktizer.packet_nsamples >=
           g_state_ecg.ecg_pktizer.packet_max_nsamples) {
 #else
-      packetize_ecg_raw_data((int16_t *)&ecgData, &pkt, ecgTS);
-      if (g_state_ecg.ecg_pktizer.packet_nsamples >
-          g_state_ecg.ecg_pktizer.packet_max_nsamples) {
+        if(AppECGCfg.PacketizationEn) {
         /* set the electrode status = 0 not touched */
-        if (nrf_gpio_pin_read(AD8233_LOD_PIN)) {
-          ecg_info &= 0xFE;
-        } else {
-          /* set the electrode status = 1 touched */
-          ecg_info |= M2M2_SENSOR_ECG_APP_INFO_BITSET_LEADSON;
+          if (nrf_gpio_pin_read(AD8233_LOD_PIN)) {
+            send_packets = 0;
+            ecg_info = M2M2_SENSOR_ECG_APP_INFO_BITSET_LEADSOFF;
+            g_state_ecg.leads_on_samplecount = 0;
+            if(g_state_ecg.leads_off_samplecount <= MAX_SAMPLES_LEADS_OFF) {
+              g_state_ecg.leads_off_samplecount++;
+            }
+          }else {
+            /* set the electrode status = 1 touched */
+            send_packets = 1;
+            ecg_info = M2M2_SENSOR_ECG_APP_INFO_BITSET_LEADSON;
+            if(g_state_ecg.leads_on_samplecount <= MAX_SAMPLES_LEADS_ON) {
+              if(g_state_ecg.leads_on_samplecount == 0) {
+                g_state_ecg.ecg_pktizer.packet_nsamples = 0;// when leadson starts after leadsoff,the packetization has to start from first sample
+              }else if(g_state_ecg.leads_on_samplecount == MAX_SAMPLES_LEADS_ON) {
+                g_state_ecg.leads_off_samplecount = 0;// Clear leadsoff sample count when actual leadson happened
+              }
+              g_state_ecg.leads_on_samplecount++;
+            }
+          }
+        }else {
+          g_state_ecg.leads_on_samplecount = MAX_SAMPLES_LEADS_ON;// For No Leadson/off case ,send packet always.
+          send_packets = 1;
         }
+        if(((send_packets == 1) && (g_state_ecg.leads_on_samplecount >= MAX_SAMPLES_LEADS_ON)) 
+            || ((g_state_ecg.leads_off_samplecount <= MAX_SAMPLES_LEADS_OFF) && (send_packets == 0))) {
+          packetize_ecg_raw_data((int16_t *)&ecgData, &pkt, ecgTS);
+          if (g_state_ecg.ecg_pktizer.packet_nsamples >
+            g_state_ecg.ecg_pktizer.packet_max_nsamples) {
 #endif
-        adi_osal_EnterCriticalRegion();
+            adi_osal_EnterCriticalRegion();
 #ifdef BLE_CUSTOM_PROFILE1
         //Create memory for m2m2 header + ecg_raw_sample_char_data_t + uint16_t HR
         g_state_ecg.ecg_pktizer.p_pkt = post_office_create_msg(sizeof(ecg_raw_sample_char_data_t) + sizeof(uint16_t) + M2M2_HEADER_SZ);
@@ -361,7 +393,7 @@ static void fetch_ecg_data(void) {
 #endif
         if (g_state_ecg.ecg_pktizer.p_pkt != NULL) {
 #ifdef DEBUG_PKT
-          g_ecg_pkt_cnt++;
+            g_ecg_pkt_cnt++;
 #endif
 #ifdef BLE_CUSTOM_PROFILE1
           PYLD_CST(g_state_ecg.ecg_pktizer.p_pkt, ecg_raw_sample_char_data_t, p_payload_ptr_ble);
@@ -391,7 +423,7 @@ static void fetch_ecg_data(void) {
 #else
           /* Dummy HR , Need to include ECG ALGO */
           p_payload_ptr->HR = 0;
-#endif
+#endif //ECG_HR_ALGO
           p_payload_ptr->sequence_num = gnEcgSequenceCount++;
 
 #endif//BLE_CUSTOM_PROFILE1
@@ -405,19 +437,22 @@ static void fetch_ecg_data(void) {
           time_elapsed_for_ecg = MCU_HAL_GetTick() - ecg_start_time;
           ecg_odr = ((pkt_count * 11 * 1000) / time_elapsed_for_ecg);
           NRF_LOG_INFO("TIME ELAPSED = " NRF_LOG_FLOAT_MARKER,
-              NRF_LOG_FLOAT(time_elapsed_for_ecg));
+          NRF_LOG_FLOAT(time_elapsed_for_ecg));
           NRF_LOG_INFO("START TIME = " NRF_LOG_FLOAT_MARKER,
-              NRF_LOG_FLOAT(ecg_start_time));
+          NRF_LOG_FLOAT(ecg_start_time));
           NRF_LOG_INFO("ECG MEASURED ODR = " NRF_LOG_FLOAT_MARKER,
-              NRF_LOG_FLOAT(ecg_odr));
+          NRF_LOG_FLOAT(ecg_odr));
 #endif
           g_state_ecg.ecg_pktizer.packet_nsamples = 0;
           g_state_ecg.ecg_pktizer.packet_max_nsamples = 0;
           g_state_ecg.ecg_pktizer.p_pkt = NULL;
-        }
-        adi_osal_ExitCriticalRegion(); /* exiting critical region even if
+          } //if (g_state_ecg.ecg_pktizer.p_pkt != NULL)
+	adi_osal_ExitCriticalRegion(); /* exiting critical region even if
                                           mem_alloc fails*/
-      }
+#ifndef BLE_CUSTOM_PROFILE1
+      } //if(send_packets == 1)
+#endif
+     }
     } /* if (g_state_ecg.decimation_nsamples >= g_state_ecg.decimation_factor)
        */
     status = ad5950_buff_get(&ecgData, &ecgTS);
@@ -613,9 +648,13 @@ static m2m2_hdr_t *ecg_app_stream_config(m2m2_hdr_t *p_pkt) {
     switch (p_in_payload->command) {
     case M2M2_APP_COMMON_CMD_STREAM_START_REQ:
       if (g_state_ecg.num_starts == 0) {
-        var = 1;
+        gnAd5940App = AD5940_APP_ECG;
 #ifdef ECG_HR_ALGO
         QRSdetectorInit();
+#endif
+#ifdef EXTERNAL_TRIGGER_EDA	
+        /* flag is used to indicate ecg start req has been recieved */
+        ecg_start_req=1;
 #endif
         reset_ecg_packetization();
         //lcd_disp_off(); //Turn Off LCD Display to check ECG signal quality
@@ -639,6 +678,10 @@ static m2m2_hdr_t *ecg_app_stream_config(m2m2_hdr_t *p_pkt) {
       if (g_state_ecg.num_starts == 0) {
         status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
       } else if (g_state_ecg.num_starts == 1) {
+#ifdef EXTERNAL_TRIGGER_EDA	
+        /* flag is used to indicate ecg stop req has been recieved */
+         ecg_start_req=0;
+#endif
         //lcd_disp_on(); //Turn ON LCD Display, once ECG is stopped
         //send_key_value(0xFF); //Send dummy key_value to update the current page
         if (EcgAppDeInit()) {
@@ -796,9 +839,10 @@ static m2m2_hdr_t *ecg_app_decimation(m2m2_hdr_t *p_pkt) {
   It includes basic configuration for sequencer generator
   and application related parameters
 */
-volatile int16_t user_applied_odr = 0;
-volatile int16_t user_applied_adcPgaGain = 0;
+volatile int16_t ecg_user_applied_odr = 0;
+volatile int16_t ecg_user_applied_adcPgaGain = 0;
 volatile int16_t user_applied_ecg_pwr_mod = 0;
+volatile int16_t user_applied_packetization_enable = 0;
 
 /*!
  ****************************************************************************
@@ -818,11 +862,19 @@ static void InitCfg() {
   AppECGCfg.LfoscClkFreq = 32000.0;
   AppECGCfg.SysClkFreq = 16000000.0;
   AppECGCfg.AdcClkFreq = 16000000.0;
+
   if (!user_applied_ecg_pwr_mod) {
     AppECGCfg.PwrMod = AFEPWR_LP;
   } else {
     user_applied_ecg_pwr_mod = 0;
   }
+
+  if (!user_applied_packetization_enable) {
+    AppECGCfg.PacketizationEn = 1;/* enabled by default */
+  } else {
+    user_applied_packetization_enable = 0;
+  }
+
   AppECGCfg.ADCSinc3Osr = ADCSINC3OSR_2;
   AppECGCfg.ADCSinc2Osr = ADCSINC2OSR_667;
   AppECGCfg.ECGInited = bFALSE;
@@ -925,6 +977,7 @@ ECG_ERROR_CODE_t EcgAppInit() {
     InitCfg();
     ClearDataBufferAd5940();
     ad5940_ecg_start();
+    user_applied_packetization_enable=0;/* re init every time so that by default packetization is enabled for every start */
   /* GPIO for ECG mode and electrodes */
   /* Enable Sport AD8233 device */
   HAL_GPIO_ECG_Sport_Enable(1);
@@ -947,7 +1000,7 @@ ECG_ERROR_CODE_t EcgAppDeInit() {
 
   AppECGGetCfg(&pCfg);
 
-  disable_ecg_ext_trigger(pCfg->ECGODR);
+  disable_ad5940_ext_trigger(pCfg->ECGODR);
   /* Disable Sport AD8233 device */
   HAL_GPIO_ECG_Sport_Enable(0);
 
@@ -976,15 +1029,20 @@ ECG_ERROR_CODE_t EcgWriteLCFG(uint8_t field, uint16_t value) {
 #ifdef DEBUG_ECG
       ecgodr = pCfg->ECGODR;
 #endif
-      user_applied_odr = 1;
+      ecg_user_applied_odr = 1;
       break;
     case ECG_LCFG_ADC_PGA_GAIN:
       pCfg->AdcPgaGain = value;
-      user_applied_adcPgaGain = 1;
+      ecg_user_applied_adcPgaGain = 1;
       break;
     case ECG_LCFG_AFE_PWR_MOD:
       pCfg->PwrMod = value;
       user_applied_ecg_pwr_mod = 1;
+      break;
+    case ECG_LCFG_PACKETIZATION_ENABLE:
+      pCfg->PacketizationEn = value;
+      user_applied_packetization_enable = 1;
+      reset_ecg_packetization();// start packetization from first sample and clear leadson/off samples.
       break;
     }
     return ECG_SUCCESS;
@@ -1012,6 +1070,9 @@ ECG_ERROR_CODE_t EcgReadLCFG(uint8_t index, uint16_t *value) {
       break;
     case ECG_LCFG_AFE_PWR_MOD:
       *value = pCfg->PwrMod;
+      break;
+   case ECG_LCFG_PACKETIZATION_ENABLE:
+      *value = pCfg->PacketizationEn;
       break;
     }
     return ECG_SUCCESS;

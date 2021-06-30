@@ -1,3 +1,12 @@
+The IAR project is maintained at the file location nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\iar\watchv4_nrf52840.eww
+But this maynot be upto date as it is a test project.
+This project uses IAR Toolchain for compilation: you need to install IAR 8.32.2 version to build the project.
+
+### IAR Project Options
+1. IAR Project free-rtos configuration(Debug) has Percipio tracealyser tool integrated.
+   It maybe removed before building.
+
+
 Steps to load & work with IAR project:
 
 1. Erase Watch's internal NOR Flash. Connect Watch via JLink cable to PC and execute the following command:

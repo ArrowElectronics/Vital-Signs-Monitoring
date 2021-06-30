@@ -120,6 +120,7 @@ extern const PAGE_HANDLE page_skin_temp;
 
 extern const PAGE_HANDLE page_menu;
 extern const PAGE_HANDLE page_task_info;
+extern const PAGE_HANDLE page_LT_mode2_log_enable;
 
 extern const PAGE_HANDLE page_bpm;
 

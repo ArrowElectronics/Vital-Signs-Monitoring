@@ -21,15 +21,39 @@
 #define STATIC_ASSERT_PROJ(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 #endif // STATIC_ASSERT_PROJ
 
+/**
+* Word size in bytes, for an entry in DCB block
+*/
+#define DCB_BLK_WORD_SZ (4)
+
 #define MAXADPD4000DCBSIZE    (57) //Max size of adpd4000 DCB size in double word length; 57 uint32_t elements in dcfg
 #define MAXADXLDCBSIZE        (25) //Max size of adxl DCB size in double word length; 25 uint32_t elements in dcfg
-#define MAXPPGDCBSIZE        (53)
-#define MAXECGDCBSIZE         (2)
+#define MAXPPGDCBSIZE         (56)
+#define MAXECGDCBSIZE         (4)
 #define MAXEDADCBSIZE         (2)
-#define MAXBCMDCBSIZE         (2)
-#define MAXGENBLKDCBSIZE      (57) //Max size of general Block DCB size in double word length; 57 uint32_t elements in dcfg
+#define MAXBCMDCBSIZE         (5)
+/**
+* Size of gen Blk DCB contents passed in 1 pkt for the read/write/delete DCB
+* M2M2 command, in double word length;
+* 57 uint32_t elements in 1 m2m2 pkt
+*/
+#define MAXGENBLKDCBSIZE      (57)
 #define MAXAD7156DCBSIZE      (20) //Max size of AD7156 DCB in double word length; 20 uint32_t elements in dcfg
-#define MAXWRISTDETECTDCBSIZE (4)  //Max size of wrist detect DCB in double word length; 4 uint32_t elements in lcfg
+#define MAXLTAPPLCFGDCBSIZE   (5)  //Max size of LT app LCFG DCB in double word length; 5 uint32_t elements in lcfg
+
+/**
+* MAX_GEN_BLK_DCB_PKTS is the max no: of pkts which can be send by the tool
+* for the read/write/delete DCB M2M2 command
+* Max gen block DCB size = MAXGENBLKDCBSIZE * DCB_BLK_WORD_SZ * MAX_GEN_BLK_DCB_PKTS = 57* 4 * 18 = 4104 bytes
+*/
+#define MAX_GEN_BLK_DCB_PKTS (18)
+
+/**
+* MAX_ADPD4000_DCB_PKTS is the max no: of pkts which can be send by the tool
+* for the read/write/delete DCB M2M2 command
+* Max ADPD4000 DCB size = MAXADPD4000DCBSIZE * DCB_BLK_WORD_SZ * MAX_ADPD4000_DCB_PKTS = 57* 4 * 4 = 912 bytes
+*/
+#define MAX_ADPD4000_DCB_PKTS (4)
 
 typedef enum M2M2_DCB_COMMAND_ENUM_t {
     __M2M2_DCB_COMMAND_LOWEST = 150,
@@ -126,12 +150,12 @@ typedef struct _m2m2_dcb_ad7156_data_t {
     uint32_t dcbdata[MAXAD7156DCBSIZE];
 } m2m2_dcb_ad7156_data_t;
 
-typedef struct _m2m2_dcb_wrist_detect_data_t {
+typedef struct _m2m2_dcb_lt_app_lcfg_data_t {
     uint8_t  command;
     uint8_t  status;
     uint16_t  size;
-    uint32_t dcbdata[MAXWRISTDETECTDCBSIZE];
-} m2m2_dcb_wrist_detect_data_t;
+    uint32_t dcbdata[MAXLTAPPLCFGDCBSIZE];
+} m2m2_dcb_lt_app_lcfg_data_t;
 
 typedef enum M2M2_DCB_CONFIG_BLOCK_INDEX_t
 {
@@ -145,7 +169,7 @@ typedef enum M2M2_DCB_CONFIG_BLOCK_INDEX_t
     ADI_DCB_AD7156_BLOCK_IDX,
     ADI_DCB_PEDOMETER_BLOCK_IDX,
     ADI_DCB_TEMPERATURE_BLOCK_IDX,
-    ADI_DCB_WRIST_DETECT_BLOCK_IDX,
+    ADI_DCB_LT_APP_LCFG_BLOCK_IDX,
     ADI_DCB_UI_CONFIG_BLOCK_IDX,
     ADI_DCB_USER0_BLOCK_IDX,
     ADI_DCB_USER1_BLOCK_IDX,

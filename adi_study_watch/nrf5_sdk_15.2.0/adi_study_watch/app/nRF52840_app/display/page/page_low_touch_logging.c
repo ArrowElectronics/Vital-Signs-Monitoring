@@ -44,13 +44,14 @@
 * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 * POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
-#ifdef LOW_TOUCH_FEATURE
+#if defined(LOW_TOUCH_FEATURE)
 #ifdef ENABLE_WATCH_DISPLAY
 #include "display_app.h"
 #include "lcd_driver.h"
 #include "key_detect.h"
 #include "lygl.h"
 #include "image_declare.h"
+#include "low_touch_task.h"
 
 static void display_func(void)
 {
@@ -68,7 +69,10 @@ static void key_handle(uint8_t key_value)
     {
         case KEY_SELECT_SHORT:
         {
-            dis_page_jump(&page_logging_status);
+            if(get_low_touch_trigger_mode2_status())
+                dis_page_jump(&page_menu);
+            else
+                dis_page_jump(&page_logging_status);
         }
         break;
         case KEY_NAVIGATION_SHORT:

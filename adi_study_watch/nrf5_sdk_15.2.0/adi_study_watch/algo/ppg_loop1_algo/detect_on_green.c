@@ -87,7 +87,7 @@ void DetectObjectOnInitGreen() {
   AdpdDrvRegRead(REG_PULSE_PERIOD_B, &Reg.x36);
   AdpdDrvRegRead(REG_PULSE_MASK, &Reg.x34);
   AdpdDrvRegRead(REG_AFE_TRIM_B, &Reg.x44);
-  PpgLibGetSampleRate(&gsSampleRate, &gsDecimation);  // backup sampling rate
+  PpgLibGetSampleRate(&gsSampleRate, &gsDecimation,gAdpd400x_lcfg->targetSlots);  // backup sampling rate
 
   debug(MODULE, "Air Level= %d\t Trigger Level= %d\t Stable=%u", \
       gAdpd400x_lcfg->triggerOnAirLevel, gAdpd400x_lcfg->triggerOnLevel, gAdpd400x_lcfg->triggerOnStablizeVR);
@@ -104,7 +104,7 @@ void DetectObjectOnInitGreen() {
   */
 void DetectObjectOnDeInitGreen() {
   AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPDDrv_SLOT_OFF, ADPDDrv_SLOT_OFF);
-  PpgLibSetSampleRate(gsSampleRate, gsDecimation);    // restore sampling rate
+  PpgLibSetSampleRate(gsSampleRate, gsDecimation,gAdpd400x_lcfg->targetSlots);    // restore sampling rate
   AdpdDrvRegWrite(REG_LED1_DRV, Reg.x23);
   AdpdDrvRegWrite(REG_LED_TRIM, Reg.x25);
   AdpdDrvRegWrite(REG_PULSE_PERIOD_B, Reg.x36);
@@ -138,7 +138,7 @@ INT_ERROR_CODE_t DetectObjectOnGreen(uint32_t *rawDataB) {
   if (gsDetectState == 0) {
     AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPDDrv_SLOT_OFF, ADPDDrv_SLOT_OFF);
     PpgLibSetSampleRate((gAdpd400x_lcfg->detectionRate)>>16, \
-                        (gAdpd400x_lcfg->detectionRate)&0xFFFF);
+                        (gAdpd400x_lcfg->detectionRate)&0xFFFF,gAdpd400x_lcfg->targetSlots);
     AdpdDrvRegWrite(REG_PULSE_MASK, 0x0100);              // Turn on Gr LED
     AdpdDrvRegWrite(REG_LED1_DRV, (Reg.x23&0xFFF0)|0x1);  // change to 40mA
     AdpdDrvRegWrite(REG_LED_TRIM, 0xC);                   // set to default

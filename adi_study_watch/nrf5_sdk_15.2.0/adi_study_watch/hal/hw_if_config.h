@@ -93,6 +93,7 @@ void AdpdDriverBringUp(uint8_t nSlotA, uint8_t nSlotB);
 
 TickType_t MCU_HAL_GetTick();
 uint32_t AdpdLibGetTick();
+uint32_t AdpdLibGetSensorTimeStamp();
 void GPIO_Clock_Cal_TriggerTS(void);
 void UART_RegisterReceiverCallback( uint16_t (*pfReceiveInputChar)(uint8_t *pByte, uint16_t nRxLength) );
 void UART_Write_nblk(uint8_t *pData, uint32_t size);

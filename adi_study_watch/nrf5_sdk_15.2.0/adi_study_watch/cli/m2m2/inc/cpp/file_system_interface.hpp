@@ -25,6 +25,7 @@ enum FILE_STOP_LOGGING_t:uint8_t {
   M2M2_FILE_SYS_STOP_LOGGING_INVALID = 255,
 };
 static_assert(sizeof(FILE_STOP_LOGGING_t) == 1, "Enum 'FILE_STOP_LOGGING_t' has an incorrect size!");
+#define MAX_NUM_OF_CHAR 20
 
 enum M2M2_FILE_SYS_CMD_ENUM_t:uint8_t {
   __M2M2_FILE_SYS_CMD_LOWEST = 64,
@@ -94,6 +95,10 @@ enum M2M2_FILE_SYS_CMD_ENUM_t:uint8_t {
   M2M2_FILE_SYS_CMD_GET_FILE_INFO_RESP = 141,
   M2M2_FILE_SYS_CMD_PAGE_READ_TEST_REQ = 142,
   M2M2_FILE_SYS_CMD_PAGE_READ_TEST_RESP = 143,  
+  M2M2_FILE_SYS_CMD_BLOCK_ERASE_REQ = 144,
+  M2M2_FILE_SYS_CMD_BLOCK_ERASE_RESP = 145,
+  M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ = 146,
+  M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_RESP = 147,
 };
 static_assert(sizeof(M2M2_FILE_SYS_CMD_ENUM_t) == 1, "Enum 'M2M2_FILE_SYS_CMD_ENUM_t' has an incorrect size!");
 
@@ -151,10 +156,22 @@ struct m2m2_file_sys_cmd_t {
   uint8_t  status; 
 };
 
+struct m2m2_file_sys_blk_erase_cmd_t {
+  uint8_t  command;
+  uint8_t  status;
+  uint16_t  block_no;
+};
+
 struct m2m2_file_sys_ls_req_t {
   uint8_t  command; 
   uint8_t  status; 
   uint8_t  dir_path[0]; 
+};
+
+struct m2m2_file_sys_write_rsd_blk_cmd_t {
+  uint8_t  command;
+  uint8_t  status;
+  uint32_t data[MAX_NUM_OF_CHAR];
 };
 
 struct m2m2_file_sys_ls_resp_t {
@@ -241,13 +258,19 @@ typedef struct _m2m2_file_sys_debug_info_resp_t {
   M2M2_ADDR_ENUM_t  stream; 
   uint32_t  packets_received; 
   uint32_t  packets_missed; 
+    uint32_t  last_page_read;
+  uint32_t  last_page_read_offset;
+  uint8_t 	last_page_read_status;
+  uint32_t num_bytes_transferred;
+  uint32_t bytes_read;
+  uint8_t usb_cdc_write_failed;
 } m2m2_file_sys_debug_info_resp_t;
 
 struct m2m2_file_sys_user_config_data {
   uint8_t  command; 
   uint8_t  status; 
   uint16_t  len_configstream; 
-  uint8_t  byte_configstream[80]; 
+  uint8_t  byte_configstream[70]; 
 };
 
 struct m2m2_file_sys_user_cfg_summary_pkt_t {

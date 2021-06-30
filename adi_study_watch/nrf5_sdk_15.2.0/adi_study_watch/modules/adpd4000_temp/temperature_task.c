@@ -93,14 +93,14 @@ uint32_t aTemp_LUT[LUT_STEP_CNT] = {  355600, 271800, 209400, 162500, 127000,
                                       5410
                                    };
 extern g_state_t g_state;
-extern uint8_t gb_adpd_raw_start;
+volatile uint8_t gb_adpd_raw_start_temp = 1; /* Flag to handle whether ADPD sensor was 'start'ed to get raw data(CLI_USB/CLI_BLE) or if it was started by internal applications like Temp */
 extern slot_led_reg_t led_reg;
 extern uint8_t gsOneTimeValueWhenReadAdpdData;
-extern uint32_t gsSampleCount;
+extern uint32_t gsTempSampleCount;
 extern uint16_t g_adpd_odr;
 /*------------------------------ Public Function Prototype ------------------ */
 extern void temperatureAppData (uint32_t *pData);
-extern uint32_t get_adpd_odr();
+extern uint16_t get_adpd_odr();
 extern void enable_ext_syncmode();
 extern void disable_ext_syncmode();
 extern void enable_adpd_ext_trigger();
@@ -335,9 +335,9 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE))
       {
         g_state.num_starts = 1;
-        gb_adpd_raw_start = 0;
+        gb_adpd_raw_start_temp = 0;
         gsTemperatureStarts = 1;
-        gsSampleCount = 0;
+        gsTempSampleCount = 0;
         status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
       }
       else
@@ -346,11 +346,11 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       }
     } else {
       g_state.num_starts++;
-      gb_adpd_raw_start = 0;
+      gb_adpd_raw_start_temp = 0;
       gsTemperatureStarts++;
       if(gsTemperatureStarts == 1)
       {
-      gsSampleCount = 0;
+      gsTempSampleCount = 0;
       status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
       }
       else
@@ -371,14 +371,14 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       disable_adpd_ext_trigger(g_adpd_odr);
       if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE)) {
         g_state.num_starts = 0;
-        gb_adpd_raw_start = 1;
+        gb_adpd_raw_start_temp = 1;
         gsTemperatureStarts = 0;
-        gsSampleCount = 0;
+        gsTempSampleCount = 0;
         status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
         /* reset_adpd_packetization();*/
       } else {
         g_state.num_starts = 1;
-        gb_adpd_raw_start = 1;
+        gb_adpd_raw_start_temp = 1;
         gsTemperatureStarts = 1;
         status = M2M2_APP_COMMON_STATUS_ERROR;
       }
@@ -395,7 +395,8 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       gsTemperatureStarts--;
       if(gsTemperatureStarts == 0)
       {
-      gsSampleCount = 0;
+      gb_adpd_raw_start_temp = 1;
+      gsTempSampleCount = 0;
       status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
       }
       else

@@ -80,6 +80,7 @@ typedef struct
   uint32_t FifoDataCount;       /* How many data we have got from start. */
   SEQInfo_Type InitSeqInfo;
   SEQInfo_Type MeasureSeqInfo;
+  uint16_t PacketizationEn;
 }AppECGCfg_Type;
 /* Common application control message */
 #define APPCTRL_START          0      /**< Start the measurement by starting Wakeup Timer */
@@ -88,10 +89,9 @@ typedef struct
 #define APPCTRL_SHUTDOWN       3      /**< Note: shutdown here means turn off everything and put AFE to hibernate mode. The word 'SHUT DOWN' is only used here. */
 #define APPCTRL_RUNNING        4      /**< Is application running? */
 
-
 AD5940Err AppECGGetCfg(void *pCfg);
 AD5940Err AppECGInit(uint32_t *pBuffer, uint32_t BufferSize);
 AD5940Err AppECGISR(void *pBuff, uint32_t *pCount);
 AD5940Err AppECGCtrl(int32_t Command, void *pPara);
-int32_t AppECGDataProcess(int32_t * const pData, uint32_t *pDataCount);
+AD5940Err AppECGDataProcess(int32_t * const pData, uint32_t *pDataCount);
 #endif

@@ -6,7 +6,6 @@ sys.path.insert(0, cli_dir)
 
 import common
 
-shell = common.CLI.m2m2_shell()
-common.read_station_cfg()
-shell.do_connect_usb(common.watch_port)
-shell.do_enterBootLoader('')
+common.initialize_setup()
+common.watch_shell.do_enter_boot_loader_mode('')
+common.close_setup()

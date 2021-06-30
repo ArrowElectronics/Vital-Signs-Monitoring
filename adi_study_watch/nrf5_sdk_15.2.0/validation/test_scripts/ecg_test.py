@@ -25,8 +25,8 @@ def ad8233_switch_functionality_test():
     # common.fg.cfg_waveform(5.0, 0.15, 1.1, 'INV')
     # common.fg.output_enable(1,0)
     # time.sleep(1)
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
+    common.watch_shell.do_disable_electrode_switch('2')  # AD5940
+    common.watch_shell.do_disable_electrode_switch('3')  # ADPD4000
 
     # common.set_switch('SNOISE1', 1)
     # common.set_switch('SNOISE2', 0)
@@ -34,34 +34,29 @@ def ad8233_switch_functionality_test():
     # common.set_switch('ECG_POSSEL', 1)
 
     # Turn switch ON and collect data
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 1')
-    common.watch_shell.do_quickstart('ecg')
-    common.watch_shell.do_plot('recg')
+    common.watch_shell.do_enable_electrode_switch('1')  # AD8233
+    common.watch_shell.quick_start('ecg', 'ecg')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('ecg')
-    common.close_plot_after_run(['ECG Data Plot'])
+    common.watch_shell.quick_stop('ecg', 'ecg')
     f_path = common.rename_stream_file(common.ecg_stream_file_name, '_SwitchON.csv')
     on_vpp = meas_check.calc_vpp(f_path)
     time.sleep(2)
     # Turn switch OFF and collect data
-    common.watch_shell.do_quickstart('ecg')
-    #common.watch_shell.do_plot('recg')
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
-    common.watch_shell.do_plot('recg')
+    common.watch_shell.quick_start('ecg', 'ecg')
+    common.watch_shell.do_disable_electrode_switch('1')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('ecg')
-    common.close_plot_after_run(['ECG Data Plot'])
+    common.watch_shell.quick_stop('ecg', 'ecg')
     f_path = common.rename_stream_file(common.ecg_stream_file_name, '_SwitchOFF.csv')
     off_vpp = meas_check.calc_vpp(f_path)
 
     common.fg.output_enable(0,0)
 
-    common.logging.info('ON_VPP={}, OFF_VPP={}'.format(on_vpp, off_vpp))
+    common.test_logger.info('ON_VPP={}, OFF_VPP={}'.format(on_vpp, off_vpp))
     # Test Condition Pass/Fail Check
     if (abs(on_vpp - expected_on_vpp) < 0.1*expected_on_vpp) and off_vpp < expected_off_vpp:
-        common.logging.info('*** AD8233 Switch Functionality Test - PASS ***')
+        common.test_logger.info('*** AD8233 Switch Functionality Test - PASS ***')
     else:
-        common.logging.error('*** AD8233 Switch Functionality Test - FAIL ***')
+        common.test_logger.error('*** AD8233 Switch Functionality Test - FAIL ***')
         raise ConditionCheckFailure('\n\nON_VPP={}, OFF_VPP={}'.format(on_vpp, off_vpp))
 
 
@@ -82,23 +77,21 @@ def ad8233_noise_test():
     # common.set_switch('ECG_POSSEL', 1)
 
     # Turn switch ON and collect data
-    common.watch_shell.do_controlECGElectrodeSwitch('5940_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('4k_sw 0')
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 1')
-    common.watch_shell.do_quickstart('ecg')
-    common.watch_shell.do_plot('recg')
+    common.watch_shell.do_disable_electrode_switch('3')
+    common.watch_shell.do_disable_electrode_switch('2')
+    common.watch_shell.do_enable_electrode_switch('1')
+    common.watch_shell.quick_start('ecg', 'ecg')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('ecg')
-    common.close_plot_after_run(['ECG Data Plot'])
+    common.watch_shell.quick_stop('ecg', 'ecg')
     f_path = common.rename_stream_file(common.ecg_stream_file_name, '_ad8233_noise.csv')
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 0')
+    common.watch_shell.do_disable_electrode_switch('1')
     # Test Condition Pass/Fail Check
     v_noise = meas_check.calc_noise(f_path)
-    common.logging.info('AD8233 VNoise: {}Vpp'.format(v_noise))
+    common.test_logger.info('AD8233 VNoise: {}Vpp'.format(v_noise))
     if v_noise < expected_v_noise:  # if noise is less than 50uVpp
-        common.logging.info('*** AD8233 Noise Test - PASS ***')
+        common.test_logger.info('*** AD8233 Noise Test - PASS ***')
     else:
-        common.logging.error('*** AD8233 Noise Test - FAIL ***')
+        common.test_logger.error('*** AD8233 Noise Test - FAIL ***')
         raise ConditionCheckFailure('\n\nMeasured v_noise={}'.format(v_noise))
 
 
@@ -118,7 +111,7 @@ def ad8233_bandwidth_test():
     common.set_switch('ECG_NEGSEL', 1)
     common.set_switch('ECG_POSSEL', 1)
 
-    common.watch_shell.do_controlECGElectrodeSwitch('8233_sw 1')
+    common.watch_shell.do_enable_electrode_switch('1')
     common.fg.cfg_waveform(freq_list_hz[0], amp_vpp, offset_v, 'INV') # added a parameter inv
     common.fg.output_enable(1, 0)
     #response = common.arduino.serial_write('!CfgDacWfm {} {}\r'.format(freq_list_hz[0], amp_vpp))  # initialize wfm
@@ -126,16 +119,13 @@ def ad8233_bandwidth_test():
     for i, freq_hz in enumerate(freq_list_hz):  # Frequency sweep loop
         #response = common.arduino.serial_write('!SetWfmFreq {}\r'.format(freq_hz))  # Generate wfm at iteration freq
         # Toggle save csv and capture ecg
-        # common.watch_shell.do_toggleSaveCSV('')
         common.fg.cfg_waveform(freq_hz, amp_vpp, offset_v, 'INV')
-        common.watch_shell.do_quickstart('ecg')
-        common.watch_shell.do_plot('recg')
+        common.watch_shell.quick_start('ecg', 'ecg')
         time.sleep(capture_time)  # A stream file is auto generated at this stage and data is written into it
-        common.watch_shell.do_quickstop('ecg')
+        common.watch_shell.quick_stop('ecg', 'ecg')
         time.sleep(1)
         common.rename_stream_file(common.ecg_stream_file_name, '_BW_{}Hz_{}Vpp.csv'.format(freq_hz, amp_vpp))
         # TODO: Read and verify the generated capture files
-        common.close_plot_after_run(['ECG Data Plot'])
     common.fg.output_enable(0, 0)
 
 
@@ -171,17 +161,14 @@ def ad8233_dynamic_range_test():
         #response = common.arduino.serial_write('!SetWfmAmp {}\r'.format(amp_vpp))  # Generate wafm at iteration amp
         common.fg.cfg_waveform(freq_hz, amp_vpp, offset_v, 'INV')
         # Toggle save csv and capture ecg
-        # common.watch_shell.do_toggleSaveCSV('')
-        common.watch_shell.do_quickstart('ecg')
-        common.watch_shell.do_plot('recg')
+        common.watch_shell.quick_start('ecg', 'ecg')
         time.sleep(capture_time)  # A stream file is auto generated at this stage and data is written into it
-        common.watch_shell.do_quickstop('ecg')
+        common.watch_shell.quick_stop('ecg', 'ecg')
         time.sleep(1)
         f_path = common.rename_stream_file(common.ecg_stream_file_name, '_DR_{}Hz_{}Vpp.csv'.format(freq_hz, amp_vpp))
         # TODO: Read and verify the generated capture files
-        common.close_plot_after_run(['ECG Data Plot'])
         gain, gain_err, gain_err_percent = meas_check.calc_dr(f_path, vin_list[i])
-        common.logging.info('[_{}Hz_{}Vpp] Gain:{}, Gain Error:{}, Gain Error Percentage:{}'.format(freq_hz, amp_vpp,
+        common.test_logger.info('[_{}Hz_{}Vpp] Gain:{}, Gain Error:{}, Gain Error Percentage:{}'.format(freq_hz, amp_vpp,
                                                                                                     gain, gain_err,
                                                                                                  gain_err_percent))
         if abs(gain_err_percent) > 10:
@@ -192,11 +179,11 @@ def ad8233_dynamic_range_test():
     # Test Condition Pass/Fail Check
     if gain_err_list:  # If Failure?
         gain_err_str = '\n'.join(gain_err_list)
-        common.logging.error('*** AD8233 Dynamic Range Test - FAIL ***')
-        # common.logging.error('Failure Cases:' + gain_err_str)
+        common.test_logger.error('*** AD8233 Dynamic Range Test - FAIL ***')
+        # common.test_logger.error('Failure Cases:' + gain_err_str)
         raise ConditionCheckFailure("\n\n" + gain_err_str)
     else:
-        common.logging.info('*** AD8233 Dynamic Range Test - PASS ***')
+        common.test_logger.info('*** AD8233 Dynamic Range Test - PASS ***')
 
 
 def ad8233_repeatability_test():
@@ -223,14 +210,12 @@ def ad8233_repeatability_test():
     for i in range(repeat_count):  # Repeat sweep loop
         # Toggle save csv and capture ecg
         # common.watch_shell.do_toggleSaveCSV('')
-        common.watch_shell.do_quickstart('ecg')
-        common.watch_shell.do_plot('recg')
+        common.watch_shell.quick_start('ecg', 'ecg')
         time.sleep(capture_time)  # A stream file is auto generated at this stage and data is written into it
-        common.watch_shell.do_quickstop('ecg')
+        common.watch_shell.quick_stop('ecg', 'ecg')
         time.sleep(1)
         common.rename_stream_file(common.ecg_stream_file_name, '_idx{}.csv'.format(i))
         # TODO: Read and verify the generated capture files
-        common.close_plot_after_run(['ECG Data Plot'])
 
     common.fg.output_enable(0, 0)
     test_status = 'pass'
@@ -263,16 +248,13 @@ def ad8233_cmrr_test():
 
     common.fg.cfg_waveform(freq_hz, amp_vpp, offset_v, 'ON')
     common.fg.output_enable(1, 0)
-    # common.watch_shell.do_toggleSaveCSV('')
-    common.watch_shell.do_quickstart('ecg')
-    common.watch_shell.do_plot('recg')
-    time.sleep(capture_time)
-    common.watch_shell.do_quickstop('ecg')
+    common.watch_shell.quick_start('ecg', 'ecg')
+    time.sleep(capture_time)  # A stream file is auto generated at this stage and data is written into it
+    common.watch_shell.quick_stop('ecg', 'ecg')
     time.sleep(1)
     f_path = common.rename_stream_file(common.ecg_stream_file_name, '_cmrr_a.csv')
-    common.close_plot_after_run(['ECG Data Plot'])
     cmrr = meas_check.calc_cmrr(f_path)
-    common.logging.info('Test A CMRR: {}dB)'.format(cmrr))
+    common.test_logger.info('Test A CMRR: {}dB)'.format(cmrr))
     if cmrr < 80:
         cmrr_err_list.append('(Test A: {}dB)'.format(cmrr))
 
@@ -285,15 +267,13 @@ def ad8233_cmrr_test():
     common.set_switch('ECG_POSSEL', 1)
 
     # common.watch_shell.do_toggleSaveCSV('')
-    common.watch_shell.do_quickstart('ecg')
-    common.watch_shell.do_plot('recg')
-    time.sleep(capture_time)
-    common.watch_shell.do_quickstop('ecg')
+    common.watch_shell.quick_start('ecg', 'ecg')
+    time.sleep(capture_time)  # A stream file is auto generated at this stage and data is written into it
+    common.watch_shell.quick_stop('ecg', 'ecg')
     time.sleep(1)
     f_path = common.rename_stream_file(common.ecg_stream_file_name, '_cmrr_b.csv')
-    common.close_plot_after_run(['ECG Data Plot'])
     cmrr = meas_check.calc_cmrr(f_path)
-    common.logging.info('Test B CMRR: {}dB)'.format(cmrr))
+    common.test_logger.info('Test B CMRR: {}dB)'.format(cmrr))
     if cmrr < 80:
         cmrr_err_list.append('(Test B: {}dB)'.format(cmrr))
 
@@ -305,15 +285,13 @@ def ad8233_cmrr_test():
     common.set_switch('ECG_POSSEL', 0)
 
     # common.watch_shell.do_toggleSaveCSV('')
-    common.watch_shell.do_quickstart('ecg')
-    common.watch_shell.do_plot('recg')
-    time.sleep(capture_time)
-    common.watch_shell.do_quickstop('ecg')
+    common.watch_shell.quick_start('ecg', 'ecg')
+    time.sleep(capture_time)  # A stream file is auto generated at this stage and data is written into it
+    common.watch_shell.quick_stop('ecg', 'ecg')
     time.sleep(1)
     f_path = common.rename_stream_file(common.ecg_stream_file_name, '_cmrr_c.csv')
     cmrr = meas_check.calc_cmrr(f_path)
-    common.close_plot_after_run(['ECG Data Plot'])
-    common.logging.info('Test C CMRR: {}dB)'.format(cmrr))
+    common.test_logger.info('Test C CMRR: {}dB)'.format(cmrr))
     if cmrr < 80:
         cmrr_err_list.append('(Test C: {}dB)'.format(cmrr))
 
@@ -322,11 +300,11 @@ def ad8233_cmrr_test():
     # Test Condition Pass/Fail Check
     if cmrr_err_list:  # If Failure?
         cmrr_err_str = '\n'.join(cmrr_err_list)
-        common.logging.error('*** AD8233 CMRR Test - FAIL ***')
-        # common.logging.error('Failure Cases:' + cmrr_err_str)
+        common.test_logger.error('*** AD8233 CMRR Test - FAIL ***')
+        # common.test_logger.error('Failure Cases:' + cmrr_err_str)
         raise ConditionCheckFailure("\n\n" + cmrr_err_str)
     else:
-        common.logging.info('*** AD8233 CMRR Test - PASS ***')
+        common.test_logger.info('*** AD8233 CMRR Test - PASS ***')
 
 
 def ad8233_input_impedance_test():
@@ -343,20 +321,16 @@ def ad8233_input_impedance_test():
     common.set_switch('ECG_NEGSEL', 1)
     common.set_switch('ECG_POSSEL', 1)
 
-    # common.watch_shell.do_toggleSaveCSV('')
-    common.watch_shell.do_quickstart('ecg')
-    common.watch_shell.do_plot('recg')
+    common.watch_shell.quick_start('ecg', 'ecg')
     common.messagebox.showinfo('Input Impedance Test', 'Replace R25 and R26 by 1M resistor. '
                                                        'Check output amplitude. '
                                                        'Add 1M in series with each input and '
                                                        'check change in output amplitude. Calculate Zin'
                                                        ''
                                                        'Press OK after measurements are completed!')
-    common.watch_shell.do_quickstop('ecg')
+    common.watch_shell.quick_stop('ecg', 'ecg')
     time.sleep(1)
     common.rename_stream_file(common.ecg_stream_file_name, '_inZ.csv')
-
-    common.close_plot_after_run(['ECG Data Plot'])
 
     test_status = 'pass'
     if test_status != 'pass':

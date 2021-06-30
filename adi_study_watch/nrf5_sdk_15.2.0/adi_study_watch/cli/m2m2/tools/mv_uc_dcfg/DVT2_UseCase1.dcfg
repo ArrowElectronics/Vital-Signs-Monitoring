@@ -19,7 +19,7 @@
 01A1 40DA #
 01A2 0005 #
 01A3 5002 #
-01A4 E3D2 # //TIA GAIN, CH1 = CH2 = 50k
+01A4 03D2 # //TIA GAIN, CH1 = CH2 = 50k
 01A5 0005 # //Green - 1A, 6mA
 01A6 0000 #
 01A7 0140 # // 64 pulse
@@ -38,7 +38,7 @@
 0161 40DA #  /*pre conditioning period of 8us, TIA+INT+BPF+ADC signal path selected for Slot A */
 0162 0010 #  /*IN3 connected to CH1 of slot A*/
 0163 5A40 #  /*Pre condition with TIA V_ref,VC2_pulse changes between active state and alternate state, VC2_Active = V-ref and VC2_alternate = V_ref + 250mV*/
-0164 E281 #   /* R_int = 400K, R_tia_c h1 = 100k, TIA_Vref = 0.8855  V, Vref_pulse = 0.8855 V; No v-ref pulsing */
+0164 0281 #   /* R_int = 400K, R_tia_c h1 = 100k, TIA_Vref = 0.8855  V, Vref_pulse = 0.8855 V; No v-ref pulsing */
 0165 0000 #
 0166 0000 #
 0167 0101 #  /*single pulse and single repition is used*/
@@ -57,7 +57,7 @@
 0181 40DA #   /*pre conditioning period of 8us, TIA+INT+BPF+ADC signal path selected for Slot B */
 0182 0030 #   /*IN4 connected to CH1 of slot B*/
 0183 5A40 #   /*Pre condition with TIA V_ref,VC2_pulse changes between active state and alternate state, VC2_Active = V-ref and VC2_alternate = V_ref + 250mV*/
-0184 E281 #   /* R_int = 400K, R_tia_c h1 = 100k, TIA_Vref = 0.8855  V, Vref_pulse = 0.8855 V; No v-ref pulsing */
+0184 0281 #   /* R_int = 400K, R_tia_c h1 = 100k, TIA_Vref = 0.8855  V, Vref_pulse = 0.8855 V; No v-ref pulsing */
 0185 0000 #
 0186 0000 #
 0187 0101 #  /*single pulse and single repition is used*/

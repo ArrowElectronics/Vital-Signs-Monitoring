@@ -667,10 +667,6 @@ uint32_t m2m2_set_fs_status(uint8_t en)
                 NRF_LOG_INFO("fs log stop fail,status = %d",status);
                 return M2M2_STATUS_ERROR;
             }
-#ifdef LOW_TOUCH_FEATURE
-extern uint8_t gStopCmdEnable;
-        gStopCmdEnable =1;      //Enable sending stop commands
-#endif //LOW_TOUCH_FEATURE
         }
     }
     return M2M2_SUCCESS;

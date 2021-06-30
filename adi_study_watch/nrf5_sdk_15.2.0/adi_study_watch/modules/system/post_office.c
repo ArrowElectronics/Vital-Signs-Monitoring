@@ -116,29 +116,29 @@ post_office_routing_table_entry_t m2m2_routing_table[] = {
   {M2M2_ADDR_APP_IOS,             send_message_ble_tx_task},//6
   {M2M2_ADDR_APP_WT,              send_message_usbd_tx_task},//7
   {M2M2_ADDR_BLE_SERVICES_SENSOR, send_message_ble_services_sensor_task},//8
-  {M2M2_ADDR_SENSOR_AD7156,       send_message_top_touch_task},
+  {M2M2_ADDR_SENSOR_AD7156,       send_message_top_touch_task},//9
 #ifdef USE_FS
-  {M2M2_ADDR_SYS_FS,               send_message_file_system_task},//8
+  {M2M2_ADDR_SYS_FS,               send_message_file_system_task},//10
 #endif
 #ifdef ENABLE_WATCH_DISPLAY
-  {M2M2_ADDR_DISPLAY,              send_message_display_task},//9
+  {M2M2_ADDR_DISPLAY,              send_message_display_task},//11
 #endif
 #ifdef LOW_TOUCH_FEATURE
-  {M2M2_ADDR_APP_LT_APP,            send_message_lt_task},//10
+  {M2M2_ADDR_APP_LT_APP,            send_message_lt_task},//12
 #endif
-  {M2M2_ADDR_SYS_PM,              send_message_system_task},//11
+  {M2M2_ADDR_SYS_PM,              send_message_system_task},//13
 #ifdef ENABLE_PPG_APP
-  {M2M2_ADDR_MED_PPG,               send_message_ppg_application_task},//12
+  {M2M2_ADDR_MED_PPG,               send_message_ppg_application_task},//14
   //{M2M2_ADDR_MED_SYNC_ADPD_ADXL,    send_message_ppg_application_task},//13
 #endif
 #ifdef ENABLE_EDA_APP
-  {M2M2_ADDR_MED_EDA,               send_message_ad5940_eda_task},//14
+  {M2M2_ADDR_MED_EDA,               send_message_ad5940_eda_task},//15
 #endif
 #ifdef ENABLE_ECG_APP
-  {M2M2_ADDR_MED_ECG,               send_message_ad5940_ecg_task},//15
+  {M2M2_ADDR_MED_ECG,               send_message_ad5940_ecg_task},//16
 #endif
 #ifdef ENABLE_TEMPERATURE_APP
-  {M2M2_ADDR_MED_TEMPERATURE,       send_message_temperature_app_task},//16
+  {M2M2_ADDR_MED_TEMPERATURE,       send_message_temperature_app_task},//17
 #endif
 #ifdef ENABLE_BCM_APP
   {M2M2_ADDR_MED_BCM,               send_message_ad5940_bcm_task},
@@ -146,10 +146,10 @@ post_office_routing_table_entry_t m2m2_routing_table[] = {
 #ifdef ENABLE_PEDO_APP
   {M2M2_ADDR_MED_PED,               send_message_pedometer_app_task},
 #endif
-  {M2M2_ADDR_SENSOR_ADXL,           send_message_adxl_task},//19
-  {M2M2_ADDR_SENSOR_ADPD4000,       send_message_adpd4000_task},//20
+  {M2M2_ADDR_SENSOR_ADXL,           send_message_adxl_task},//20
+  {M2M2_ADDR_SENSOR_ADPD4000,       send_message_adpd4000_task},//21
 #ifdef ENABLE_SQI_APP
-  {M2M2_ADDR_MED_SQI,      send_message_sqi_app_task},//21
+  {M2M2_ADDR_MED_SQI,      send_message_sqi_app_task},//22
 #endif
 //  //  M2M2_ADDR_HIGHEST
 //  //  M2M2_ADDR_GLOBAL
@@ -178,6 +178,9 @@ ADPD4k,
 TEMP_APP,
 ADXL_APP,
 PPG_APP,
+SYNC_PPG_APP,
+AGC_APP,
+HRV_APP,
 ECG_APP,
 EDA_APP,
 BCM_APP,
@@ -437,24 +440,35 @@ m2m2_hdr_t *post_office_create_msg(uint16_t length) {
 #ifdef DEBUG_PKT
 void post_office_msg_cnt(m2m2_hdr_t *p_msg)
 {
-
       if(p_msg->length == (sizeof(m2m2_sensor_adpd4000_data_stream_t) + M2M2_HEADER_SZ) && (p_msg->src >= M2M2_ADDR_SENSOR_ADPD4000))
       {
       po_apps[ADPD4k].cnt_created++;
       }
-      else if(p_msg->length == (sizeof(temperature_app_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_TEMPERATURE)
+      else if(p_msg->length == (sizeof(temperature_app_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_TEMPERATURE && p_msg->dest == M2M2_ADDR_MED_TEMPERATURE_STREAM)
       {
       po_apps[TEMP_APP].cnt_created++;
       }
-      else if(p_msg->length == (sizeof(adpd_adxl_sync_data_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_PPG)
+      else if(p_msg->length == (sizeof(ppg_app_hr_debug_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_PPG && p_msg->dest == M2M2_ADDR_MED_PPG_STREAM)
       {
       po_apps[PPG_APP].cnt_created++;
       }
-      else if(p_msg->length == (sizeof(m2m2_sensor_adxl_data_no_compress_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_SENSOR_ADXL)
+      else if(p_msg->length == (sizeof(adpd_adxl_sync_data_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_PPG && p_msg->dest == M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM)
+      {
+      po_apps[SYNC_PPG_APP].cnt_created++;
+      }
+      else if(p_msg->length == (sizeof(ppg_app_agc_info_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_PPG && p_msg->dest == M2M2_ADDR_SYS_AGC_STREAM)
+      {
+      po_apps[AGC_APP].cnt_created++;
+      }
+      else if(p_msg->length == (sizeof(ppg_app_hrv_info_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_PPG && p_msg->dest == M2M2_ADDR_SYS_HRV_STREAM)
+      {
+      po_apps[HRV_APP].cnt_created++;
+      }
+      else if(p_msg->length == (sizeof(m2m2_sensor_adxl_data_no_compress_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_SENSOR_ADXL && p_msg->dest == M2M2_ADDR_SENSOR_ADXL_STREAM)
       {
       po_apps[ADXL_APP].cnt_created++;
       }
-      else if(p_msg->length == (sizeof(ecg_app_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_ECG)
+      else if(p_msg->length == (sizeof(ecg_app_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_ECG && p_msg->dest == M2M2_ADDR_MED_ECG_STREAM)
       {
       po_apps[ECG_APP].cnt_created++;
       }
@@ -466,7 +480,6 @@ void post_office_msg_cnt(m2m2_hdr_t *p_msg)
       {
       po_apps[BCM_APP].cnt_created++;
       }
-
 }
 #endif
 
@@ -476,7 +489,6 @@ void post_office_msg_cnt(m2m2_hdr_t *p_msg)
   *@param length  length of message packet to be consumed
  */
 void post_office_consume_msg(m2m2_hdr_t *p_msg) {
-
 #ifdef DEBUG_PKT
       if(p_msg->length == (sizeof(m2m2_sensor_adpd4000_data_stream_t) + M2M2_HEADER_SZ) && (p_msg->src >= (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_SENSOR_ADPD_STREAM1) && p_msg->src <= (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_SENSOR_ADPD_STREAM12)))
       {
@@ -488,7 +500,19 @@ void post_office_consume_msg(m2m2_hdr_t *p_msg) {
       }
       else if(p_msg->length == (sizeof(adpd_adxl_sync_data_stream_t) + M2M2_HEADER_SZ) && p_msg->src == (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM))
       {
+      po_apps[SYNC_PPG_APP].cnt_consumed++;
+      }
+      else if(p_msg->length == (sizeof(ppg_app_hr_debug_stream_t) + M2M2_HEADER_SZ) && p_msg->src == (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_MED_PPG_STREAM))
+      {
       po_apps[PPG_APP].cnt_consumed++;
+      }
+      else if(p_msg->length == (sizeof(ppg_app_hrv_info_t) + M2M2_HEADER_SZ) && p_msg->src == (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_SYS_HRV_STREAM))
+      {
+      po_apps[HRV_APP].cnt_consumed++;
+      }
+      else if(p_msg->length == (sizeof(ppg_app_agc_info_t) + M2M2_HEADER_SZ) && p_msg->src == (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_SYS_AGC_STREAM))
+      {
+      po_apps[AGC_APP].cnt_consumed++;
       }
       else if(p_msg->length == (sizeof(m2m2_sensor_adxl_data_no_compress_stream_t) + M2M2_HEADER_SZ) && (p_msg->src == (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_SENSOR_ADXL_STREAM) || p_msg->src == M2M2_ADDR_SENSOR_ADXL_STREAM))
       {

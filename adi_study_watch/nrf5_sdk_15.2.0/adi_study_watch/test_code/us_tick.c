@@ -1,18 +1,32 @@
 /********************************************************************************
 
- **** Copyright (C), 2020, xx xx xx xx info&tech Co., Ltd.                ****
+*/
+/*!
+*  copyright Analog Devices
+* ****************************************************************************
+*
+* License Agreement
+*
+* Copyright (c) 2021 Analog Devices Inc.
+* All rights reserved.
+*
+* This source code is intended for the recipient only under the guidelines of
+* the non-disclosure agreement with Analog Devices Inc.
+*
+
+* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+* EXPRESS OR  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+* MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+* IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+* CLAIM, DAMAGES OR OTHER  LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+* TORT OR OTHERWISE, ARISING  FROM, OUT OF OR IN CONNECTION WITH THE
+* SOFTWARE OR THE USE OR OTHER  DEALINGS IN THE SOFTWARE.
 
  ********************************************************************************
  * File Name     : us_tick.c
- * Date          : 2020-07-20
+ * Date          : 15-06-2021
  * Description   : .Offer a micro second precision counter.
  * Version       : 1.0
- * Function List :
- *
- * Record        :
- * 1.Date        : 2020-07-20
- *   Modification: Created file
-
 *************************************************************************************************************/
 
 #include "us_tick.h"
@@ -27,6 +41,10 @@
 #endif
 #include <rtc.h>
 #include "ad5940.h"
+#include "ecg_task.h"
+#ifdef EXTERNAL_TRIGGER_EDA
+#include "eda_application_task.h"
+#endif
 
 #if defined(PROFILE_TIME_ENABLED) || defined(BLE_NUS_PROFILE_TIME_ENABLED)
 
@@ -103,6 +121,7 @@ void us_timer_reset(void)
 
 const nrf_drv_timer_t TIMER_ADXL = NRF_DRV_TIMER_INSTANCE(1);
 
+void ppg_adjust_adpd_ext_trigger(uint16_t nOdr);
 extern void invert_adxl_trigger_signal();
 extern void enable_adxl_trigger_pin();
 extern void disable_adxl_trigger_pin();
@@ -116,6 +135,10 @@ volatile uint32_t gTriggerTimerCnt =0, gAdpdTimerCnt=0, gAdxlTimerCnt=0;
 volatile uint8_t gAdxlExtTimerRunning = 0;
 volatile uint8_t gAdpdRunning=0, gAdxlRunning=0,gTimerRunning=0;
 volatile uint8_t gResetTriggerPulseStates = 0;
+#ifdef EXTERNAL_TRIGGER_EDA
+extern uint8_t ecg_start_req;
+extern uint8_t eda_start_req;
+#endif
 
 /*!
                               ADPD ODR: Index to Frequency(Hz) to Timer Ticks(16Mhz clk ticks) Mapping Table
@@ -144,7 +167,7 @@ uint32_t gaExtTriggerTicks[TRIGGER_FREQ_STEPS] = {640000,320000,160000,80000,400
 uint8_t gExtTriggerFreqIndex = 2;
 
 #ifdef ENABLE_ECG_APP
-uint8_t gEcgFreqIndex = 2, gEcgDecFactor = 1;
+uint8_t gAd5940FreqIndex = 2, gAd5940DecFactor = 1;
 uint8_t gExtad5940TriggerFreqIndex = 2;
 #endif
 
@@ -263,25 +286,35 @@ uint32_t gaAdxlTriggerTicks[8] = {640000,320000,160000,80000,40000,20000,20000,2
 
 /*!
                               ECG ODR: Index to Frequency(Hz) to Timer Ticks(16Mhz clk ticks) Mapping Table
-  ---------------------------------------------------------------------------------------------------------------------------------------------
-  | Index     |   0      |   1    |   2   |    3     |   4     |   5     |   6     |   7    |   8     |   9   |  10  |  11   |   12  |   13   |
-  ---------------------------------------------------------------------------------------------------------------------------------------------
-  | Freq(Hz)  |   12   |   25   |   50  |    100   |   200   |   250   |   300   |  400   |   500   |  600  |  700 |  800  |  900  |  1000  |
-  ---------------------------------------------------------------------------------------------------------------------------------------------
-  -----------------------------------------------------------------------------------------------------------------------------------------------
-  | Period(ms)|    83.33    |   40   |   20  |    10    |    5    |    4    |   3.33  |   2.5  |    2    |    1.66 |  1.42 |  1.25   |  1.11   |  1  |
-  -----------------------------------------------------------------------------------------------------------------------------------------------
-  | Pulse     |    41.665   |   20   |   10  |    5     |   2.5   |    2    |  1.66   |  1.25  |    1    |   0.83  |  0.71 |  0.625  |  0.55   |  0.5  |
-  | width(ms) |          |        |       |          |         |         |         |        |         |         |       |         |         |       |
-  -----------------------------------------------------------------------------------------------------------------------------------------------
+  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  | Index     |   0   | 1   |   2     |   3    |   4   |    5     |   6     |   7     |   8     |   9    |   10     |   11   |  12  |  13   |   14  |   15   | 16     |
+  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  | Freq(Hz)  |   4   | 8   |   12    |  16   |   30   |    50    |  100    | 200     |   250   |   300   |  400    |   500   |  600  |  700 |  800  |  900  |  1000  |
+  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  | Period(ms)|    250   |  125     | 83.33        |   62.5       |   33.33    |    20    | 10     |   5       |    4    |   3.33  |   2.5      |    2    |    1.66 |  1.42  |  1.25   |  1.11   |  1  |
+  -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  | Pulse     |    125   |   62.5   |   41.665     |    31.25     |   16.665   |    10    |  5     |  2.5      |   2     |  1.665  |    1.25    |   1     |  0.83   |  0.71  |  0.625   |  0.555 |  1  |
+  | width(ms) |      |        |            |          |               |             |         |        |         |         |       |         |         |       |
+  -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
             Frequency to Ticks Conversion assuming 16Mhz clk and Prescaler value of 0.
                   # Ticks = Pulse Width (ms)  * 16000(ticks per ms)
 */
 
-#define TRIGGER_ECG_FREQ_STEPS 14
-uint16_t gaAd5940TriggerFreq[TRIGGER_ECG_FREQ_STEPS]={12,25,50,100,200,250,300,400,500,600,700,800,900,1000};
-uint32_t gaExtAd5940TriggerTicks[TRIGGER_ECG_FREQ_STEPS] = {666640,320000,160000,80000,40000,32000,26667,20000,16000,13280,11360,10000,8800,8000};
+#ifdef EXTERNAL_TRIGGER_EDA
+#define TRIGGER_AD5940_FREQ_STEPS 17
+uint16_t gaAd5940TriggerFreq[TRIGGER_AD5940_FREQ_STEPS]={4,8,12,16,30,50,100,200,250,300,400,500,600,700,800,900,1000};
+uint32_t gaExtAd5940TriggerTicks[TRIGGER_AD5940_FREQ_STEPS] = {2000000,100000,666640,500000,\
+                                                            266640,320000,160000,80000,\
+                                                            40000,32000,26640,20000,\
+                                                            13280,11360,10000,8800,8000};
+#else
+#define TRIGGER_AD5940_FREQ_STEPS 14
+uint16_t gaAd5940TriggerFreq[TRIGGER_AD5940_FREQ_STEPS]={12,25,50,100,200,250,300,400,500,600,700,800,900,1000};
+uint32_t gaExtAd5940TriggerTicks[TRIGGER_AD5940_FREQ_STEPS] = {666640,320000,160000,80000,40000,32000,26667,20000,\
+								16000,13280,11360,10000,8800,8000};
+#endif															
 
 
 /*
@@ -474,7 +507,26 @@ void enable_adpd_ext_trigger(uint16_t nOdr)
     gResetTriggerPulseStates = 1;
     gAdpdRunning = 1;
 }
-
+/*
+ Function to update the ADPD/ADXL trigger frequency at run time for PPG application
+ This will be called from Library through callback PpgAdpd400xSetModeCB
+*/
+void ppg_adjust_adpd_ext_trigger(uint16_t nOdr)
+{
+    uint8_t nOdrIndex;
+    nOdrIndex = map_adpd_freq_to_index(nOdr);
+    gAdpdFreqIndex = nOdrIndex;
+    if(nOdrIndex > gExtTriggerFreqIndex)
+    {
+      //restart timer; adjust the dec factors
+      restart_trigger_timer(nOdrIndex);
+    }
+    else
+    {
+      gAdpdDecFactor = gaAdpdTriggerFreq[gExtTriggerFreqIndex]/gaAdpdTriggerFreq[nOdrIndex];
+      gAdxlDecFactor = gaAdpdTriggerFreq[gExtTriggerFreqIndex]/gaAdpdTriggerFreq[gAdxlFreqIndex];  
+    }
+}
 
 void disable_adpd_ext_trigger(uint16_t nOdr)
 {
@@ -489,18 +541,18 @@ void disable_adpd_ext_trigger(uint16_t nOdr)
 #ifdef ENABLE_ECG_APP
 const nrf_drv_timer_t TIMER_AD5940 = NRF_DRV_TIMER_INSTANCE(3);
 
-extern void invert_ecg_trigger_signal();
-extern void disable_ecg_trigger_pin();
-extern void reset_ecg_trigger_signal(bool n_state);
-extern void enable_ecg_trigger_pin();
+extern void invert_ad5940_trigger_signal();
+extern void disable_ad5940_trigger_pin();
+extern void reset_ad5940_trigger_signal(bool n_state);
+extern void enable_ad5940_trigger_pin();
 extern void Ad5940FifoCallBack(void);
 
-volatile uint8_t gEcgRunning = 0, gAd5940TimerRunning=0;
+volatile uint8_t gAd5940Running = 0, gAd5940TimerRunning=0;
 volatile uint32_t gad5940TriggerTimerCnt =0,gad5940TriggerPulseCnt = 0;
 
 #define ECG_WATER_MARK_LEVEL    16U
 
-/*FIFO_THRESHOLD_TRIGGERS_CNT = 2 * ECG_WATER_MARK_LEVEL*/
+/*FIFO_THRESHOLD_TRIGGERS_CNT = 2 * ECG_WATER_MARK_LEVEL/EDA_WATER_MARK_LEVEL */
 #define FIFO_THRESHOLD_TRIGGERS_CNT       32U
 
 #ifdef DEBUG_ECG
@@ -520,9 +572,12 @@ extern uint32_t gnAd5940TimeCurVal;
 extern uint32_t gnAd5940TimeCurVal_copy;
 extern volatile uint8_t gnAd5940DataReady;
 extern ADI_OSAL_SEM_HANDLE   ecg_task_evt_sem;
+#ifdef EXTERNAL_TRIGGER_EDA
+extern ADI_OSAL_SEM_HANDLE eda_task_evt_sem;
+#endif
 volatile uint16_t fifo_threshold_not_four=0;
 volatile uint8_t debug_flag=0;
-uint8_t gResetEcgTriggerPulse = 0;
+uint8_t gResetAd5940TriggerPulse = 0;
 
 #ifdef ECG_POLLING
 struct gTrigInfo{
@@ -531,59 +586,79 @@ uint32_t gaTrigCnt[100];
 uint16_t nIndex;
 }TrigArr;
 #endif
+
+/*!
+ ****************************************************************************
+ *@brief      Timer event handler to handle AD5940 data collection, events
+              are generated from Nordic Internal timer and driven through 
+              External trigger pin connected to AD5940
+ *@param      event_type: Event type of type 'nrf_timer_event_t'
+              p_context: pointer to context and is defined according to Nordic
+              timer event call back
+ *@return     None
+ ******************************************************************************/
 void ad5940_timer_event_handler(nrf_timer_event_t event_type, void* p_context)
 {
-
     switch (event_type)
     {
         case NRF_TIMER_EVENT_COMPARE0:
-              if(gEcgRunning == 1)
+              if(gAd5940Running == 1)
               {
                 gad5940TriggerTimerCnt++;
-                if(gResetEcgTriggerPulse)
+                if(gResetAd5940TriggerPulse)
                 {
-                  gResetEcgTriggerPulse = 0;
+                  gResetAd5940TriggerPulse = 0;
                   gad5940TriggerTimerCnt = 0;
                   gad5940TriggerPulseCnt = 0;
-                  reset_ecg_trigger_signal(0);  /* set the trigger signal high*/
+                  reset_ad5940_trigger_signal(0);  /* set the trigger signal high*/
                 }
                 else
                 {
-                  if((gad5940TriggerTimerCnt%gEcgDecFactor) == 0)
+                  if((gad5940TriggerTimerCnt%gAd5940DecFactor) == 0)
                   {
-                    invert_ecg_trigger_signal();
+                    invert_ad5940_trigger_signal();
                     gad5940TriggerPulseCnt++;
                     if(((gad5940TriggerPulseCnt) % FIFO_THRESHOLD_TRIGGERS_CNT) ==0)
                     {
 #ifdef DEBUG_ECG
-                           fifo_read_flag = 1;
+                      fifo_read_flag = 1;
 #endif
 
-                          /* Now there should be fifo data ; number of samples to read is being set in
-                            ecg app which FIFO threshold variable*/
-                            /* Read current time */
-                            gnAd5940TimeCurVal =  get_sensor_time_stamp();
-                            /* Increment isr count */
-                            gn_ad5940_isr_cnt++;
-                            /*Wake up the ecg task to read the samples from FIFO*/
-                            adi_osal_SemPost(ecg_task_evt_sem);
+                      /* Now there should be fifo data ; number of samples to read is being set in
+                      ecg app which FIFO threshold variable*/
+                      /* Read current time */
+                      gnAd5940TimeCurVal =  get_sensor_time_stamp();
+                      /* Increment isr count */
+                      gn_ad5940_isr_cnt++;
+#ifdef EXTERNAL_TRIGGER_EDA							
+                      if(ecg_start_req== 1){
+                        /*Wake up the ecg task to read the samples from FIFO*/
+                        adi_osal_SemPost(ecg_task_evt_sem);
+                      }
+                      else if(eda_start_req== 1){
+                        /*Wake up the ecg task to read the samples from FIFO*/
+                        adi_osal_SemPost(eda_task_evt_sem);
+                      }
+#else
+                      adi_osal_SemPost(ecg_task_evt_sem);						   
+#endif						   
                     }
 #ifdef DEBUG_ECG
                     else{
-                          if(fifo_read_flag == 1 && (((gad5940TriggerPulseCnt-4)%2) ==0) ){
-                            gnAd5940TimeCurVal_copy = gnAd5940TimeCurVal;
-                            gnAd5940TimeCurVal = get_sensor_time_stamp();
-                            if(gnAd5940TimeCurVal_copy != gnAd5940TimeCurVal){
-                                  fifo_threshold_not_four += 1;
-                                  debug_flag=1;
-                            }
-                          }
-                          /* post ecg semaphore */
-                          adi_osal_SemPost(ecg_task_evt_sem);
+                      if(fifo_read_flag == 1 && (((gad5940TriggerPulseCnt-4)%2) ==0) ){
+                      gnAd5940TimeCurVal_copy = gnAd5940TimeCurVal;
+                      gnAd5940TimeCurVal = get_sensor_time_stamp();
+                      if(gnAd5940TimeCurVal_copy != gnAd5940TimeCurVal){
+                        fifo_threshold_not_four += 1;
+                        debug_flag=1;
+                      }
                     }
-#endif
+                      /* post ecg semaphore */
+                     adi_osal_SemPost(ecg_task_evt_sem);
                   }
-                }
+#endif
+                 }
+               }
 #ifdef ECG_POLLING
                 TrigArr.gaTrigTime[TrigArr.nIndex] = get_sensor_time_stamp();
                 TrigArr.gaTrigCnt[TrigArr.nIndex] = gad5940TriggerTimerCnt;
@@ -605,10 +680,10 @@ void  enable_ad5940_trigger_timer(uint8_t nOdrIndex)
     nrf_drv_timer_config_t timer_cfg = NRF_DRV_TIMER_DEFAULT_CONFIG;
     err_code = nrf_drv_timer_init(&TIMER_AD5940, &timer_cfg, ad5940_timer_event_handler);
     APP_ERROR_CHECK(err_code);
-
+    
     time_ticks = gaExtAd5940TriggerTicks[nOdrIndex];
-    gExtTriggerFreqIndex = nOdrIndex;
-    gEcgDecFactor = gaAd5940TriggerFreq[nOdrIndex]/gaAd5940TriggerFreq[gEcgFreqIndex];//1 << (nOdrIndex - gAdxlFreqIndex);
+    gExtad5940TriggerFreqIndex = nOdrIndex;
+    gAd5940DecFactor = gaAd5940TriggerFreq[nOdrIndex]/gaAd5940TriggerFreq[gAd5940FreqIndex];//1 << (nOdrIndex - gAdxlFreqIndex);
     nrf_drv_timer_extended_compare(&TIMER_AD5940, NRF_TIMER_CC_CHANNEL0, time_ticks, \
                                   NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
     nrf_drv_timer_enable(&TIMER_AD5940);
@@ -625,9 +700,9 @@ void disable_ad5940_trigger_timer(uint8_t nOdrIndex)
     /*! Reset all variables to default values*/
     gad5940TriggerTimerCnt = 0;
     gAd5940TimerRunning = 0;
-    gEcgFreqIndex = 2;
+    gAd5940FreqIndex = 2;
     gExtad5940TriggerFreqIndex = 2;
-    gEcgDecFactor = 1;
+    gAd5940DecFactor = 1;
   }
   /*This case is not required as single stream is running on the timer*/
 //  else
@@ -636,7 +711,7 @@ void disable_ad5940_trigger_timer(uint8_t nOdrIndex)
 //    /*! If other stream runs at lower freqeuncy; then restart the timer with lower frequency required*/
 //    if(nOdrIndex == gExtad5940TriggerFreqIndex)
 //    {
-//        restart_ad5940_trigger_timer(gEcgFreqIndex);
+//        restart_ad5940_trigger_timer(gAd5940FreqIndex);
 //    }
 //  }
 }
@@ -653,37 +728,50 @@ void restart_ad5940_trigger_timer(uint8_t nOdrIndex)
     APP_ERROR_CHECK(err_code);
 
     time_ticks = gaExtAd5940TriggerTicks[nOdrIndex];    /*! Restart the timer with new frequency */
-    gExtTriggerFreqIndex = nOdrIndex;
-    gEcgDecFactor = gaAd5940TriggerFreq[nOdrIndex]/gaAd5940TriggerFreq[gEcgFreqIndex];//1 << (nOdrIndex - gAdxlFreqIndex);
+    gExtad5940TriggerFreqIndex = nOdrIndex;
+    gAd5940DecFactor = gaAd5940TriggerFreq[nOdrIndex]/gaAd5940TriggerFreq[gAd5940FreqIndex];//1 << (nOdrIndex - gAdxlFreqIndex);
     nrf_drv_timer_extended_compare(&TIMER_AD5940, NRF_TIMER_CC_CHANNEL0,\
                                   time_ticks, NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, true);
     nrf_drv_timer_enable(&TIMER_AD5940);
 }
 
-uint8_t map_ecg_freq_to_index(uint16_t nOdr)
+uint8_t map_ad5940_freq_to_index(uint16_t nOdr)
 {
   int i;
-  for(i=0; i<TRIGGER_ECG_FREQ_STEPS; i++)
+  for(i=0; i<TRIGGER_AD5940_FREQ_STEPS; i++)
   {
     if(gaAd5940TriggerFreq[i] >= nOdr)
     {
         return i;
     }
   }
-  if(i==TRIGGER_ECG_FREQ_STEPS)
+  if(i==TRIGGER_AD5940_FREQ_STEPS)
     return 2; /*! Wrong ODR chosen, set ODR to 50Hz */
 }
 
-void enable_ecg_ext_trigger(uint16_t nOdr)
+void enable_ad5940_ext_trigger(uint16_t nOdr)
 {
     uint8_t nOdrIndex;
-    enable_ecg_trigger_pin();
-    reset_ecg_trigger_signal(1); /* set the trigger signal low*/
-    nOdrIndex = map_ecg_freq_to_index(nOdr);
-    if((nOdrIndex > gExtTriggerFreqIndex) || (!gAd5940TimerRunning))
+    enable_ad5940_trigger_pin();
+    reset_ad5940_trigger_signal(1); /* set the trigger signal low*/
+    nOdrIndex = map_ad5940_freq_to_index(nOdr);
+#ifdef EXTERNAL_TRIGGER_EDA		
+    NRF_LOG_INFO("ODR=%d,ODR Index=%d",nOdr,nOdrIndex);
+    if(ecg_start_req== 1){
+      if((nOdrIndex == 0)||(nOdrIndex == 1)){
+        nOdrIndex = ((nOdrIndex == 0)? (nOdrIndex+2):(nOdrIndex+1));
+       }
+     }
+     else if(eda_start_req == 1){
+        if(nOdrIndex > 4){
+          return; /* eda doesnt support greater than 30 Hz*/ 
+        }
+     }
+#endif
+    if((nOdrIndex > gExtad5940TriggerFreqIndex) || (!gAd5940TimerRunning))
     {
       //restart timer; adjust the dec factors
-      gEcgFreqIndex = nOdrIndex;
+      gAd5940FreqIndex = nOdrIndex;
       if(gAd5940TimerRunning)
         restart_ad5940_trigger_timer(nOdrIndex);
       else
@@ -691,20 +779,20 @@ void enable_ecg_ext_trigger(uint16_t nOdr)
     }
     else
     {
-      gEcgFreqIndex = nOdrIndex;
-      gEcgDecFactor = gaAd5940TriggerFreq[gExtTriggerFreqIndex]/gaAd5940TriggerFreq[nOdrIndex];//1 << (nOdrIndex - gAdpdFreqIndex);
+      gAd5940FreqIndex = nOdrIndex;
+      gAd5940DecFactor = gaAd5940TriggerFreq[gExtad5940TriggerFreqIndex]/gaAd5940TriggerFreq[nOdrIndex];//1 << (nOdrIndex - gAdpdFreqIndex);
     }
     gad5940TriggerTimerStartCnt++;
-    gResetEcgTriggerPulse = 1;
-    gEcgRunning = 1;
+    gResetAd5940TriggerPulse = 1;
+    gAd5940Running = 1;
 }
 
-void disable_ecg_ext_trigger(uint16_t nOdr)
+void disable_ad5940_ext_trigger(uint16_t nOdr)
 {
     uint8_t nOdrIndex;
-    nOdrIndex = map_ecg_freq_to_index(nOdr);
-    gEcgRunning = 0;
+    nOdrIndex = map_ad5940_freq_to_index(nOdr);
+    gAd5940Running = 0;
     disable_ad5940_trigger_timer(nOdrIndex);
-    disable_ecg_trigger_pin();
+    disable_ad5940_trigger_pin();
 }
 #endif //ENABLE_ECG_APP

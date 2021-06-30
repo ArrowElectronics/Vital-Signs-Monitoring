@@ -206,6 +206,8 @@ hrv_data_set_t = {
     "type":c_short},
     {"name":"is_gap",
     "type":c_ushort},
+    {"name":"rmssd",
+    "type":c_ushort},
   ]
 }
 
@@ -218,6 +220,8 @@ ppg_app_hrv_info_t = {
     {"name":"first_rr_interval",
     "type":c_short},
     {"name":"first_is_gap",
+    "type":c_ushort},
+    {"name":"first_rmssd",
     "type":c_ushort},
     {"name":"hrv_data",
     "length":3,

@@ -17,15 +17,21 @@ try:
     import easygui
     import subprocess
     from utils import instr_lib
+    from utils.cli_map import CLIMap
+    from utils import cli_map
+    import threading
 except Exception as e:
     print("Import Exception! Details:", e)
 
 
 # Adding CLI destination path to sys path in order to import the module
-curr_dir = os.path.join(os.path.abspath(__file__), '../')
-cli_dir = os.path.join(curr_dir, '../adi_study_watch/cli/m2m2/tools')
-sys.path.insert(0, cli_dir)
-import CLI
+# curr_dir = os.path.join(os.path.abspath(__file__), '../')
+# cli_dir = os.path.join(curr_dir, '../adi_study_watch/cli/m2m2/tools')
+# sys.path.insert(0, cli_dir)
+# import CLI
+
+# from adi_study_watch_cli import CLI
+
 
 
 # **********************************************************************
@@ -43,18 +49,19 @@ watch_port_type = None  # This variable will be updated from station config file
 sm_instr_addr = None  # This variable will be updated from station config file [read_station_Cfg()]
 arduino = None
 watch_shell = None
+ts_mismatch_tolerance = None
 fg, sm = None, None
 matlab_eng = None
-pcb_name_default='A1H1'
+pcb_name_default = 'A1H1'
 shared_drive_path = r'\\wilmnas4\Local Programs\FDWatch_TestData\Data_Testsetup\DVT1_Test_Results'
-ecg_stream_file_name = 'EcgAppStream.csv'
-bcm_stream_file_name = "BcmAppStream.csv"
-ppg_stream_file_name = 'ppgStream.csv'
-syncppg_stream_file_name = 'syncppgStream.csv'
-adxl_stream_file_name = 'adxlStream.csv'
-temperature_stream_file_name = 'TempAppStream.csv'
-adpd_stream_file_name = 'adpd6Stream.csv'
-eda_stream_file_name = 'EdaAppStream.csv'
+ecg_stream_file_name = 'ecg.csv'
+bcm_stream_file_name = "bcm.csv"
+ppg_stream_file_name = 'ppg.csv'
+syncppg_stream_file_name = 'sync_ppg.csv'
+adxl_stream_file_name = 'adxl.csv'
+temperature_stream_file_name = 'temp.csv'
+adpd_stream_file_name = 'adpd6.csv'
+eda_stream_file_name = 'eda.csv'
 volt_scale_range = (0, 5)
 # The switch map dictionary maps the various switches to the arduino digital pins (24-42)
 switch_map = {'SNOISE1': 22, 'SNOISE2': 23, 'ECG_NEGSEL': 24, 'ECG_POSSEL': 25}
@@ -63,17 +70,26 @@ test_report_dir = None
 copy_results_to_shared_drive = True
 save_plots = False
 DVT_version = None
+adpd_clk_calib = None
+cm = None  # CLI Map
 # **********************************************************************
 
 # ********************* Configure Logging ******************************
-# logging_format = "[%(asctime)s] [%(levelname)s]: %(message)s"
+test_logger = logging.getLogger('test_logger')
 logging_format = "[%(levelname)s] : %(message)s"
 date_str = "%m/%d/%Y %I:%M:%S %p"
-logging.basicConfig(# filename='output.log',
-                    level=logging.INFO,
-                    # filemode='w',
-                    format=logging_format,
-                    datefmt=date_str)
+logger_formatter = logging.Formatter(logging_format, date_str)
+test_stream_handler = logging.StreamHandler()
+test_logger.setLevel(logging.INFO)
+test_logger.addHandler(test_stream_handler)
+
+# logging_format = "[%(asctime)s] [%(levelname)s]: %(message)s"
+
+# logging.basicConfig(# filename='output.log',
+#                     level=logging.INFO,
+#                     # filemode='w',
+#                     format=logging_format,
+#                     datefmt=date_str)
 # **********************************************************************
 
 
@@ -96,7 +112,7 @@ def update_robot_suite_doc(doc):
     try:
         BuiltIn().set_suite_documentation(doc)
     except Exception as e:
-        logging.warn('Skipping robot documentation update!')
+        test_logger.warn('Skipping robot documentation update!')
         pass
 
 
@@ -113,7 +129,7 @@ def write_analysis_report(result_dict, report_file=None, header='Analysis Sectio
     file_mode = 'a' if append_report else 'w'
     with open(report_file, file_mode) as f_ref:
         f_ref.write('<<< {} >>>\n'.format(header))
-        for k, v in result_dict.iteritems():
+        for k, v in result_dict.items():
             f_ref.write('{} = {}\n'.format(k, v))
         f_ref.write('\n'.format(header))
     return os.path.abspath(report_file)
@@ -138,7 +154,7 @@ def analyze_wfm(file_path, mode='ecg', file_mode='cli', gen_filtered_ppg='1'):
             result_list = line.split(' - ')
             results_dict[result_list[0]] = result_list[1].strip()
     else:
-        logging.warn('Input File not found! {}'.format(file_path))
+        test_logger.warn('Input File not found! {}'.format(file_path))
         results_dict = None
     return results_dict
 
@@ -149,9 +165,8 @@ def quick_start_ecg(samp_freq_hz=100):
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_lcfgEcgWrite('0:{}'.format(samp_freq_hz))
-    watch_shell.do_sensor('ecg start')
-    watch_shell.do_sub('recg add')
+    watch_shell.do_lcfg('w ecg 0:{}'.format(hex(samp_freq_hz)))
+    watch_shell.quick_start('ecg', 'ecg')
 
 
 def quick_start_bcm(samp_freq_hz=100):
@@ -160,10 +175,8 @@ def quick_start_bcm(samp_freq_hz=100):
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_lcfgBcmWrite('0:{}'.format(samp_freq_hz))
-    watch_shell.do_sensor('bcm start')
-    watch_shell.do_sub('rbcm add')
-
+    watch_shell.do_lcfg('w bcm 0:{}'.format(hex(samp_freq_hz)))
+    watch_shell.quick_start('bcm', 'bcm')
 
 
 def set_ecg_stream_freq(samp_freq_hz=100):
@@ -172,7 +185,7 @@ def set_ecg_stream_freq(samp_freq_hz=100):
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_lcfgEcgWrite('0:{}'.format(samp_freq_hz))
+    watch_shell.do_lcfg('w ecg 0:{}'.format(hex(samp_freq_hz)))
 
 
 def set_eda_stream_freq(samp_freq_hz=4):
@@ -181,7 +194,7 @@ def set_eda_stream_freq(samp_freq_hz=4):
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_lcfgEdaWrite('0:{}'.format(samp_freq_hz))
+    watch_shell.do_lcfg('w eda 0:{}'.format(hex(samp_freq_hz)))
 
 
 def quick_start_eda(samp_freq_hz=4):
@@ -190,9 +203,104 @@ def quick_start_eda(samp_freq_hz=4):
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_lcfgEdaWrite('0:{}'.format(samp_freq_hz))
-    watch_shell.do_sensor('eda start')
-    watch_shell.do_sub('reda add')
+    watch_shell.do_lcfg('w eda 0:{}'.format(hex(samp_freq_hz)))
+    watch_shell.quick_start('eda', 'eda')
+
+
+def quick_start_eda_fs(samp_freq_hz=4):
+    """
+
+    :param samp_freq_hz:
+    :return:
+    """
+    watch_shell.do_lcfg('w eda 0:{}'.format(hex(samp_freq_hz)))
+    watch_shell.quick_start("eda", "eda", fs=True)
+    watch_shell.do_start_logging("")
+
+
+def quick_stop_eda_fs():
+    watch_shell.quick_stop("eda", "eda", fs=True)
+    watch_shell.do_stop_logging("")
+
+
+def quick_start_bcm_fs(samp_freq_hz=4):
+    """
+
+    :param samp_freq_hz:
+    :return:
+    """
+    watch_shell.do_lcfg('w bcm 0:{}'.format(hex(samp_freq_hz)))
+    watch_shell.quick_start("bcm", "bcm", fs=True)
+    watch_shell.do_start_logging("")
+
+
+def quick_stop_bcm_fs():
+    watch_shell.quick_stop("bcm", "bcm", fs=True)
+    watch_shell.do_stop_logging("")
+
+
+def quick_start_ecg_fs(samp_freq_hz=4):
+    """
+
+    :param samp_freq_hz:
+    :return:
+    """
+    watch_shell.do_lcfg('w ecg 0:{}'.format(hex(samp_freq_hz)))
+    watch_shell.quick_start("ecg", "ecg", fs=True)
+    watch_shell.do_start_logging("")
+
+
+def quick_stop_ecg_fs():
+    watch_shell.quick_stop("ecg", "ecg", fs=True)
+    watch_shell.do_stop_logging("")
+
+
+def quick_start_adpd_fs(samp_freq_hz=50, agc_state=0, led='G', skip_load_cfg=False):
+    """
+
+        :param samp_freq_hz:
+        :param agc_state:
+        :param led:
+        :param skip_load_cfg:
+        :return:
+        """
+    cfg_dict = {'G': {'adpd_cfg': '1', 'clk_calib': adpd_clk_calib, 'sub': '6', 'agc_ctrl_id': '1'},
+                'R': {'adpd_cfg': '2', 'clk_calib': adpd_clk_calib, 'sub': '7', 'agc_ctrl_id': '2'},
+                'IR': {'adpd_cfg': '3', 'clk_calib': adpd_clk_calib, 'sub': '8', 'agc_ctrl_id': '3'},
+                'B': {'adpd_cfg': '4', 'clk_calib': adpd_clk_calib, 'sub': '9', 'agc_ctrl_id': '4'},
+                'MWL': {'adpd_cfg': '5', 'clk_calib': adpd_clk_calib, 'sub': '10', 'agc_ctrl_id': '5'}}
+    led = led.upper()
+    if not skip_load_cfg:
+        watch_shell.do_load_adpd_cfg(cfg_dict[led]['adpd_cfg'])
+        watch_shell.do_calibrate_clock(cfg_dict[led]['clk_calib'])
+    if agc_state:
+        watch_shell.do_enable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
+    else:
+        watch_shell.do_disable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
+
+    if samp_freq_hz == 50:
+        watch_shell.do_reg("w adpd 0xD:0x4e20")
+    elif samp_freq_hz == 100:
+        watch_shell.do_reg("w adpd 0xD:0x2710")
+    elif samp_freq_hz == 500:
+        watch_shell.do_reg("w adpd 0xD:0x07D0")
+    else:
+        raise RuntimeError("Sampling Frequency Not Supported!")
+
+    watch_shell.quick_start("adpd", "adpd{}".format(cfg_dict[led]['sub']), fs=True)
+    watch_shell.do_start_logging("")
+
+
+def quick_stop_adpd_fs(led='G'):
+    cfg_dict = {'G': {'adpd_cfg': '1', 'clk_calib': adpd_clk_calib, 'sub': '6', 'agc_ctrl_id': '1'},
+                'R': {'adpd_cfg': '2', 'clk_calib': adpd_clk_calib, 'sub': '7', 'agc_ctrl_id': '2'},
+                'IR': {'adpd_cfg': '3', 'clk_calib': adpd_clk_calib, 'sub': '8', 'agc_ctrl_id': '3'},
+                'B': {'adpd_cfg': '4', 'clk_calib': adpd_clk_calib, 'sub': '9', 'agc_ctrl_id': '4'},
+                'MWL': {'adpd_cfg': '5', 'clk_calib': adpd_clk_calib, 'sub': '10', 'agc_ctrl_id': '5'}}
+
+    watch_shell.quick_stop("adpd", "adpd{}".format(cfg_dict[led]['sub']), fs=True)
+    watch_shell.do_stop_logging("")
+
 
 
 def config_adpd_stream(samp_freq_hz=50, agc_state=0, led='G', skip_load_cfg=False):
@@ -204,25 +312,26 @@ def config_adpd_stream(samp_freq_hz=50, agc_state=0, led='G', skip_load_cfg=Fals
     :param skip_load_cfg:
     :return:
     """
-    cfg_dict = {'G': {'adpd_cfg': '40', 'clk_calib': '6', 'sub': '6', 'agc_ctrl_id': '1'},
-                'R': {'adpd_cfg': '41', 'clk_calib': '6', 'sub': '7', 'agc_ctrl_id': '2'},
-                'IR': {'adpd_cfg': '42', 'clk_calib': '6', 'sub': '8', 'agc_ctrl_id': '3'},
-                'B': {'adpd_cfg': '43', 'clk_calib': '6', 'sub': '9', 'agc_ctrl_id': '4'}}
+    cfg_dict = {'G': {'adpd_cfg': '1', 'clk_calib': adpd_clk_calib, 'sub': '6', 'agc_ctrl_id': '1'},
+                'R': {'adpd_cfg': '2', 'clk_calib': adpd_clk_calib, 'sub': '7', 'agc_ctrl_id': '2'},
+                'IR': {'adpd_cfg': '3', 'clk_calib': adpd_clk_calib, 'sub': '8', 'agc_ctrl_id': '3'},
+                'B': {'adpd_cfg': '4', 'clk_calib': adpd_clk_calib, 'sub': '9', 'agc_ctrl_id': '4'},
+                'MWL': {'adpd_cfg': '5', 'clk_calib': adpd_clk_calib, 'sub': '10', 'agc_ctrl_id': '5'}}
     led = led.upper()
     if not skip_load_cfg:
-        watch_shell.do_loadAdpdCfg(cfg_dict[led]['adpd_cfg'])
-        watch_shell.do_clockCalibration(cfg_dict[led]['clk_calib'])
+        watch_shell.do_load_adpd_cfg(cfg_dict[led]['adpd_cfg'])
+        watch_shell.do_calibrate_clock(cfg_dict[led]['clk_calib'])
     if agc_state:
-        watch_shell.do_adpdAGCControl('{}:1'.format(cfg_dict[led]['agc_ctrl_id']))
+        watch_shell.do_enable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
     else:
-        watch_shell.do_adpdAGCControl('{}:0'.format(cfg_dict[led]['agc_ctrl_id']))
+        watch_shell.do_disable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
 
     if samp_freq_hz == 50:
-        watch_shell.do_reg("w adpd4000 0xD:0x4e20")
+        watch_shell.do_reg("w adpd 0xD:0x4e20")
     elif samp_freq_hz == 100:
-        watch_shell.do_reg("w adpd4000 0xD:0x2710")
+        watch_shell.do_reg("w adpd 0xD:0x2710")
     elif samp_freq_hz == 500:
-        watch_shell.do_reg("w adpd4000 0xD:0x07D0")
+        watch_shell.do_reg("w adpd 0xD:0x07D0")
     else:
         raise RuntimeError("Sampling Frequency Not Supported!")
 
@@ -233,7 +342,7 @@ def quick_start_adxl(samp_freq_hz=100):
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_quickstart("adxl")
+    watch_shell.quick_start("adxl", "adxl")
 
     if samp_freq_hz == 12.5:
         watch_shell.do_reg("w adxl 0x2C:0x98")
@@ -249,8 +358,6 @@ def quick_start_adxl(samp_freq_hz=100):
         watch_shell.do_reg("w adxl 0x2C:0x9F")
     else:
         raise RuntimeError("Sampling Frequency Not Supported!")
-
-    watch_shell.do_plot("radxl")
 
 
 def set_adxl_stream_freq(samp_freq_hz=100):
@@ -283,42 +390,37 @@ def quick_start_adpd(samp_freq_hz=50, agc_state=0, led='G', skip_load_cfg=False)
     :param led: ['G' | 'R' | 'IR' | 'B']
     :return: stream_file_name
     """
-    cfg_dict = {'G': {'adpd_cfg': '40', 'clk_calib': '6', 'sub': '6', 'agc_ctrl_id': '1'},
-                'R': {'adpd_cfg': '41', 'clk_calib': '6', 'sub': '7', 'agc_ctrl_id': '2'},
-                'IR': {'adpd_cfg': '42', 'clk_calib': '6', 'sub': '8', 'agc_ctrl_id': '3'},
-                'B': {'adpd_cfg': '43', 'clk_calib': '6', 'sub': '9', 'agc_ctrl_id': '4'}}
+    cfg_dict = {'G': {'adpd_cfg': '1', 'clk_calib': adpd_clk_calib, 'sub': '6', 'agc_ctrl_id': '1'},
+                'R': {'adpd_cfg': '2', 'clk_calib': adpd_clk_calib, 'sub': '7', 'agc_ctrl_id': '2'},
+                'IR': {'adpd_cfg': '3', 'clk_calib': adpd_clk_calib, 'sub': '8', 'agc_ctrl_id': '3'},
+                'B': {'adpd_cfg': '4', 'clk_calib': adpd_clk_calib, 'sub': '9', 'agc_ctrl_id': '4'}}
     led = led.upper()
     if not skip_load_cfg:
-        watch_shell.do_loadAdpdCfg(cfg_dict[led]['adpd_cfg'])
-        watch_shell.do_clockCalibration(cfg_dict[led]['clk_calib'])
+        watch_shell.do_load_adpd_cfg(cfg_dict[led]['adpd_cfg'])
+        watch_shell.do_calibrate_clock(cfg_dict[led]['clk_calib'])
     if agc_state:
-        watch_shell.do_adpdAGCControl('{}:1'.format(cfg_dict[led]['agc_ctrl_id']))
+        watch_shell.do_enable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
     else:
-        watch_shell.do_adpdAGCControl('{}:0'.format(cfg_dict[led]['agc_ctrl_id']))
+        watch_shell.do_disable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
 
     if samp_freq_hz == 50:
-        watch_shell.do_reg("w adpd4000 0xD:0x4e20")
+        watch_shell.do_reg("w adpd 0xD:0x4e20")
     elif samp_freq_hz == 100:
-        watch_shell.do_reg("w adpd4000 0xD:0x2710")
+        watch_shell.do_reg("w adpd 0xD:0x2710")
     elif samp_freq_hz == 500:
-        watch_shell.do_reg("w adpd4000 0xD:0x07D0")
+        watch_shell.do_reg("w adpd 0xD:0x07D0")
     elif samp_freq_hz is None:
         pass
     else:
         raise RuntimeError("Sampling Frequency Not Supported!")
 
-    watch_shell.do_sensor("adpd4000 start")
-    watch_shell.do_sub("radpd{} add".format(cfg_dict[led]['sub']))
-
-    watch_shell.do_plot("radpd{}".format(cfg_dict[led]['sub']))
-    stream_file_name = 'adpd{}Stream.csv'.format(cfg_dict[led]['sub'])
+    watch_shell.quick_start('adpd', "adpd{}".format(cfg_dict[led]['sub']))
+    stream_file_name = 'adpd{}.csv'.format(cfg_dict[led]['sub'])
     return stream_file_name
 
 
 def quick_start_temperature():
-    watch_shell.do_sensor('temperature start')
-    watch_shell.do_sub('rtemperature add')
-    watch_shell.do_plot('rtemperature')
+    watch_shell.quick_start('temp', 'temp')
 
 
 def quick_stop_adpd(led='G'):
@@ -327,12 +429,12 @@ def quick_stop_adpd(led='G'):
     :param led: ['G' | 'R' | 'IR' | 'B']
     :return:
     """
-    cfg_dict = {'G': {'qs_cmd': 'adpd4000_g'},
-                'R': {'qs_cmd': 'adpd4000_r'},
-                'IR': {'qs_cmd': 'adpd4000_ir'},
-                'B': {'qs_cmd': 'adpd4000_b'}}
+    cfg_dict = {'G': 'adpd6',
+                'R': 'adpd7',
+                'IR': 'adpd8',
+                'B': 'adpd9'}
     led = led.upper()
-    watch_shell.do_quickstop(cfg_dict[led]['qs_cmd'])
+    watch_shell.quick_stop('adpd', cfg_dict[led])
 
 
 def quick_start_ppg(samp_freq_hz=50, agc_state=0):
@@ -342,23 +444,20 @@ def quick_start_ppg(samp_freq_hz=50, agc_state=0):
     :param agc_state:
     :return:
     """
-    watch_shell.do_loadAdpdCfg("40")
-    watch_shell.do_clockCalibration("6")
-    watch_shell.do_setPpgLcfg("40")
+    watch_shell.do_load_adpd_cfg("1")
+    watch_shell.do_calibrate_clock(adpd_clk_calib)
+    watch_shell.do_set_ppg_lcfg("5")
     if samp_freq_hz == 50:
-        watch_shell.do_reg("w adpd4000 0xD:0x4e20")
+        watch_shell.do_reg("w adpd 0xD:0x4e20")
     elif samp_freq_hz == 100:
-        watch_shell.do_reg("w adpd4000 0xD:0x2710")
+        watch_shell.do_reg("w adpd 0xD:0x2710")
     elif samp_freq_hz == 500:
-        watch_shell.do_reg("w adpd4000 0xD:0x07D0")
+        watch_shell.do_reg("w adpd 0xD:0x07D0")
     if agc_state:
-        watch_shell.do_lcfgPpgWrite("0x4 0x1210")
+        watch_shell.do_lcfg("w ppg 0x4:0x1210")
     else:
-        watch_shell.do_lcfgPpgWrite("0x4 0x1010")
-    watch_shell.do_sensor("ppg start")
-    watch_shell.do_sub("rppg add")
-    watch_shell.do_plot("rppg")
-    watch_shell.do_plot("rsyncppg")
+        watch_shell.do_lcfg("w ppg 0x4:0x1010")
+    watch_shell.quick_start('ppg', 'ppg')
 
 
 def set_adpd_stream_freq(samp_freq_hz=50):
@@ -368,11 +467,11 @@ def set_adpd_stream_freq(samp_freq_hz=50):
     :return:
     """
     if samp_freq_hz == 50:
-        watch_shell.do_reg("w adpd4000 0xD:0x4e20")
+        watch_shell.do_reg("w adpd 0xD:0x4e20")
     elif samp_freq_hz == 100:
-        watch_shell.do_reg("w adpd4000 0xD:0x2710")
+        watch_shell.do_reg("w adpd 0xD:0x2710")
     elif samp_freq_hz == 500:
-        watch_shell.do_reg("w adpd4000 0xD:0x07D0")
+        watch_shell.do_reg("w adpd 0xD:0x07D0")
 
 
 def quick_stop_ppg(samp_freq_hz=50):
@@ -381,23 +480,23 @@ def quick_stop_ppg(samp_freq_hz=50):
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_quickstop('ppg')
+    watch_shell.quick_stop('ppg', 'ppg')
 
 
-def set_ecg_samp_freq(samp_freq_hz=100):
-    """
-
-    :param samp_freq_hz:
-    :return:
-    """
-    watch_shell.do_lcfgEcgWrite('0:{}'.format(samp_freq_hz))
+# def set_ecg_samp_freq(samp_freq_hz=100):
+#     """
+#
+#     :param samp_freq_hz:
+#     :return:
+#     """
+#     watch_shell.do_lcfg('w ecg 0:{}'.format(hex(samp_freq_hz)))
 
 
 def dcb_cfg(mode='w', dev='adxl', file_name=''):
     """
 
     :param mode: 'w'| 'r' | 'd'
-    :param dev: 'adpd4000' | 'adxl' | 'ecg' | 'eda'
+    :param dev: 'adpd' | 'adxl' | 'ecg' | 'eda'
     :param file_name: '*_dcb_config.cfg'
     :return:
     """
@@ -405,19 +504,55 @@ def dcb_cfg(mode='w', dev='adxl', file_name=''):
     dcb_cfg_dir = os.path.join(curr_dir, 'dcb_cfg')
     if not os.path.exists(dcb_cfg_dir):
         os.mkdir(dcb_cfg_dir)
-        logging.warn("DCG Config Dir Not Found! Creating empty directory 'dcb_cfg'")
+        test_logger.warning("DCG Config Dir Not Found! Creating empty directory 'dcb_cfg'")
     if mode == 'w':
         if os.path.exists(os.path.join(dcb_cfg_dir, file_name)) and os.path.isfile(os.path.join(dcb_cfg_dir, file_name)):
-            err_stat = watch_shell.do_write_dcb_config('{} {}'.format(dev, file_name))
+            pkt = watch_shell.do_write_dcb('{} {}'.format(dev, os.path.join(dcb_cfg_dir, file_name)))
+            if dev == "adpd":
+                for pkt_element in pkt:
+                    err_stat = watch_shell.check_err_stat(pkt_element)
+                    if err_stat == 1:
+                        break
+            else:
+                err_stat = watch_shell.check_err_stat(pkt)
         else:
             err_stat = 1
-            logging.error("DCB Config file not found!")
+            test_logger.error("DCB Config file not found!")
             raise RuntimeError("DCB Config file not found!\n{}".format(os.path.join(dcb_cfg_dir, file_name)))
     elif mode == 'r':
-        err_stat = watch_shell.do_read_dcb_config('{}'.format(dev))
-        logging.info('DCB File Name: dcb_cfg\{}_dcb_get.dcfg'.format(dev))
+        pkt = watch_shell.do_read_dcb('{}'.format(dev))
+        if dev in ["ecg", "eda", "bcm"]:
+            file_name = r".\dcb_cfg\{}_dcb_get.lcfg".format(dev)
+        else:
+            file_name = r".\dcb_cfg\{}_dcb_get.dcfg".format(dev)
+        with open(file_name, "w") as fs:
+            if dev == "adpd":
+                for pkt_element in pkt:
+                    for index, data in enumerate(pkt_element["payload"]["dcb_data"]):
+                        if index == 0 and type(data[0]) is int:
+                            convert_2_hex = True
+                        else:
+                            convert_2_hex = False
+                        if convert_2_hex:
+                            data = [hex(data[0]), data[1]]
+                        fs.write(" ".join(data))
+                        fs.write("\n")
+                        err_stat = watch_shell.check_err_stat(pkt_element)
+            else:
+                for index, data in enumerate(pkt["payload"]["dcb_data"]):
+                    if index == 0 and type(data[0]) is int:
+                        convert_2_hex = True
+                    else:
+                        convert_2_hex = False
+                    if convert_2_hex:
+                        data = [hex(data[0]), data[1]]
+                    fs.write(" ".join(data))
+                    fs.write("\n")
+                    err_stat = watch_shell.check_err_stat(pkt)
+        test_logger.info('DCB File Name: dcb_cfg\{}_dcb_get.dcfg'.format(dev))
     elif mode == 'd':
-        err_stat = watch_shell.do_delete_dcb_config('{}'.format(dev))
+        pkt = watch_shell.do_delete_dcb('{}'.format(dev))
+        err_stat = watch_shell.check_err_stat(pkt)
     else:
         err_stat = 1
     return err_stat, dcb_cfg_dir
@@ -468,15 +603,25 @@ def update_dvt_version():
     """
 
     global DVT_version
-    err_stat, chip_id = watch_shell.do_getChipID("2")  # ADPD chip ID index is 2
+    err_stat, chip_id = watch_shell.get_chip_id("2")  # ADPD chip ID index is 2
     if chip_id == 0xc0:
-        logging.info("DVT1 Watch Connected")
+        test_logger.info("DVT1 Watch Connected")
         DVT_version = 0
     elif chip_id == 0x1c2:
-        logging.info("DVT2 Watch Connected")
+        test_logger.info("DVT2 Watch Connected")
         DVT_version = 1
     else:
         raise RuntimeError("Unknown DVT Watch version ADPD Chip ID-{}".format(str(chip_id)))
+
+
+def update_adpd_clock_calibration_value():
+    global adpd_clk_calib
+    adpd_clk_calib = ["6", "2"][DVT_version]
+
+
+def update_ts_mismatch_tolerance(tolerance=0):
+    global ts_mismatch_tolerance
+    ts_mismatch_tolerance = tolerance
 
 
 def read_station_cfg():
@@ -542,42 +687,48 @@ def init_matlab_engine():
     return matlab_eng
 
 
-def initialize_setup():
+def initialize_setup(ts_tolerance=0, com_port="NA"):
     """
     This function runs necessary steps to initialize the test setup
     - Connects to Arduino and initializes arduino global variable
     :return:
     """
-    global fg, sm
+    global fg, sm, cm
     global test_report_dir
     read_station_cfg()
     # Instantiating watch shell
-    watch_shell_obj = CLI.m2m2_shell()
+    gui_signaller = cli_map.cli.QtSignaller()
+    threading.Thread(target=cli_map.cli._init_gui, args=(gui_signaller,), daemon=True).start()
+    watch_shell_obj = CLIMap(gui_signaller, testing=True)
+    if com_port != "NA" and "COM" in com_port:
+        global watch_port
+        watch_port = com_port
     if watch_port_type == 'USB':
-        watch_shell_obj.do_connect_usb(watch_port)
+        watch_shell_obj.do_connect_usb('{}'.format(watch_port))
     else:
-        watch_shell_obj.do_connect_dongle(watch_port)
+        watch_shell_obj.do_connect_ble('{}'.format(watch_port))
+    # cm = CLIMap(watch_shell_obj)
     # Creating Test Rport Directory
-    err_stat, sys_info_dict = watch_shell_obj.do_getSystemInfo('')
+    err_stat, sys_info_dict = watch_shell_obj.get_system_info()
     if err_stat:
         raise RuntimeError('Unable to communicate with the watch!')
     pcb_name = str(sys_info_dict['mac_addr'])
     if not pcb_name:
         pcb_name = easygui.enterbox('PCB Number:', 'Enter PCB Number')
     test_report_dir = init_test_report_dir(pcb_name)
-    logging.info('Test Results Directory: {}'.format(test_report_dir))
-    err_stat, fw_ver_info_dict = watch_shell_obj.do_getVersion('')
+    test_logger.info('Test Results Directory: {}'.format(test_report_dir))
+    err_stat, fw_ver_info_dict = watch_shell_obj.get_version()
     if not err_stat:
-        ver_info_str = 'Firmware Version: V{}.{}.{}  |  Build Date: {}'.format(fw_ver_info_dict['major'],
+        ver_info_str = 'Firmware Version: V{}.{}.{}  |  Build Info: {}'.format(fw_ver_info_dict['major'],
                                                                                fw_ver_info_dict['minor'],
                                                                                fw_ver_info_dict['patch'],
-                                                                               fw_ver_info_dict['date'])
+                                                                               fw_ver_info_dict['build'])
         update_robot_suite_doc(ver_info_str)
     # Instantiating Arduino
     #arduino_obj = SerialIface(port=arduino_port)
     #arduino_obj.serial_write('!CfgIOMap\r')
 
-    watch_shell_obj.do_toggleSaveCSV('')
+    # watch_shell_obj.do_toggleSaveCSV('')
     #update_arduino(arduino_obj)
     update_watch_shell(watch_shell_obj)
     # TODO: Enable below code to configure instruments
@@ -585,7 +736,10 @@ def initialize_setup():
     #fg.instr_connect(fg_instr_addr)
     #sm = instr_lib.KeithleySM2400()
     #sm.instr_connect(sm_instr_addr)
+
     update_dvt_version()
+    update_adpd_clock_calibration_value()
+    update_ts_mismatch_tolerance(int(ts_tolerance))
 
 
 def init_test_report_dir(pcb_name):
@@ -715,6 +869,7 @@ def read_csv_file(file_path, num_cols=2):
     cols = zip(*rows)
     return cols[:num_cols]
 
+
 def read_csv_col(file_path, col_idx=0, row_offset=1):
     """
     This function reads a csv file and returns the column data specified by the col_idx.
@@ -724,10 +879,6 @@ def read_csv_col(file_path, col_idx=0, row_offset=1):
     """
     with open(file_path, 'r') as f_ref:
         line_list = f_ref.readlines()
-
-    # col_data_list = [float(line.split(',')[col_idx].strip())
-    #                  for i, line in enumerate(line_list)
-    #                  if (i >= row_offset) and line.strip()]
     col_data_list = []
     last_line = len(line_list) - 1
     for i, line in enumerate(line_list):
@@ -736,11 +887,10 @@ def read_csv_col(file_path, col_idx=0, row_offset=1):
             if last_line == i and not any(line.split(",")[col_idx]):
                 continue
             col_data_list.append(float(line.split(",")[col_idx]))
-
     return col_data_list
 
 
 
 # **********************************************************************
 def test_func():
-    logging.info('Logging has started!')
+    test_logger.info('Logging has started!')

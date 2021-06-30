@@ -3,8 +3,8 @@
 * @file         agc.h
 * @author       ADI
 * @version      V1.0.0
-* @date          10-June-2019
-* @brief        Header file contains the static agc fucntions.
+* @date         10-June-2019
+* @brief        Header file contains the static agc functions.
 ***************************************************************************
 * @attention
 ***************************************************************************
@@ -49,8 +49,14 @@
 #include <stdbool.h>
 
 #define SLOT_NUM 12
+#define SKIP_SAMPLES 10
 #define SAMPLE_AVG_NUM 10
-#define LED_SLOTS 4
+
+/* Rob's Sensor board/ StudyWatch */
+#define G_LED_AGC_SLOTS 0x20 /* F */
+#define R_LED_AGC_SLOTS 0x40 /* G */
+#define IR_LED_AGC_SLOTS 0x80 /* H */
+#define B_LED_AGC_SLOTS 0x100 /* I */
 
 typedef enum AGC_LED_SLOT_ENUM_t {
 AGC_LED_SLOT_GREEN = 0,
@@ -65,17 +71,17 @@ typedef struct agc_data_t{
 }agc_data_t;
 
 typedef struct _agc_data_avg_t {
-  uint64_t ch1[LED_SLOTS];
-  uint64_t ch2[LED_SLOTS];
+  uint64_t ch1[SLOT_NUM];
+  uint64_t ch2[SLOT_NUM];
 }agc_data_avg_t;
 
 typedef struct _agc_DC0_cal_t {
-  float ch1[LED_SLOTS];
-  float ch2[LED_SLOTS];
+  float ch1[SLOT_NUM];
+  float ch2[SLOT_NUM];
 }agc_DC0_cal_t;
 
 typedef struct _agc_DC_level_cal {
-  float ch[LED_SLOTS];
+  float ch[SLOT_NUM];
 }agc_DC_level_cal_t;
 
 void agc_init();

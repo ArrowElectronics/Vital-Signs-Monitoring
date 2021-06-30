@@ -2,8 +2,8 @@
 #include "system_version.h"
 const char SYSTEM_BUILD_VERSION[] = "";
 const char SYSTEM_BUILD_USER[] = "ADI";
-const char SYSTEM_BUILD_COMMIT_ID[] = "a644fb2_Rl";
-const char SYSTEM_BUILD_TIME[] = "2021-04-21 16:23:35 +0800";
+const char SYSTEM_BUILD_COMMIT_ID[] = "_Dg";
+const char SYSTEM_BUILD_TIME[] = "";
 const uint8_t SYSTEM_BUILD_VERSION_LEN = sizeof(SYSTEM_BUILD_VERSION);
 const uint8_t SYSTEM_BUILD_COMMIT_ID_LEN = sizeof(SYSTEM_BUILD_COMMIT_ID);
 const uint8_t SYSTEM_BUILD_USER_LEN = sizeof(SYSTEM_BUILD_USER);

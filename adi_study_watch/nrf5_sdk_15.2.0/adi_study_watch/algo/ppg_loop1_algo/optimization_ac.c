@@ -21,13 +21,14 @@
 * only                                                                        *
 *                                                                             *
 ******************************************************************************/
-#if 0
+#if 1
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
 #include "adpd400x_lib.h"
 #include "adpd400x_lib_common.h"
-#include "signal_metrics.h"
+//#include "signal_metrics.h"
+#include "adi_vsm_sqi.h"
 
 //================== LOG LEVELS=============================================//
 #define NRF_LOG_MODULE_NAME PPG_LIB
@@ -55,29 +56,47 @@ SignalMetrics_t TemResult[TestDataLen+1];
 static uint16_t gsResultCnt;
 #endif
 
+//SM_RetCode_t gAgcRetCode;
 #define ADD_PULSE               4
 #define SUB_PULSE               3
 #define MIN_PULSE               4 //2 //changed from 2 -> 4
 #define FUDGE                   0.1
 #define MIN_CURRENT_STEP        10
 #define ADD_CURRENT_STEP        0.4     // add 40%
+#define MAX_SIGNAL_LEVEL_FOR_PULSE_ADJ 600000
+#define SINGLE_PULSE_SATURATION_VALUE 8000
 
+#define SQI_SAMPLING_RATE 50
+#define STATE_MEM_PER_INSTANCE 3816
+#define STATE_SQI_MEM_NUM_CHARS   STATE_MEM_PER_INSTANCE
+#define SQI_RESULT_CONVERSION 1024.0
+/* Allocate a max amount of memory for the SQI Algo state memory block */
+static unsigned char STATE_memory_SQI[STATE_SQI_MEM_NUM_CHARS];
+
+static adi_vsm_sqi_instance_t* sqi_instance;
+static adi_vsm_sqi_mem_t adi_vsm_sqi_mem_handle;
+static adi_vsm_sqi_config_t config_handle;
+static adi_vsm_sqi_output_t adi_vsm_sqi_output;
 
 /* Public function prototypes -----------------------------------------------*/
 INT_ERROR_CODE_t Adpd400xACOptInit(uint16_t);
 void Adpd400xACOptDeInit(void);
 void Adpd400xACOptReset(uint8_t);
 
+/* Public variables --------------------------------------------------------*/
+extern uint16_t gnPulseWidth, gnAfeGainNum, gnBpfGainNum;
+
 /* Private function prototypes ----------------------------------------------*/
-static uint8_t SetProfileSetting(SignalQt_t result, uint32_t);
+//static uint8_t SetProfileSetting(SignalQt_t result, uint32_t);
+static uint8_t SetProfileSetting(float result, uint32_t);
 static uint8_t ACOptSetHighPowerProfile(uint32_t);
-static uint8_t ACOptSetLowPowerProfile(void);
+static uint8_t ACOptSetLowPowerProfile(uint32_t);
 
 /* Private variables --------------------------------------------------------*/
 static uint32_t gsStartTime;
 
 // fs, dec, Led, trim, pulse
-static uint16_t gsLow_Pf[] = {0xA0, 0x0, 0x0000, 0x1F, MIN_PULSE};
+static uint16_t gsLow_Pf[] = {0xA0, 0x0, 0x8F, 0x0, MIN_PULSE}; /* AGC minimum current 15mA */
 static uint16_t gsDcOptimumCurrent, gsAcMinimumCurrent;
 
 /**
@@ -85,22 +104,33 @@ static uint16_t gsDcOptimumCurrent, gsAcMinimumCurrent;
   * @param  None.
   * @retval SUCCESS = done
   */
-INT_ERROR_CODE_t Adpd400xACOptInit(uint16_t deviceID) {
-  if (Adpd400xPreprocess_Metrics_Init(deviceID, gAdpd400x_lcfg->mt2Th, gAdpd400x_lcfg->mt3Th) != 0)
+INT_ERROR_CODE_t Adpd400xACOptInit(uint16_t deviceID) { /* deviceID not used during init */
+  //if (Preprocess_Metrics_Init(deviceID, gAdpd400x_lcfg->mt2Th, gAdpd400x_lcfg->mt3Th) != 0)
+  //  return IERR_FAIL;
+  
+  config_handle.sampling_freq = SQI_SAMPLING_RATE;
+  adi_vsm_sqi_mem_handle.state.block = STATE_memory_SQI;
+  adi_vsm_sqi_mem_handle.state.length_numchars = STATE_MEM_PER_INSTANCE;
+  
+  /* Create the SQI Measurement instance */
+  sqi_instance = adi_vsm_sqi_create(&adi_vsm_sqi_mem_handle, &config_handle);
+  if (sqi_instance == NULL) {
     return IERR_FAIL;
+  } 
 
 #ifdef _TEST_PPROC_
   gsResultCnt = 0;
 #endif
-  gsStartTime = AdpdMwLibGetCurrentTime();
-  gsDcOptimumCurrent = Adpd400xUtilGetCurrentValue(gAdpd400xOptmVal.ledB_Cur, gAdpd400xOptmVal.ledB_Trim);
-  gsAcMinimumCurrent = Adpd400xUtilGetCurrentValue(gsLow_Pf[2], gsLow_Pf[3]);
+  gsStartTime = Adpd400xMwLibGetCurrentTime();
+  gsDcOptimumCurrent = Adpd400xUtilGetCurrentFromReg(gAdpd400xOptmVal.ledB_Cur, gAdpd400xOptmVal.ledB_Trim);
+  gsAcMinimumCurrent = Adpd400xUtilGetCurrentFromReg(gsLow_Pf[2], gsLow_Pf[3]);
   return IERR_SUCCESS;
 }
 
 void Adpd400xACOptReset(uint8_t hardReset) {
   (void)hardReset;
-  Adpd400xPreprocess_Metrics_Reset();
+  //Preprocess_Metrics_Reset();
+  adi_vsm_sqi_frontend_reset(sqi_instance);
   return;
 }
 
@@ -113,6 +143,7 @@ void Adpd400xACOptDeInit()  {
 
 }
 
+
 /**
   * @brief  Do Seting adjustment.
   * @param  Input adpd Data
@@ -121,11 +152,13 @@ void Adpd400xACOptDeInit()  {
   */
 INT_ERROR_CODE_t Adpd400xACOptDoOptimization(uint32_t* rData, uint8_t* status ) {
   INT_ERROR_CODE_t errCode;
-  SignalMetrics_t sMetrics;
-  SignalQt_t result;
+  //SignalMetrics_t sMetrics;
+  //SignalQt_t result;
+  float sqi_input, sqi_result;
   uint32_t adpdData, tempTime, curTime, adpdDataOri;
-  SM_RetCode_t AGCrtc;
-
+  //SM_RetCode_t AGCrtc;
+  adi_vsm_sqi_return_code_t SQIAGCrtc;
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
 #ifdef _TEST_PPROC_
   if (gsResultCnt == TestDataLen) {
     for (gsResultCnt=0; gsResultCnt<TestDataLen; gsResultCnt++)  {
@@ -140,69 +173,70 @@ INT_ERROR_CODE_t Adpd400xACOptDoOptimization(uint32_t* rData, uint8_t* status ) 
     gsResultCnt = TestDataLen+10;
   } else {
     adpdData = input_adpd[gsResultCnt];
-    adpdData *= gAdpd400x_lcfg->ppgscale;
+    //adpdData *= gAdpd400x_lcfg->ppgscale;
   }
   gsResultCnt++;
-  AGCrtc = Adpd400xGetSignalMetrics(&adpdData, &sMetrics, &result);
+  sqi_input = (float)adpdData;
+  //AGCrtc = Adpd400xGetSignalMetrics(&adpdData, &sMetrics, &result);
+  SQIAGCrtc = adi_vsm_sqi_process(sqi_instance, sqi_input, &adi_vsm_sqi_output);
 
   if (gsResultCnt <= TestDataLen)
     memcpy(&TemResult[gsResultCnt-1], &sMetrics, sizeof(sMetrics));
 
   return IERR_IN_PROGRESS;   // don't do next
 #else
-    adpdData = rData[0] + rData[1] + rData[2] + rData[3];
+    adpdData = rData[0];/* + rData[1] */
     adpdDataOri = adpdData;
-    adpdData *= gAdpd400x_lcfg->ppgscale;
-    AGCrtc = Adpd400xGetSignalMetrics(&adpdData, &sMetrics, &result);
+    sqi_input = (float)adpdData;
+    //adpdData *= gAdpd400x_lcfg->ppgscale;
+    //AGCrtc = GetSignalMetrics(&adpdData, &sMetrics, &result);
+    //gSqiSampleCnt++;
+    SQIAGCrtc = adi_vsm_sqi_process(sqi_instance, sqi_input, &adi_vsm_sqi_output);
 #endif
 
-  if (AGCrtc == -1) {
-    Adpd400xPreprocess_Metrics_Reset();   // do get metrics again
+  //if (AGCrtc == -1) {
+    //Preprocess_Metrics_Reset();   // do get metrics again
+  if (SQIAGCrtc != ADI_VSM_SQI_SUCCESS && SQIAGCrtc != ADI_VSM_SQI_BUFFERING)
+  {
+    adi_vsm_sqi_frontend_reset(sqi_instance);
     return IERR_FAIL;
-  } else if (AGCrtc != SMrtc_Pass)  {
+  } else if (SQIAGCrtc != ADI_VSM_SQI_SUCCESS)  {
     return IERR_IN_PROGRESS;
   }
 
-  gAdpd400xOptmVal.Mt2 = sMetrics.Mt2;
-  gAdpd400xOptmVal.Mt3 = sMetrics.Mt3;
-  gAdpd400xOptmVal.Mt1 = sMetrics.Mt1 / gAdpd400x_lcfg->ppgscale;
-  gAdpd400xOptmVal.sigQuality = (uint8_t)result;
-  adi_printf("\nMetrics %x, %x, %x", gAdpd400xOptmVal.Mt1, gAdpd400xOptmVal.Mt2, gAdpd400xOptmVal.Mt3);
+  //gAdpd400xOptmVal.Mt2 = sMetrics.Mt2;
+  //gAdpd400xOptmVal.Mt3 = sMetrics.Mt3;
+  //gAdpd400xOptmVal.Mt1 = sMetrics.Mt1 / gAdpd400x_lcfg->ppgscale;
+  //gAdpd400xOptmVal.sigQuality = (uint8_t)result;
+  //adi_printf("\nMetrics %x, %x, %x", gAdpd400xOptmVal.Mt1, gAdpd400xOptmVal.Mt2, gAdpd400xOptmVal.Mt3);
 
-  if (AGCrtc == SMrtc_Pass) {  // Cal Done
-    curTime = AdpdMwLibGetCurrentTime();
+  if (SQIAGCrtc == ADI_VSM_SQI_SUCCESS) {  // Cal Done
+    //gSqiSampleCnt = 0;
+    curTime = Adpd400xMwLibGetCurrentTime();
     tempTime = AdpdMwLibDeltaTime(gsStartTime, curTime);
     gsStartTime = curTime;
 
-    uint16_t ledPulse, ledCurrent, ledTrim, sampleRate, decimation;
-    AdpdDrvRegRead(REG_PULSE_PERIOD_B, &ledPulse);
-    AdpdDrvRegRead(REG_LED1_DRV, &ledCurrent);
-    AdpdDrvRegRead(REG_LED_TRIM, &ledTrim);
-    // kfkf 1120 AdpdDrvRegRead(REG_SAMPLING_FREQ, &sampleRate);
-    PpgLibGetSampleRate(&sampleRate, &decimation);
-
-    adi_printf("\nbefore %4x, %4x, %4x, %4x, result=%d", ledCurrent, ledTrim, ledPulse, sampleRate, result);
-    *status = SetProfileSetting(result, adpdDataOri);
-
-    AdpdDrvRegRead(REG_PULSE_PERIOD_B, &ledPulse);
-    AdpdDrvRegRead(REG_LED1_DRV, &ledCurrent);
-    AdpdDrvRegRead(REG_LED_TRIM, &ledTrim);
-    // kfkf 1120 AdpdDrvRegRead(REG_SAMPLING_FREQ, &sampleRate);
-    PpgLibGetSampleRate(&sampleRate, &decimation);
-    adi_printf("\nafter  %4x, %4x, %4x, %4x, time=%u", ledCurrent, ledTrim, ledPulse, sampleRate, tempTime);
+    uint16_t ledPulse, ledCurrent, ledTrim, sampleRate, decimation;   
+    sqi_result = adi_vsm_sqi_output.sqi;
+    gAdpd400xOptmVal.sigQuality = (uint16_t)(sqi_result * SQI_RESULT_CONVERSION);
+    *status = SetProfileSetting(sqi_result, adpdDataOri);
+    AdpdDrvRegRead((ADPD400x_REG_COUNTS_A  + g_reg_base), &ledPulse);
+    AdpdDrvRegRead((ADPD400x_REG_LED_POW12_A  + g_reg_base), &ledCurrent);
+    AdpdDrvRegRead((ADPD400x_REG_LED_POW34_A  + g_reg_base), &ledTrim);
+    PpgLibGetSampleRate(&sampleRate, &decimation,gAdpd400x_lcfg->targetSlots);
 
 
     gAdpd400xOptmVal.ledB_Cur2 = ledCurrent;
     gAdpd400xOptmVal.ledB_Trim2 = ledTrim;
+    gAdpd400xOptmVal.ledB_CurVal2 = Adpd400xUtilGetCurrentFromReg(ledCurrent, ledTrim);
     gAdpd400xOptmVal.ledB_Pulse2 = ledPulse;
     gAdpd400xOptmVal.sampleRate2 = sampleRate;   // sampleRate is not a reg value
     gAdpd400xOptmVal.decimation2 = decimation;   // sampleRate is not a reg value
-    gAdpd400xOptmVal.ledB_CurVal2 = Adpd400xUtilGetCurrentFromReg(ledCurrent, ledTrim);
-    // gOptmVal.ledB_Pulse2 = (ledPulse & 0xFF00) | (result & 0xff) | 0x8000; // for Gen2
 
     errCode = IERR_SUCCESS;
   }
-  Adpd400xPreprocess_Metrics_Reset();   // do get metrics again
+  //Preprocess_Metrics_Reset();   // do get metrics again
+  adi_vsm_sqi_frontend_reset(sqi_instance);
   return errCode;
 }
 
@@ -211,14 +245,15 @@ INT_ERROR_CODE_t Adpd400xACOptDoOptimization(uint32_t* rData, uint8_t* status ) 
   * @param  None.
   * @retval: 0=Setting not change, 1=setting changed
   */
-static uint8_t SetProfileSetting(SignalQt_t result, uint32_t adpdData)  {
+static uint8_t SetProfileSetting(float result, uint32_t adpdData)  {
   uint8_t retCode = 0;
+#if 0
   switch (result) {
   case SignalQt_Highest:
   case SignalQt_Excellent:
   case SignalQt_Great:
     // load a fixed profile
-    retCode = ACOptSetLowPowerProfile();
+    retCode = ACOptSetLowPowerProfile(adpdData);
     break;
   case SignalQt_Bad:
     retCode = ACOptSetHighPowerProfile(adpdData);
@@ -226,6 +261,16 @@ static uint8_t SetProfileSetting(SignalQt_t result, uint32_t adpdData)  {
   case SignalQt_Good:
   default:
     break;
+  }
+#endif
+  if(result > (gAdpd400x_lcfg->sqiLowPowerThreshold/SQI_RESULT_CONVERSION)){
+    retCode = ACOptSetLowPowerProfile(adpdData);
+  }
+  else if(result <= (gAdpd400x_lcfg->sqiHighPowerThreshold/SQI_RESULT_CONVERSION)) {
+    retCode = ACOptSetHighPowerProfile(adpdData);
+  }
+  else{
+    //do nothing;
   }
   gAdpd400xOptmVal.SelectedLoop = 2;
 
@@ -238,23 +283,28 @@ static uint8_t SetProfileSetting(SignalQt_t result, uint32_t adpdData)  {
   * @retval 0 = No change. 1 = change
   */
 static uint8_t ACOptSetHighPowerProfile(uint32_t adpdData)  {
-  uint16_t pulse_num, ori_pulse_num, sampleRate, decimateVal, ori_decimateVal;
+  uint16_t pulse_num, ori_pulse_num, sampleRate, decimateVal;
   uint16_t led_cur, led_coast, led_trim, led_coast_pre, led_trim_pre;
   uint16_t temp16 = 0, diffPercent;
   uint32_t maxVal;
+  uint8_t retVal,ori_pulse_value; 
+  uint32_t dc_level;
 
   // Increase LED current upto the gOptmValDC.ledB_Cur value
   // Increase Pulses
   // Increase Sampling rate if pulse_num reach max
-  AdpdDrvRegRead(REG_LED1_DRV, &led_coast);
-  AdpdDrvRegRead(REG_LED_TRIM, &led_trim);
-  AdpdDrvRegRead(REG_PULSE_PERIOD_B, &pulse_num);
-  led_cur = Adpd400xUtilGetCurrentValue(led_coast, led_trim);
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
+  AdpdDrvRegRead((ADPD400x_REG_LED_POW12_A  + g_reg_base), &led_coast);
+  AdpdDrvRegRead((ADPD400x_REG_LED_POW34_A  + g_reg_base), &led_trim);
+  AdpdDrvRegRead((ADPD400x_REG_COUNTS_A  + g_reg_base), &pulse_num);
+  //led_cur = Adpd400xUtilGetCurrentValue(led_coast, led_trim);
+  led_cur = Adpd400xUtilGetCurrentFromSlot(gAdpd400x_lcfg->targetSlots);
 
   temp16 = 0;
-  if (gAdpd400x_lcfg->partNum == 188 || gAdpd400x_lcfg->partNum == 108) {  // exclude 107
+ // if (gAdpd400x_lcfg->partNum == 188 || gAdpd400x_lcfg->partNum == 108) {  // exclude 107
     // chNum = UtilGetChannelNum();
-    maxVal = (pulse_num >> 8)*gAdpd400x_lcfg->targetDcPercent*80;  // Saturate at 8k
+     //maxVal = (pulse_num >> 8)*gAdpd400x_lcfg->targetDcPercent*80;  // Saturate at 8k
+     maxVal = (pulse_num & 0xFF)*gAdpd400x_lcfg->targetDcPercent*80;  // Saturate at 8k
     if (adpdData < maxVal)  {
       diffPercent = (maxVal - adpdData) * 100 / adpdData;
       diffPercent *= ADD_CURRENT_STEP;          // 40% of the difference
@@ -266,7 +316,7 @@ static uint8_t ACOptSetHighPowerProfile(uint32_t adpdData)  {
     }
     // else don't change current
 
-  } else {
+  /*} else {
     // 107 may use 2ch, sum after ADC
     temp16 = 0;
     if (led_cur < gsDcOptimumCurrent*(1-FUDGE)) {
@@ -283,7 +333,7 @@ static uint8_t ACOptSetHighPowerProfile(uint32_t adpdData)  {
       led_cur = gsDcOptimumCurrent;
       temp16 = 1;
     }
-  }
+  }*/
 
   // apply new cuurent
   if (temp16 != 0)  {
@@ -293,105 +343,43 @@ static uint8_t ACOptSetHighPowerProfile(uint32_t adpdData)  {
     led_trim_pre = led_trim;
     Adpd400xUtilGetCurrentRegValue(led_cur, &led_coast, &led_trim);
     if (led_coast_pre != led_coast || led_trim_pre != led_trim)  {
-      AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPDDrv_SLOT_OFF, ADPDDrv_SLOT_OFF);
-      AdpdDrvRegWrite(REG_LED1_DRV, led_coast);
-      AdpdDrvRegWrite(REG_LED_TRIM, led_trim);
-      PpgLibSetMode(ADPDDrv_MODE_SAMPLE,
-                  (ADPDDrv_Operation_Slot_t)gSlotAmode,
-                  (ADPDDrv_Operation_Slot_t)(gAdpd400x_lcfg->deviceMode));
-      return 1;
+     PpgSetOperationMode(ADPDDrv_MODE_IDLE);
+     AdpdDrvRegWrite((ADPD400x_REG_LED_POW12_A  + g_reg_base), led_coast);
+     AdpdDrvRegWrite((ADPD400x_REG_LED_POW34_A  + g_reg_base), led_trim);
+     PpgSetOperationMode(ADPDDrv_MODE_SAMPLE);
+     return 1;
     }
   }
 
-#if 1   // adpdlib 4.1.0
+  // adpdlib 4.1.0
   // Add pulses upto the g_lcfg->maxPulseNum
-  PpgLibGetSampleRate(&sampleRate, &decimateVal);  // backup sampling rate
+  PpgLibGetSampleRate(&sampleRate, &decimateVal,gAdpd400x_lcfg->targetSlots);  // backup sampling rate
   ori_pulse_num = pulse_num;
-  ori_decimateVal = decimateVal;
-  temp16 = pulse_num >> 8;
+ // temp16 = pulse_num >> 8;  
+  temp16 = (pulse_num & 0xFF);
   temp16 = (uint16_t)(temp16 * 1.30) * decimateVal;
   temp16 += ADD_PULSE;   // increase by 30% pulses and + ADD_PULSE
   temp16 /= (uint8_t)decimateVal;
-
-  if (temp16 > gAdpd400x_lcfg->maxPulseNum)  {
-    if (sampleRate >= gAdpd400x_lcfg->maxSamplingRate) {   // sampleRate >= max
-      temp16 = gAdpd400x_lcfg->maxPulseNum;
-    } else {
-      // double sampling rate, decimation
-      sampleRate *= 2;          // double Fs
-      decimateVal *= 2;         // double decimation
-      temp16 /= 2;              // half pulses
-    }
+  dc_level = adpdData;
+  
+  //ori_pulse_value = ori_pulse_num >> 8;
+  ori_pulse_value = (ori_pulse_num & 0xFF);
+  retVal = ADPDLibPostPulseIncreaseAdjust(&temp16,&ori_pulse_value,&sampleRate,&decimateVal,&dc_level);
+   
+  if(retVal == IERR_FAIL) {
+      temp16 = (pulse_num & 0xFF);
   }
-
-  // if odd value, subtract by 1.
-  if (temp16 & 0x1 == 1)
-    temp16 -= 1;
-  // if value < min, set min.
-  if (temp16 < MIN_PULSE)
-    temp16 = MIN_PULSE;
-
-  pulse_num = (pulse_num & 0xFF) | (temp16 << 8);
-  if ((pulse_num == ori_pulse_num) && (decimateVal == ori_decimateVal))  {
+  
+ // pulse_num = (pulse_num & 0xFF) | (temp16 << 8);
+  pulse_num = (pulse_num & 0xFF00) | (temp16); 
+  if (pulse_num == ori_pulse_num){
     return 0;   // no change, both pulse and Fs are max out
   }
 
-#else
-  // Add pulses upto the g_lcfg->maxPulseNum
-  PpgLibGetSampleRate(&sampleRate, &decimateVal);  // backup sampling rate
-  AdpdDrvRegRead(REG_PULSE_PERIOD_B, &pulse_num);
-  ori_pulse_num = pulse_num;
-  temp16 = pulse_num >> 8;
-  temp16 += ADD_PULSE;      // add 4 pulses
-
-  if (gAdpd400x_lcfg->partNum == 107)  {
-    if (temp16 <= gAdpd400x_lcfg->maxPulseNum)  {
-      pulse_num = (pulse_num & 0xFF) | (temp16 << 8);
-    } else {
-      if (sampleRate >= gAdpd400x_lcfg->maxSamplingRate) {   // sampleRate >= max
-        pulse_num = (pulse_num & 0xFF) | (gAdpd400x_lcfg->maxPulseNum << 8);
-        if (ori_pulse_num == pulse_num)
-          return 0;   // no change, both pulse and Fs are max out
-      } else {  // sampleRate < max
-        adi_printf(MODULE, "double the fs!!");
-        sampleRate *= 2;        // double Fs
-        decimateVal *= 2;       // double decimation
-        temp16 /= 2;            // half pulses
-        if (temp16 < MIN_PULSE)
-          temp16 = MIN_PULSE;
-        pulse_num = (pulse_num & 0xFF) | (temp16 << 8);
-      }
-    }
-  } else {   // adpdlib 4.0.1
-    temp16 *= decimateVal;
-    if (temp16 <= gAdpd400x_lcfg->maxPulseNum)  {
-      temp16 /= decimateVal;
-      pulse_num = (pulse_num & 0xFF) | (temp16 << 8);
-    } else {
-      if (sampleRate >= gAdpd400x_lcfg->maxSamplingRate) {   // sampleRate >= max
-        temp16 = gAdpd400x_lcfg->maxPulseNum / decimateVal;
-        pulse_num = (pulse_num & 0xFF) | (temp16 << 8);
-        if (ori_pulse_num == pulse_num)
-          return 0;   // no change, both pulse and Fs are max out
-      } else {  // sampleRate < max
-        adi_printf(MODULE, "double the fs!!");
-        sampleRate *= 2;        // double Fs
-        decimateVal *= 2;       // double decimation
-        temp16 /= decimateVal;
-        if (temp16 < MIN_PULSE)
-          temp16 = MIN_PULSE;
-        pulse_num = (pulse_num & 0xFF) | (temp16 << 8);
-      }
-    }
-  }
-#endif
-
-  AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPDDrv_SLOT_OFF, ADPDDrv_SLOT_OFF);
-  AdpdDrvRegWrite(REG_PULSE_PERIOD_B, pulse_num);
-  PpgLibSetSampleRate(sampleRate, decimateVal);    // in case Fs get changed
-  PpgLibSetMode(ADPDDrv_MODE_SAMPLE,
-               (ADPDDrv_Operation_Slot_t)gSlotAmode,
-               (ADPDDrv_Operation_Slot_t)(gAdpd400x_lcfg->deviceMode));
+  PpgSetOperationMode(ADPDDrv_MODE_IDLE);
+  AdpdDrvRegWrite((ADPD400x_REG_COUNTS_A  + g_reg_base), pulse_num);
+  PpgLibSetSampleRate(sampleRate, decimateVal,gAdpd400x_lcfg->targetSlots);    // in case Fs get changed
+  PpgSetOperationMode(ADPDDrv_MODE_SAMPLE);
   return 1;
 }
 
@@ -400,80 +388,45 @@ static uint8_t ACOptSetHighPowerProfile(uint32_t adpdData)  {
   * @param  None.
   * @retval 0 = No change. 1 = change
   */
-static uint8_t ACOptSetLowPowerProfile()  {
-  uint16_t pulse_num, ori_pulseNum, new_pulseNum, sampleRate, decimateVal;
+static uint8_t ACOptSetLowPowerProfile(uint32_t adpdData)  {
+  uint16_t pulse_num, new_pulseNum, sampleRate, decimateVal;
   uint16_t led_cur, led_trim, led_coast, ori_led_cur;
   uint16_t temp16 = 0;
-
+  uint8_t retVal,ori_pulseNum;
+  uint32_t dc_level;
   // Decrease Sampling rate if Fs>ODR, double Pulse num.
   // Decrease Pulses
   // Decrease LED current upto the gsAcMinimumCurrent
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
 
-  AdpdDrvRegRead(REG_PULSE_PERIOD_B, &pulse_num);
-  ori_pulseNum = pulse_num >> 8;
+  AdpdDrvRegRead((ADPD400x_REG_COUNTS_A  + g_reg_base), &pulse_num);
+  ori_pulseNum = (pulse_num & 0xFF);
   new_pulseNum = ori_pulseNum;
-  PpgLibGetSampleRate(&sampleRate, &decimateVal);  // backup sampling rate
+  PpgLibGetSampleRate(&sampleRate, &decimateVal,gAdpd400x_lcfg->targetSlots);  // backup sampling rate
 
-#if 1   // adpdlib 4.1.0
+  // adpdlib 4.1.0
   new_pulseNum = (uint16_t)(new_pulseNum * decimateVal * 0.8);
   if (new_pulseNum > SUB_PULSE)
     new_pulseNum -= SUB_PULSE;
   new_pulseNum /= (uint8_t)decimateVal;
-
-  for (temp16 = 0; temp16 < 2; temp16++)  {     // check 2 times
-    if (sampleRate > gAdpd400x_lcfg->hrmInputRate) {    // Fs>ODR
-      if (new_pulseNum >= 64)  {
-        break;          // don't want more than 64 pulse to avoid adc sat
-      }
-      if (new_pulseNum *2 <= gAdpd400x_lcfg->maxPulseNum)  {
-        sampleRate >>= 1;         // half sampling rate
-        decimateVal >>= 1;        // half decimation
-        new_pulseNum *= 2;        // double pulses
-      }
-    } else {
-      break;
-    }
-  }
-
-  // make it even number
-  if (new_pulseNum & 0x1 == 1)
-    new_pulseNum -= 1;
-  if (new_pulseNum < MIN_PULSE)  {
-    new_pulseNum = MIN_PULSE;
-  }
-
-#else
-  if (sampleRate > gAdpd400x_lcfg->hrmInputRate) {    // Fs>ODR
-    sampleRate >>= 1;        // half sampling rate
-    decimateVal >>= 1;       // half decimation
-    new_pulseNum *= 2;      // double pulses
-    adi_printf(MODULE, "half the fs!!");
-    ori_pulseNum = 0;       // Needed. indication of changed.
-  }
-  if (new_pulseNum <= SUB_PULSE + MIN_PULSE)
-    new_pulseNum = MIN_PULSE;
-  else
-    new_pulseNum -= SUB_PULSE;
-  if (new_pulseNum > gAdpd400x_lcfg->maxPulseNum)   // for 107. Won't apply to 108
-    new_pulseNum = gAdpd400x_lcfg->maxPulseNum;
-
-#endif
-
+  dc_level = adpdData;
+  retVal = ADPDLibPostPulseDecreaseAdjust(&new_pulseNum,&ori_pulseNum,&sampleRate, &decimateVal, &dc_level);
+  
   if (new_pulseNum != ori_pulseNum)  {   // Pulse num changed
-    pulse_num = (pulse_num & 0xFF) | (new_pulseNum << 8);
-    AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPDDrv_SLOT_OFF, ADPDDrv_SLOT_OFF);
-    AdpdDrvRegWrite(REG_PULSE_PERIOD_B, pulse_num);
-    PpgLibSetSampleRate(sampleRate, decimateVal);     // in case Fs get changed
-    PpgLibSetMode(ADPDDrv_MODE_SAMPLE,
-                 (ADPDDrv_Operation_Slot_t)gSlotAmode,
-                 (ADPDDrv_Operation_Slot_t)(gAdpd400x_lcfg->deviceMode));
+    //pulse_num = (pulse_num & 0xFF) | (new_pulseNum << 8);
+    pulse_num = (pulse_num & 0xFF00) | (new_pulseNum);
+    PpgSetOperationMode(ADPDDrv_MODE_IDLE);
+    AdpdDrvRegWrite((ADPD400x_REG_COUNTS_A  + g_reg_base), pulse_num);
+    PpgLibSetSampleRate(sampleRate, decimateVal,gAdpd400x_lcfg->targetSlots);     // in case Fs get changed
+    PpgSetOperationMode(ADPDDrv_MODE_SAMPLE);
     return 1;
 
   } else {  // pulse num, Fs reach min
     // Decrease LED current by x%.
-    AdpdDrvRegRead(REG_LED1_DRV, &led_coast);
-    AdpdDrvRegRead(REG_LED_TRIM, &led_trim);
-    led_cur = Adpd400xUtilGetCurrentValue(led_coast, led_trim);
+    AdpdDrvRegRead((ADPD400x_REG_LED_POW12_A  + g_reg_base), &led_coast);
+    AdpdDrvRegRead((ADPD400x_REG_LED_POW34_A  + g_reg_base), &led_trim);
+    //led_cur = Adpd400xUtilGetCurrentValue(led_coast, led_trim);
+    led_cur = Adpd400xUtilGetCurrentFromSlot(gAdpd400x_lcfg->targetSlots);
     ori_led_cur = led_cur;
     temp16 = 0;         // delta decrement
     // if led_cur is close to gsAcMin, do nothing
@@ -492,12 +445,10 @@ static uint8_t ACOptSetLowPowerProfile()  {
         return 0;       // no change of LED current
 
       Adpd400xUtilGetCurrentRegValue(led_cur, &led_coast, &led_trim);
-      AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPDDrv_SLOT_OFF, ADPDDrv_SLOT_OFF);
-      AdpdDrvRegWrite(REG_LED1_DRV, led_coast);
-      AdpdDrvRegWrite(REG_LED_TRIM, led_trim);
-      PpgLibSetMode(ADPDDrv_MODE_SAMPLE,
-                   (ADPDDrv_Operation_Slot_t)gSlotAmode,
-                   (ADPDDrv_Operation_Slot_t)(gAdpd400x_lcfg->deviceMode));
+      PpgSetOperationMode(ADPDDrv_MODE_IDLE);
+      AdpdDrvRegWrite((ADPD400x_REG_LED_POW12_A  + g_reg_base), led_coast);
+      AdpdDrvRegWrite((ADPD400x_REG_LED_POW34_A  + g_reg_base), led_trim);
+      PpgSetOperationMode(ADPDDrv_MODE_SAMPLE);
       return 1;
     }
   }

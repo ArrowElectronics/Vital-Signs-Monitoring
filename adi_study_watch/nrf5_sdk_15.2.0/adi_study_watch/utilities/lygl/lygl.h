@@ -55,9 +55,9 @@ typedef struct{
     uint16_t y0;//The origin of the axes
     uint16_t x1;//x_axis length
     uint16_t y1;
-    uint16_t x_space;//
-    uint16_t y_unit;
-    uint16_t y_offset;
+    uint16_t x_space;
+    uint32_t y_unit;//unit and offset holds application related data,so 32bit is used 
+    uint32_t y_offset;
     uint8_t wf_color;
     uint8_t bg_color;
 }lygl_graph_param_t;
@@ -72,7 +72,7 @@ void lygl_draw_image(const lv_img_dsc_t * icon,uint8_t x,uint8_t y);
 void lygl_draw_line(uint8_t x1,uint8_t y1,uint8_t x2,uint8_t y2,uint8_t color);
 void lygl_draw_rectangle(uint16_t x1,uint16_t y1,uint16_t x2,uint16_t y2,uint8_t color);
 void lygl_creat_graph(lygl_graph_param_t *graph_param);
-void lygl_send_graph_data(uint16_t *data,uint16_t len);
+void lygl_send_graph_data(uint32_t *data,uint16_t len,uint32_t valid_bits);
 
 void lygl_creat_battery(const lv_img_dsc_t * battery_ico,uint8_t x,uint8_t y,uint8_t dir);
 void lygl_battry_level(uint8_t percent);

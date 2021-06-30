@@ -54,6 +54,7 @@
 
 /* Public variables ---------------------------------------------------------*/
 extern Adpd400xLibConfig_t *gAdpd400x_lcfg;
+extern uint16_t gnPulseWidth, gnAfeGainNum, gnBpfGainNum;
 
 /* Public function prototypes -----------------------------------------------*/
 void Adpd400xOptimizationInit_108(void);
@@ -126,14 +127,14 @@ void Adpd400xOptimizationInit_108() {
   gsFitCurveBase2 = (double*)&gnAdpd400xTempData[18];
   gsFitCurveExponent2 = (double*)&gnAdpd400xTempData[22];
   
-  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * 0x20;
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
   AdpdDrvRegRead(g_reg_base + ADPD400x_REG_AFE_TRIM_A, &Reg.x104);
   AdpdDrvRegRead(g_reg_base + ADPD400x_REG_LED_POW12_A, &Reg.x105);
   AdpdDrvRegRead(g_reg_base + ADPD400x_REG_LED_POW34_A, &Reg.x106);
   AdpdDrvRegRead(g_reg_base + ADPD400x_REG_COUNTS_A, &Reg.x107);
   AdpdDrvRegRead(g_reg_base + ADPD400x_REG_LED_PULSE_A, &Reg.x109);
 
-  // PpgLibGetSampleRate(&gsSampleRateVal, &gsDecimationVal);  // backup fs
+  //PpgLibGetSampleRate(&gsSampleRateVal, &gsDecimationVal,gAdpd400x_lcfg->targetSlots);  // backup fs
 
   *gsDeviceIndex = (Reg.x109 >> 8);     // get LED width as array index
   if (gAdpd400x_lcfg->partNum == 108 || gAdpd400x_lcfg->partNum == 0x00C0)  {
@@ -186,9 +187,9 @@ INT_ERROR_CODE_t Adpd400xOptimizeSetting_108(uint32_t *rawData) {
   */
 void Adpd400xOptimizationDeInit_108()  {
   AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
-  // PpgLibSetSampleRate(gsSampleRateVal, gsDecimationVal);    // restore fs
+  // PpgLibSetSampleRate(gsSampleRateVal, gsDecimationVal,gAdpd400x_lcfg->targetSlots);    // restore fs
   
-  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * 0x20;
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
   AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_AFE_TRIM_A, Reg.x104);
   AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_LED_POW12_A, Reg.x105);
   AdpdDrvRegWrite(g_reg_base + ADPD400x_REG_LED_POW34_A, Reg.x106);
@@ -206,10 +207,16 @@ void Adpd400xOptimizationDeInit_108()  {
   * @retval None.
   */
 static void Op_FindPulseNum_108(void) {
-  uint16_t ctr, deviceI;
+  uint16_t ctr, deviceI, sampleRate, decimateVal;
   double temp_d;
   uint16_t ledCur, coarseReg, fineReg;
   
+  uint16_t temp_16;
+  uint8_t retVal;
+  uint16_t div_factor;
+  uint32_t dc_level;
+  
+  PpgLibGetSampleRate(&sampleRate, &decimateVal,gAdpd400x_lcfg->targetSlots);  // backup sampling rate
   deviceI = *gsDeviceIndex;
   *gsFitCurveBase1 = LED_FitCurve[deviceI][0];
   *gsFitCurveExponent1 = LED_FitCurve[deviceI][1];
@@ -240,15 +247,39 @@ static void Op_FindPulseNum_108(void) {
   else
     *gsPulseNum = LED_Pulse[deviceI][ctr-PULSE_CTR_START_PTR];
 
-  if (*gsPulseNum > gAdpd400x_lcfg->maxPulseNum)
-      *gsPulseNum = gAdpd400x_lcfg->maxPulseNum - 1;
+  /*if (*gsPulseNum > gAdpd400x_lcfg->maxPulseNum)
+      *gsPulseNum = gAdpd400x_lcfg->maxPulseNum - 1;*/
 
+  dc_level =((ctr * gnBpfGainNum * gnPulseWidth * ledCur * (*gsPulseNum)) / (460 * gnAfeGainNum));
   // check sampling rate
-
-
-  *gsPulseNum = (*gsPulseNum * 50) / gAdpd400xOptmVal.sampleRate;
+#if 0
+  // adjust by the expected percentage
+  temp_16 = ((gAdpd400x_lcfg->postLoop1PulseAdjust + 100) * (*gsPulseNum)) / 100;
+#endif  
+  // adjust temp_16 for the sampling rate
+  div_factor = sampleRate/50;           // above array tuned for 50HZ  
+  if(div_factor != 0){
+    temp_16 = (temp_16/div_factor);
+  }
+  retVal = ADPDLibPostPulseIncreaseAdjust(&temp_16,gsPulseNum,&sampleRate, &decimateVal,&dc_level);
+  
+  // invalid pulse range and revert back to gsPulseNum
+  if(retVal == IERR_FAIL) {
+    temp_16 = *gsPulseNum; 
+  }
+  *gsPulseNum = temp_16;
+#if 0 
+   // adjust by the expected percentage
+  temp_16 = ((gAdpd400x_lcfg->postLoop1CurrAdjust + 100) * (ledCur)) / 100;
+#endif
+  if (temp_16 > gAdpd400x_lcfg->maxLedCurrent) { 
+    ledCur = gAdpd400x_lcfg->maxLedCurrent - 1; 
+  } else {
+    ledCur = temp_16;
+  }
+  /* *gsPulseNum = (*gsPulseNum * 50) / gAdpd400xOptmVal.sampleRate;
   if ((*gsPulseNum & 0x1) != 0)   // odd value
-      *gsPulseNum = *gsPulseNum + 1;
+      *gsPulseNum = *gsPulseNum + 1; */
 
   Adpd400xUtilGetCurrentRegValue(ledCur, &coarseReg, &fineReg);
   gAdpd400xOptmVal.ledB_Cur = coarseReg;
@@ -275,7 +306,7 @@ static void Op_VerifyLedResult(uint32_t *rawData) {
   uint16_t ledCurrent, ledReg12, ledReg34;
   uint32_t saturatedValue;
   
-  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * 0x20;
+  g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
 
   saturatedValue = *gsPulseNum * SATURATED_PER_PULSE;
   if (rawData[0] >= saturatedValue)  {      // reduce LED current
@@ -303,8 +334,9 @@ static void Op_VerifyLedResult(uint32_t *rawData) {
   * @retval None.
   */
 static void Op_FindPower_108(void) {
-
+#if 0
   *gsLedPower = (uint16_t) (gAdpd400x_lcfg->ledG_Voltage) * (gAdpd400xOptmVal.ledB_CurVal);
+#endif
   *gsAfePower = (uint16_t) (ADPD_VOL * 1234);
   *gsTotalPower = (*gsLedPower) + (*gsAfePower);
 }

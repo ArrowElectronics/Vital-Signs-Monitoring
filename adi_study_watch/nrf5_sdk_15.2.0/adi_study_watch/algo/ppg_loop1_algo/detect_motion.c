@@ -160,7 +160,3 @@ void Adpd400xMDPeriodicCheckStart() {
   gsPeriodicTimeExpired = 0;
   gsRestStartTimeExpired = 0;
 }
-
-void Preprocess_Activity_Init(uint16_t sample_rate){
- //ToDo
-}

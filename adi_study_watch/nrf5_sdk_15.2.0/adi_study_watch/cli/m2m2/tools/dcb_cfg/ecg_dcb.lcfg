@@ -1,4 +1,6 @@
 #ECG_DCB_LCFG
 
 00 00C8  # ECG ODR = 200 Hz, Default f/w ECG ODR = 100 Hz
-
+01 0000  # ADC Programmable Gain Array control: '0' for Unity Gain, '1'for Gain of 1.5 ,'2' for Gain of 2 ,'3' for Gain of 4, '4' Gain of 9, Default f/w ECG ADC PGA Gain = '1' 
+02 0000  # AFE power Modulation: '0' for Low power drive, '1' for High power drive, Default f/w ECG AFE Power Mod = '0'
+03 0001 # Packetization enable / disable: '1' for enable, '0' for ,  Default f/w ECG packetization enable = '1'

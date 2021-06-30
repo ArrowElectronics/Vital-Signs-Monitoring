@@ -11,8 +11,12 @@ Library          qa_test_scripts/general_qa_test.py
 Library          qa_test_scripts/usecase_qa_all_combination_test.py
 Library          qa_test_scripts/inter_op_test.py
 
-Suite Setup      initialize_setup
+Suite Setup      initialize_setup   ${TS_Tolerance}     ${DUT_COMPORT}
 Suite Teardown   close_setup
+
+*** Variables ***
+${TS_Tolerance}     0
+${DUT_COMPORT}      NA
 
 
 *** Test Cases ***
@@ -54,9 +58,14 @@ ADPD Stream Test
     [Tags]  ADPD_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
     adpd_stream_test
 
+ADPD MultiLED Stream Test
+    [Documentation]
+    [Tags]  ADPD_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
+    adpd_multi_led_stream_test
+
 ADPD FS Stream Test
     [Documentation]
-    [Tags]  ADPD_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
+    [Tags]  ADPD_TEST   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
     adpd_fs_stream_test
 
 ADPD Frequency Sweep Stream Test
@@ -66,7 +75,7 @@ ADPD Frequency Sweep Stream Test
 
 ADPD Frequency Sweep FS Stream Test
     [Documentation]
-    [Tags]  ADPD_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
+    [Tags]  ADPD_TEST   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
     adpd_freq_sweep_fs_stream_test
 
 ADPD AGC Stream Test
@@ -96,7 +105,7 @@ PPG AGC Test
 
 PPG FS Stream Test
     [Documentation]
-    [Tags]  ADPD_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
+    [Tags]  ADPD_TEST   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
     ppg_fs_stream_test
 
 
@@ -128,7 +137,7 @@ ADXL Stream Test
 
 ADXL FS Stream Test
     [Documentation]
-    [Tags]  ADXL_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
+    [Tags]  ADXL_TEST   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
     adxl_fs_stream_test
 
 ADXL Frequency Sweep Test
@@ -136,9 +145,14 @@ ADXL Frequency Sweep Test
     [Tags]  ADXL_TEST    ROUTINE_TEST    FULL_REGRESSION
     adxl_freq_sweep_test
 
+ADXL FS Frequency Sweep Test
+    [Documentation]
+    [Tags]  ADXL_TEST   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+    adxl_fs_freq_sweep_test
+
 ADXL Repeatability Test
     [Documentation]
-    [Tags]  ADXL_TEST
+    [Tags]  ADXL_TEST    ROUTINE_TEST    FULL_REGRESSION
     adxl_repeatability_test
 
 
@@ -160,7 +174,7 @@ EDA DCB Stream Test
 
 EDA DCB Repeatability Test
     [Documentation]
-    [Tags]  AD5940_TEST   # FULL_REGRESSION
+    [Tags]  AD5940_TEST   FULL_REGRESSION
     eda_dcb_repeatability_test
 
 EDA Stream Test
@@ -170,7 +184,7 @@ EDA Stream Test
 
 EDA FS Stream Test
     [Documentation]
-    [Tags]  AD5940_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
+    [Tags]  AD5940_TEST   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
     eda_fs_stream_test
 
 EDA Frequency Sweep Test
@@ -183,137 +197,6 @@ EDA Repeatability Sweep Test
     [Tags]  AD5940_TEST    FULL_REGRESSION
     eda_repeatability_sweep_test
 
-
-
-# >>>>> Temperature Tests
-Temperature Stream Test
-    [Documentation]
-    [Tags]  ADPD_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
-    temperature_stream_test
-
-Temperature FS Stream Test
-    [Documentation]
-    [Tags]  ADPD_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
-    temperature_fs_stream_test
-
-
-# >>>>> Use Case Tests
-Use Case QA PPG Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ppg
-
-Use Case QA PPG FS Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ppg_fs
-
-Use Case QA PPG EDA Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ppg_eda
-
-Use Case QA PPG EDA FS Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ppg_eda_fs
-
-Use Case 5 QA Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
-    use_case_5
-
-Use Case 5 FS QA Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
-    use_case_5_fs
-
-
-# >>>>> Use Case Tests Randomized
-Use Case QA PPG Randomized Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ppg_randomized_test
-
-Use Case QA PPG FS Randomized Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ppg_fs_randomized_test
-
-Use Case QA PPG EDA Randomized Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ppg_eda_randomized_test
-
-Use Case QA PPG EDA FS Randomized Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ppg_eda_fs_randomized_test
-
-Use Case 5 QA Randomized Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
-    use_case_5_randomized_test
-
-Use Case 5 QA FS Randomized Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
-    use_case_5_fs_randomized_test
-
-
-
-
-# >>>>> Use Case Tests All Combination
-Use Case QA PPG All Combination Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_All_Combination    FULL_REGRESSION
-    use_case_qa_ppg_all_combination_test
-
-Use Case QA PPG FS All Combination Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_All_Combination   FS_TEST   # FULL_REGRESSION
-    use_case_qa_ppg_fs_all_combination_test
-
-Use Case QA PPG EDA All Combination Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_All_Combination    FULL_REGRESSION
-    use_case_qa_ppg_eda_all_combination_test
-
-Use Case QA PPG EDA FS All Combination Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_All_Combination   FS_TEST   # FULL_REGRESSION
-    use_case_qa_ppg_eda_fs_all_combination_test
-
-Use Case 5 QA All Combination Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_All_Combination    FULL_REGRESSION
-    use_case_5_all_combination_test
-
-Use Case 5 QA FS All Combination Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_All_Combination   FS_TEST   # FULL_REGRESSION
-    use_case_5_fs_all_combination_test
-
-
-# >>>>> Inter-Op Tests
-Inter-Op DCB Test
-    [Documentation]
-    [Tags]  INTER_OP    ROUTINE_TEST    FULL_REGRESSION
-    inter_op_dcb_test
-
-Inter-Op DCB Repeatability Test
-    [Documentation]
-    [Tags]  INTER_OP   # FULL_REGRESSION
-    inter_op_dcb_repeatability_test
-
-Inter-Op ECG Switch Independent Test
-    [Documentation]
-    [Tags]  INTER_OP    ROUTINE_TEST    FULL_REGRESSION
-    inter_op_ecg_switch_independent_test
-
-
-
-# >>>>> AD5940 Tests
 ECG DCB Test
     [Documentation]
     [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
@@ -326,7 +209,7 @@ ECG DCB Stream Test
 
 ECG DCB Repeatability Test
     [Documentation]
-    [Tags]  AD5940_TEST   # FULL_REGRESSION
+    [Tags]  AD5940_TEST   FULL_REGRESSION
     ecg_dcb_repeatability_test
 
 ECG Stream Test
@@ -336,13 +219,13 @@ ECG Stream Test
 
 ECG FS Stream Test
     [Documentation]
-    [Tags]  AD5940_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
+    [Tags]  AD5940_TEST   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
     ecg_fs_stream_test
 
-AD5940 Switch Test
-    [Documentation]
-    [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
-    ad5940_switch_test
+#AD5940 Switch Test
+#    [Documentation]
+#    [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
+#    ad5940_switch_test
 
 ECG Frequency Sweep Test
     [Documentation]
@@ -357,7 +240,39 @@ ECG Repeatability Sweep Test
 
 
 
+# >>>>> Temperature Tests
+Temperature Stream Test
+    [Documentation]
+    [Tags]  ADPD_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
+    temperature_stream_test
+
+Temperature FS Stream Test
+    [Documentation]
+    [Tags]  ADPD_TEST   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+    temperature_fs_stream_test
+
+
 # >>>>> Use Case Tests
+Use Case QA PPG Test
+    [Documentation]
+    [Tags]  USE_CASE_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
+    use_case_qa_ppg
+
+Use Case QA PPG FS Test
+    [Documentation]
+    [Tags]  USE_CASE_TEST   FS_TEST   UC_FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+    use_case_qa_ppg_fs
+
+Use Case QA PPG EDA Test
+    [Documentation]
+    [Tags]  USE_CASE_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
+    use_case_qa_ppg_eda
+
+Use Case QA PPG EDA FS Test
+    [Documentation]
+    [Tags]  USE_CASE_TEST   FS_TEST   UC_FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+    use_case_qa_ppg_eda_fs
+
 Use Case QA PPG ECG Test
     [Documentation]
     [Tags]  USE_CASE_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
@@ -365,7 +280,7 @@ Use Case QA PPG ECG Test
 
 Use Case QA PPG ECG FS Test
     [Documentation]
-    [Tags]  USE_CASE_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
+    [Tags]  USE_CASE_TEST   FS_TEST   UC_FS_TEST   ROUTINE_TEST    FULL_REGRESSION
     use_case_qa_ppg_ecg_fs
 
 Use Case QA ECG Test
@@ -375,68 +290,151 @@ Use Case QA ECG Test
 
 Use Case QA ECG FS Test
     [Documentation]
-    [Tags]  USE_CASE_TEST   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
+    [Tags]  USE_CASE_TEST   FS_TEST   UC_FS_TEST   ROUTINE_TEST    FULL_REGRESSION
     use_case_qa_ecg_fs
 
-
-
-
-# >>>>> Use Case Tests Randomized
-Use Case QA PPG ECG Randomized Test
+Use Case 5 QA Test
     [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ppg_ecg_randomized_test
+    [Tags]  USE_CASE_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
+    use_case_5
 
-Use Case QA PPG ECG FS Randomized Test
+Use Case 5 FS QA Test
     [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ppg_ecg_fs_randomized_test
+    [Tags]  USE_CASE_TEST   FS_TEST   UC_FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+    use_case_5_fs
 
-Use Case QA ECG Randomized Test
+
+## >>>>> Use Case Tests Randomized
+#Use Case QA PPG Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
+#    use_case_qa_ppg_randomized_test
+#
+#Use Case QA PPG FS Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+#    use_case_qa_ppg_fs_randomized_test
+#
+#Use Case QA PPG EDA Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
+#    use_case_qa_ppg_eda_randomized_test
+#
+#Use Case QA PPG EDA FS Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+#    use_case_qa_ppg_eda_fs_randomized_test
+#
+#Use Case QA PPG ECG Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
+#    use_case_qa_ppg_ecg_randomized_test
+#
+#Use Case QA PPG ECG FS Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+#    use_case_qa_ppg_ecg_fs_randomized_test
+#
+#Use Case QA ECG Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
+#    use_case_qa_ecg_randomized_test
+#
+#Use Case QA ECG FS Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+#    use_case_qa_ecg_fs_randomized_test
+#
+#Use Case 5 QA Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
+#    use_case_5_randomized_test
+#
+#Use Case 5 QA FS Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+#    use_case_5_fs_randomized_test
+#
+#Use Case Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
+#    use_case_randomized_test
+#
+#Use Case FS Randomized Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+#    use_case_fs_randomized_test
+#
+#
+#
+#
+## >>>>> Use Case Tests All Combination
+#Use Case QA PPG All Combination Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_All_Combination    FULL_REGRESSION
+#    use_case_qa_ppg_all_combination_test
+#
+#Use Case QA PPG FS All Combination Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_All_Combination   FS_TEST   FULL_REGRESSION
+#    use_case_qa_ppg_fs_all_combination_test
+#
+#Use Case QA PPG EDA All Combination Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_All_Combination    FULL_REGRESSION
+#    use_case_qa_ppg_eda_all_combination_test
+#
+#Use Case QA PPG EDA FS All Combination Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_All_Combination   FS_TEST   FULL_REGRESSION
+#    use_case_qa_ppg_eda_fs_all_combination_test
+#
+#Use Case QA PPG ECG All Combination Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_All_Combination    FULL_REGRESSION
+#    use_case_qa_ppg_ecg_all_combination_test
+#
+#Use Case QA PPG ECG FS All Combination Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_All_Combination   FS_TEST   FULL_REGRESSION
+#    use_case_qa_ppg_ecg_fs_all_combination_test
+#
+#Use Case QA ECG All Combination Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_All_Combination    FULL_REGRESSION
+#    use_case_qa_ecg_all_combination_test
+#
+#Use Case QA ECG FS All Combination Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_All_Combination   FS_TEST   FULL_REGRESSION
+#    use_case_qa_ecg_fs_all_combination_test
+#
+#Use Case 5 QA All Combination Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_All_Combination    FULL_REGRESSION
+#    use_case_5_all_combination_test
+#
+#Use Case 5 QA FS All Combination Test
+#    [Documentation]
+#    [Tags]  USE_CASE_TEST_All_Combination   FS_TEST   FULL_REGRESSION
+#    use_case_5_fs_all_combination_test
+
+
+# >>>>> Inter-Op Tests
+Inter-Op DCB Test
     [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ecg_randomized_test
+    [Tags]  INTER_OP    ROUTINE_TEST    FULL_REGRESSION
+    inter_op_dcb_test
 
-Use Case QA ECG FS Randomized Test
+Inter-Op DCB Repeatability Test
     [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
-    use_case_qa_ecg_fs_randomized_test
+    [Tags]  INTER_OP    FULL_REGRESSION
+    inter_op_dcb_repeatability_test
 
-Use Case Randomized Test
+Inter-Op ECG Switch Independent Test
     [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED    ROUTINE_TEST    FULL_REGRESSION
-    use_case_randomized_test
-
-Use Case FS Randomized Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_RANDOMIZED   FS_TEST   # ROUTINE_TEST    FULL_REGRESSION
-    use_case_fs_randomized_test
-
-
-
-
-# >>>>> Use Case Tests All Combination
-
-Use Case QA PPG ECG All Combination Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_All_Combination    FULL_REGRESSION
-    use_case_qa_ppg_ecg_all_combination_test
-
-Use Case QA PPG ECG FS All Combination Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_All_Combination   FS_TEST   # FULL_REGRESSION
-    use_case_qa_ppg_ecg_fs_all_combination_test
-
-Use Case QA ECG All Combination Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_All_Combination    FULL_REGRESSION
-    use_case_qa_ecg_all_combination_test
-
-Use Case QA ECG FS All Combination Test
-    [Documentation]
-    [Tags]  USE_CASE_TEST_All_Combination   FS_TEST   # FULL_REGRESSION
-    use_case_qa_ecg_fs_all_combination_test
-
+    [Tags]  INTER_OP    ROUTINE_TEST    FULL_REGRESSION
+    inter_op_ecg_switch_independent_test
 
 
 

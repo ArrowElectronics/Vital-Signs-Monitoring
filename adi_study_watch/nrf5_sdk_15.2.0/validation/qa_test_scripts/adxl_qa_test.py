@@ -8,6 +8,8 @@ import common
 from common import ConditionCheckFailure
 from utils import qa_utils
 
+capture_time = 120
+
 
 def adxl362_dev_id_test():
     """
@@ -22,13 +24,13 @@ def adxl_self_test():
 
     :return:
     """
-    err_stat = common.watch_shell.do_adxl_self_test('')
+    packet = common.watch_shell.do_adxl_self_test('')
 
-    if err_stat:
-        common.logging.error('*** ADXL Self Test - FAIL ***')
+    if packet["payload"]["status"].value[0] != 0:
+        common.test_logger.error('*** ADXL Self Test - FAIL ***')
         raise ConditionCheckFailure("\n\n" + 'ADXL Self Test returned failure!')
     else:
-        common.logging.info('*** ADXL Self Test - PASS ***')
+        common.test_logger.info('*** ADXL Self Test - PASS ***')
 
 
 def adxl_dcb_test():
@@ -41,22 +43,20 @@ def adxl_dcb_stream_test(freq_hz=50):
 
     :return:
     """
-    capture_time = 10
+    capture_time = 30
     common.dcb_cfg('d', 'adxl')
 
     qa_utils.write_dcb('adxl', 'adxl_dcb.dcfg', 'ADXL Stream Test')
-    common.watch_shell.do_quickstart("adxl")
-    common.watch_shell.do_plot("radxl")
+    common.watch_shell.quick_start('adxl', 'adxl')
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('adxl')
-    common.close_plot_after_run(['ADXL Data'])
+    common.watch_shell.quick_stop('adxl', 'adxl')
     common.dcb_cfg('d', 'adxl')
     f_path = common.rename_stream_file(common.adxl_stream_file_name, '{}Hz.csv'.format(freq_hz))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'adxl', 1, freq_hz)
-    common.logging.info('ADXL {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('ADXL {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** ADXL {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** ADXL {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
@@ -72,21 +72,20 @@ def adxl_stream_test(freq_hz=100):
 
     :return:
     """
-    capture_time = 10
+    capture_time = 30
     common.dcb_cfg('d', 'adxl')
 
     qa_utils.write_dcb('adxl', 'adxl_dcb.dcfg', 'ADXL Stream Test')
     common.quick_start_adxl(samp_freq_hz=freq_hz)
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('adxl')
-    common.close_plot_after_run(['ADXL Data'])
+    common.watch_shell.quick_stop('adxl', 'adxl')
     common.dcb_cfg('d', 'adxl')
     f_path = common.rename_stream_file(common.adxl_stream_file_name, '{}Hz.csv'.format(freq_hz))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'adxl', 1, freq_hz)
-    common.logging.info('ADXL {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('ADXL {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** ADXL {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** ADXL {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
@@ -110,27 +109,38 @@ def adxl_repeatability_test():
         adxl_freq_sweep_test()
 
 
-def adxl_fs_stream_test():
+def adxl_fs_stream_test(freq_hz=50):
     """
 
     :return:
     """
-    capture_time = 10
-    freq_hz = 50
     qa_utils.write_dcb('adxl', 'adxl_dcb.dcfg', 'ADXL Stream Test')
     qa_utils.clear_fs_logs('ADXL')
 
-    common.watch_shell.do_quickstart('start_log_adxl')
+    common.watch_shell.quick_start("adxl", "adxl", fs=True)
+    common.set_adxl_stream_freq(freq_hz)
+    common.watch_shell.do_start_logging("")
     time.sleep(capture_time)
-    common.watch_shell.do_quickstop('stop_log_adxl')
-    common.dcb_cfg('d', 'adxl')
+    common.watch_shell.quick_stop("adxl", "adxl", fs=True)
+    common.watch_shell.do_stop_logging("")
     log_file_name, csv_file_name = qa_utils.get_fs_log('ADXL')
-    f_path =  common.rename_stream_file(csv_file_name["adxl"], "_adxl_{}hz_stream_test.csv".format(freq_hz))
+    f_path = common.rename_stream_file(csv_file_name["adxl"], "_adxl_{}hz_fs_stream_test.csv".format(freq_hz))
+
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'adxl', 1, freq_hz, True)
-    common.logging.info('ADXL FS {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    common.test_logger.info('ADXL FS {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.logging.error('*** ADXL FS {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** ADXL FS {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
+
+
+def adxl_fs_freq_sweep_test():
+    """
+    Sweep ADXL across all valid frequencies
+    :return:
+    """
+    freq = [12.5, 25, 50, 100, 200, 400]
+    for freq_hz in freq:
+        adxl_fs_stream_test(freq_hz=freq_hz)
 
 
 if __name__ == '__main__':

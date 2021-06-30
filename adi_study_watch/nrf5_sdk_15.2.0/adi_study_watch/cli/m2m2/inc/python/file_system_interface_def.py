@@ -77,6 +77,10 @@ class M2M2_FILE_SYS_CMD_ENUM_t(c_ubyte):
     M2M2_FILE_SYS_CMD_GET_FILE_INFO_RESP = 0x8D
     M2M2_FILE_SYS_CMD_PAGE_READ_TEST_REQ = 0x8E
     M2M2_FILE_SYS_CMD_PAGE_READ_TEST_RESP = 0x8F
+    M2M2_FILE_SYS_CMD_BLOCK_ERASE_REQ = 0x90
+    M2M2_FILE_SYS_CMD_BLOCK_ERASE_RESP = 0x91
+    M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ =  0x92
+    M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_RESP = 0x93
 
 class M2M2_FILE_SYS_STATUS_ENUM_t(c_ubyte):
     __M2M2_FILE_SYS_ERR_LOWEST = 0x40
@@ -135,6 +139,15 @@ def m2m2_file_sys_ls_req_t(array_size):
               ]
   return m2m2_file_sys_ls_req_t_internal()
 
+class m2m2_file_sys_blk_erase_cmd_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+                ("command", c_ubyte),
+                ("status", c_ubyte),
+                ("block_no", c_ushort),
+               ]
+
+
 class m2m2_file_sys_ls_resp_t(Structure):
     _pack_ = 1
     _fields_ = [
@@ -164,6 +177,14 @@ class m2m2_file_sys_download_log_stream_t(Structure):
               ("byte_stream", c_ubyte * 512),
               ("crc16", c_ushort),
               ]
+
+class m2m2_file_sys_write_rsd_blk_cmd_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+                ("command",c_ubyte),
+                ("status",c_ubyte),
+                ("data",c_ulong*20),
+                ]
 
 class m2m2_file_sys_app_ref_hr_stream_t(Structure):
     _pack_ = 1

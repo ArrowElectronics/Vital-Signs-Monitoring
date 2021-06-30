@@ -8,11 +8,13 @@ import common_application_interface
 
 MAXADPD4000DCBSIZE = (57) #//Max size of adpd4000 DCB size in double word length; 57 uint32_t elements in dcfg
 MAXADXLDCBSIZE = (25)
-MAXPPGDCBSIZE = (53)
-MAXECGDCBSIZE = (2)
+MAXPPGDCBSIZE = (56)
+MAXECGDCBSIZE = (4)
 MAXEDADCBSIZE = (2)
+MAXBCMDCBSIZE = (5)
 MAXGENBLKDCBSIZE = (57)
 MAXAD7156DCBSIZE = (20)
+MAXLTAPPLCFGDCBSIZE = (5)
 
 M2M2_DCB_COMMAND_ENUM_t = {
     "type":c_uint8,
@@ -188,6 +190,21 @@ m2m2_dcb_ad7156_data_t = {
     ]
 }
 
+m2m2_dcb_lt_app_lcfg_data_t = {
+    "struct_fields":
+    [
+        {"name":"command",
+         "type":c_uint8},
+        {"name":"status",
+         "type":c_uint8},
+        {"name":"size",
+         "type":c_uint16},
+        {"name":"dcbdata",
+         "length":MAXLTAPPLCFGDCBSIZE,
+         "type":c_uint32},
+    ]
+}
+
 M2M2_DCB_CONFIG_BLOCK_INDEX_t = {
     "type":c_uint8,
     "enum_values":
@@ -202,13 +219,14 @@ M2M2_DCB_CONFIG_BLOCK_INDEX_t = {
         ("ADI_DCB_AD7156_BLOCK_IDX",                       0x7),
         ("ADI_DCB_PEDOMETER_BLOCK_IDX",                    0x8),
         ("ADI_DCB_TEMPERATURE_BLOCK_IDX",                  0x9),
-        ("ADI_DCB_WRIST_DETECT_BLOCK_IDX",                 0xA),
+        ("ADI_DCB_LT_APP_LCFG_BLOCK_IDX",                  0xA),
         ("ADI_DCB_UI_CONFIG_BLOCK_IDX",                    0xB),
         ("ADI_DCB_USER0_BLOCK_IDX",                        0xC),
-        ("ADI_DCB_USER0_BLOCK_IDX",                        0xD),
-        ("ADI_DCB_USER0_BLOCK_IDX",                        0xE),
-        ("ADI_DCB_USER0_BLOCK_IDX",                        0xF),
-        ("ADI_DCB_MAX_BLOCK_IDX",                          0x10),
+        ("ADI_DCB_USER1_BLOCK_IDX",                        0xD),
+        ("ADI_DCB_USER2_BLOCK_IDX",                        0xE),
+        ("ADI_DCB_USER3_BLOCK_IDX",                        0xF),
+        ("ADI_DCB_BCM_BLOCK_IDX",                          0x10),
+        ("ADI_DCB_MAX_BLOCK_IDX",                          0x11),
     ]
 }
 

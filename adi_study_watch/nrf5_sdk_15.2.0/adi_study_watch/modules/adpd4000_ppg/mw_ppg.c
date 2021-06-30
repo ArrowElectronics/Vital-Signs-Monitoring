@@ -49,6 +49,7 @@ NRF_LOG_MODULE_REGISTER();
 #include "mw_ppg.h"
 #include "ppg_lcfg.h"
 #include <string.h>
+#include <math.h>
 
 #ifdef DCB
 #include <dcb_interface.h>
@@ -69,6 +70,31 @@ typedef struct _stat_info_t {
   struct _stat_info_t   *next;
 } stat_info_t;
 static stat_info_t gsStateInfo[STATE_NUM], *gspStateInfo;
+
+/************HRV related variables/macro/struct************* */
+#define MIN_NO_OF_SAMPLES_TO_HOLD 2 
+#define MAX_NO_OF_SAMPLES_TO_HOLD 102
+uint32_t gNum = 2;
+float gRMSSD = 0;
+uint64_t gSum = 0;
+int8_t Gprev_RRFlag = 0;
+uint16_t gRmssdSampleWindow = 0;
+
+typedef struct RMSSDBuff
+{
+  int32_t buffer[MAX_NO_OF_SAMPLES_TO_HOLD];
+  int32_t segmentlabel[MAX_NO_OF_SAMPLES_TO_HOLD];
+  int32_t head;
+  int32_t tail;
+  int32_t len;
+  int32_t segment_len;
+  int32_t segment;
+}RMSSDBuff_t;
+
+RMSSDBuff_t gRMSSDBuff; 
+static void CalculateRMSSD();
+/**************************************************************/
+
 /////////////////////////////////////////
 #ifdef DCB
 static volatile bool g_ppg_dcb_Present = false;
@@ -196,6 +222,24 @@ ADPDLIB_ERROR_CODE_t MwPPG_HeartRateInit()  {
   gsCurrLibState = 0;
   MwPPG_GetStateInfoInit();
   memset(&gsResult, 0, sizeof(gsResult));
+
+  /* reset variables/buffers for RMSSD calculation */
+  gSum = 0;
+  Gprev_RRFlag = 0;
+  memset(&gRMSSDBuff, 0, sizeof(gRMSSDBuff));
+
+  gRmssdSampleWindow = gAdpd400xLibCfg.rmssdSampleWindow;
+  /* check if rmssd sample window is within the range */
+  if(gRmssdSampleWindow > MAX_NO_OF_SAMPLES_TO_HOLD)
+  {
+    gRmssdSampleWindow = MAX_NO_OF_SAMPLES_TO_HOLD;
+  }
+
+  if(gRmssdSampleWindow < MIN_NO_OF_SAMPLES_TO_HOLD)
+  {
+    gRmssdSampleWindow = MIN_NO_OF_SAMPLES_TO_HOLD;
+  }
+
   Adpd400xLibApplyLCFG(&gAdpd400xLibCfg);
   RegisterMwPpgLibOpenHRCB(Adpd400xLibOpenHr);
   RegisterMwPpgLibCloseHRCB(Adpd400xLibCloseHr);
@@ -222,7 +266,7 @@ ADPDLIB_ERROR_CODE_t MwPPG_HeartRate(LibResultX_t* hrResult,
                              TimeStamps_t ts) {
   ADPDLIB_ERROR_CODE_t ret = (ADPDLIB_ERROR_CODE_t)0;
 
-  (*gfLibHRCall)(&gsResult, slotB, accl, ts); // Call Get HR Lib function
+  ret = (*gfLibHRCall)(&gsResult, slotB, accl, ts); // Call Get HR Lib function
   gsLastLibState = gsCurrLibState;
   //gsCurrLibState = (uint8_t)AdpdLibGetState();
   gsCurrLibState = (*gfLibGetStateCall)();
@@ -230,9 +274,73 @@ ADPDLIB_ERROR_CODE_t MwPPG_HeartRate(LibResultX_t* hrResult,
     MwPPG_LoadStateInfo(gsCurrLibState);
     //PpgSetOperationMode(ADPDDrv_MODE_SAMPLE); // sample mode set not needed during state change
   }
+  
+  /* RMSSD */
+  if(gsResult.IsHrvValid)
+  {
+   if(gsResult.IsHrvValid == ADPDLIB_HRV_PPG_B2B_VALID_RR){
+    if(Gprev_RRFlag == ADPDLIB_HRV_PPG_B2B_GAP){
+       gRMSSDBuff.segment++;
+     }
+    gRMSSDBuff.buffer[gRMSSDBuff.head] = gsResult.RRinterval;
+    gRMSSDBuff.segmentlabel[gRMSSDBuff.head] = gRMSSDBuff.segment;
+    gRMSSDBuff.head = (gRMSSDBuff.head + 1) % gRmssdSampleWindow;
+    gRMSSDBuff.len++; // number of samples
+    if (gRMSSDBuff.len > gRmssdSampleWindow){
+       gRMSSDBuff.len = gRmssdSampleWindow;
+     }
+    if(gRMSSDBuff.len >= gNum){
+      CalculateRMSSD();
+    }
+    Gprev_RRFlag = ADPDLIB_HRV_PPG_B2B_VALID_RR;
+   }
+  else if(gsResult.IsHrvValid == ADPDLIB_HRV_PPG_B2B_GAP){
+     Gprev_RRFlag = ADPDLIB_HRV_PPG_B2B_GAP;
+   }
+  }else{
+    gRMSSD = 0;    
+  }
+  gsResult.RMSSD = gRMSSD * 16; /* multiplying float rmssd value by 16 and storing in uint16_t var */
 
   memcpy(hrResult, &gsResult, sizeof(LibResultX_t));
   return ret;
+}
+
+/**
+  * @internal
+  * @brief    Calculates the RMSSD value
+  * @retval   None
+  */
+static void CalculateRMSSD(){
+  int32_t cnt = 0;
+  uint32_t nStart = 0;
+
+  while(cnt < (gNum-1)){
+    nStart = (gRMSSDBuff.tail+cnt) % gRmssdSampleWindow;
+    if(gRMSSDBuff.segmentlabel[(nStart + 1) % gRmssdSampleWindow] == gRMSSDBuff.segmentlabel[nStart]){
+      gRMSSDBuff.segment_len++;
+      gSum += (gRMSSDBuff.buffer[(nStart + 1) % gRmssdSampleWindow] - gRMSSDBuff.buffer[nStart])*(gRMSSDBuff.buffer[(nStart+1)%gRmssdSampleWindow] - gRMSSDBuff.buffer[nStart]);
+    }
+    cnt++;
+  }
+  if (gRMSSDBuff.len > (gRmssdSampleWindow -1))
+  {
+    nStart = gRMSSDBuff.head;
+    if(gRMSSDBuff.segmentlabel[(nStart + 1) % gRmssdSampleWindow] == gRMSSDBuff.segmentlabel[nStart])
+    {
+      gRMSSDBuff.segment_len--;
+      gSum -= (gRMSSDBuff.buffer[(nStart+1) % gRmssdSampleWindow] - gRMSSDBuff.buffer[nStart])*(gRMSSDBuff.buffer[(nStart + 1) % gRmssdSampleWindow] - gRMSSDBuff.buffer[nStart]);
+    }
+    if(gRMSSDBuff.segment_len != 0) 
+      gRMSSD = sqrtf(gSum /gRMSSDBuff.segment_len); 
+
+  }
+  else
+  {
+    if(gRMSSDBuff.segment_len != 0)
+      gRMSSD = sqrtf(gSum /(gRMSSDBuff.segment_len));
+  }
+  gRMSSDBuff.tail = (gRMSSDBuff.tail+1) % gRmssdSampleWindow;
 }
 
 /**

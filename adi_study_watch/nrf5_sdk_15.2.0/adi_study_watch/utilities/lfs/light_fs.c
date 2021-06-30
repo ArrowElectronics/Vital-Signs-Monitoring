@@ -1288,6 +1288,7 @@ elfs_result lfs_read_file(uint8_t * outBuffer,
 #endif
          return LFS_ERROR;
        }
+        
        /* if reading based on page offset */
        if(nand_func_read(g_mem_prop,read_pos,(g_mem_prop->page_size-read_page_offset),\
                         (uint8_t*)&outBuffer[bytes_processed]) != NAND_FUNC_SUCCESS)  {
@@ -1297,7 +1298,7 @@ elfs_result lfs_read_file(uint8_t * outBuffer,
 #endif
          return LFS_FILE_READ_ERROR;
        }
-
+        
        bytes_processed+=g_mem_prop->page_size-read_page_offset;
        /* Next page write would have checked for bad block and accordingly written */
        file_handler->current_read_pos=page_header.next_page*g_mem_prop->page_size;
@@ -1463,11 +1464,18 @@ int read_tmp_blk(uint32_t page_number,uint32_t *pdata_memory,uint8_t file_type)
     return 0;
 }
 
+ uint8_t checkBuffer[MAX_NUM_OF_BYTES_FOR_PAGE_READ_TEST];
 int read_page_data(uint32_t page_num, uint8_t *pdata_mem, uint16_t page_size)
 {
     eNand_Func_Result result=NAND_FUNC_SUCCESS;
-    result = nand_func_read(g_mem_prop,page_num * g_mem_prop->page_size,\
-          page_size,pdata_mem);
+    uint32_t read_pos = page_num * g_mem_prop->page_size;
+    NRF_LOG_INFO("page size=%d, read pos = %d",page_size,read_pos);
+
+    result = nand_func_read(g_mem_prop,read_pos,\
+          PAGE_SIZE,(uint8_t*)&checkBuffer[0]);
+
+    memcpy(pdata_mem,checkBuffer,page_size);
+
     if(result != NAND_FUNC_SUCCESS)
     {
       NRF_LOG_INFO("Error in page %d read",page_num);
@@ -2112,9 +2120,18 @@ elfs_result lfs_flash_reset() {
   uint32_t loop_ind = 0;
   eNand_Result result = NAND_SUCCESS;
   uint8_t status = 0;
+  
+  /* erase reserved block */
+  result = nand_flash_block_erase(RESERVEDBLOCK*g_mem_prop->pages_per_block);
+  
+  /* write reserved block info*/
+  if(lfs_reset_reserved_block() != LFS_SUCCESS) {
+    NRF_LOG_INFO("Error in resetting reserved block");
+    return FS_STATUS_ERR;
+  }
 
   /* erase complete flash */
-  for(loop_ind=RESERVEDBLOCK;loop_ind < g_mem_prop->num_of_blocks;loop_ind++) {
+  for(loop_ind=TOCBLOCK;loop_ind < g_mem_prop->num_of_blocks;loop_ind++) {
     result = nand_flash_block_erase(loop_ind*g_mem_prop->pages_per_block);
     result = nand_flash_get_status(&status);
 
@@ -2122,6 +2139,13 @@ elfs_result lfs_flash_reset() {
         NRF_LOG_INFO("Error in Block Erase block no:%d",loop_ind);
       }
   }
+
+   /* write reserved block info and init pointers */
+  if(lfs_reset_toc_block_info() != LFS_SUCCESS) {
+    NRF_LOG_INFO("Error in resetting fs task");
+    return FS_STATUS_ERR;
+  }
+
 
 #ifdef PRINTS_OUT
    NRF_LOG_INFO("Successful reset");
@@ -2147,12 +2171,14 @@ elfs_result lfs_flash_reset() {
 elfs_result lfs_erase_memory(bool force){
   uint32_t loop_ind = 0;
   uint32_t bad_blk_cnt = 0;
+  elfs_result result;
 
   /* if bool flag set to true */
   if(force) {
-    /* full flash from TOCBLOCK */
+    /* full flash from TOCBLOCK, config block */
     for(loop_ind=TOCBLOCK;loop_ind < g_mem_prop->num_of_blocks;loop_ind++)  {
-      if((nand_func_erase(g_mem_prop,loop_ind,1)) != NAND_FUNC_SUCCESS) {
+      result = nand_flash_block_erase(loop_ind*g_mem_prop->pages_per_block);
+      if(result != NAND_FUNC_SUCCESS){
         NRF_LOG_INFO("Error in formatting memory");
         bad_blk_cnt++;
       }
@@ -2262,7 +2288,7 @@ elfs_result lfs_erase_memory(bool force){
         /* Tail have moved foward then head */
         if(tail_pointer_in_pages > curr_head) {
           src_blk_ind = tmp_table_file_handler.table_file_info.tail_pointer + 1;
-          dst_blk_ind = g_mem_prop->mem_size/g_mem_prop->block_size-1;
+          dst_blk_ind = g_mem_prop->num_of_blocks-1;/* max is 2047 */
           wrap_around_condition = 1;
         }
         /* Head has moved forward than tail */
@@ -2422,7 +2448,7 @@ elfs_result lfs_erase_memory(bool force){
 #ifdef DEBUG_CODES
        /* get no of bad blocks */
        uint32_t bad_block_num = 0;
-      if(get_bad_block_number(&bad_block_num,FILEBLOCK,g_mem_prop->mem_size/g_mem_prop->block_size,&tmp_table_file_handler) != LFS_SUCCESS)
+      if(get_bad_block_number(&bad_block_num,FILEBLOCK,g_mem_prop->num_of_blocks,&tmp_table_file_handler) != LFS_SUCCESS)
       {
          return LFS_NUM_BLOCKS_OUT_OF_BOUNDS_ERROR;
       }
@@ -2458,7 +2484,7 @@ elfs_result lfs_erase_memory(bool force){
 #ifdef DEBUG_CODES
        /* get no of bad blocks */
        uint32_t bad_block_num = 0;
-      if(get_bad_block_number(&bad_block_num,FILEBLOCK,g_mem_prop->mem_size/g_mem_prop->block_size,&tmp_table_file_handler) != LFS_SUCCESS)
+      if(get_bad_block_number(&bad_block_num,FILEBLOCK,g_mem_prop->num_of_blocks,&tmp_table_file_handler) != LFS_SUCCESS)
       {
          return LFS_NUM_BLOCKS_OUT_OF_BOUNDS_ERROR;
       }
@@ -2616,6 +2642,15 @@ elfs_result lfs_check_comp_version(bool * is_compatible) {
   nrf_log_push(tmp_file_info.foot_print),
   tmp_file_info.version,
   tmp_file_info.revision);
+  
+  NRF_LOG_INFO("foot print");
+  for(int i=0;i< strlen(FSFOOTPRINT);i++){
+    NRF_LOG_INFO("0x%x",
+    tmp_file_info.foot_print[i]);
+  }
+   NRF_LOG_INFO("0x%x, version = %x, revision = %x",
+  tmp_file_info.version,
+  tmp_file_info.revision);
 
   uint8_t i;
 
@@ -2648,16 +2683,15 @@ elfs_result lfs_check_comp_version(bool * is_compatible) {
   *@return     elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 elfs_result lfs_format(bool bfmt_config_blk)  {
-    eNand_Func_Result result;
-
-    /* erase memory by forcing */
-    if(lfs_erase_memory(bfmt_config_blk) != LFS_SUCCESS)  {
-      NRF_LOG_ERROR("Error in formatting memory");
-      return LFS_FORMAT_ERROR;
-    }
+    eNand_Func_Result result = NAND_FUNC_SUCCESS;
 
     /* Erase the reserved block */
     result = nand_func_erase(g_mem_prop,RESERVEDBLOCK,1);
+   
+    if(result != NAND_FUNC_SUCCESS) {
+      NRF_LOG_ERROR("Error in erasing reserved block");
+     // return LFS_ERROR;
+    }
 
     /* Then, write the reserved block information */
     result |= nand_func_write(g_mem_prop,(RESERVEDBLOCK*g_mem_prop->block_size), \
@@ -2668,16 +2702,22 @@ elfs_result lfs_format(bool bfmt_config_blk)  {
       return LFS_WRITE_FAILED_RESERVED_INFO_ERROR;
     }
 
+    /* erase memory by forcing */
+    if(lfs_erase_memory(bfmt_config_blk) != LFS_SUCCESS)  {
+      NRF_LOG_ERROR("Error in formatting memory");
+      return LFS_FORMAT_ERROR;
+    }
+
     return LFS_SUCCESS;
 }
 
 /*!
   **************************************************************************************************
-  *@brief                   Reset fs task after full flash erase
+  *@brief                   Reset reserved block data
   *@param                   None
   *@return                  elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
-elfs_result lfs_reset_file_system() {
+elfs_result lfs_reset_reserved_block() {
     eNand_Func_Result result = NAND_FUNC_SUCCESS;
 
     /* Write the reserved block information */
@@ -2689,13 +2729,24 @@ elfs_result lfs_reset_file_system() {
       return LFS_WRITE_FAILED_RESERVED_INFO_ERROR;
     }
 
-    /* init pointers, bad block info */
+    return LFS_SUCCESS;
+}
+
+/*!
+  **************************************************************************************************
+  *@brief                   Reset toc block data for fs task to come up
+  *@param                   None
+  *@return                  elfs_result Function result LFS_SUCCESS/LFS_ERROR
+  **************************************************************************************************/
+elfs_result lfs_reset_toc_block_info() {
+     /* init pointers, bad block info */
     if(initialize_circular_buffer() != LFS_SUCCESS) {
       NRF_LOG_INFO("Error in resetting pointers");
       return LFS_ERROR;
     }
     return LFS_SUCCESS;
 }
+
 
 /*!
   **************************************************************************************************
@@ -2807,8 +2858,8 @@ elfs_result lfs_refresh_config_header(_file_handler *file_handler)  {
   *@return      elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 elfs_result lfs_mark_bad(uint32_t block_index)  {
-  /* return error if block > 2048 */
-  if(block_index > g_mem_prop->num_of_blocks) {
+  /* return error if block index > 2047 */
+  if(block_index > (g_mem_prop->num_of_blocks-1)) {
     return LFS_NUM_BLOCKS_OUT_OF_BOUNDS_ERROR;
   }
   /* mark block as bad */
@@ -2827,8 +2878,8 @@ elfs_result lfs_mark_bad(uint32_t block_index)  {
   *@return      elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 elfs_result lfs_mark_good(uint32_t block_index) {
-  /* return error if block > 2048 */
-  if(block_index > g_mem_prop->num_of_blocks) {
+  /* return error if block > 2047 */
+  if(block_index > (g_mem_prop->num_of_blocks-1)) {
     NRF_LOG_INFO("Block Number out of bounds");
     return LFS_NUM_BLOCKS_OUT_OF_BOUNDS_ERROR;
   }

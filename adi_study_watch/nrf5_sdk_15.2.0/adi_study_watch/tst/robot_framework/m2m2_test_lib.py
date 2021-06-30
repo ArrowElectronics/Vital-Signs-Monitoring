@@ -15,6 +15,7 @@ class m2m2_test_lib():
         sys.stdout = self.stdout
         sys.stderr = self.stdout
         self.shell = g_shell
+        self.pointer_info = "NA"
         # TODO: Any newly added check function has to be added to the 'self.checkFuncs' dictionary
         self.checkFuncs = {'must_contain':self._must_contain_check,
                            'must_not_contain':self._must_not_contain_check}
@@ -24,7 +25,7 @@ class m2m2_test_lib():
             else:
                 connect_command = "connect_usb {}".format(serial_port)
             self._runCommand(connect_command)
-            get_default_config = ["delete_dcb_config adxl", "delete_dcb_config adpd4000", "delete_dcb_config ecg", "delete_dcb_config ppg", "delete_dcb_config eda", "delete_dcb_config ad7156", "delete_dcb_config low_touch", "delete_config_file", "delete_dcb_config wrist_detect"]
+            get_default_config = ["delete_dcb_config adxl", "delete_dcb_config adpd4000", "delete_dcb_config ecg", "delete_dcb_config ppg", "delete_dcb_config eda", "delete_dcb_config bcm","delete_dcb_config ad7156", "delete_dcb_config low_touch", "delete_config_file", "delete_dcb_config wrist_detect"]
             for i in range(len(get_default_config)):
                 self._runCommand(get_default_config[i])
                 self._runCommand("delay 2")
@@ -97,6 +98,9 @@ class m2m2_test_lib():
         cmd = kwargs['cmd']
         expected_returns = kwargs['expected_returns']
         cmd_return = kwargs['cmd_return']
+        if cmd.lower() == 'fs_req_debug_info':
+            std_out = self.stdout.getvalue()
+            self.pointer_info = str(int(std_out.split('\n')[0].split(' ')[-3])-1)
         for exp_ret in expected_returns:
             if not exp_ret in self.stdout.getvalue():
                 raise m2m2_error("Command '{}' failed. Expected to see:\n'{}'\n, actual output was:\n'{}'\n".format(cmd, exp_ret, self.stdout.getvalue()))

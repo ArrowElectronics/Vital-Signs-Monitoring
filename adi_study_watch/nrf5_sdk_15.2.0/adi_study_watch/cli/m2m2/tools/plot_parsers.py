@@ -3535,6 +3535,131 @@ class sqi_plot(plot):
             self.fstream.write ('Time_Stamp, SQI\n')
             # fstream.close()
         return
+        
+class hrv_plot(plot):
+    selection_name = "rhrv"
+    name = "HRV Data Plot"
+    hrv_rrinterval_key = "RR_Interval"
+    hrv_rrinterval_series_name = "HRV RR_Interval"
+    hrv_isgap_key = "HRVValid"
+    hrv_isgap_series_name = "HRVValid"
+    hrv_rmssd_key = "RMSSD"
+    hrv_rmssd_series_name = "HRV RMSSD"
+    stream_addr = M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_HRV_STREAM
+    enable_csv_logs = 0
+    fname = "HRVAppStream.csv"
+    fstream = None
+    update_pkt_loss('rhrv', False)
+    
+    def __del__(self):
+        if self.fstream:
+            self.fstream.close()
+    
+    def setup(self):
+        # Create a subplot for HRV RR Interval data
+        self.add_subplot(   subplot_name = self.hrv_rrinterval_key,
+                            row = 1,
+                            col = 1,
+                            xlabel = "Time",
+                            xunit = "Samples",
+                            ylabel = "Value",
+                            yunit = "LSBs",
+                            data_series =   {  self.hrv_rrinterval_key:
+                                                {"format":
+                                                    {"name": self.hrv_rrinterval_series_name,
+                                                    "colour":"r"},
+                                                    "data": np.zeros(60),
+                                                }
+                                            })
+        
+        # Create a subplot for HRV Is Gap data
+        self.add_subplot(   subplot_name = self.hrv_isgap_key,
+                            row = 2,
+                            col = 1,
+                            xlabel = "Time",
+                            xunit = "Samples",
+                            ylabel = "Value",
+                            yunit = "LSBs",
+                            data_series =   {  self.hrv_isgap_key:
+                                                {"format":
+                                                    {"name": self.hrv_isgap_series_name,
+                                                    "colour":"g"},
+                                                    "data": np.zeros(60),
+                                                }
+                                            })
+                                            
+        # Create a subplot for HRV RMSSD data
+        self.add_subplot(   subplot_name = self.hrv_rmssd_key,
+                            row = 3,
+                            col = 1,
+                            xlabel = "Time",
+                            xunit = "Samples",
+                            ylabel = "Value",
+                            yunit = "LSBs",
+                            data_series =   {  self.hrv_rmssd_key:
+                                                {"format":
+                                                    {"name": self.hrv_rmssd_series_name,
+                                                    "colour":"b"},
+                                                    "data": np.zeros(60),
+                                                }
+                                            })                                    
+    def update(self, data_list):
+        # Function that's called to update the plot. Should return a dictionary with each subplot's data
+        new_hrv_rrinterval = []
+        new_hrv_isgap = []
+        new_hrv_rmssd = []
+        ts = []
+        index = 0
+
+        for data in data_list:
+            # Peek at the header to find out what kind of data we have
+            pkt = m2m2_packet(0, ppg_app_hrv_info_t())
+            pkt.unpack(data)
+            
+            new_hrv_rrinterval.append(pkt.payload.first_rr_interval)
+            new_hrv_isgap.append(pkt.payload.first_is_gap)
+            new_hrv_rmssd.append(pkt.payload.first_rmssd/16.0)
+            
+            t0 = pkt.payload.timestamp
+            ts.append(t0)
+            for data in pkt.payload.hrv_data:
+                t0 += data.timestamp
+                ts.append(t0)
+                new_hrv_rrinterval.append(data.rr_interval)
+                new_hrv_isgap.append(data.is_gap)
+                new_hrv_rmssd.append(data.rmssd/16.0)
+                
+            if self.enable_csv_logs:
+                for i in range(index, len(ts)):
+                    self.fstream.write ('{},{},{},{}\n'.format(ts[i], new_hrv_rrinterval[i], new_hrv_isgap[i], new_hrv_rmssd[i]))
+                index = len(ts)
+            self.check_seq_num(pkt.payload.sequence_num, 'rhrv')
+
+        if len(new_hrv_rrinterval) == 0 and len(new_hrv_isgap) == 0 and len(new_hrv_rmssd):
+                return None
+
+        return {self.hrv_rrinterval_key: [ {
+		            "series_name":self.hrv_rrinterval_key,
+                    "series_data":new_hrv_rrinterval},
+                    ],
+                self.hrv_isgap_key: [ {
+		            "series_name":self.hrv_isgap_key,
+                    "series_data":new_hrv_isgap},
+                    ],
+                self.hrv_rmssd_key: [ {
+		            "series_name":self.hrv_rmssd_key,
+                    "series_data":new_hrv_rmssd},
+                    ]  
+                }
+
+    def save_csv_option(self, option):
+        self.enable_csv_logs=option
+        if self.enable_csv_logs:
+            print "creating."
+            self.fstream = open(self.fname, "w+")
+            self.fstream.write ('Time_Stamp, RRInterval, HRVValid, RMSSD\n')
+            # fstream.close()
+        return
 		
 def FIXED16Q4_TO_FLOAT(x):
     result_in_float = ((float(x))/float(16))

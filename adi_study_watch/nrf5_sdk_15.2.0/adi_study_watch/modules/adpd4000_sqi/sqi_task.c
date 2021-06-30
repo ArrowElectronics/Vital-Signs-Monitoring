@@ -392,7 +392,7 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
     }
     else
     {
-      Adpd400xDrvGetParameter(ADPD400x_OUTPUTDATARATE, 0, &g_state_sqi.nSQIODR);
+      Adpd400xDrvGetParameter(ADPD400x_OUTPUTDATARATE, log2(gnSQI_Slot), &g_state_sqi.nSQIODR);
     }
 #ifdef PROFILE_SQI
     gSqiSampleCnt = 0;

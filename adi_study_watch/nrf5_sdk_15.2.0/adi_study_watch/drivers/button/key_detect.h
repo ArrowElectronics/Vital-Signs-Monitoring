@@ -54,6 +54,7 @@
 #define APP_KEY_PUSH        (0)                               /**< Indicates that a button is pushed. */
 #define APP_KEY_RELEASE    (1)                               /**< Indicates that a button is released. */
 #define APP_KEY_LONG_PUSH   (2) 
+#define APP_KEY_DEEP_PUSH   (3) 
 
 #define KEY_SELECT_VALUE  (0x01)
 #define KEY_NAVIGATION_VALUE  (0x02)
@@ -66,8 +67,13 @@
 #define KEY_NAVIGATION_LONG_VALUE  (0x22)
 #define KEY_COMBINATION_LONG_VALUE  (0x23)
 
+#define KEY_SELECT_DEEP_VALUE  (0x31)
+#define KEY_NAVIGATION_DEEP_VALUE  (0x32)
+#define KEY_COMBINATION_DEEP_VALUE  (0x33)
+
 #define SHORT_PRESS_TIME_MS  (5)
 #define LONG_PRESS_TIMEOUT_MS (300) /**< The time to hold for a long push (in milliseconds). */
+#define DEEP_PRESS_TIMEOUT_MS (1000) /**< The time to hold for a long push (in milliseconds). */
 
 //#define APP_KEY_PUSH        (0)                               /**< Indicates that a button is pushed. */
 //#define APP_KEY_RELEASE    (1)                               /**< Indicates that a button is released. */
@@ -78,5 +84,6 @@ void Register_key_send_func(Send_key_func hander);
 void Unregister_key_send_func(Send_key_func hander);
 void Clear_register_key_func(void);
 void key_detect_init(void);
+void destroy_key_detect_task(void);
 #endif
 
