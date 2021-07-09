@@ -82,6 +82,28 @@ void adxl_int_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
     AdxlISR();
 }
 
+
+__STATIC_INLINE void nrf_gpio_cfg_output_high_drive(uint32_t pin_number)
+{
+    nrf_gpio_cfg(
+        pin_number,
+        NRF_GPIO_PIN_DIR_OUTPUT,
+        NRF_GPIO_PIN_INPUT_DISCONNECT,
+        NRF_GPIO_PIN_NOPULL,
+        NRF_GPIO_PIN_H0H1,
+        NRF_GPIO_PIN_NOSENSE);
+}
+
+__STATIC_INLINE void nrf_gpio_out_high_drive_uninit(uint32_t pin_number)
+{
+    nrf_gpio_cfg(
+        pin_number,
+        NRF_GPIO_PIN_DIR_INPUT,
+        NRF_GPIO_PIN_INPUT_DISCONNECT,
+        NRF_GPIO_PIN_NOPULL,
+        NRF_GPIO_PIN_H0H1,
+        NRF_GPIO_PIN_NOSENSE);
+}
 /**
  * @brief Function for configuring: PIN_IN pin for input, PIN_OUT pin for output,
  * and configures GPIOTE to give an interrupt on pin change.
@@ -105,20 +127,10 @@ void gpio_init(void)
       SetMuxSelectLine(true);
 #endif //EVTBOARD
 
-//    APP_ERROR_CHECK(err_code);
-//    nrf_drv_gpiote_in_config_t ext_in_config = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
-//    ext_in_config.pull = NRF_GPIO_PIN_PULLUP;
-//    nrf_drv_gpiote_in_init(ADPD4K_GPIO3_PIN, &ext_in_config, ext_trigger_int_handler);
-
     nrf_drv_gpiote_in_config_t in_config = NRFX_GPIOTE_CONFIG_IN_SENSE_HITOLO(true);
     in_config.pull = NRF_GPIO_PIN_PULLUP;
     nrf_drv_gpiote_in_init(ADXL_INT_PIN, &in_config, adxl_int_handler);
     nrf_drv_gpiote_in_init(ADPD_INT_PIN, &in_config, adpd_int_handler);
-//    nrf_drv_gpiote_in_init(ADXL362_INT2_PIN, &in_config, ext_trigger_int_handler);
-//    APP_ERROR_CHECK(err_code);
-
-    //nrf_drv_gpiote_in_event_enable(ADXL_INT_PIN, true);
-    //nrf_drv_gpiote_in_event_enable(ADPD_INT_PIN, true);
 
 }
 
@@ -128,28 +140,17 @@ void enable_adxl_trigger_pin()
   nrf_drv_gpiote_out_init(ADXL362_INT2_PIN, &out_config);
 }
 
-__STATIC_INLINE void nrf_gpio_cfg_output_high_drive(uint32_t pin_number)
-{
-    nrf_gpio_cfg(
-        pin_number,
-        NRF_GPIO_PIN_DIR_OUTPUT,
-        NRF_GPIO_PIN_INPUT_DISCONNECT,
-        NRF_GPIO_PIN_NOPULL,
-        NRF_GPIO_PIN_H0H1,
-        NRF_GPIO_PIN_NOSENSE);
-}
-
 void enable_ad5940_trigger_pin()
 {
-  //nrf_gpio_cfg_output(3);
- // nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(true);
- // nrf_drv_gpiote_out_init(3, &out_config);
- nrf_gpio_cfg_output_high_drive(3);
+//  nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(true);
+//  nrf_drv_gpiote_out_init(AD5940_INT0_PIN, &out_config);
+  nrf_gpio_cfg_output_high_drive(AD5940_INT0_PIN);
 }
 
 void disable_ad5940_trigger_pin()
 {
-   //nrfx_gpiote_out_uninit(3);
+//   nrfx_gpiote_out_uninit(AD5940_INT0_PIN);
+  nrf_gpio_out_high_drive_uninit(AD5940_INT0_PIN);
 }
 
 void disable_adxl_trigger_pin()
@@ -164,19 +165,19 @@ void invert_adxl_trigger_signal()
 
 void invert_ad5940_trigger_signal()
 {
-  nrf_gpio_pin_toggle(3);
-  //nrf_drv_gpiote_out_toggle(3);
+//  nrf_drv_gpiote_out_toggle(AD5940_INT0_PIN);
+  nrf_gpio_pin_toggle(AD5940_INT0_PIN);
 }
 
 void reset_ad5940_trigger_signal(bool n_state)
 {
   if(n_state){
-    //nrf_drv_gpiote_out_set(3);
-    nrf_gpio_pin_set(3);
+//    nrf_drv_gpiote_out_set(AD5940_INT0_PIN);
+    nrf_gpio_pin_set(AD5940_INT0_PIN);
     }
   else{
-    //nrf_drv_gpiote_out_clear(3);
-    nrf_gpio_pin_clear(3);
+//    nrf_drv_gpiote_out_clear(AD5940_INT0_PIN);
+    nrf_gpio_pin_clear(AD5940_INT0_PIN);
     }
 }
 
@@ -274,11 +275,11 @@ void GPIO_Clock_Cal_TriggerTS()
 
 }
 
-/* 
+/*
   *  @brief   Function to get the current timestamp in 32kHz ticks resolution, by the sensors for packet TS
   *           This function will be called from library for AGC timestamp udpate.
   *   @param  None
-  *   @retval unit32_t ticks in 32K resolution 
+  *   @retval unit32_t ticks in 32K resolution
 */
 uint32_t AdpdLibGetSensorTimeStamp() {
 

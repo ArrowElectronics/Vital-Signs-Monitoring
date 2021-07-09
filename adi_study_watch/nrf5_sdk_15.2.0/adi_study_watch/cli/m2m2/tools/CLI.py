@@ -292,15 +292,15 @@ class m2m2_shell(cmd.Cmd):
     "start_log_adpd4000_r_adxl": {"commands":["loadAdpdCfg 41", "clockCalibration 6","fs_sub radpd7 add","fs_sub radxl add","fs_log start","sensor adpd4000 start","sensor adxl start"],
                     "help":"Starts the ADPD4000_r, ADXL logging"},
     #"start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1 dvt1", "clockCalibration 6","fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
-    "start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 1", "clockCalibration 6", "setUCHREnab 1 6", "fs_sub rppg add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 1", "clockCalibration 6", "setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC1 - Adpd@500Hz, Adxl, HR, Temperature"},
-    "start_log_mv_uc2": {   "commands":["loadAdpdUCDcfg 2 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 2", "clockCalibration 6","setUCHREnab 1 6", "fs_sub rppg add", "fs_sub rsqi add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","fs_sub rtemperature add","lcfgEdaWrite 0:30","sensor eda start","sensor adxl start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc2": {   "commands":["loadAdpdUCDcfg 2 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 2", "clockCalibration 6","setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","fs_sub rtemperature add","lcfgEdaWrite 0:30","sensor eda start","sensor adxl start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC2 - Eda@30Hz, Adxl, SQI, Adpd@100Hz, HR, Temperature"},
-    "start_log_mv_uc3": {   "commands":["loadAdpdUCDcfg 3 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 3", "clockCalibration 6","setUCHREnab 1 6","fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radxl add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:250","sensor ecg start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc3": {   "commands":["loadAdpdUCDcfg 3 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 3", "clockCalibration 6","setUCHREnab 1 6","fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radxl add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:250","sensor ecg start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC3 - Ecg@250Hz, SQI, Adpd@100Hz, HR, Adxl, Temperature"},
-    "start_log_mv_uc4": {   "commands":["loadAdpdUCDcfg 4 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 4", "clockCalibration 6","fs_sub rppg add","fs_sub rsqi add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:1000","sensor ecg start","SQISetSlot 6","sensor sqi start","sensor ppg start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc4": {   "commands":["loadAdpdUCDcfg 4 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 4", "clockCalibration 6","fs_sub rppg add","fs_sub ragc add", "fs_sub rsqi add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:1000","sensor ecg start","SQISetSlot 6","sensor sqi start","sensor ppg start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC4 - Ecg@1000Hz, SQI, ppg, Temperature"},
-    "start_log_mv_uc5": {   "commands":["loadAdpdUCDcfg 5 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 5","clockCalibration 6","setUCHREnab 1 6", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
+    "start_log_mv_uc5": {   "commands":["loadAdpdUCDcfg 5 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 5","clockCalibration 6","setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
                 "help":"Starts logging for MV UC5 - 4 LED Slots at 100Hz, SQI, HR, Adxl"},
     "ppg": {    "commands":["loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1210", "sensor ppg start", "sub rppg add"],
                "help":"Starts the PPG application with Static AGC enabled"},
@@ -767,15 +767,15 @@ class m2m2_shell(cmd.Cmd):
     "stop_log_adpd4000_r_adxl": {"commands":["fs_sub radpd7 remove","fs_sub radxl remove","fs_log stop","sensor adpd4000 stop","sensor adxl stop"],
                     "help":"Stops the ADPD4000_r, ADXL logging"},
     #"stop_log_mv_uc1": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","fs_sub radpd6 remove","fs_sub radxl remove","fs_sub rtemperature remove","fs_log stop"],
-    "stop_log_mv_uc1": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop", "setUCHREnab 0 6", "fs_sub rppg remove", "fs_sub radpd6 remove","fs_sub radxl remove","fs_sub rtemperature remove","fs_log stop"],
+    "stop_log_mv_uc1": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop", "setUCHREnab 0 6", "fs_sub ragc remove", "fs_sub rppg remove", "fs_sub radpd6 remove","fs_sub radxl remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stops logging for MV UC1 - Adpd, Adxl, HR, Temperature"},
-    "stop_log_mv_uc2": {   "commands":["sensor temperature stop","sensor adpd4000 stop","sensor sqi stop","sensor adxl stop","sensor eda stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub reda remove","fs_sub rtemperature remove","fs_log stop"],
+    "stop_log_mv_uc2": {   "commands":["sensor temperature stop","sensor adpd4000 stop","sensor sqi stop","sensor adxl stop","sensor eda stop","setUCHREnab 0 6", "fs_sub ragc remove", "fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub reda remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stops logging for MV UC2 - Eda, Adxl, SQI, Adpd, HR, Temperature"},
-    "stop_log_mv_uc3": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","sensor ecg stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
+    "stop_log_mv_uc3": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","sensor ecg stop","setUCHREnab 0 6", "fs_sub ragc remove", "fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stops logging for MV UC3 - Ecg, SQI, Adpd, HR, Adxl, Temperature"},
-    "stop_log_mv_uc4": {   "commands":["sensor temperature stop","sensor ppg stop","sensor sqi stop","sensor ecg stop","fs_sub rppg remove","fs_sub rsqi remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
+    "stop_log_mv_uc4": {   "commands":["sensor temperature stop","sensor ppg stop","sensor sqi stop","sensor ecg stop","fs_sub rppg remove","fs_sub rsqi remove", "fs_sub ragc remove", "fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stops logging for MV UC4 - Ecg, ppg, SQI,Temperature"},
-    "stop_log_mv_uc5": {   "commands":["sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radpd7 remove","fs_sub radpd8 remove","fs_sub radpd9 remove","fs_sub radxl remove","fs_log stop"],
+    "stop_log_mv_uc5": {   "commands":["sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove", "fs_sub ragc remove", "fs_sub rsqi remove","fs_sub radpd7 remove","fs_sub radpd8 remove","fs_sub radpd9 remove","fs_sub radxl remove","fs_log stop"],
                 "help":"Stops logging for MV UC5- 4 LED Slots at 100Hz, HR, SQI, ADXL"},
     "bcm": {"commands": ["sub rbcm remove", "sensor bcm stop"],
                  "help": "Stop BCM"},
@@ -1658,6 +1658,37 @@ File system debug information, Command to get the packet loss and count informat
         else:
             self.vrb.err("No response from device.Getting volume info failed.")
 
+    def do_fs_format_DebugInfo(self, arg):
+        """
+File system debug information, Command to get the packet loss and count information.
+#>fs_format_DebugInfo 
+        """
+        args = self._parse_args(arg, 0)
+        if args == None:
+            return
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_format_debug_info_req_t())
+        msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_REQ
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_format_debug_info_resp_t(), 10)
+        if reply_msg != None:
+            self._print_file_system_status(reply_msg)
+            self.vrb.write("  Start block for fs format : '{}'".format(int(reply_msg.payload.format_src_blk_ind)))
+            self.vrb.write("  End block for fs format without wrap around : '{}'".format(int(reply_msg.payload.format_dest_blk_ind_1)))
+            self.vrb.write("  End block for fs format with wrap around : '{}'".format(int(reply_msg.payload.format_dest_blk_ind_2)))
+            self.vrb.write("  wrap around condition flag status : '{}'".format(int(reply_msg.payload.wrap_around_cond)))
+            self.vrb.write("  Nothing is written erase flag status : '{}'".format(int(reply_msg.payload.nothing_is_written_to_erase_error)))
+            self.vrb.write("  Memory full flag in partial erase : '{}'".format(int(reply_msg.payload.mem_full_in_partial_erase)))
+            self.vrb.write("  Number of blocks to be erased when memory full : '{}'".format(int(reply_msg.payload.mem_full_in_partial_erase)))
+            self.vrb.write("  Number of blocks to be erased partial erase 1 : '{}'".format(int(reply_msg.payload.num_blocks_erased_in_partial_erase_1)))
+            self.vrb.write("  Number of blocks to be erased partial erase 2 : '{}'".format(int(reply_msg.payload.num_blocks_erased_in_partial_erase_2)))
+            self.vrb.write("  Number of times format failed due to bad blocks 1: '{}'".format(int(reply_msg.payload.num_times_format_failed_due_bad_blocks_1)))
+            self.vrb.write("  Number of times format failed due to bad blocks 2 : '{}'".format(int(reply_msg.payload.num_times_format_failed_due_bad_blocks_2)))
+            self.vrb.write("  TOC memory erased flag : '{}'".format(int(reply_msg.payload.toc_mem_erased_flag)))
+            self.vrb.write("  Erase failed due to bad block : '{}'".format(int(reply_msg.payload.erase_failed_due_bad_block_check)))
+            self.vrb.write("  Successfull erase flag : '{}'".format(int(reply_msg.payload.succesfull_erase_flag)))
+        else:
+            self.vrb.err("fs format debug info failed!!.")       
+
     def do_getSystemInfo(self, arg):
         """
 Get the PM device system Information
@@ -1996,21 +2027,25 @@ Get the DCFG of the device. The actual contents of dcfg registers is returned in
             self.vrb.err("Incorrect usage! You did not provide a valid device.")
             return
         resp = []
-        msg = m2m2_packet(address, m2m2_sensor_dcfg_data_t())
+        msg = m2m2_packet(address, m2m2_pm_sys_cmd_t())
         msg.payload.command = M2M2_SENSOR_COMMON_CMD_ENUM_t.M2M2_SENSOR_COMMON_CMD_GET_DCFG_REQ
         self._send_packet(msg)
         if address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000 or address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE:
-            pkt_count = 2
-            while (pkt_count > 0):
+            _resp = self._get_packet(address, m2m2_sensor_dcfg_data_t(), 20) 
+            if _resp == None:
+                self.vrb.err("Error! Timed out waiting for the device!")
+                return 1
+            status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, _resp.payload.status) 
+            resp.append(_resp)
+            pkt_count = _resp.payload.num_tx_pkts;               
+            for i in range(pkt_count - 1):
                 _resp = self._get_packet(address, m2m2_sensor_dcfg_data_t(), 20)
                 if _resp == None:
                     self.vrb.err("Error! Timed out waiting for the device!")
-                    return 1                
-                pkt_count = _resp.payload.num_tx_pkts;
-                resp.append(_resp)                
-                status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, _resp.payload.status)
-                if _resp.payload.num_tx_pkts == 0: 
-                    break                 
+                    return 1
+                status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, _resp.payload.status)   
+                resp.append(_resp)
+                             
 
             print "Obtained the ADPD Device Configuration:"
             self.vrb.write("  Num of dcfg registers: '{}'".format(int(sum(obj.payload.size for obj in resp))))
@@ -2539,24 +2574,6 @@ To Turn ON STATIC AGC for IR LED and Blue LED
         else:
             self.vrb.err("Failed doing Static AGC COntrol!")
 
-    def do_adpdAGCRecalibrate(self, arg):
-        """
-Do AGC recalibration, while adpd streaming is in progress
-    -----------------------------------------------
-Usage:
-#>adpdAGCRecalibrate
-        """
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_adpd_agc_cntrl_t())
-        msg.payload.command = M2M2_SENSOR_ADPD_COMMAND_ENUM_t.M2M2_PPG_APP_CMD_AGC_RECALIBRATE_REQ
-        self._send_packet(msg)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_adpd_agc_cntrl_t(), 10)
-        if reply_msg != None:
-            status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
-            self.vrb.write("Done with Static AGC Recalibrate:")
-            self.vrb.write("  Status: '{}'".format(status))
-        else:
-            self.vrb.err("Failed doing Static AGC Recalibrate!")
-
     def do_adpdGetAGCInfo(self, arg):
         """
 Get AGC Algo Info for 4 LEDs after AGC is done and save it as file.
@@ -2600,48 +2617,6 @@ Usage:
                 return
             led_index += 1
         f.close()
-
-    def do_adpdAGCStatus(self, arg):
-        """
-Get AGC ON/OFF status for 4 LEDs and MWL.
-It accepts One Argument -> agc_type  = 0 ->MWL
-                                       1 ->Green
-                                       2 ->Red
-                                       3 ->IR
-                                       4 ->Blue
-    -----------------------------------------------
-Ex Usage:
-To get MWL AGC Status
-#>adpdAGCStatus 0
-
-To get Blue LED AGC Status
-#>adpdAGCStatus 4
-        """	
-        args = self._parse_args(arg, 1)
-        if args == None:
-            self.vrb.err("Invalid argument! please type help <command>(help adpdAGCStatus) to know the usage.")
-            return
-        if int(args[0]) < 0 or int(args[0]) > 4:
-            self.vrb.err("Invalid Argument, out of range. please type help <command>(help adpdAGCStatus) to know the valid arguments")
-            return
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_adpd_agc_status_t())
-        msg.payload.agc_type = int(args[0])
-        msg.payload.command = M2M2_SENSOR_ADPD_COMMAND_ENUM_t.M2M2_SENSOR_ADPD_COMMAND_AGC_STATUS_REQ
-        self._send_packet(msg)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000,m2m2_adpd_agc_status_t(), 10)
-        if reply_msg != None:
-            status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
-             
-            if (reply_msg.payload.agc_status is 0):
-                agc_status = "OFF"
-            elif(reply_msg.payload.agc_status is 1):
-                agc_status = "ON"
-            else:
-                agc_status = "Unknown"
-            self.vrb.write("  AGC Status : {}".format(agc_status))
-            self.vrb.write("  Status: '{}'".format(status))
-        else:
-            self.vrb.err("Failed in getting AGC Status!")
 
     def do_set_adpd_ext_datastream_odr(self, arg):
         """
@@ -3069,19 +3044,20 @@ Usage:
             packet = resp_packets[j]
             for i in range(packet.payload.size):
                 if sensor == 'adpd4000' or sensor == 'temperature':
-                    firstbyte = packet.payload.dcfgdata[4*i];
-                    secondbyte = packet.payload.dcfgdata[4*i+1];
-                    thirdbyte = packet.payload.dcfgdata[4*i+2];
-                    fourthbyte = packet.payload.dcfgdata[4*i+3];
-                    address = (thirdbyte | (fourthbyte << 8));
-                    value = (firstbyte | (secondbyte << 8));
+                    value = packet.payload.dcfgdata[i] & 0X0000FFFF;
+                    address = (packet.payload.dcfgdata[i] & 0XFFFF0000)>> 16;
                     t.add_row([hex(address), hex(value)])
                 elif sensor == 'adxl':
-                    firstbyte = packet.payload.dcfgdata[2*i];
-                    secondbyte = packet.payload.dcfgdata[2*i+1];
-                    address = secondbyte;
-                    value = firstbyte;
-                    t.add_row([hex(address), hex(value)])
+                    Reg1 = (packet.payload.dcfgdata[i] & 0xFFFF0000)>> 16;
+                    Reg2 = packet.payload.dcfgdata[i] & 0X0000FFFF;
+                    if Reg1 != 0:
+                        address = (Reg1 & (0xFF00)) >> 8;
+                        value = (Reg1 & (0x00FF));
+                        t.add_row([hex(address), hex(value)])
+                    if Reg2 != 0:    
+                        address = (Reg2 & (0xFF00)) >> 8;
+                        value = (Reg2 & (0x00FF));
+                        t.add_row([hex(address), hex(value)])
         t.display()
 
     def _print_sensor_app_status(self, packet):
@@ -3694,23 +3670,23 @@ ex. read_dcb_config [sensor_name]
             return 1
 
         if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_adxl_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_ppg_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_ECG):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_ecg_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_eda_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_bcm_data_t())    
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())    
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_ad7156_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         else:
              print "The requested config dcb is not supported"
              return
@@ -4353,23 +4329,23 @@ ex. delete_dcb_config [sensor_name]
             return 1
 
         if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_adxl_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_ppg_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_ECG):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_ecg_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_eda_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_bcm_data_t())    
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())    
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_ad7156_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t())
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         else:
             Array_Element = NULL
         msg.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_ERASE_CONFIG_REQ
@@ -5346,7 +5322,6 @@ format file system. Command to format file system.
         msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_cmd_t())
         msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_FORMAT_REQ
         self._send_packet(msg)
-
         reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_cmd_t(), 30)
         if reply_msg != None:
             self._print_file_system_status(reply_msg)
@@ -5392,7 +5367,6 @@ Command to write reserved block
         else:
             self.vrb.err("No response write failed.")            
 
-
     def do_fs_req_debug_info(self, arg):
         """
 format file system. Command to format file system.
@@ -5416,6 +5390,8 @@ format file system. Command to format file system.
             self.vrb.write("  MEM FULL FLAG : {}".format(int(reply_msg.payload.mem_full_flag)))
             self.vrb.write("  DATA OFFSET : {}".format(int(reply_msg.payload.data_offset)))
             self.vrb.write("  CONFIG POS OCCUPIED : {}".format(int(reply_msg.payload.config_file_occupied)))
+            self.vrb.write("  DISPLAY ONE MINUTE TIMER COUNT: {}".format(int(reply_msg.payload.min_timer_cnt)))
+            self.vrb.write("  DISPLAY FIVE MINUTE TIMER COUNT : {}".format(int(reply_msg.payload.fs_display_query_cnt)))
             self._print_file_system_status(reply_msg)
         else:
             self.vrb.err("debug info req error failed !")
@@ -5841,6 +5817,7 @@ read contents of file. Command is used to read file by getting data from file st
             status = M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK
             while msg.payload.num_files_to_write > 0:
                 self._send_packet(msg)
+                print "File size computed = {}".format(msg.payload.file_size)
                 reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_pattern_write_resp_pkt_t(), 120)
                 if reply_msg != None:
                     if reply_msg.payload.status == M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK:
@@ -5851,7 +5828,6 @@ read contents of file. Command is used to read file by getting data from file st
                                 msg.payload.file_size *= int(math.log(msg.payload.base,msg.payload.scale_factor))
                         elif msg.payload.scale_type == 2:#exp
                             msg.payload.file_size *= int(math.exp(msg.payload.scale_factor))    
-                        print "File size computed = {}".format(msg.payload.file_size)
                     else:
                         if reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_ERR_MEMORY_FULL:
                             self.vrb.err("Memory full breaking loop as new files cannot be written!")
@@ -6018,11 +5994,86 @@ read contents of file. Command is used to read file by getting data from file st
             print i
             self.onecmd("quickstart start_reg_read_adxl")
             self.onecmd("quickstart start_log_adxl_252")
-            # self.onecmd("quickstart adxl")
-            # time.sleep(2)
-            # self.onecmd("quickstop adxl")
-        #self.onecmd("quickstop eda")
         print "test #252 done"
+        
+    def do_flash_write_format_test(self,arg):
+        """
+        arg 1 -> Head = Tail
+        arg 2 -> Head > Tail
+        arg 3 -> Head < Tail
+        """
+        args = self._parse_args(arg,2)
+        cnt = int(args[1])
+        self.onecmd("flash_reset")
+        print cnt
+        if cnt == None:
+            return
+        if "1" in args[0]:
+            for i in range(cnt):
+                print i
+                self.onecmd("fs_req_debug_info")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 11534336 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("fs_req_debug_info")        
+                self.onecmd("fs_format")
+                self.onecmd("fs_req_debug_info")
+                self.onecmd("fs_format_DebugInfo")
+        elif "2" in args[0]:
+            for i in range(cnt):
+                print i
+                self.onecmd("fs_req_debug_info")
+                self.onecmd("pattern_write 32768000 0 2 1 2")
+                self.onecmd("fs_req_debug_info")        
+                self.onecmd("fs_format")
+                self.onecmd("fs_req_debug_info")
+                self.onecmd("fs_format_DebugInfo")
+        elif "3" in args[0]:
+            for i in range(cnt):
+                print i
+                self.onecmd("fs_req_debug_info")
+                self.onecmd("pattern_write 32768000 0 2 1 2")
+                self.onecmd("delay 1")
+                self.onecmd("fs_req_debug_info")        
+                self.onecmd("fs_format")
+                self.onecmd("fs_format_DebugInfo")
+                self.onecmd("fs_req_debug_info")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("pattern_write 65536000 0 1 1 1")
+                self.onecmd("delay 1")
+                self.onecmd("fs_req_debug_info")        
+                self.onecmd("fs_format")
+                self.onecmd("fs_format_DebugInfo")
+                self.onecmd("fs_req_debug_info")
+        print "test #flash_write_format_test done"   
 
     def do_test_341(self,arg):
         args = self._parse_args(arg,1)

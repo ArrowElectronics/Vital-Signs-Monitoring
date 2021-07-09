@@ -1,0 +1,8 @@
+#!/usr/bin/env groovy
+node("FW_ZIP_GEN"){
+  stage ("FW_ZIP") {
+    bat label: 'zip_gen_py', script: '''call conda activate py37
+                python jenkins/zip_gen.py'''
+  }
+}
+

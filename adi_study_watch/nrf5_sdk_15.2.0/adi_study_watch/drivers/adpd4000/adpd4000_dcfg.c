@@ -929,7 +929,7 @@ ADPD4000_DCFG_STATUS_t load_adpd4000_dcfg(uint16_t device_id) {
 * @param    pDcfg - pointer to dcfg register/value pairs
 * @retval   Status
 */
-ADPD4000_DCFG_STATUS_t read_adpd4000_dcfg(uint32_t *p_dcfg, uint8_t *p_dcfg_size) {
+ADPD4000_DCFG_STATUS_t read_adpd4000_dcfg(uint32_t *p_dcfg, uint16_t *p_dcfg_size) {
   uint16_t reg_addr;
   uint16_t reg_data;
   if (p_dcfg == NULL) {

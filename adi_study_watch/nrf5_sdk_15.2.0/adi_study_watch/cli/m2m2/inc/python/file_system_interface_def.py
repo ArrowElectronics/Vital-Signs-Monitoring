@@ -81,6 +81,8 @@ class M2M2_FILE_SYS_CMD_ENUM_t(c_ubyte):
     M2M2_FILE_SYS_CMD_BLOCK_ERASE_RESP = 0x91
     M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ =  0x92
     M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_RESP = 0x93
+    M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_REQ = 0x94
+    M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_RESP = 0x95
 
 class M2M2_FILE_SYS_STATUS_ENUM_t(c_ubyte):
     __M2M2_FILE_SYS_ERR_LOWEST = 0x40
@@ -279,7 +281,7 @@ class m2m2_file_sys_debug_info_resp_t(Structure):
               ("packets_missed", c_ulong),
               ("last_page_read", c_uint32),
               ("last_page_read_offset",c_uint32),
-   	          ("last_page_read_status", c_uint8),
+              ("last_page_read_status", c_uint8),
               ("num_bytes_transferred", c_uint32),
               ("bytes_read", c_uint32),
               ("usb_cdc_write_failed", c_uint8),
@@ -316,7 +318,39 @@ class m2m2_file_sys_impt_debug_info_resp_t(Structure):
                 ("data_offset",c_uint16),
                 ("config_file_occupied",c_uint16),
                 ("page_write_time",c_uint32),
+                ("fs_display_query_cnt", c_uint16),
+                ("min_timer_cnt", c_uint16),
                ]
+
+class m2m2_file_sys_format_debug_info_req_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+                ("command", c_ubyte),
+                ("status", c_ubyte),
+               ]
+
+class m2m2_file_sys_format_debug_info_resp_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+                ("command", c_ubyte),
+                ("status", c_ubyte),
+                ("erase_failed_due_bad_block_check",c_uint8),
+                ("wrap_around_cond",c_uint8),
+                ("nothing_is_written_to_erase_error",c_uint8),
+                ("mem_full_in_partial_erase",c_uint8),
+                ("toc_mem_erased_flag",c_uint8),
+                ("succesfull_erase_flag",c_uint8),
+                ("num_blocks_erased_in_mem_full_partial_erase",c_uint16),
+                ("num_blocks_erased_in_partial_erase_1",c_uint16),
+                ("num_blocks_erased_in_partial_erase_2",c_uint16),
+                ("num_times_format_failed_due_bad_blocks_1",c_uint16),
+                ("num_times_format_failed_due_bad_blocks_2",c_uint16),
+                ("format_src_blk_ind", c_uint32),
+                ("format_dest_blk_ind_1",c_uint32),
+                ("format_dest_blk_ind_2",c_uint32),
+              ]
+
+
 class m2m2_file_sys_user_cfg_summary_pkt_t(Structure):
     _pack_ = 1
     _fields_ = [

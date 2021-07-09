@@ -466,7 +466,7 @@ static int32_t AD5940PlatformCfg(void)
 
   cfg.bEnable = bTRUE;
   cfg.PinSel = AGPIO_Pin0;
-  cfg.SeqPinTrigMode = SEQPINTRIGMODE_FALLING;
+  cfg.SeqPinTrigMode = SEQPINTRIGMODE_RISING;
   AD5940_SEQGpioTrigCfg(&cfg);
 
   AD5940_SleepKeyCtrlS(SLPKEY_UNLOCK);  /* Enable AFE to enter sleep mode. */

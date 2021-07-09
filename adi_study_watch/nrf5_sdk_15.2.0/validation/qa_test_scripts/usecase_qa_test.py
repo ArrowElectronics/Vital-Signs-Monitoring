@@ -307,10 +307,11 @@ def use_case_qa_ppg_eda_fs(start_stream=("eda", "adxl", "adpd", "temp"),
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_temp))
 
 
-def use_case_qa_ppg_ecg(start_stream=("adpd", "adxl", "ecg", "temp"),
-                        stop_stream=("temp", "ecg", "adxl", "adpd")):
-    # def use_case_qa_ppg_ecg(start_stream=("ecg", "adxl", "adpd", "temp"),
-    #                         stop_stream=("ecg", "adxl", "adpd", "temp")):  # old order
+def use_case_qa_ppg_ecg(start_stream=("ecg", "adxl", "adpd", "temp"),
+                        stop_stream=("temp", "adpd", "adxl", "ecg")):  # old order
+
+    # def use_case_qa_ppg_ecg(start_stream=("adpd", "adxl", "ecg", "temp"),
+    #                         stop_stream=("temp", "ecg", "adxl", "adpd")):
     """
     Use Case - 3
     :param start_stream:
@@ -363,7 +364,7 @@ def use_case_qa_ppg_ecg(start_stream=("adpd", "adxl", "ecg", "temp"),
     # err_status_adpd_ch2, err_str_adpd_ch2, results_dict_adpd_ch2 = qa_utils.check_stream_data(f_path_adpd, 'adpd', 2,
     #                                                                                           adpd_freq_hz)
     err_status_adxl, err_str_adxl, results_dict_adxl = qa_utils.check_stream_data(f_path_adxl, 'adxl', 1, adxl_freq_hz)
-    err_status_ecg, err_str_ecg, results_dict_ecg = qa_utils.check_stream_data(f_path_ecg, 'eda', 1, ecg_freq_hz)
+    err_status_ecg, err_str_ecg, results_dict_ecg = qa_utils.check_stream_data(f_path_ecg, 'ecg', 1, ecg_freq_hz)
     err_status_temp, err_str_temp, results_dict_temp = qa_utils.check_stream_data(f_path_temperature, 'temperature', 1,
                                                                                   temp_freq_hz)
 
@@ -392,10 +393,11 @@ def use_case_qa_ppg_ecg(start_stream=("adpd", "adxl", "ecg", "temp"),
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_temp))
 
 
-def use_case_qa_ppg_ecg_fs(start_stream=("adpd", "adxl", "ecg", "temp"),
-                           stop_stream=("temp", "ecg", "adxl", "adpd")):
-    # def use_case_qa_ppg_ecg_fs(start_stream=("ecg", "adxl", "adpd", "temp"),
-    #                            stop_stream=("ecg", "adxl", "adpd", "temp")):  # old order
+def use_case_qa_ppg_ecg_fs(start_stream=("ecg", "adxl", "adpd", "temp"),
+                            stop_stream=("temp", "adpd", "adxl", "ecg")):  # old order
+    # def use_case_qa_ppg_ecg_fs(start_stream=("adpd", "adxl", "ecg", "temp"),
+    #                        stop_stream=("temp", "ecg", "adxl", "adpd")):
+
     """
     Use Case - 3
     :param start_stream:
@@ -455,7 +457,7 @@ def use_case_qa_ppg_ecg_fs(start_stream=("adpd", "adxl", "ecg", "temp"),
     #                                                                                           adpd_freq_hz)
     err_status_adxl, err_str_adxl, results_dict_adxl = qa_utils.check_stream_data(f_path_adxl, 'adxl', 1, adxl_freq_hz,
                                                                                   True)
-    err_status_ecg, err_str_ecg, results_dict_ecg = qa_utils.check_stream_data(f_path_ecg, 'eda', 1, ecg_freq_hz, True)
+    err_status_ecg, err_str_ecg, results_dict_ecg = qa_utils.check_stream_data(f_path_ecg, 'ecg', 1, ecg_freq_hz, True)
     err_status_temp, err_str_temp, results_dict_temp = qa_utils.check_stream_data(f_path_temperature, 'temperature', 1,
                                                                                   temp_freq_hz, True)
 
@@ -484,7 +486,9 @@ def use_case_qa_ppg_ecg_fs(start_stream=("adpd", "adxl", "ecg", "temp"),
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_temp))
 
 
-def use_case_qa_ecg(start_stream=("ppg", "ecg", "temp"), stop_stream=("temp", "ecg", "ppg")):
+def use_case_qa_ecg(start_stream=("ecg", "ppg", "temp"), stop_stream=("temp", "ppg", "ecg")):  # old order
+    # def use_case_qa_ecg(start_stream=("ppg", "ecg", "temp"), stop_stream=("temp", "ecg", "ppg")):
+
     """
     Use Case - 4
     :param start_stream:
@@ -528,7 +532,7 @@ def use_case_qa_ecg(start_stream=("ppg", "ecg", "temp"), stop_stream=("temp", "e
                                                    'usecase{}_{}Hz.csv'.format(usecase, temp_freq_hz))
 
     err_status_ppg, err_str_ppg, results_dict_ppg = qa_utils.check_stream_data(f_path_ppg, 'ppg', 1, ppg_freq_hz)
-    err_status_ecg, err_str_ecg, results_dict_ecg = qa_utils.check_stream_data(f_path_ecg, 'eda', 1, ecg_freq_hz)
+    err_status_ecg, err_str_ecg, results_dict_ecg = qa_utils.check_stream_data(f_path_ecg, 'ecg', 1, ecg_freq_hz)
     err_status_temp, err_str_temp, results_dict_temp = qa_utils.check_stream_data(f_path_temperature, 'temperature', 1,
                                                                                   temp_freq_hz)
 
@@ -548,7 +552,9 @@ def use_case_qa_ecg(start_stream=("ppg", "ecg", "temp"), stop_stream=("temp", "e
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_temp))
 
 
-def use_case_qa_ecg_fs(start_stream=("ppg", "ecg", "temp"), stop_stream=("temp", "ecg", "ppg")):
+def use_case_qa_ecg_fs(start_stream=("ecg", "ppg", "temp"), stop_stream=("temp", "ppg", "ecg")):  # old order
+    # def use_case_qa_ecg_fs(start_stream=("ppg", "ecg", "temp"), stop_stream=("temp", "ecg", "ppg")):
+
     """
     Use Case - 4
     :param start_stream:
@@ -596,7 +602,7 @@ def use_case_qa_ecg_fs(start_stream=("ppg", "ecg", "temp"), stop_stream=("temp",
                                                    'usecase{}_{}Hz.csv'.format(usecase, temp_freq_hz))
 
     err_status_ppg, err_str_ppg, results_dict_ppg = qa_utils.check_stream_data(f_path_ppg, 'ppg', 1, ppg_freq_hz, True)
-    err_status_ecg, err_str_ecg, results_dict_ecg = qa_utils.check_stream_data(f_path_ecg, 'eda', 1, ecg_freq_hz, True)
+    err_status_ecg, err_str_ecg, results_dict_ecg = qa_utils.check_stream_data(f_path_ecg, 'ecg', 1, ecg_freq_hz, True)
     err_status_temp, err_str_temp, results_dict_temp = qa_utils.check_stream_data(f_path_temperature, 'temperature', 1,
                                                                                   temp_freq_hz, True)
 

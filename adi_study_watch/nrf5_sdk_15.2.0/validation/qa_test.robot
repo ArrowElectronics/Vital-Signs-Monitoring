@@ -431,10 +431,10 @@ Inter-Op DCB Repeatability Test
     [Tags]  INTER_OP    FULL_REGRESSION
     inter_op_dcb_repeatability_test
 
-Inter-Op ECG Switch Independent Test
-    [Documentation]
-    [Tags]  INTER_OP    ROUTINE_TEST    FULL_REGRESSION
-    inter_op_ecg_switch_independent_test
+#Inter-Op ECG Switch Independent Test
+#    [Documentation]
+#    [Tags]  INTER_OP    ROUTINE_TEST    FULL_REGRESSION
+#    inter_op_ecg_switch_independent_test
 
 
 

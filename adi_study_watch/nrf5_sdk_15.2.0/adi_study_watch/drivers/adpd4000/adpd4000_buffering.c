@@ -47,7 +47,7 @@
 
 // Size of the ADPD device FIFO
 #define ADPD_FIFO_LEN 512              //!< HW FIFO Size in bytes
-#define DELTA_TIME_MULTIPLIER 32.2     //!< Multiplier used with timegap(in milliseconds) to find sample interval
+
 /* Make the timestamp buffer large enough to hold the same number of timestamps
  as the largest number of samples that can be in the ADPD FIFO
  ADPD_TS_BUFFER_SIZE = ((ADPD_DATA_BUFFER_SIZE/SMALLEST_ADPD_SAMPLE_SIZE_NBYTES) * sizeof(TIMESTAMP TYPE))
@@ -232,7 +232,7 @@ uint8_t adpd4000_read_data_to_buffer(uint16_t *p_slot_sz, uint16_t *p_max_slot, 
       sample_interval = (uint16_t)((MAX_RTC_TICKS_FOR_24_HOUR + gADPD4000_dready_ts- prev_ADPD_ts) / nsamples_in_fifo);
     }
   } else {
-    sample_interval = (uint16_t) (ODR * DELTA_TIME_MULTIPLIER);
+    sample_interval = (uint16_t) (ODR * RTC_TICKS_PER_MILLI_SEC);
   }
   //NRF_LOG_INFO("*********gADPD4000_dready_ts=%d,prev_ADPD_ts=%d, nsamples_in_fifo=%d\
   // Sample interval inside firmware=%d*******",gADPD4000_dready_ts,

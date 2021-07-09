@@ -190,10 +190,7 @@ void pmu_port_init(void)
     nrf_gpio_cfg_output(PWR_FLASH_PIN);
     nrf_gpio_cfg_output(PWR_OPTICAL_PIN);
     nrf_gpio_cfg_output(PWE_EPHYZ_PIN);
-
-    //nrf_gpio_pin_set(PWE_EPHYZ_PIN);
     nrf_gpio_pin_set(PWR_OPTICAL_PIN);
-    nrf_gpio_pin_set(PWR_FLASH_PIN);
 }
 
 _Bool adp5360_is_ldo_enable(int PIN)

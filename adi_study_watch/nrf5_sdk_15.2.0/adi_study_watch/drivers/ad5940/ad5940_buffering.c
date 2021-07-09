@@ -61,11 +61,10 @@
 #include "nrf_drv_gpiote.h"
 /************************************************* Private macros ***********************************************************/
 
-
 #define AD5940_RX_BUFFER_SIZE            20
 
 /****** Driver related declarations start ********/
-#define WATERMARK_VALUE 20
+#define WATERMARK_VALUE 16
 
 /************************************************* Structures ***********************************************************/
 
@@ -420,6 +419,7 @@ int8_t ad5940_read_ecg_data_to_buffer() {
       /* Now there should be fifo data ; number of samples to read is being set in
       ecg app which FIFO threshold variable*/
       Fifolevel = AD5940_FIFOGetCnt();
+      NRFX_ASSERT(Fifolevel <= ECG_WATER_MARK_LEVEL);
 #if DEBUG_ECG
        Fifolevel1=Fifolevel;
        trig_fifo_arr[ntrig_index].cur_tick = gnAd5940TimeCurVal;
@@ -469,8 +469,8 @@ int8_t ad5940_read_ecg_data_to_buffer() {
       /* occurs when first time Interrupt data is read out , calculate time gap
         based on number of tick of RTC */
       else  {
-        /* 32.768KHz is ticks resolution of RTC */
-         gnAd5940TimeGap = (uint16_t)((1000.0/AppECGCfg.ECGODR)*32.768);
+        /* 32KHz is ticks resolution of RTC */
+         gnAd5940TimeGap = (uint16_t)((1000.0/AppECGCfg.ECGODR) * RTC_TICKS_PER_MILLI_SEC);
       }
 #if DEBUG_ECG
       if(Fifolevel != 4){
@@ -611,8 +611,8 @@ AD5940Err AppEDAISR(void *pBuff, uint32_t *pCount)  {
        /* occurs when first time Interrupt data is read out , calculate time gap
         based on number of tick of RTC */
        else {
-           /* 32.768KHz is ticks resolution of RTC */
-          gnAd5940TimeGap = (uint16_t)((1000.0/AppEDACfg.EDAODR)*32.768);//32.768KHz ticks resolution
+           /* 32KHz is ticks resolution of RTC */
+          gnAd5940TimeGap = (uint16_t)((1000.0/AppEDACfg.EDAODR) * RTC_TICKS_PER_MILLI_SEC);//32KHz ticks resolution
        }
       }
 
@@ -722,8 +722,8 @@ int8_t ad5940_read_bcm_data_to_buffer() {
      /* occurs when first time Interrupt data is read out , calculate time gap
         based on number of tick of RTC */
      else {
-       /* 32.768KHz is ticks resolution of RTC */
-       gnAd5940TimeGap = (uint16_t)((1000.0/AppBIACfg.BiaODR)*32.768);//32.768KHz ticks resolution
+       /* 32KHz is ticks resolution of RTC */
+       gnAd5940TimeGap = (uint16_t)((1000.0/AppBIACfg.BiaODR) * RTC_TICKS_PER_MILLI_SEC);//32KHz ticks resolution
      }
      /* assign previous time value with current time value for next iteration */
     gnAd5940TimePrevVal = gnAd5940TimeCurVal;

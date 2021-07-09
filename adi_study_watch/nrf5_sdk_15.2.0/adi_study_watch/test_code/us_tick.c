@@ -312,8 +312,8 @@ uint32_t gaExtAd5940TriggerTicks[TRIGGER_AD5940_FREQ_STEPS] = {2000000,100000,66
 #else
 #define TRIGGER_AD5940_FREQ_STEPS 14
 uint16_t gaAd5940TriggerFreq[TRIGGER_AD5940_FREQ_STEPS]={12,25,50,100,200,250,300,400,500,600,700,800,900,1000};
-uint32_t gaExtAd5940TriggerTicks[TRIGGER_AD5940_FREQ_STEPS] = {666640,320000,160000,80000,40000,32000,26667,20000,\
-								16000,13280,11360,10000,8800,8000};
+uint32_t gaExtAd5940TriggerTicks[TRIGGER_AD5940_FREQ_STEPS] = {666667,320000,160000,80000,40000,32000,26667,20000,\
+								16000,13333,11429,10000,8889,8000};
 #endif															
 
 
@@ -550,11 +550,6 @@ extern void Ad5940FifoCallBack(void);
 volatile uint8_t gAd5940Running = 0, gAd5940TimerRunning=0;
 volatile uint32_t gad5940TriggerTimerCnt =0,gad5940TriggerPulseCnt = 0;
 
-#define ECG_WATER_MARK_LEVEL    16U
-
-/*FIFO_THRESHOLD_TRIGGERS_CNT = 2 * ECG_WATER_MARK_LEVEL/EDA_WATER_MARK_LEVEL */
-#define FIFO_THRESHOLD_TRIGGERS_CNT       32U
-
 #ifdef DEBUG_ECG
 uint32_t timer_start=0,timer_end=0,timer_diff=0,time_gap_based_on_odr;
 extern uint32_t ecgodr;
@@ -608,9 +603,9 @@ void ad5940_timer_event_handler(nrf_timer_event_t event_type, void* p_context)
                 if(gResetAd5940TriggerPulse)
                 {
                   gResetAd5940TriggerPulse = 0;
-                  gad5940TriggerTimerCnt = 0;
-                  gad5940TriggerPulseCnt = 0;
-                  reset_ad5940_trigger_signal(0);  /* set the trigger signal high*/
+                  gad5940TriggerTimerCnt = 1;
+                  gad5940TriggerPulseCnt = 1;
+                  reset_ad5940_trigger_signal(0);  /* set the trigger signal low*/
                 }
                 else
                 {
@@ -618,7 +613,7 @@ void ad5940_timer_event_handler(nrf_timer_event_t event_type, void* p_context)
                   {
                     invert_ad5940_trigger_signal();
                     gad5940TriggerPulseCnt++;
-                    if(((gad5940TriggerPulseCnt) % FIFO_THRESHOLD_TRIGGERS_CNT) ==0)
+                    if(((gad5940TriggerPulseCnt) % FIFO_THRESHOLD_TRIGGERS_CNT) == 0)
                     {
 #ifdef DEBUG_ECG
                       fifo_read_flag = 1;
@@ -753,7 +748,7 @@ void enable_ad5940_ext_trigger(uint16_t nOdr)
 {
     uint8_t nOdrIndex;
     enable_ad5940_trigger_pin();
-    reset_ad5940_trigger_signal(1); /* set the trigger signal low*/
+    reset_ad5940_trigger_signal(0); /* set the trigger signal low*/
     nOdrIndex = map_ad5940_freq_to_index(nOdr);
 #ifdef EXTERNAL_TRIGGER_EDA		
     NRF_LOG_INFO("ODR=%d,ODR Index=%d",nOdr,nOdrIndex);

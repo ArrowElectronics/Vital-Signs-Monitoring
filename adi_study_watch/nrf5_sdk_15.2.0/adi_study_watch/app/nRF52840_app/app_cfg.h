@@ -122,7 +122,7 @@
 #define  APP_OS_CFG_EDA_TASK_STK_SIZE                   2048
 #define  APP_OS_CFG_PEDOMETER_APP_TASK_STK_SIZE         1024
 #define  APP_OS_CFG_PPG_APPLICATION_TASK_STK_SIZE       1024
-#define  APP_OS_CFG_TEMPERATURE_APP_TASK_STK_SIZE       1024
+#define  APP_OS_CFG_TEMPERATURE_APP_TASK_STK_SIZE       (1024 + 512)
 #define  APP_OS_CFG_SQI_APP_TASK_STK_SIZE               1024
 /*
 *********************************************************************************************************

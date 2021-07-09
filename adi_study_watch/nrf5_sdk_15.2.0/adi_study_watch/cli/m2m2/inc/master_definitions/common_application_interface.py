@@ -138,8 +138,8 @@ m2m2_sensor_dcfg_data_t = {
     {"name":"num_tx_pkts",
     "type":c_uint8},
     {"name":"dcfgdata",
-    "length":228,
-    "type":c_uint8},
+    "length":57,
+    "type":c_uint32},
   ]
 }
 

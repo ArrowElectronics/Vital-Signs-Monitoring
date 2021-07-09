@@ -1809,17 +1809,24 @@ static void ble_tx_task(void *arg) {
            remove', since sqi application streams come only after ADPD is
            started
            And ADPD application is started only after SQI application is
-           started, otherwise initial ADPD samples would be missed */
-        if (p_in_cmd->command == M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP &&
-            p_in_pkt->src != M2M2_ADDR_MED_SQI) {
-          NRF_LOG_INFO("BLE Tx: Got sensor sub remove resp from PO");
-          if (sub_add_cnt > 0)
-            /* Handled one stream SUB-UNSUB resp pair */
-            sub_add_cnt--;
-          /* No more subscription for streaming active */
-          if (sub_add_cnt == 0) {
-            tx_pkt_comb_stop = 1;
-            NRF_LOG_INFO("BLE Tx: Stopping Pkt combining");
+           started, otherwise initial ADPD samples would be missed
+
+           For Battery Streams, pkt combining need not be done */
+        if (p_in_cmd->command == M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP)
+        {
+          /* to extract the stream address from unsub response pkt from PO */
+          PYLD_CST(p_in_pkt, m2m2_app_common_sub_op_t,p_in_unsub_cmd);
+          if( p_in_unsub_cmd->stream != M2M2_ADDR_MED_SQI_STREAM &&
+              p_in_unsub_cmd->stream != M2M2_ADDR_SYS_BATT_STREAM) {
+            NRF_LOG_INFO("BLE Tx: Got sensor sub remove resp from PO");
+            if (sub_add_cnt > 0)
+              /* Handled one stream SUB-UNSUB resp pair */
+              sub_add_cnt--;
+            /* No more subscription for streaming active */
+            if (sub_add_cnt == 0) {
+              tx_pkt_comb_stop = 1;
+              NRF_LOG_INFO("BLE Tx: Stopping Pkt combining");
+            }
           }
         }
         if (tx_pkt_comb_stop) {
@@ -1941,15 +1948,22 @@ static void ble_tx_task(void *arg) {
         /* For SQI application, pkt combining need not be handled for 'sub rsqi
            add', since sqi application streams come only after ADPD is started
            And ADPD application is started only after SQI application is
-           started, otherwise initial ADPD samples would be missed */
-        if (p_in_cmd->command == M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP &&
-            (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(p_in_pkt->src) != M2M2_ADDR_MED_SQI) {
-          NRF_LOG_INFO("BLE Tx: Got sensor sub add resp from PO");
-          /* Start pkt combining with max count, since
-           data rate is going to increase henceforth */
-          //tx_pkt_compare_val = MAX_TX_PKT_COMB_CNT;
-          tx_pkt_compare_val = gn_max_tx_kt_comb_cnt;
-          sub_add_cnt++;
+           started, otherwise initial ADPD samples would be missed
+
+           For Battery Streams, pkt combining need not be done */
+        if (p_in_cmd->command == M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP)
+        {
+          /* to extract the stream address from sub response pkt from PO */
+          PYLD_CST(p_in_pkt, m2m2_app_common_sub_op_t,p_in_sub_cmd);
+          if( p_in_sub_cmd->stream != M2M2_ADDR_MED_SQI_STREAM &&
+              p_in_sub_cmd->stream != M2M2_ADDR_SYS_BATT_STREAM ) {
+            NRF_LOG_INFO("BLE Tx: Got sensor sub add resp from PO");
+            /* Start pkt combining with max count, since
+             data rate is going to increase henceforth */
+            //tx_pkt_compare_val = MAX_TX_PKT_COMB_CNT;
+            tx_pkt_compare_val = gn_max_tx_kt_comb_cnt;
+            sub_add_cnt++;
+          }
         }
 
         /* Swap the header around so that the length can be properly freed. */

@@ -39,6 +39,7 @@
 
 #include "nrf_log_ctrl.h"
 #include "us_tick.h"
+#include "light_fs.h"
 
 #define NRF_LOG_MODULE_NAME NAND_FUNCTIONS
 
@@ -55,6 +56,7 @@
 
 #include "nrf_log.h"
 
+
 /* Enable nrf logger */
 NRF_LOG_MODULE_REGISTER();
 
@@ -65,6 +67,10 @@ uint32_t get_micro_sec(void);
 
 uint32_t nTick1,nTick2,nTick3,nTick4,load_time_diff_main,load_time_diff_spare,nTickSpare1,nTickSpare2;
 uint32_t total_program_load_time,total_program_exe_time,total_wait_till_ready_time;
+#endif
+
+#ifdef FORMAT_DEBUG_INFO_CMD
+extern fs_format_debug_info tmp_fs_format_debug_info;
 #endif
 
 /*!
@@ -387,9 +393,9 @@ eNand_Func_Result nand_func_is_bad_block(_memory_properties *mem_prop,\
     NRF_LOG_INFO("Error in reading bad block headers");
     return NAND_FUNC_ERROR;
   }
-  /* if all 4 bytes around 4096 memory location of first page of every block are found to be bad,
+  /* if a byte around 4096 memory location of first page of given block is not FF,
     its bad block, else good block */
-  if((bad_block[0] == 0) && (bad_block[1] == 0) && (bad_block[2] == 0) && (bad_block[3] == 0))
+  if(bad_block[0] != 0xFF)
     *isBad = true;
   else
     *isBad = false;
@@ -411,37 +417,42 @@ eNand_Func_Result nand_func_erase(_memory_properties *mem_prop, \
   uint8_t status;
   uint32_t i;
   bool is_block_bad=false;
+#ifdef FORMAT_DEBUG_INFO_CMD
+  tmp_fs_format_debug_info.erase_failed_due_bad_block_check=0;
+#endif
 
   /* Iterate through total number of blocks */
   for(i=0;i<number_of_blocks;i++) {
-    /* find if current block to erase is bad block */
-    nand_func_is_bad_block(mem_prop,(block_init+i), &is_block_bad);
 #ifdef PRINTS_OUT
     NRF_LOG_INFO("Block Index: %d, Block Status: %s",block_init+i,
                             (is_block_bad==true)?"bad":"good");
 
 #endif
-    /* if good block, block can be erased */
+    nand_func_is_bad_block(mem_prop,(block_init+i), &is_block_bad);
     if(is_block_bad==false) {
       /* erase current block index */
-      result |= nand_flash_block_erase((block_init+i)*mem_prop->pages_per_block);
+      result = nand_flash_block_erase((block_init+i)*mem_prop->pages_per_block);
+        
       /* read status register */
-      result |= nand_flash_get_status(&status);
+      result = nand_flash_get_status(&status);
+
+      /* if status reg read fails , return error */
+      if( result != NAND_SUCCESS)
+        return NAND_FUNC_ERROR;
 
       /* if, erase fail bit is set in status register,
-        erase has failed for current block */
+      erase has failed for current block */
       if((status & FEAT_STATUS_E_FAIL) == FEAT_STATUS_E_FAIL) {
         NRF_LOG_INFO("Error in Block Erase");
         return NAND_FUNC_ERROR;
       }
-
-      /* if erase fails , return error */
-      if( result != NAND_SUCCESS)
-        return NAND_FUNC_ERROR;
     }
     else  {
       /* block is bad, return error */
       NRF_LOG_INFO("Error in formatting Block as its bad:%d",(block_init+i));
+#ifdef FORMAT_DEBUG_INFO_CMD
+      tmp_fs_format_debug_info.erase_failed_due_bad_block_check=1;
+#endif
       return NAND_FUNC_ERROR;
     }
   }

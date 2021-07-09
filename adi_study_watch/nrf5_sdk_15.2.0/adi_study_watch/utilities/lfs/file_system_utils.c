@@ -1301,9 +1301,16 @@ FS_STATUS_ENUM_t fs_hal_fixed_pattern_write_file(uint8_t *p_buffer,uint16_t star
                                                 uint8_t first_time_write) {
   elfs_result      FS_Error;
   static uint32_t nBytes_written = 0;
+  uint32_t fs_rem_space = 0;
   if (ge_file_wr_access != FS_FILE_ACCESS_IN_PROGRESS){
     return FS_STATUS_ERR;
   }
+
+    /* Get remaining space */
+  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
+    return FS_STATUS_ERR;
+  }
+
   /* Write data to File */
   FS_Error = lfs_update_pattern_file(p_buffer, start_block_num,*nitems,file_handler,\
                                     &gh_fs_table_file_handler,first_time_write);
@@ -1318,6 +1325,25 @@ FS_STATUS_ENUM_t fs_hal_fixed_pattern_write_file(uint8_t *p_buffer,uint16_t star
     if(file_handler->op_mode == LFS_MODE_MANUAL) {
       lfs_refresh_header(file_handler,&gh_fs_table_file_handler);
     }
+
+     /* estimate for every block */
+    if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
+      return FS_STATUS_ERR;
+    }
+
+   /* update temp variables while writing */
+   vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_handler.table_file_info.head_pointer;
+   vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_handler.table_file_info.tail_pointer;
+   vol_info_buff_var.avail_memory = fs_rem_space;
+   vol_info_buff_var.used_memory = gn_fs_used_memory;
+
+   if(vol_info_buff_var.bad_block_updated != 0){
+        /* subtract mem bytes 1 block of data*/
+        vol_info_buff_var.used_memory += go_fs_mem_prop.block_size;
+        vol_info_buff_var.avail_memory -= go_fs_mem_prop.block_size;
+        vol_info_buff_var.bad_block_num += 1;
+        vol_info_buff_var.bad_block_updated=0;
+     }
   }
   // TO DO
   /* Check for memory full */

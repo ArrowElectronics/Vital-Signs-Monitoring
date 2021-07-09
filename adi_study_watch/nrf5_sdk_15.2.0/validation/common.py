@@ -825,20 +825,29 @@ def rename_stream_file(old_file_name, suffix='', row_offset=1, col_idx=1,
         new_name = ''
     if plot:
         plot_path = plot_and_save_png(new_name, col_idx, row_offset)
+
     if copy_to_shared_drive:
-        test_group_name = inspect.getmodule(inspect.stack()[1][0]).__name__.split('.')[-1]
-        test_group_dir = os.path.join(test_report_dir, test_group_name)
-        if not os.path.exists(test_group_dir):
-            os.mkdir(test_group_dir)
-        file_name = os.path.split(new_name)[-1]
-        shutil.copyfile(new_name, os.path.join(test_group_dir, file_name))
-        if plot:
-            plot_dir = os.path.join(test_group_dir, 'plots')
-            if not os.path.exists(plot_dir):
-                os.mkdir(plot_dir)
-            plot_name = os.path.split(plot_path)[-1]
-            new_plot_path = os.path.join(plot_dir, plot_name)
-            shutil.copyfile(plot_path, new_plot_path)
+        for retry in range(5):
+            try:
+                test_group_name = inspect.getmodule(inspect.stack()[1][0]).__name__.split('.')[-1]
+                test_group_dir = os.path.join(test_report_dir, test_group_name)
+                if not os.path.exists(test_group_dir):
+                    os.mkdir(test_group_dir)
+                file_name = os.path.split(new_name)[-1]
+                shutil.copyfile(new_name, os.path.join(test_group_dir, file_name))
+                if plot:
+                    plot_dir = os.path.join(test_group_dir, 'plots')
+                    if not os.path.exists(plot_dir):
+                        os.mkdir(plot_dir)
+                    plot_name = os.path.split(plot_path)[-1]
+                    new_plot_path = os.path.join(plot_dir, plot_name)
+                    shutil.copyfile(plot_path, new_plot_path)
+                break
+            except WindowsError:
+                test_logger.info("Trying to copy the file; Attempts remaining: {}".format(4 - retry))
+        else:
+            test_logger.error("*** File Copy Failed ***")
+
     return new_name
 
 
@@ -884,8 +893,15 @@ def read_csv_col(file_path, col_idx=0, row_offset=1):
     for i, line in enumerate(line_list):
         if i >= row_offset and any(line):
             line.strip()
-            if last_line == i and not any(line.split(",")[col_idx]):
+            if last_line == i and not any(line.split(",")[col_idx]):  # If the last row is empty
                 continue
+            if i <= last_line - 7:
+                # if the last packet in adpd has a partial data for example you are streaming Slot F, G, H, I.
+                # The last packet might contain only Slot H, I data so truncating the data
+                try:
+                    any(line.split(",")[col_idx])
+                except IndexError:
+                    continue
             col_data_list.append(float(line.split(",")[col_idx]))
     return col_data_list
 

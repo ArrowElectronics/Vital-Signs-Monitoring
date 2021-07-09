@@ -63,12 +63,6 @@
 #define MAX_NUM_OF_BYTES_FOR_PAGE_READ_TEST 100
 #define TOC_REPEATED_UPDATE_SIZE 16384
 
-//prints
-// debug
-//#define DEBUG_CODES
-
-//#define DEBUG_CODES_FOR_BAD_BLOCK_BOUNDARY
-
 
 #define MAXFILENUMBER                                     63
 #define MAX_NO_OF_WORDS                                   64 //change it to 64 for 2048 blocks
@@ -83,8 +77,6 @@
 
 // macros
 #define DATA_FLASH_SIZE (MEM_SIZE-(FILEBLOCK*PAGES_PER_BLOCK*PAGE_SIZE))
-/*! macro which enables the debug code for reading the content of a block from LFS*/
-#define FS_TEST_BLOCK_READ_DEBUG
 
 typedef enum {
    LFS_SUCCESS,
@@ -175,7 +167,26 @@ typedef struct _table_file_handler{
   _table_file_header table_file_info;
   //struct MemoryBuffer * tmp_write_mem;
 }_table_file_handler;
+
+
+typedef struct _fs_format_debug_info{
+  uint8_t erase_failed_due_bad_block_check;
+  uint8_t wrap_around_cond;
+  uint8_t nothing_is_written_to_erase_error;
+  uint8_t mem_full_in_partial_erase;
+  uint8_t toc_mem_erased_flag;
+  uint8_t succesfull_erase_flag;
+  uint16_t num_blocks_erased_in_mem_full_partial_erase;
+  uint16_t num_blocks_erased_in_partial_erase_1;
+  uint16_t num_blocks_erased_in_partial_erase_2;
+  uint16_t num_times_format_failed_due_bad_blocks_1;
+  uint16_t num_times_format_failed_due_bad_blocks_2;
+  uint32_t format_src_blk_ind;
+  uint32_t format_dest_blk_ind_1;
+  uint32_t format_dest_blk_ind_2;
+}fs_format_debug_info;
   
+
 typedef struct _file_handler {
   _file_header head;
   uint32_t current_read_pos;

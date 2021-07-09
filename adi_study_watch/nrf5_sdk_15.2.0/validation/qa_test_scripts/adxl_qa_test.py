@@ -114,6 +114,7 @@ def adxl_fs_stream_test(freq_hz=50):
 
     :return:
     """
+    common.dcb_cfg('d', 'adxl')
     qa_utils.write_dcb('adxl', 'adxl_dcb.dcfg', 'ADXL Stream Test')
     qa_utils.clear_fs_logs('ADXL')
 
@@ -124,6 +125,7 @@ def adxl_fs_stream_test(freq_hz=50):
     common.watch_shell.quick_stop("adxl", "adxl", fs=True)
     common.watch_shell.do_stop_logging("")
     log_file_name, csv_file_name = qa_utils.get_fs_log('ADXL')
+    common.dcb_cfg('d', 'adxl')
     f_path = common.rename_stream_file(csv_file_name["adxl"], "_adxl_{}hz_fs_stream_test.csv".format(freq_hz))
 
     err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'adxl', 1, freq_hz, True)

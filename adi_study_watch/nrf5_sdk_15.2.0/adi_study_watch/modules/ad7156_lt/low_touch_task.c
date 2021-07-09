@@ -250,8 +250,7 @@ static void init_lt_app_lcfg() {
 
   /* Check & Load from DCB LT lcfg if lcfg is available in lt_app_lcfg_dcb */
   if (lt_app_lcfg_get_dcb_present_flag()) {
-
-    lt_app_lcfg_set_from_dcb();
+      lt_app_lcfg_set_from_dcb();
   }
 
   /* Loading default or modified fw LT lcfg */
@@ -278,7 +277,7 @@ static void init_lt_app_lcfg() {
       user_applied_skinCapVal = 0;
 
     if( !user_applied_ltAppTrigMethd )
-      lt_app_cfg.ltAppTrigMethd  = LT_APP_CAPSENSE_TUNED_TRIGGER;
+      lt_app_cfg.ltAppTrigMethd  = LT_APP_BUTTON_TRIGGER;
     else
       user_applied_ltAppTrigMethd = 0;
   }
@@ -559,6 +558,19 @@ bool get_low_touch_trigger_mode2_status(void)
   }
 }
 
+/** @brief   Get LT application trigger method
+ * @details  This is to be used from the display page: page_low_touch_trigger_mode.c
+             to show the current Mode set
+ * @param    None
+ * @retval   LT_APP_LCFG_TRIGGER_METHOD_t -->
+                  LT_APP_CAPSENSE_TUNED_TRIGGER = 0,
+                  LT_APP_CAPSENSE_DISPLAY_TRIGGER = 1,
+                  LT_APP_BUTTON_TRIGGER = 2,
+                  LT_APP_TRIGGER_INVALID = 3,
+ */
+LT_APP_LCFG_TRIGGER_METHOD_t get_lt_app_trigger_method() {
+  return lt_app_cfg.ltAppTrigMethd;
+}
 
 /** @brief   Low Touch Initialization
  * @details  Register handle for low touch application from AD7156 for wrist
@@ -570,12 +582,16 @@ int low_touch_init() {
   uint16_t capVal;
   if (!gsLowTouchInitFlag) {
     init_lt_app_lcfg();
-    Register_out2_pin_detect_func(out2_pin_detect);
-    bottom_touch_func_set(1);
-    gsLowTouchInitFlag = 1;
 
-    //Detect initial Wrist status
-    capVal = AD7156_ReadChannelCap(2); // unit in uF
+    if( lt_app_cfg.ltAppTrigMethd == LT_APP_CAPSENSE_TUNED_TRIGGER ||
+       lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_DISPLAY_TRIGGER )
+    {
+      Register_out2_pin_detect_func(out2_pin_detect);
+      bottom_touch_func_set(1);
+      //Detect initial Wrist status
+      capVal = AD7156_ReadChannelCap(2); // unit in uF
+    }
+    gsLowTouchInitFlag = 1;
 
     if( lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_TUNED_TRIGGER )
     {
@@ -598,7 +614,7 @@ int low_touch_init() {
       else
         eDetection_State = OFF_WRIST; /*watch is off wrist interrupt detected*/
     }
-    else
+    else if( lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_DISPLAY_TRIGGER )
     {
       //Mainly for lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_DISPLAY_TRIGGER
       NRF_LOG_INFO("Init:Resetting timer, ON wrist detected.");
@@ -620,8 +636,13 @@ int low_touch_init() {
  */
 int low_touch_deinit() {
   if (gsLowTouchInitFlag) {
-    bottom_touch_func_set(0);
-    Unregister_out2_pin_detect_func(out2_pin_detect);
+    if( lt_app_cfg.ltAppTrigMethd == LT_APP_CAPSENSE_TUNED_TRIGGER ||
+       lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_DISPLAY_TRIGGER )
+    {
+      bottom_touch_func_set(0);
+      Unregister_out2_pin_detect_func(out2_pin_detect);
+    }
+    lt_app_cfg.ltAppTrigMethd = LT_APP_TRIGGER_INVALID;
     gsLowTouchAd7156IntFlag = 0;
     gsLowTouchAd7156IntCount = 0;
     gsLowTouchAd7156IntValue = 0;
@@ -1020,15 +1041,18 @@ static void lt_task(void *arg) {
   ADI_OSAL_STATUS err;
   UNUSED_PARAMETER(arg);
 
+  touch_detect_init();
 
-//  if(!get_low_touch_trigger_mode2_status())
-    touch_detect_init();
+  if (lt_app_lcfg_get_dcb_present_flag()) {
+    lt_app_lcfg_set_from_dcb();
+  }
+  else
+  {
+    //lt_app_lcfg_set_fw_default();
+    lt_app_cfg.ltAppTrigMethd = LT_APP_TRIGGER_INVALID;
+  }
 
-    if (lt_app_lcfg_get_dcb_present_flag()) {
-      lt_app_lcfg_set_from_dcb();
-    }
-    else
-      lt_app_lcfg_set_fw_default();
+
   /* Wait for FS task FindConfigFile() completes */
 
   adi_osal_SemPend(lt_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
@@ -1037,12 +1061,14 @@ static void lt_task(void *arg) {
      so that lcfg parameters when read from the Tool, gives values correctly
   */
 
-    // On Bootup Enable LT app if LT cfg files are present
-    if( check_lt_app_capsense_tuned_trigger_status() )
-    {
-      if (gen_blk_get_dcb_present_flag() || gsCfgFileFoundFlag)
-        EnableLowTouchDetection(true);
-    }
+  // On Bootup Enable LT app if LT cfg files are present
+  if( check_lt_app_capsense_tuned_trigger_status() &&
+      (gen_blk_get_dcb_present_flag() || gsCfgFileFoundFlag) )
+  {
+      EnableLowTouchDetection(true);
+  }
+  else
+      EnableLowTouchDetection(false);
 // Test DCB/NAND cfg working without ON/OFF Wrist events
 #ifdef TEST_LT_APP_WITHOUT_EVENTS
   static volatile uint8_t gb_trig_event = 0;
@@ -1112,7 +1138,7 @@ static void lt_task(void *arg) {
           if (gsCfgFileFoundFlag || gen_blk_get_dcb_present_flag())
           {
             SendStartLowTouchLogReq();  /* start the low touch logging*/
-            adi_osal_ThreadSuspend(NULL);
+            //adi_osal_ThreadSuspend(NULL);
           }
           else
           {
@@ -1123,7 +1149,8 @@ static void lt_task(void *arg) {
             // Nothing //
         }
     }
-    else
+    else if( lt_app_cfg.ltAppTrigMethd == LT_APP_CAPSENSE_TUNED_TRIGGER ||
+       lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_DISPLAY_TRIGGER )
     {
       LowTouchTimerEvent();
       LowTouchSensorEvent();

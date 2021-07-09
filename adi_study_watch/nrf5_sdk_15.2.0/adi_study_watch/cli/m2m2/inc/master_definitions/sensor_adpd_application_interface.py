@@ -465,15 +465,6 @@ m2m2_adpd_dcfg_op_hdr_t = {
     ]
 }
 
-m2m2_adpd_agc_recalibrate_t = {
-    "struct_fields": [
-        {"name": "command",
-          "type": c_ubyte},
-        {"name": "status",
-          "type": c_ubyte}
-    ]
-}
-
 m2m2_adpd_agc_info_t = {
     "struct_fields": [
         {"name": "command",
@@ -517,19 +508,6 @@ m2m2_adpd_agc_cntrl_t = {
         {"name":"ops",
           "length":0,
           "type":m2m2_adpd_agc_cntrl_data_t},
-    ]
-}
-
-m2m2_adpd_agc_status_t = {
-    "struct_fields": [
-        {"name": "command",
-          "type": c_ubyte},
-        {"name": "status",
-          "type": c_ubyte},
-        {"name": "agc_type",
-          "type": c_ubyte},
-        {"name": "agc_status",
-          "type": c_ubyte}
     ]
 }
 

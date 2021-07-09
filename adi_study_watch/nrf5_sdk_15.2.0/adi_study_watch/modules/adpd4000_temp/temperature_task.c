@@ -179,77 +179,62 @@ app_routing_table_entry_t temperature_app_routing_table[] = {
  * \return              pointer to reponse m2m2 packet
  *****************************************************************************/
 static m2m2_hdr_t *adpd_app_get_dcfg(m2m2_hdr_t *p_pkt) {
-    uint8_t r_size;
-    uint8_t  dcfgdata[MAXTXRXDCFGSIZE*8];
+    uint16_t dcfg_size;
+    uint16_t i = 0, num_pkts = 0, dcfg_array_index = 0;
+    uint32_t  dcfgdata[MAXADPD4000DCBSIZE*MAX_ADPD4000_DCB_PKTS];
     ADI_OSAL_STATUS  err;
     M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
+   
   /* Declare and malloc a response packet */
   PKT_MALLOC(p_resp_pkt, m2m2_sensor_dcfg_data_t, 0);
 
-  if (NULL != p_resp_pkt)
-  {
+  if (NULL != p_resp_pkt) {
     /* Declare a pointer to the response packet payload */
     PYLD_CST(p_resp_pkt, m2m2_sensor_dcfg_data_t, p_resp_payload);
-    memset(dcfgdata, 0, (MAXTXRXDCFGSIZE*8));
-    r_size = (uint8_t)(MAXTXRXDCFGSIZE*4); /* Max words that can be read from FDS */
-    if (ADPD4000_DCFG_STATUS_OK == read_adpd4000_dcfg((uint32_t *)&dcfgdata[0], &r_size))
-    {
-      if(r_size > MAXTXRXDCFGSIZE)
-      {
-        p_resp_payload->command = M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
-        p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-        p_resp_payload->size = MAXTXRXDCFGSIZE;
-        p_resp_payload->num_tx_pkts = 1;
+    memset(dcfgdata, 0,sizeof(dcfgdata));
+    memset(p_resp_payload->dcfgdata, 0, sizeof(p_resp_payload->dcfgdata));
+    if (ADPD4000_DCFG_STATUS_OK == read_adpd4000_dcfg(&dcfgdata[0], &dcfg_size)) { // dcfg size will give number of registers
+      status = M2M2_APP_COMMON_STATUS_OK;
+      num_pkts = (dcfg_size / MAXADPD4000DCBSIZE) + ((dcfg_size % MAXADPD4000DCBSIZE) ? 1 : 0 );
+      dcfg_array_index = 0;
+      for(uint16_t p = 0; p < num_pkts; p++) {
+         p_resp_payload->size = \
+              (p != num_pkts-1) ? MAXADPD4000DCBSIZE : (dcfg_size % MAXADPD4000DCBSIZE);
+         p_resp_payload->num_tx_pkts = num_pkts;
+         for (i = 0; i < p_resp_payload->size; i++) {
+            p_resp_payload->dcfgdata[i] = dcfgdata[dcfg_array_index++];
+         }
+         if(p != num_pkts-1) {
+           p_resp_pkt->src = p_pkt->dest;
+           p_resp_pkt->dest = p_pkt->src;
+           p_resp_payload->status = status;
+           p_resp_payload->command = M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
+           post_office_send(p_resp_pkt, &err);
 
-        memcpy(&p_resp_payload->dcfgdata[0] , &dcfgdata[0], sizeof(p_resp_payload->dcfgdata));
-        p_resp_pkt->src = p_pkt->dest;
-        p_resp_pkt->dest = p_pkt->src;
-        NRF_LOG_INFO("1st pkt sz->%d",p_resp_payload->size);
-        post_office_send(p_resp_pkt, &err);
-        MCU_HAL_Delay(20);
+           /* Delay is kept same as what is there in low touch task */
+           MCU_HAL_Delay(60);
 
-        PKT_MALLOC(p_resp_pkt, m2m2_sensor_dcfg_data_t, 0);
-        /* Declare a pointer to the response packet payload */
-        PYLD_CST(p_resp_pkt, m2m2_sensor_dcfg_data_t, p_resp_payload);
-        memset(p_resp_payload->dcfgdata, 0, sizeof(p_resp_payload->dcfgdata));
-
-        p_resp_payload->command =
-         (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
-        p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-        p_resp_payload->size = r_size - MAXTXRXDCFGSIZE;
-        p_resp_payload->num_tx_pkts = 0;
-
-        memcpy(&p_resp_payload->dcfgdata[0] , &dcfgdata[MAXTXRXDCFGSIZE*4], (4*r_size - sizeof(p_resp_payload->dcfgdata)));
-
-
-        NRF_LOG_INFO("2nd pkt sz->%d",p_resp_payload->size);
-        status = M2M2_APP_COMMON_STATUS_OK;
-      }
-      else
-      {
-          p_resp_payload->size = (r_size); /* Update payload with actual words read from FDS */
-          p_resp_payload->num_tx_pkts = 0;
-          memset(p_resp_payload->dcfgdata, 0, sizeof(p_resp_payload->dcfgdata));
-          memcpy(&p_resp_payload->dcfgdata[0] , &dcfgdata[0], sizeof(p_resp_payload->dcfgdata));
-
-          status = M2M2_APP_COMMON_STATUS_OK;
-          NRF_LOG_INFO("1/1 pkt sz->%d",p_resp_payload->size);
-      }
-    }
-    else
-    {
+           PKT_MALLOC(p_resp_pkt, m2m2_sensor_dcfg_data_t, 0);
+           if(NULL != p_resp_pkt) {
+             // Declare a pointer to the response packet payload
+             PYLD_CST(p_resp_pkt, m2m2_sensor_dcfg_data_t, p_resp_payload);
+             memset(p_resp_payload->dcfgdata, 0, sizeof(p_resp_payload->dcfgdata));
+           }//if(NULL != p_resp_pkt)
+           else {
+             return NULL;
+           }
+         }
+       }
+      }else {
         p_resp_payload->size = 0;
         p_resp_payload->num_tx_pkts = 0;
         status = M2M2_APP_COMMON_STATUS_ERROR;
-    }
-
-        p_resp_payload->status = status;
-        p_resp_payload->command =
-         (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
-        p_resp_pkt->src = p_pkt->dest;
-        p_resp_pkt->dest = p_pkt->src;
-  }
-
+      }//if(read_adpd4000_dcfg())
+    p_resp_payload->status = status;
+    p_resp_payload->command = M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_pkt->dest = p_pkt->src;
+  }//if(NULL != p_resp_pkt)
   return p_resp_pkt;
 }
 

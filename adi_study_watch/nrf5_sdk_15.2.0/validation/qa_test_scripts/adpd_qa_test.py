@@ -141,8 +141,8 @@ def adpd_fs_stream_test(freq_hz=50, agc_state=0):
         time.sleep(capture_time)
         common.quick_stop_adpd_fs(led)
         log_file_name, csv_file_name = qa_utils.get_fs_log('ADPD')
-        adpd_csv_file = common.rename_stream_file(csv_file_name["adpd"], "adpd_fs_stream")
-        err_status, err_str, results_dict = qa_utils.check_stream_data(adpd_csv_file, 'adpd_combained', 1,
+        adpd_csv_file = common.rename_stream_file(csv_file_name["adpd"], "adpd_fs_stream.csv")
+        err_status, err_str, results_dict = qa_utils.check_stream_data(adpd_csv_file, 'adpd_combined', 1,
                                                                        freq_hz, True)
         common.test_logger.info('ADPD FS {}Hz with agc {} Stream Test Results: {}'.format(freq_hz, agc_state, results_dict))
         if err_status:
@@ -170,7 +170,7 @@ def adpd_fs_stream_download_repeatiablity_test(freq_hz=50, agc_state=0):
             time.sleep(capture_time)
             common.quick_stop_adpd_fs(led)
             log_file_name, csv_file_name = qa_utils.get_fs_log('ADPD')
-            adpd_csv_file = common.rename_stream_file(csv_file_name["adpd"], "adpd_fs_stream_download_repeatiability")
+            adpd_csv_file = common.rename_stream_file(csv_file_name["adpd"], "adpd_fs_stream_download_repeatiability.csv")
             err_status, err_str, results_dict = qa_utils.check_stream_data(adpd_csv_file, 'adpd_combained', 1,
                                                                            freq_hz, True)
             common.test_logger.info(
@@ -200,7 +200,7 @@ def adpd_fs_download_repeatiablity_test(freq_hz=50, agc_state=0):
         for index in range(50):
             common.test_logger.info("{} th Iteration".format(str(index)))
             log_file_name, csv_file_name = qa_utils.get_fs_log('ADPD')
-            adpd_csv_file = common.rename_stream_file(csv_file_name["adpd"], "adpd_fs_download_repeatiability")
+            adpd_csv_file = common.rename_stream_file(csv_file_name["adpd"], "adpd_fs_download_repeatiability.csv")
             err_status, err_str, results_dict = qa_utils.check_stream_data(adpd_csv_file, 'adpd_combained', 1,
                                                                            freq_hz, True)
             common.test_logger.info(

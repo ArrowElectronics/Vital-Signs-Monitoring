@@ -49,7 +49,7 @@
 #define _MEMORY_MANAGEMENT_H_
 
 //#define MEM_BLK_TYPE1_CNT	( 32u )
-#define MEM_BLK_TYPE2_CNT	( 14u )
+#define MEM_BLK_TYPE2_CNT	( 24u )
 //#define MEM_BLK_TYPE3_CNT	( 96u )
 #define MEM_BLK_TYPE4_CNT	( 70u )
 #define MEM_BLK_TYPE5_CNT	( 8u )//40

@@ -914,7 +914,7 @@ static int16_t _Adpd400xDrvSetIdleMode() {
 static void _Adpd400xDrvGetSlotInfo()  {
   uint16_t tempD, value, slotSize;
   gsTotalSlotSize = 0;
-  
+
   uint16_t temp16;
   uint32_t sampleFrq, lfOSC;
   Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &temp16);
@@ -931,6 +931,7 @@ static void _Adpd400xDrvGetSlotInfo()  {
   Adpd400xDrvRegRead(ADPD400x_REG_OPMODE, &value);
   gsHighestSelectedSlot = (value & BITM_OPMODE_TIMESLOT_EN) >> BITP_OPMODE_TIMESLOT_EN;
 
+  gAdpdSlotMaxODR = 0;
   for (uint8_t i = 0; i < SLOT_NUM; i++)  {
     // take care of Impulse mode here.
     // if Impulse mode, read out from other register

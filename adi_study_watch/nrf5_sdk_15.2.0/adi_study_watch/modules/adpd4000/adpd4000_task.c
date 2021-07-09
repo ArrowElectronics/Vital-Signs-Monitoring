@@ -826,30 +826,27 @@ static uint8_t fetch_adpd_data(void) {
 
      /* Check if ppg app is not running & if its slot F data
         to calculate HR */
-     if (gn_uc_hr_enable && Ppg_Slot == 0 && i==(gn_uc_hr_slot-1) && !gRun_agc) {
-        if(get_low_touch_trigger_mode2_status())
-        {
-            uint32_t n_recal_time_in_min;
-            MwPPG_ReadLCFG(12, &n_recal_time_in_min);/*! To read featureSelect */
-            if((n_recal_time_in_min != 0) && (++gsResetStaticAgcSampleCnt >= (gsSlot[i].odr * n_recal_time_in_min * SECONDS_PER_MIN)))
-            {
-              gsResetStaticAgcSampleCnt = 0;
-              /*Put the device into IDLE mode*/
-              Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
+    if (gn_uc_hr_enable && Ppg_Slot == 0 && i==(gn_uc_hr_slot-1) && !gRun_agc) {
+      uint32_t n_recal_time_in_min;
+      MwPPG_ReadLCFG(12, &n_recal_time_in_min);/*! To read staticAgcRecalTime */
+      if((n_recal_time_in_min != 0) && (++gsResetStaticAgcSampleCnt >= (gsSlot[i].odr * n_recal_time_in_min * SECONDS_PER_MIN)))
+      {
+        gsResetStaticAgcSampleCnt = 0;
+        /*Put the device into IDLE mode*/
+        Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
 
-              /*Reset flags related green LED*/
-              gPpg_agc_done = 0;
+        /*Reset flags related green LED*/
+        gPpg_agc_done = 0;
 
-              /*Set flags condition to trigger agc recalibration */
-              gPpg_agc_en = 1;
-              gn_led_slot_g = G_LED_AGC_SLOTS;
-              gn_agc_active_slots = gn_led_slot_g;
-              gRun_agc = true;
+        /*Set flags condition to trigger agc recalibration */
+        gPpg_agc_en = 1;
+        gn_led_slot_g = G_LED_AGC_SLOTS;
+        gn_agc_active_slots = gn_led_slot_g;
+        gRun_agc = true;
 
-              /*Put the device back to sample mode*/
-              Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);
-            }
-        }
+        /*Put the device back to sample mode*/
+        Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);
+      }
 
       if(!gPpg_agc_en && !gPpg_agc_done){
         update_ppg_default_current_gain(i);// update lcfg current and gain if static agc not enabled for ppg
@@ -978,7 +975,10 @@ static uint8_t fetch_adpd_data(void) {
       /* in future, data in circular buffer should have a byte to indicate the
          size, slot, channel etc. */
       if ((slot_sz[i] & 0x0100) == 0) {
-        if(!get_low_touch_trigger_mode2_status())
+        uint32_t n_targetChs;
+        MwPPG_ReadLCFG(2, &n_targetChs);/*! To read targetChs */
+        if((n_targetChs & 0xF) != TARGET_CH4)
+        //if(!get_low_touch_trigger_mode2_status())
             memcpy(g_state.sl_pktizer1[i].payload_ptr,  &tmp[dataPtr], eachSlotSize);
         else
         {
@@ -1055,7 +1055,11 @@ static uint8_t fetch_adpd_data(void) {
 
       if (ch_num[i] != 3)
         continue;
-        if(!get_low_touch_trigger_mode2_status())
+
+        uint32_t n_targetChs;
+        MwPPG_ReadLCFG(2, &n_targetChs);/*! To read targetChs */
+        if((n_targetChs & 0xF) != TARGET_CH4)
+        //if(!get_low_touch_trigger_mode2_status())
         {
             g_state.sl_pktizer2[i].packet_nsamples++;
             if (g_state.sl_pktizer2[i].packet_nsamples == 1) { /* first sample */
@@ -1108,7 +1112,7 @@ static uint8_t fetch_adpd_data(void) {
               g_state.sl_pktizer2[i].p_pkt = NULL;
               }//if (g_state.decimation_nsamples_ch2 >= (g_state.decimation_factor*g_state.sl_pktizer2[i].packet_max_nsamples))
             }
-        }
+        }//if((n_targetChs & 0xF) != TARGET_CH4)
     }
 
     if (sReadBufferPattern.slot_info[1] != '0') {
@@ -1154,78 +1158,64 @@ static uint8_t fetch_adpd_data(void) {
  * @return              pointer to reponse m2m2 packet
  *****************************************************************************/
 static m2m2_hdr_t *adpd_app_get_dcfg(m2m2_hdr_t *p_pkt) {
-    uint8_t r_size;
-    uint8_t  dcfgdata[MAXTXRXDCFGSIZE*8];
+
+    uint16_t dcfg_size;
+    uint16_t i = 0, num_pkts = 0, dcfg_array_index = 0;
+    uint32_t  dcfgdata[MAXADPD4000DCBSIZE*MAX_ADPD4000_DCB_PKTS];
     ADI_OSAL_STATUS  err;
     M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
+   
   /* Declare and malloc a response packet */
   PKT_MALLOC(p_resp_pkt, m2m2_sensor_dcfg_data_t, 0);
 
-  if (NULL != p_resp_pkt)
-  {
+  if (NULL != p_resp_pkt) {
     /* Declare a pointer to the response packet payload */
     PYLD_CST(p_resp_pkt, m2m2_sensor_dcfg_data_t, p_resp_payload);
-    memset(dcfgdata, 0, (MAXTXRXDCFGSIZE*8));
-    r_size = (uint8_t)(MAXTXRXDCFGSIZE*4); //Max words that can be read from FDS
-    if (ADPD4000_DCFG_STATUS_OK == read_adpd4000_dcfg((uint32_t *)&dcfgdata[0], &r_size))
-    {
-      if(r_size > MAXTXRXDCFGSIZE)
-      {
-        p_resp_payload->command = M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
-        p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-        p_resp_payload->size = MAXTXRXDCFGSIZE;
-        p_resp_payload->num_tx_pkts = 1;
+    memset(dcfgdata, 0,sizeof(dcfgdata));
+    memset(p_resp_payload->dcfgdata, 0, sizeof(p_resp_payload->dcfgdata));
+    if (ADPD4000_DCFG_STATUS_OK == read_adpd4000_dcfg(&dcfgdata[0], &dcfg_size)) { // dcfg size will give number of registers
+      status = M2M2_APP_COMMON_STATUS_OK;
+      num_pkts = (dcfg_size / MAXADPD4000DCBSIZE) + ((dcfg_size % MAXADPD4000DCBSIZE) ? 1 : 0 );
+      dcfg_array_index = 0;
+      for(uint16_t p = 0; p < num_pkts; p++) {
+         p_resp_payload->size = \
+              (p != num_pkts-1) ? MAXADPD4000DCBSIZE : (dcfg_size % MAXADPD4000DCBSIZE);
+         p_resp_payload->num_tx_pkts = num_pkts;
+         for (i = 0; i < p_resp_payload->size; i++) {
+            p_resp_payload->dcfgdata[i] = dcfgdata[dcfg_array_index++];
+         }
+         if(p != num_pkts-1) {
+           p_resp_pkt->src = p_pkt->dest;
+           p_resp_pkt->dest = p_pkt->src;
+           p_resp_payload->status = status;
+           p_resp_payload->command = M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
+           post_office_send(p_resp_pkt, &err);
 
-        memcpy(&p_resp_payload->dcfgdata[0] , &dcfgdata[0], sizeof(p_resp_payload->dcfgdata));
-        p_resp_pkt->src = p_pkt->dest;
-        p_resp_pkt->dest = p_pkt->src;
-        NRF_LOG_INFO("1st pkt sz->%d",p_resp_payload->size);
-        post_office_send(p_resp_pkt, &err);
-        MCU_HAL_Delay(20);
+           /* Delay is kept same as what is there in low touch task */
+           MCU_HAL_Delay(60);
 
-        PKT_MALLOC(p_resp_pkt, m2m2_sensor_dcfg_data_t, 0);
-        // Declare a pointer to the response packet payload
-        PYLD_CST(p_resp_pkt, m2m2_sensor_dcfg_data_t, p_resp_payload);
-        memset(p_resp_payload->dcfgdata, 0, sizeof(p_resp_payload->dcfgdata));
+           PKT_MALLOC(p_resp_pkt, m2m2_sensor_dcfg_data_t, 0);
+           if(NULL != p_resp_pkt) {
+             // Declare a pointer to the response packet payload
+             PYLD_CST(p_resp_pkt, m2m2_sensor_dcfg_data_t, p_resp_payload);
+             memset(p_resp_payload->dcfgdata, 0, sizeof(p_resp_payload->dcfgdata));
 
-        p_resp_payload->command =
-         (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
-        p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-        p_resp_payload->size = r_size - MAXTXRXDCFGSIZE;
-        p_resp_payload->num_tx_pkts = 0;
-
-        memcpy(&p_resp_payload->dcfgdata[0] , &dcfgdata[MAXTXRXDCFGSIZE*4], (4*r_size - sizeof(p_resp_payload->dcfgdata)));
-
-
-        NRF_LOG_INFO("2nd pkt sz->%d",p_resp_payload->size);
-        status = M2M2_APP_COMMON_STATUS_OK;
-      }
-      else
-      {
-          p_resp_payload->size = (r_size); //Update payload with actual words read from FDS
-          p_resp_payload->num_tx_pkts = 0;
-          memset(p_resp_payload->dcfgdata, 0, sizeof(p_resp_payload->dcfgdata));
-          memcpy(&p_resp_payload->dcfgdata[0] , &dcfgdata[0], sizeof(p_resp_payload->dcfgdata));
-
-          status = M2M2_APP_COMMON_STATUS_OK;
-          NRF_LOG_INFO("1/1 pkt sz->%d",p_resp_payload->size);
-      }
-    }
-    else
-    {
+           }//if(NULL != p_resp_pkt)
+           else {
+             return NULL;
+           }
+         }
+       }
+      }else {
         p_resp_payload->size = 0;
         p_resp_payload->num_tx_pkts = 0;
         status = M2M2_APP_COMMON_STATUS_ERROR;
-    }
-
-        p_resp_payload->status = status;
-        p_resp_payload->command =
-         (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
-        p_resp_pkt->src = p_pkt->dest;
-        p_resp_pkt->dest = p_pkt->src;
-        p_resp_pkt->checksum = 0x0000;
-  }
-
+      }//if(read_adpd4000_dcfg())
+    p_resp_payload->status = status;
+    p_resp_payload->command = M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_pkt->dest = p_pkt->src;
+  }//if(NULL != p_resp_pkt)
   return p_resp_pkt;
 }
 
@@ -2442,7 +2432,7 @@ static m2m2_hdr_t *adpd_dcb_command_read_config(m2m2_hdr_t *p_pkt)
     {
        // Declare a pointer to the response packet payload
        PYLD_CST(p_resp_pkt, m2m2_dcb_adpd4000_data_t, p_resp_payload);
-
+       memset(p_resp_payload->dcbdata, 0, sizeof(p_resp_payload->dcbdata));
        memset(dcbdata, 0, sizeof(dcbdata));
        r_size = (uint16_t)(MAXADPD4000DCBSIZE*MAX_ADPD4000_DCB_PKTS); //Max words that can be read from FDS
        if(read_adpd4000_dcb(&dcbdata[0], &r_size) == ADPD4000_DCB_STATUS_OK)
@@ -2475,7 +2465,7 @@ static m2m2_hdr_t *adpd_dcb_command_read_config(m2m2_hdr_t *p_pkt)
       	     {
                // Declare a pointer to the response packet payload
                PYLD_CST(p_resp_pkt, m2m2_dcb_adpd4000_data_t, p_resp_payload);
-
+               memset(p_resp_payload->dcbdata, 0, sizeof(p_resp_payload->dcbdata));
       	     }//if(NULL != p_resp_pkt)
       	     else
       	     {

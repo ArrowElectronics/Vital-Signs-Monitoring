@@ -791,16 +791,18 @@ static m2m2_hdr_t *adxl_app_get_dcfg(m2m2_hdr_t *p_pkt) {
   if (NULL != p_resp_pkt) {
     /* Declare a pointer to the response packet payload */
     PYLD_CST(p_resp_pkt, m2m2_sensor_dcfg_data_t, p_resp_payload);
+    memset(p_resp_payload->dcfgdata, 0, sizeof(p_resp_payload->dcfgdata));
     /* Gets the device configuration */
     if (ADXL_DCFG_STATUS_OK ==
         read_adxl_dcfg(
-            (uint16_t *)&p_resp_payload->dcfgdata[0], &p_resp_payload->size)) {
+            &p_resp_payload->dcfgdata[0], &p_resp_payload->size)) {
       p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
     } else {
       p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
     }
     p_resp_payload->command =
         (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
+    p_resp_payload->num_tx_pkts = 1;
     p_resp_pkt->src = p_pkt->dest;
     p_resp_pkt->dest = p_pkt->src;
   }
@@ -888,7 +890,7 @@ static m2m2_hdr_t *adxl_dcb_command_read_config(m2m2_hdr_t *p_pkt) {
   if (NULL != p_resp_pkt) {
     /*  Declare a pointer to the response packet payload */
     PYLD_CST(p_resp_pkt, m2m2_dcb_adxl_data_t, p_resp_payload);
-
+    memset(p_resp_payload->dcbdata, 0, sizeof(p_resp_payload->dcbdata));
     r_size = (uint16_t)MAXADXLDCBSIZE;
     if (read_adxl_dcb(&dcbdata[0], &r_size) == ADXL_DCB_STATUS_OK) {
       for (int i = 0; i < r_size; i++)

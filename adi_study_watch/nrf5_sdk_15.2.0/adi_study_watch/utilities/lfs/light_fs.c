@@ -1514,15 +1514,9 @@ int get_pointers_info(uint32_t *head_pointer,uint32_t *tail_pointer,uint16_t tab
      NRF_LOG_INFO("Error in reading table file");
      return -1;
   }
-  /* if read offset is '0', no files present , update head pointer
-  for display by rounding off at boundary of current block */
-  if((table_file_handler.table_file_info.offset) == 0)  {
-    *head_pointer = (table_file_handler.table_file_info.head_pointer/g_mem_prop->pages_per_block)*g_mem_prop->pages_per_block;
-  }
-  /* else read head pointer as it is */
-  else  {
-    *head_pointer = table_file_handler.table_file_info.head_pointer;
-  }
+  
+  *head_pointer = table_file_handler.table_file_info.head_pointer;
+  
   /* read tail pointer */
   *tail_pointer = table_file_handler.table_file_info.tail_pointer;
 
@@ -2168,6 +2162,9 @@ elfs_result lfs_flash_reset() {
   *                           false- Remove only data files
   * @return     elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
+#ifdef FORMAT_DEBUG_INFO_CMD
+fs_format_debug_info tmp_fs_format_debug_info;
+#endif
 elfs_result lfs_erase_memory(bool force){
   uint32_t loop_ind = 0;
   uint32_t bad_blk_cnt = 0;
@@ -2195,6 +2192,9 @@ elfs_result lfs_erase_memory(bool force){
       NRF_LOG_INFO("Error in reading table file");
       return LFS_ERROR;
     }
+#ifdef FORMAT_DEBUG_INFO_CMD
+    memset(&tmp_fs_format_debug_info,0,sizeof(tmp_fs_format_debug_info));
+#endif
 
     uint8_t wrap_around_condition = 0;
     uint32_t src_blk_ind = 0;
@@ -2203,6 +2203,7 @@ elfs_result lfs_erase_memory(bool force){
     uint32_t curr_head_in_blk = tmp_table_file_handler.table_file_info.head_pointer / g_mem_prop->pages_per_block;
     uint32_t curr_tail = tmp_table_file_handler.table_file_info.tail_pointer;
     uint32_t tail_pointer_in_pages = tmp_table_file_handler.table_file_info.tail_pointer * g_mem_prop->pages_per_block;
+
 
     /* current head = tail pointer in pages assuming head pointer closes and updates at boundary */
     if(curr_head == tail_pointer_in_pages)  {
@@ -2246,6 +2247,11 @@ elfs_result lfs_erase_memory(bool force){
                 }
              }
           }
+#ifdef FORMAT_DEBUG_INFO_CMD
+          else{
+            tmp_fs_format_debug_info.num_blocks_erased_in_mem_full_partial_erase += 1;
+          }
+#endif
         }
 
         /* Take back of TOC for config file */
@@ -2300,8 +2306,16 @@ elfs_result lfs_erase_memory(bool force){
       /* invalid erase condition */
       else  {
         NRF_LOG_WARNING("Invalid erase");
+#ifdef FORMAT_DEBUG_INFO_CMD
+         tmp_fs_format_debug_info.nothing_is_written_to_erase_error = 1;
+#endif
         return LFS_SUCCESS;
       }
+
+#ifdef FORMAT_DEBUG_INFO_CMD
+    tmp_fs_format_debug_info.format_src_blk_ind = src_blk_ind;
+    tmp_fs_format_debug_info.format_dest_blk_ind_1 = dst_blk_ind;
+#endif
 
       /* Erase Data */
       bool is_bad = false;
@@ -2319,6 +2333,9 @@ elfs_result lfs_erase_memory(bool force){
         } else  {
           /* if bad block, skip erase of current block and proceed with other blocks */
           if(is_bad == true)  {
+#ifdef FORMAT_DEBUG_INFO_CMD
+           tmp_fs_format_debug_info.num_times_format_failed_due_bad_blocks_1 += 1;
+#endif
             continue;
           }
         }
@@ -2355,6 +2372,11 @@ elfs_result lfs_erase_memory(bool force){
             }
           }
         }
+#ifdef FORMAT_DEBUG_INFO_CMD
+        else{
+          tmp_fs_format_debug_info.num_blocks_erased_in_partial_erase_1 += 1;
+        }
+#endif
       }
 
       /* Update Tail Pointer with dest block index as its erased */
@@ -2364,7 +2386,9 @@ elfs_result lfs_erase_memory(bool force){
       if((tmp_table_file_handler.table_file_info.tail_pointer == (g_mem_prop->num_of_blocks-1))\
           && wrap_around_condition) {
         tmp_table_file_handler.table_file_info.tail_pointer = FILEBLOCK;
-        wrap_around_condition = 0;
+#ifdef FORMAT_DEBUG_INFO_CMD
+        tmp_fs_format_debug_info.wrap_around_cond = 1;
+#endif
       }
 #ifdef PRINTS_OUT
       NRF_LOG_INFO("Head Pointer:%d,Tail Pointer:%d before further erasal",
@@ -2376,74 +2400,90 @@ elfs_result lfs_erase_memory(bool force){
       tail_pointer_in_pages = tmp_table_file_handler.table_file_info.tail_pointer * g_mem_prop->pages_per_block;
 
       /* check if tail still lags behind head, perform format from
-        current tail till head */
-      if( tail_pointer_in_pages <= curr_head) {
-        src_blk_ind = FILEBLOCK;
-        dst_blk_ind = curr_head_in_blk;
+        current tail till head and wrap around condition is set */
+      if(wrap_around_condition){ /* this condition is added to avoid erasing already erased blocks again as tail_pointer_stays at boundary and always less than head pointer*/
+        if( tail_pointer_in_pages <= curr_head) {
+          src_blk_ind = FILEBLOCK;
+          dst_blk_ind = curr_head_in_blk;
 
-        /* format as pointed out from source and destination block index */
-        for(loop_ind = src_blk_ind;loop_ind <= dst_blk_ind;loop_ind++)  {
-          /* Check Bad Block list for current block if bad */
-          if(check_current_block_is_bad(loop_ind,&tmp_table_file_handler,&is_bad) != LFS_SUCCESS) {
+          /* format as pointed out from source and destination block index */
+          for(loop_ind = src_blk_ind;loop_ind <= dst_blk_ind;loop_ind++)  {
+            /* Check Bad Block list for current block if bad */
+            if(check_current_block_is_bad(loop_ind,&tmp_table_file_handler,&is_bad) != LFS_SUCCESS) {
 #ifdef PRINTS_OUT
             NRF_LOG_WARNING("Error in Checking Block %d is bad,out of bounds",loop_ind);
 #endif
             break;
-          } else  {
-            /* if bad block , skip current block and continue */
-            if(is_bad == true)  {
-              continue;
-            }
-          }
-
-          if((nand_func_erase(g_mem_prop,loop_ind,1)) == NAND_FUNC_ERROR) {
-#ifdef PRINTS_OUT
-            NRF_LOG_INFO("Error formating Block No:%i,Updating Bad block list",loop_ind);
-#endif
-            /* Check if block has gone bad during format */
-            is_bad = false;
-            if(nand_func_is_bad_block(g_mem_prop,loop_ind,&is_bad) != NAND_FUNC_SUCCESS)  {
-              NRF_LOG_INFO("Error in checking Bad block %d header",loop_ind);
-              return LFS_BAD_BLOCK_HEADER_CHECK_ERROR;
-            }
-            else  {
-                /* update list if block has gone bad */
+            } else  {
+              /* if bad block , skip current block and continue */
               if(is_bad == true)  {
-                /* calculate word/bit pointers for bad block update */
-                uint32_t word_pointer = loop_ind / MAX_NO_OF_BITS_IN_WORD;
-                uint32_t bit_pointer = loop_ind % MAX_NO_OF_BITS_IN_WORD;
-
-                /* Update Bad block list */
-                tmp_table_file_handler.table_file_info.bad_block_marker[word_pointer] |=  (1 << bit_pointer);
-                del_table_page = 1;
-                memset(type,0,MAX_UPDATE_TYPE);
-                type[0] = LFS_BAD_BLOCK_MARKER_UPDATE;
-                
-                /* bad block updated, update again */
-                vol_info_buff_var.bad_block_updated = 1;
-
-                if(update_table_file_in_toc(&tmp_table_file_handler,type,1) != LFS_SUCCESS)
-                {
-                  NRF_LOG_INFO("Error in updating Table File for Bad Block");
-                  return LFS_UPDATE_TABLE_FILE_ERROR;
-                }
-                del_table_page = 0;
+#ifdef FORMAT_DEBUG_INFO_CMD
+              tmp_fs_format_debug_info.num_times_format_failed_due_bad_blocks_2 += 1;
+#endif
+               continue;
               }
             }
-          }
-        }
-        /* Update Tail Pointer after erase */
-        tmp_table_file_handler.table_file_info.tail_pointer = dst_blk_ind;
-      }
-#ifdef PRINTS_OUT
-      NRF_LOG_INFO("Updated Tail Pointer:%d",tmp_table_file_handler.table_file_info.tail_pointer);
-#endif
 
+            if((nand_func_erase(g_mem_prop,loop_ind,1)) == NAND_FUNC_ERROR) {
+#ifdef PRINTS_OUT
+              NRF_LOG_INFO("Error formating Block No:%i,Updating Bad block list",loop_ind);
+#endif
+            /* Check if block has gone bad during format */
+              is_bad = false;
+              if(nand_func_is_bad_block(g_mem_prop,loop_ind,&is_bad) != NAND_FUNC_SUCCESS)  {
+                NRF_LOG_INFO("Error in checking Bad block %d header",loop_ind);
+                return LFS_BAD_BLOCK_HEADER_CHECK_ERROR;
+              }
+              else  {
+                  /* update list if block has gone bad */
+                if(is_bad == true)  {
+                  /* calculate word/bit pointers for bad block update */
+                  uint32_t word_pointer = loop_ind / MAX_NO_OF_BITS_IN_WORD;
+                  uint32_t bit_pointer = loop_ind % MAX_NO_OF_BITS_IN_WORD;
+
+                  /* Update Bad block list */
+                  tmp_table_file_handler.table_file_info.bad_block_marker[word_pointer] |=  (1 << bit_pointer);
+                  del_table_page = 1;
+                  memset(type,0,MAX_UPDATE_TYPE);
+                  type[0] = LFS_BAD_BLOCK_MARKER_UPDATE;
+                
+                  /* bad block updated, update again */
+                  vol_info_buff_var.bad_block_updated = 1;
+
+                  if(update_table_file_in_toc(&tmp_table_file_handler,type,1) != LFS_SUCCESS) {
+                    NRF_LOG_INFO("Error in updating Table File for Bad Block");
+                    return LFS_UPDATE_TABLE_FILE_ERROR;
+                  }
+                  del_table_page = 0;
+                }
+              }
+            }
+#ifdef FORMAT_DEBUG_INFO_CMD
+            else{
+              tmp_fs_format_debug_info.num_blocks_erased_in_partial_erase_2 += 1;
+            }
+#endif
+          }
+        /* Update Tail Pointer after erase */
+          tmp_table_file_handler.table_file_info.tail_pointer = dst_blk_ind;
+          wrap_around_condition=0; /* clear flag now as wrap around is over and necessary blocks are erased */
+#ifdef FORMAT_DEBUG_INFO_CMD
+          tmp_fs_format_debug_info.format_dest_blk_ind_2 = dst_blk_ind;
+#endif
+        }
+#ifdef PRINTS_OUT
+        NRF_LOG_INFO("Updated Tail Pointer:%d",tmp_table_file_handler.table_file_info.tail_pointer);
+#endif
+      }
       /* Take back of TOC for config file */
       if(erase_toc_memory(false) != LFS_SUCCESS)  {
         NRF_LOG_ERROR("Updated in formatting TOC Block");
         return LFS_TOC_FORMAT_ERROR;
       }
+
+#ifdef FORMAT_DEBUG_INFO_CMD
+      tmp_fs_format_debug_info.toc_mem_erased_flag = 1;
+#endif
 
 #ifdef DEBUG_CODES
        /* get no of bad blocks */
@@ -2490,6 +2530,9 @@ elfs_result lfs_erase_memory(bool force){
       }
 #endif
   }
+#ifdef FORMAT_DEBUG_INFO_CMD
+      tmp_fs_format_debug_info.succesfull_erase_flag = 1;
+#endif
   return LFS_SUCCESS;
 }
 

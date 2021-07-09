@@ -129,6 +129,8 @@ extern const PAGE_HANDLE page_logging_status;
 extern const PAGE_HANDLE page_low_touch_enable;
 extern const PAGE_HANDLE page_low_touch_read_cap;
 extern const PAGE_HANDLE page_low_touch_logging;
+extern const PAGE_HANDLE page_low_touch_lt_app_lcfg;
+extern const PAGE_HANDLE page_low_touch_trigger_mode;
 #ifdef BLE_PEER_ENABLE
 extern const PAGE_HANDLE page_ble_peer_request;
 extern const PAGE_HANDLE page_ble_peer_key;

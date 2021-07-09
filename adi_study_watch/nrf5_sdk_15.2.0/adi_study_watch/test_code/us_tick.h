@@ -33,6 +33,11 @@
 #include <nrfx_timer.h>
 
 
+#define ECG_WATER_MARK_LEVEL    16U
+
+/*FIFO_THRESHOLD_TRIGGERS_CNT = 2 * ECG_WATER_MARK_LEVEL/EDA_WATER_MARK_LEVEL */
+#define FIFO_THRESHOLD_TRIGGERS_CNT       32U
+
 uint32_t get_micro_sec(void);
 uint32_t us_timer_init(void);
 void us_timer_deinit(void);

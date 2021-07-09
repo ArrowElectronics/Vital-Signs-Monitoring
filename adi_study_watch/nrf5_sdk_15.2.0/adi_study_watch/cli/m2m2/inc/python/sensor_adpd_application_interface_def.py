@@ -385,14 +385,6 @@ def m2m2_adpd_dcfg_op_hdr_t(array_size):
               ]
   return m2m2_adpd_dcfg_op_hdr_t_internal()
 
-
-class m2m2_adpd_agc_recalibrate_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-    ("command", c_ubyte),
-    ("status", c_ubyte),
-                ]
-
 class m2m2_adpd_agc_info_t(Structure):
     _pack_ = 1
     _fields_ = [
@@ -424,14 +416,6 @@ def m2m2_adpd_agc_cntrl_t(array_size):
               ]
   return m2m2_adpd_agc_cntrl_t_internal()
 
-class m2m2_adpd_agc_status_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("command", c_ubyte),
-              ("status", c_ubyte),
-              ("agc_type", c_ubyte),
-              ("agc_status", c_ubyte),
-              ]
 class adpd_ext_data_stream_t(Structure):
     _pack_ = 1
     _fields_ = [

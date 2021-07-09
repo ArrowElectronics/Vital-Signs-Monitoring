@@ -7,6 +7,7 @@ class m2m2_error(Exception):
     pass
 
 g_shell = CLI.m2m2_shell()#stdout=self.stdout)
+
 class m2m2_test_lib():            
     ROBOT_LIBRARY_SCOPE = 'GLOBAL'
 
@@ -16,6 +17,8 @@ class m2m2_test_lib():
         sys.stderr = self.stdout
         self.shell = g_shell
         self.pointer_info = "NA"
+        self.dvt_ver = None
+        self.clk_calib_val = None
         # TODO: Any newly added check function has to be added to the 'self.checkFuncs' dictionary
         self.checkFuncs = {'must_contain':self._must_contain_check,
                            'must_not_contain':self._must_not_contain_check}
@@ -25,6 +28,7 @@ class m2m2_test_lib():
             else:
                 connect_command = "connect_usb {}".format(serial_port)
             self._runCommand(connect_command)
+            self._check_dvt_version()
             get_default_config = ["delete_dcb_config adxl", "delete_dcb_config adpd4000", "delete_dcb_config ecg", "delete_dcb_config ppg", "delete_dcb_config eda", "delete_dcb_config bcm","delete_dcb_config ad7156", "delete_dcb_config low_touch", "delete_config_file", "delete_dcb_config wrist_detect"]
             for i in range(len(get_default_config)):
                 self._runCommand(get_default_config[i])
@@ -41,7 +45,18 @@ class m2m2_test_lib():
         print ret_str
         self._purge_output()
         return ret_str
-
+    
+    def _check_dvt_version(self):
+        global clk_calib_val
+        err_stat, chip_id = self.shell.do_getChipID('2')
+        if chip_id == 0xc0:
+            print("DVT1 Watch Connected")
+            self.dvt_ver = 1
+            self.clk_calib_val = 6
+        else:
+            print("DVT2 Watch Connected")
+            self.dvt_ver = 2
+            self.clk_calib_val = 2
 
     def _runquickstart(self, cmd, returns=None, must_contain=True):
         sys.stdout = self.stdout

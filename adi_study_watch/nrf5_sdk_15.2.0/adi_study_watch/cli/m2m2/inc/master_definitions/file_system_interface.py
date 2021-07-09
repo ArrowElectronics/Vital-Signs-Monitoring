@@ -89,6 +89,8 @@ M2M2_FILE_SYS_CMD_ENUM_t = {
     ("M2M2_FILE_SYS_CMD_BLOCK_ERASE_RESP",              0x91),
     ("M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ",  0x92),
     ("M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_RESP", 0x93),
+    ("M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_REQ",        0x94),
+    ("M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_RESP",       0x95),
     ]
 }
 
@@ -174,6 +176,52 @@ m2m2_file_sys_ls_req_t = {
     {"name":"dir_path",
     "length":0,
     "type":c_uint8},
+  ]
+}
+
+m2m2_file_sys_format_debug_info_req_t = {
+  "struct_fields": [
+  {"name":"command",
+  "type":c_uint8},
+  {"name":"status",
+  "type":c_uint8},
+  ]
+}
+
+m2m2_file_sys_format_debug_info_resp_t = {
+  "struct_fields": [
+  {"name":"command",
+  "type":c_uint8},
+  {"name":"status",
+  "type":c_uint8},
+  {"name":"erase_failed_due_bad_block_check",
+  "type":c_uint8},
+  {"name":"wrap_around_cond",
+  "type":c_uint8},
+  {"name":"nothing_is_written_to_erase_error",
+  "type":c_uint8},
+  {"name":"mem_full_in_partial_erase",
+  "type":c_uint8},
+  {"name":"toc_mem_erased_flag",
+  "type":c_uint8},
+  {"name":"succesfull_erase_flag",
+  "type":c_uint8},
+  {"name":"num_blocks_erased_in_mem_full_partial_erase",
+  "type":c_uint16},
+  {"name":"num_blocks_erased_in_partial_erase_1",
+  "type":c_uint16},
+  {"name":"num_blocks_erased_in_partial_erase_2",
+  "type":c_uint16},
+  {"name":"num_times_format_failed_due_bad_blocks_1",
+  "type":c_uint16},
+  {"name":"num_times_format_failed_due_bad_blocks_2",
+  "type":c_uint16},
+  {"name":"format_src_blk_ind",
+  "type":c_uint32},
+  {"name":"format_dest_blk_ind_1",
+  "type":c_uint32},
+  {"name":"format_dest_blk_ind_2",
+  "type":c_uint32},
   ]
 }
 
@@ -411,6 +459,10 @@ m2m2_file_sys_impt_debug_info_resp_t = {
     {"name":"data_offset",
     "type":c_uint16},
     {"name":"config_file_occupied",
+    "type":c_uint16},
+    {"name":"fs_display_query_cnt",
+    "type":c_uint16},
+    {"name":"min_timer_cnt",
     "type":c_uint16},
   ]
 }

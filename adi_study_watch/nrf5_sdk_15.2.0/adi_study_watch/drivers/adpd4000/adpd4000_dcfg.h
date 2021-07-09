@@ -51,7 +51,7 @@ ADPD4000_DCFG_STATUS_t load_adpd4000_cfg(uint16_t device_id);
 ADPD4000_DCFG_STATUS_t stage_adpd4000_dcfg(uint16_t *p_device_id);
 ADPD4000_DCFG_STATUS_t load_adpd4000_dcfg(uint16_t device_id);
 ADPD4000_DCFG_STATUS_t get_adpd4k_dcfg(uint16_t slot_id, uint16_t app_id, uint8_t index, uint8_t slot_nums);
-ADPD4000_DCFG_STATUS_t read_adpd4000_dcfg(uint32_t *p_dcfg, uint8_t *p_dcfg_size);
+ADPD4000_DCFG_STATUS_t read_adpd4000_dcfg(uint32_t *p_dcfg, uint16_t *p_dcfg_size);
 ADPD4000_DCFG_STATUS_t write_adpd4000_dcfg(uint32_t *p_dcfg);
 ADPD4000_DCFG_STATUS_t load_temperature_dcfg ();
 void adpd4000_fw_dcfg_clear(void);

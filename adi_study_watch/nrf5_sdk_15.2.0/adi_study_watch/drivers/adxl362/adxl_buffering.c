@@ -128,7 +128,10 @@ int16_t adxl_read_data_to_buffer(void)
    }
   else
   {
-  sample_interval = (uint16_t)((1000.0/nODR)*32.768);//32.768KHz ticks resolution
+    if(nODR == 12)  /*fractional part of 12.5 Hz is required for calculating the sample interval*/
+      sample_interval = (uint16_t)((1000.0/12.5) * RTC_TICKS_PER_MILLI_SEC);//32KHz ticks resolution
+    else
+      sample_interval = (uint16_t)((1000.0/nODR) * RTC_TICKS_PER_MILLI_SEC);//32KHz ticks resolution
   }
   //NRF_LOG_INFO("FIFO_LEVEL:%d",nAdxlFifoLevelSize);
   //NRF_LOG_INFO("gADXL_dready_ts=%d,prev_ADXL_ts=%d,\

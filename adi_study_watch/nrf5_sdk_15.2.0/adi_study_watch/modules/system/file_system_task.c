@@ -46,13 +46,20 @@
 #include "timers.h"
 #include "hw_if_config.h"
 #include "app_timer.h"
+#include "power_manager.h"
 
 #ifdef PROFILE_TIME_ENABLED
 #include "us_tick.h"
 #endif
-#ifdef HIBERNATE_MD_EN
-#include "power_manager.h"
+
+#ifdef VSM_MBOARD
+#include "watch_vsm_motherboard_pin_config.h"
+#elif PCBA
+#include "watch_board_pcba_pin_config.h"
+#else
+#include "watch_board_evt_pin_config.h"
 #endif
+
 #include <file_system_utils.h>
 #include <file_system_task.h>
 #include <system_interface.h>
@@ -123,6 +130,7 @@ static uint8_t pArr[PAGE_SIZE];
 static volatile bool gMemoryFull = false;
 uint32_t nTick = 0;
 extern uint64_t sum;
+static uint8_t gnadpd_dcfg_tx_PacketCount = 0;
 
 #define ADI_FS_STREAM_STARTED   0x01
 #define ADI_FS_STREAM_STOPPED   0x00
@@ -135,6 +143,8 @@ ADI_OSAL_QUEUE_HANDLE  gh_fs_task_msg_queue = NULL;
 
 volatile uint8_t fs_download_total_pkt_cnt = 0;
 extern uint8_t total_packet_cnt_transferred;
+extern uint16_t min_timer_cnt;
+extern uint16_t fs_display_query_cnt;
 uint8_t fs_status_stored = 0;
 uint32_t num_bytes_processed = 0;
 
@@ -239,6 +249,8 @@ static file_routing_table_entry file_routing_table[] = {
 /* Number of entries in the routing table */
 #define FILE_ROUTING_TABLE_SIZE (sizeof(file_routing_table)/sizeof(file_routing_table[0]))
 
+/* Number of adpd streams in routing table */
+#define MAX_NUMBER_OF_ADPD_STREAM (M2M2_ADDR_SENSOR_ADPD_STREAM9 - M2M2_ADDR_SENSOR_ADPD_STREAM1)
 /*!
   ****************************************************************************
     @brief Finds the number of streams subscribed to file system
@@ -463,6 +475,24 @@ int16_t get_file_routing_table_index(M2M2_ADDR_ENUM_t stream) {
   }
   return -1;
 }
+/*!
+  ****************************************************************************
+    @brief Retrieves the subscription status of ADPD application, if present,
+            from the routing table. If the appliation is not present, then
+            returns M2M2_FILE_SYS_SUBS_INVALID
+
+    @param[in]        None
+
+    @return           FILE_SYS_STREAM_SUBS_STATE_ENUM_t
+*****************************************************************************/
+FILE_SYS_STREAM_SUBS_STATE_ENUM_t get_adpd_address_sub_state() {
+  for(int i = 0; i < MAX_NUMBER_OF_ADPD_STREAM; i++){
+    if(file_routing_table[i].fs_subs_state == M2M2_FILE_SYS_SUBSCRIBED){
+      return M2M2_FILE_SYS_SUBSCRIBED;
+    }
+  }
+  return M2M2_FILE_SYS_SUBS_INVALID;
+}
 
 /*!
   ****************************************************************************
@@ -475,6 +505,8 @@ int16_t get_file_routing_table_index(M2M2_ADDR_ENUM_t stream) {
     @return           FILE_SYS_STREAM_SUBS_STATE_ENUM_t
 *****************************************************************************/
 FILE_SYS_STREAM_SUBS_STATE_ENUM_t get_address_sub_state(M2M2_ADDR_ENUM_t addr) {
+  if(addr == M2M2_ADDR_SENSOR_ADPD4000)
+    return get_adpd_address_sub_state(); // if its ADPD4000 check for all the ADPD streams for sub state
   for (int i = 0; i < FILE_ROUTING_TABLE_SIZE; i++) {
     if (file_routing_table[i].address == addr) {
       return file_routing_table[i].fs_subs_state;
@@ -564,6 +596,10 @@ extern uint32_t num_bytes_transferred;
 extern uint32_t bytes_processed_from_fs_task;
 extern uint8_t usb_cdc_write_failed;
 #endif
+
+#ifdef FORMAT_DEBUG_INFO_CMD
+extern fs_format_debug_info tmp_fs_format_debug_info;
+#endif
 void get_file_misd_packet_debug_info(m2m2_file_sys_debug_info_resp_t *debug_info) {
     for (int i = 0; i < FILE_DEBUG_TABLE_SIZE; i++) {
     if (file_misd_packet_table[i].stream == debug_info->stream) {
@@ -571,6 +607,7 @@ void get_file_misd_packet_debug_info(m2m2_file_sys_debug_info_resp_t *debug_info
       debug_info->packets_missed = file_misd_packet_table[i].missedpackets;
     }
   }
+
 #ifdef PAGE_READ_DEBUG_INFO
   debug_info->last_page_read = last_page_read;
   debug_info->last_page_read_offset = last_page_read_offset;
@@ -588,6 +625,31 @@ void get_file_misd_packet_debug_info(m2m2_file_sys_debug_info_resp_t *debug_info
 #endif
   NRF_LOG_INFO("bytes proc=%d",debug_info->bytes_read);
 }
+
+/*!
+  ***************************************************************************************************
+    @brief            get fs format debug info
+
+    @param[in]        debug_info: Pointer to structure m2m2_file_sys_format_debug_info_resp_t
+
+    @return           void
+****************************************************************************************************/
+void get_fs_format_debug_info(m2m2_file_sys_format_debug_info_resp_t *debug_info) {
+    debug_info->format_src_blk_ind = tmp_fs_format_debug_info.format_src_blk_ind; 
+    debug_info->format_dest_blk_ind_1 = tmp_fs_format_debug_info.format_dest_blk_ind_1; 
+    debug_info->format_dest_blk_ind_2 = tmp_fs_format_debug_info.format_dest_blk_ind_2; 
+    debug_info->wrap_around_cond = tmp_fs_format_debug_info.wrap_around_cond; 
+    debug_info->erase_failed_due_bad_block_check = tmp_fs_format_debug_info.erase_failed_due_bad_block_check; 
+    debug_info->nothing_is_written_to_erase_error = tmp_fs_format_debug_info.nothing_is_written_to_erase_error; 
+    debug_info->mem_full_in_partial_erase = tmp_fs_format_debug_info.mem_full_in_partial_erase; 
+    debug_info->num_blocks_erased_in_mem_full_partial_erase = tmp_fs_format_debug_info.num_blocks_erased_in_mem_full_partial_erase; 
+    debug_info->num_blocks_erased_in_partial_erase_1 = tmp_fs_format_debug_info.num_blocks_erased_in_partial_erase_1; 
+    debug_info->num_blocks_erased_in_partial_erase_2 = tmp_fs_format_debug_info.num_blocks_erased_in_partial_erase_2; 
+    debug_info->num_times_format_failed_due_bad_blocks_1 = tmp_fs_format_debug_info.num_times_format_failed_due_bad_blocks_1; 
+    debug_info->num_times_format_failed_due_bad_blocks_2 = tmp_fs_format_debug_info.num_times_format_failed_due_bad_blocks_2; 
+    debug_info->toc_mem_erased_flag = tmp_fs_format_debug_info.toc_mem_erased_flag; 
+    debug_info->succesfull_erase_flag = tmp_fs_format_debug_info.succesfull_erase_flag; 
+  }
 
 /*!
   ****************************************************************************
@@ -715,10 +777,17 @@ void file_system_task(void *pArgument) {
          us_timer_init();
 #endif /* PROFILE_TIME_ENABLED */
 
+  /* flash power on */
+  adp5360_enable_ldo(FS_LDO,true);
+
   if(fs_hal_init() == FS_STATUS_INIT_DRIVER_ERR){
       /* delete thread, only if driver error */
       adi_osal_ThreadDestroy(gh_fs_task_handler);
   }
+  
+  /* flash power off */
+  adp5360_enable_ldo(FS_LDO,false);
+
 
   /* Create a mailbox for FS stream */
   pkt = post_office_create_msg(M2M2_HEADER_SZ + sizeof(post_office_config_t));
@@ -1430,6 +1499,10 @@ void file_system_task(void *pArgument) {
       }case M2M2_FILE_SYS_CMD_GET_IMPT_DEBUG_INFO_REQ : {
         response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_debug_impt_info_resp_t));
         if (response_mail != NULL) {
+          /* flash power on */
+          if(fs_flash_power_on(true) != FS_STATUS_OK){
+              NRF_LOG_INFO("Error in flash power on");
+          }
           m2m2_file_sys_debug_impt_info_resp_t *resp_payload = (m2m2_file_sys_debug_impt_info_resp_t*)&response_mail->data[0];
           uint32_t head_pointer;
           uint32_t tail_pointer;
@@ -1452,6 +1525,8 @@ void file_system_task(void *pArgument) {
             resp_payload->data_offset = table_page_flags[2];
             resp_payload->config_file_occupied = table_page_flags[3];
           }
+           resp_payload->fs_display_query_cnt = fs_display_query_cnt;
+           resp_payload->min_timer_cnt = min_timer_cnt;
 #ifdef PROFILE_TIME_ENABLED
           resp_payload->page_read_time = avg_file_read_time;
           resp_payload->usb_avg_tx_time = usb_avg_tx_time;
@@ -1470,6 +1545,10 @@ void file_system_task(void *pArgument) {
           response_mail->dest = pkt->src;
           response_mail->src = pkt->dest;
           post_office_send(response_mail, &err);
+          /* flash power on */
+          if(fs_flash_power_on(false) != FS_STATUS_OK){
+           NRF_LOG_INFO("Error in flash power off");
+          }
         }
         break;
       }case M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP : {
@@ -1509,7 +1588,6 @@ void file_system_task(void *pArgument) {
         break;
       } case M2M2_FILE_SYS_CMD_DELETE_CONFIG_FILE_REQ: {
         FS_STATUS_ENUM_t fs_err_status = FS_STATUS_ERR;
-
         response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_cmd_t));
         if (response_mail != NULL) {
           m2m2_file_sys_cmd_t *file_stream_start_resp = (m2m2_file_sys_cmd_t *)&response_mail->data[0];
@@ -1534,8 +1612,7 @@ void file_system_task(void *pArgument) {
             /*update the config file availability flag*/
             SetCfgFileAvailableFlag(false);
             NRF_LOG_INFO("LT NAND User Cfg file deleted");
-            if( check_lt_app_capsense_tuned_trigger_status() )
-            {
+            if( check_lt_app_capsense_tuned_trigger_status() )  {
               if (!gen_blk_get_dcb_present_flag() && !gsCfgFileFoundFlag)
                 EnableLowTouchDetection(false);
             }
@@ -1730,6 +1807,7 @@ void file_system_task(void *pArgument) {
         uint8_t nIndex = 0;
         char fname[40];
         uint8_t nFileCount=0;
+        gnadpd_dcfg_tx_PacketCount = 0;
 
         /* Power On and mount flash memory */
         if(fs_flash_power_on(true) != FS_STATUS_OK) {
@@ -2033,7 +2111,7 @@ void file_system_task(void *pArgument) {
             m2m2_file_sys_cmd_t *dcfg_req = (m2m2_file_sys_cmd_t *)&response_mail->data[0];
 
             if((get_address_sub_state(M2M2_ADDR_SENSOR_ADPD4000) == M2M2_FILE_SYS_SUBSCRIBED) ||
-               (get_address_sub_state(M2M2_ADDR_MED_SYNC_ADPD_ADXL) == M2M2_FILE_SYS_SUBSCRIBED)){
+               (get_address_sub_state(M2M2_ADDR_MED_PPG) == M2M2_FILE_SYS_SUBSCRIBED)){
                  dcfg_req->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_GET_DCFG_REQ;
                  response_mail->dest = M2M2_ADDR_SENSOR_ADPD4000;
                  response_mail->src = M2M2_ADDR_SYS_FS;
@@ -2054,8 +2132,15 @@ void file_system_task(void *pArgument) {
       /* Response to ADPD and ADXL DCFG req(step 9 & 10) */
       case M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP: {
         if (pkt->src == M2M2_ADDR_SENSOR_ADPD4000) {
+          /*if TX packets from ADPD DCFG more than 1 wait for the next ADPD DCFG packet*/
+          if (pkt->length > sizeof(m2m2_sensor_dcfg_data_t)) { // To avoid dummy reuest from FS
+            m2m2_sensor_dcfg_data_t *dcfg_data_req = (m2m2_sensor_dcfg_data_t *)&pkt->data[0];
+            if(gnadpd_dcfg_tx_PacketCount == 0)
+              gnadpd_dcfg_tx_PacketCount = dcfg_data_req->num_tx_pkts;
+          }
           M2M2_APP_COMMON_STATUS_ENUM_t err_status = M2M2_APP_COMMON_STATUS_OK;
-            if  (get_address_sub_state(M2M2_ADDR_MED_SYNC_ADPD_ADXL) == M2M2_FILE_SYS_SUBSCRIBED) {
+          if ((get_address_sub_state(pkt->src) == M2M2_FILE_SYS_SUBSCRIBED) ||
+              (get_address_sub_state(M2M2_ADDR_MED_PPG) == M2M2_FILE_SYS_SUBSCRIBED)) {
                 err_status = fs_hal_write_packet_stream(pkt);
             }
           if (err_status != M2M2_APP_COMMON_STATUS_OK) {
@@ -2064,29 +2149,33 @@ void file_system_task(void *pArgument) {
             file_hdr_wr_progress = true;
           } else {
             /* 10 - request ADXL DCFG */
-            response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_cmd_t));
-            if (response_mail != NULL) {
-              m2m2_file_sys_cmd_t *dcfg_req = (m2m2_file_sys_cmd_t *)&response_mail->data[0];
-              if((get_address_sub_state(M2M2_ADDR_SENSOR_ADXL) == M2M2_FILE_SYS_SUBSCRIBED) ||
-                 (get_address_sub_state(M2M2_ADDR_MED_SYNC_ADPD_ADXL) == M2M2_FILE_SYS_SUBSCRIBED)){
-                   dcfg_req->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_GET_DCFG_REQ;
-                   response_mail->dest = M2M2_ADDR_SENSOR_ADXL;
-                   response_mail->src = M2M2_ADDR_SYS_FS;
-                 } else {
-                   /* Send duplicate response to FS itself
-                      if ADXL is not subscribed to go to step 11 */
-                   dcfg_req->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
-                   response_mail->dest = M2M2_ADDR_SYS_FS;
-                   response_mail->src = M2M2_ADDR_SENSOR_ADXL;
-                 }
-              dcfg_req->status = M2M2_APP_COMMON_STATUS_OK;
-              post_office_send(response_mail, &err);
+            if(gnadpd_dcfg_tx_PacketCount > 0)
+              --gnadpd_dcfg_tx_PacketCount;
+            if(gnadpd_dcfg_tx_PacketCount == 0) {// send ADXL DCFG request once the ADPD DCFG tx packets received
+              response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_cmd_t));
+              if (response_mail != NULL) {
+                m2m2_file_sys_cmd_t *dcfg_req = (m2m2_file_sys_cmd_t *)&response_mail->data[0];
+                if((get_address_sub_state(M2M2_ADDR_SENSOR_ADXL) == M2M2_FILE_SYS_SUBSCRIBED) ||
+                   (get_address_sub_state(M2M2_ADDR_MED_PPG) == M2M2_FILE_SYS_SUBSCRIBED)){
+                     dcfg_req->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_GET_DCFG_REQ;
+                     response_mail->dest = M2M2_ADDR_SENSOR_ADXL;
+                     response_mail->src = M2M2_ADDR_SYS_FS;
+                   } else {
+                     /* Send duplicate response to FS itself
+                        if ADXL is not subscribed to go to step 11 */
+                     dcfg_req->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_GET_DCFG_RESP;
+                     response_mail->dest = M2M2_ADDR_SYS_FS;
+                     response_mail->src = M2M2_ADDR_SENSOR_ADXL;
+                   }
+                dcfg_req->status = M2M2_APP_COMMON_STATUS_OK;
+                post_office_send(response_mail, &err);
+              }
             }
           }
         } else if (pkt->src == M2M2_ADDR_SENSOR_ADXL) {
           M2M2_APP_COMMON_STATUS_ENUM_t err_status = M2M2_APP_COMMON_STATUS_OK;
           if ((get_address_sub_state(pkt->src) == M2M2_FILE_SYS_SUBSCRIBED) ||
-              (get_address_sub_state(M2M2_ADDR_MED_SYNC_ADPD_ADXL) == M2M2_FILE_SYS_SUBSCRIBED)) {
+              (get_address_sub_state(M2M2_ADDR_MED_PPG) == M2M2_FILE_SYS_SUBSCRIBED)) {
                 err_status = fs_hal_write_packet_stream(pkt);
           }
           if (err_status != M2M2_APP_COMMON_STATUS_OK) {
@@ -2182,7 +2271,8 @@ void file_system_task(void *pArgument) {
 #ifdef DEBUG_LOG_START
               start_log_timer_gap = get_micro_sec() -  start_log_timer_start;
 #endif
-
+               /* reset variables to track counters for logging */ 
+               min_timer_cnt = fs_display_query_cnt = 0;
             }
           }
         }
@@ -2458,6 +2548,22 @@ void file_system_task(void *pArgument) {
         }
         break;
       }
+
+       case M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_REQ: {
+        m2m2_file_sys_format_debug_info_req_t *payload = (m2m2_file_sys_format_debug_info_req_t*)&pkt->data[0];
+        response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_format_debug_info_resp_t));
+        if(response_mail != NULL) {
+          m2m2_file_sys_format_debug_info_resp_t *resp_payload = (m2m2_file_sys_format_debug_info_resp_t *)&response_mail->data[0];
+          resp_payload->command = M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_RESP;
+          response_mail->src = pkt->dest;
+          response_mail->dest = pkt->src;
+          resp_payload->status = M2M2_FILE_SYS_STATUS_OK;
+          get_fs_format_debug_info(resp_payload);
+          /* send response packet */
+          post_office_send(response_mail, &err);
+        }
+        break;
+       }
       case M2M2_FILE_SYS_CMD_STOP_LOGGING_REQ: {
         FS_STATUS_ENUM_t fs_error;
         uint8_t stream_in_progress = 0;
@@ -2981,3 +3087,4 @@ void fs_stream_usubscribe() {
 #endif /* USE_FS */
 /*@}*/  /* end of group file_system_task */
 /**@}*/ /* end of group Tasks */
+/*/ /* end of group Tasks */

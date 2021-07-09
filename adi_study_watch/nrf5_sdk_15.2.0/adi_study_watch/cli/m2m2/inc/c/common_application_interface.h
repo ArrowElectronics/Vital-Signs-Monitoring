@@ -4,6 +4,7 @@
 #pragma once
 
 #include "m2m2_core.h"
+#include "dcb_interface.h"
 #include "ble_nus.h"
 #include <stdint.h>
 
@@ -122,7 +123,7 @@ typedef struct _m2m2_sensor_dcfg_data_t {
   uint8_t  status; 
   uint8_t  size; 
   uint8_t  num_tx_pkts;
-  uint8_t  dcfgdata[228]; // MAXTXRXDCFGSIZE * sizeof(uint32_t) 
+  uint32_t  dcfgdata[MAXADPD4000DCBSIZE];
 } m2m2_sensor_dcfg_data_t;
 
 typedef struct _m2m2_app_lcfg_data_t {

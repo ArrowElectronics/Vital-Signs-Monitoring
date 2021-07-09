@@ -110,7 +110,7 @@ class m2m2_sensor_dcfg_data_t(Structure):
               ("status", c_ubyte),
               ("size", c_ubyte),
               ("num_tx_pkts" ,c_ubyte),
-              ("dcfgdata", c_ubyte * 228),
+              ("dcfgdata",  c_uint32 * 57),
               ]
 
 class m2m2_app_lcfg_data_t(Structure):

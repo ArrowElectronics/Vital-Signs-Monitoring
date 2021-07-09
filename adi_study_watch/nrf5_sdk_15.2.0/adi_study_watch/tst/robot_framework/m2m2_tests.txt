@@ -20,10 +20,6 @@ ${DUT_COMPORT}	COMxx
 ${CONNECT_MODE}	usb
 
 *** Test Cases ***
-VariableTest
-  ${lib} =   Get Library Instance   m2m2_test_lib
-  Log    Variable Val is ${lib.pointer_info}
-
 PM Basic Connectivity
 	[Documentation]	Connectivity Test\n\n
 	...				1.Check Version\n\n\
@@ -32,6 +28,9 @@ PM Basic Connectivity
 	Cmd Must Contain	getVersion	Version info from 'M2M2_ADDR_SYS_PM'
 	Cmd Must Contain	ping pm 100 50	pong# 99	Throughput theoretical: 2500byte/sec!
 	Set test message	Ping test to check Connectivity Passed!
+  ${lib} =   Get Library Instance   m2m2_test_lib
+  ${clk_calib_val}    Set Variable    ${lib.clk_calib_val}
+  Set Global Variable      ${clk_calib_val}
 
 FS Sanity
 
@@ -139,7 +138,7 @@ ADXL_ADPD_TEMP_EDA_COMBO Start stop
 	Cmd Must Contain	sensor adxl start			M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radxl add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
 	Cmd Must Contain	loadAdpdCfg 40				M2M2_APP_COMMON_STATUS_OK
-	Cmd Must Contain	clockCalibration 6			M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	clockCalibration ${clk_calib_val}			M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	setSlot 1 1 1 0x04			M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	sensor adpd4000 start 		M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radpd1 add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
@@ -169,7 +168,7 @@ ADXL_ADPD_EDA_TEMP_COMBO Start stop
 	Cmd Must Contain	sensor adxl start			M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radxl add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
 	Cmd Must Contain	loadAdpdCfg 40				M2M2_APP_COMMON_STATUS_OK
-	Cmd Must Contain	clockCalibration 6			M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	clockCalibration ${clk_calib_val}			M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	setSlot 1 1 1 0x04			M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	sensor adpd4000 start 		M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radpd1 add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
@@ -256,7 +255,7 @@ ADPD4000 Start stop
 	...				2.Unsubscribe and stop ADPD4000 stream
 	[Tags]	ADPD4000
 	Cmd Must Contain	loadAdpdCfg 40	M2M2_APP_COMMON_STATUS_OK
-	Cmd Must Contain	clockCalibration 6	M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	clockCalibration ${clk_calib_val}	M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	setSlot 1 1 1 0x04	M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	sensor adpd4000 start M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radpd1 add	M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
@@ -506,7 +505,7 @@ Adpd4000_DCB_Test1
 	Cmd Must Contain	delete_dcb_config adpd4000							status: M2M2_DCB_STATUS_ERR_ARGS
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	loadAdpdCfg 40										Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6									Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration ${clk_calib_val}									Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start								Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub radpd6 add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
@@ -517,7 +516,7 @@ Adpd4000_DCB_Test1
 	Cmd Must Contain	write_dcb_config adpd4000 adpd4000_dcb_test1.dcfg		status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	loadAdpdCfg 40										Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6									Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration ${clk_calib_val}									Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start								Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub radpd6 add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
@@ -529,7 +528,7 @@ Adpd4000_DCB_Test1
 	Cmd Must Contain	delete_dcb_config adpd4000							status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	loadAdpdCfg 40										Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6									Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration ${clk_calib_val}									Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start								Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub radpd6 add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
@@ -547,7 +546,7 @@ Adpd4000_DCB_Test2
 	Cmd Must Contain	delete_dcb_config adpd4000							status: M2M2_DCB_STATUS_ERR_ARGS
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	loadAdpdCfg 40										Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6									Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration ${clk_calib_val}									Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start								Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub radpd6 add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
@@ -558,7 +557,7 @@ Adpd4000_DCB_Test2
 	Cmd Must Contain	write_dcb_config adpd4000 adpd4000_dcb_test1.dcfg		status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	loadAdpdCfg 40										Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6									Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration ${clk_calib_val}									Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start								Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub radpd6 add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
@@ -570,7 +569,7 @@ Adpd4000_DCB_Test2
 	Cmd Must Contain	write_dcb_config adpd4000 adpd4000_dcb_test2.dcfg		status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	loadAdpdCfg 40										Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6									Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration ${clk_calib_val}									Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start								Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub radpd6 add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
@@ -582,7 +581,7 @@ Adpd4000_DCB_Test2
 	Cmd Must Contain	delete_dcb_config adpd4000							status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	loadAdpdCfg 40										Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6									Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration ${clk_calib_val}									Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start								Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub radpd6 add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
@@ -677,7 +676,7 @@ PPG_DCB_Test
 	...				-> DCB LCFG is loaded beacuse LCFG is present in DCB.
 	[Tags]	DCB
 	Cmd Must Contain 	loadAdpdCfg 40							Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain 	clockCalibration 6						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	clockCalibration ${clk_calib_val}						Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	setPpgLcfg 40							Device: '40'	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	sensor ppg start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain 	sub rppg add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
@@ -688,7 +687,7 @@ PPG_DCB_Test
 	Cmd Must Contain 	write_dcb_config ppg ppg_dcb.lcfg		Command return status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain		delay 2
 	Cmd Must Contain 	loadAdpdCfg 40							Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain 	clockCalibration 6						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	clockCalibration ${clk_calib_val}						Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	setPpgLcfg 40							Device: '40'	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	sensor ppg start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain 	sub rppg add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
@@ -698,7 +697,7 @@ PPG_DCB_Test
 	Cmd Must Contain 	lcfgPpgCheck 40 ppg_dcb.lcfg			Command return status: M2M2_APP_COMMON_STATUS_OK	Command return status: DCB LCFG Present
 	Cmd Must Contain 	delete_dcb_config ppg					Command return status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain 	loadAdpdCfg 40							Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain 	clockCalibration 6						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	clockCalibration ${clk_calib_val}						Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	setPpgLcfg 40							Device: '40'	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	sensor ppg start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain 	sub rppg add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
@@ -714,7 +713,7 @@ HRV_Test
 	...				-> HRV stream start/stop sequence
 	[Tags]	HRV
 	Cmd Must Contain 	loadAdpdCfg 40							Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain 	clockCalibration 6						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	clockCalibration ${clk_calib_val}						Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	setPpgLcfg 40							Device: '40'	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	sensor ppg start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain 	sub rppg add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
@@ -863,7 +862,7 @@ Combined_DCB_Test
 	Cmd Must Contain	delete_dcb_config adpd4000							status: M2M2_DCB_STATUS_ERR_ARGS
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	loadAdpdCfg 40										Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6									Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration ${clk_calib_val}									Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start								Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub radpd6 add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
@@ -874,7 +873,7 @@ Combined_DCB_Test
 	Cmd Must Contain	write_dcb_config adpd4000 adpd4000_dcb_test1.dcfg		status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	loadAdpdCfg 40										Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6									Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration ${clk_calib_val}									Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start								Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub radpd6 add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
@@ -904,7 +903,7 @@ Combined_DCB_Test
 	
 	Cmd Must Contain	delete_dcb_config ppg					Command return status: M2M2_DCB_STATUS_ERR_ARGS
 	Cmd Must Contain 	loadAdpdCfg 40							Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain 	clockCalibration 6						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	clockCalibration ${clk_calib_val}						Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	setPpgLcfg 40							Device: '40'	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	sensor ppg start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain 	sub rppg add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
@@ -914,7 +913,7 @@ Combined_DCB_Test
 	Cmd Must Contain	write_dcb_config ppg ppg_dcb.lcfg		Command return status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 5
 	Cmd Must Contain 	loadAdpdCfg 40							Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain 	clockCalibration 6						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	clockCalibration ${clk_calib_val}						Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	setPpgLcfg 40							Device: '40'	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	sensor ppg start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain 	sub rppg add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
@@ -992,7 +991,7 @@ Combined_DCB_Test
 	Cmd Must Contain	delete_dcb_config adpd4000				status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 2
 	Cmd Must Contain	loadAdpdCfg 40										Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6									Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration ${clk_calib_val}									Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start								Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain	sub radpd6 add										Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain	delay 5
@@ -1002,7 +1001,7 @@ Combined_DCB_Test
 	
 	Cmd Must Contain	delete_dcb_config ppg					Command return status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain 	loadAdpdCfg 40							Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain 	clockCalibration 6						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	clockCalibration ${clk_calib_val}						Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	setPpgLcfg 40							Device: '40'	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	sensor ppg start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain 	sub rppg add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
@@ -1073,7 +1072,7 @@ UC HR Test1
 	Cmd Must Contain	sub rppg add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
 	Cmd Must Contain	setUCHREnab 1 6				Done with setUCHREnab:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	loadAdpdCfg 40				Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6			M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	clockCalibration ${clk_calib_val}			M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	adpdAGCControl 1:1			Done with Static AGC Control:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start		M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radpd6 add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
@@ -1098,7 +1097,7 @@ UC HR Test2
 	Cmd Must Contain	sub rppg add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
 	Cmd Must Contain	setUCHREnab 1 6				Done with setUCHREnab:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	loadAdpdCfg 40				Status: 'M2M2_APP_COMMON_STATUS_OK'
-	Cmd Must Contain	clockCalibration 6			M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	clockCalibration ${clk_calib_val}			M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	adpdAGCControl 1:1			Done with Static AGC Control:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start		M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radpd6 add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
@@ -1125,7 +1124,7 @@ UC HR Test3
 	Cmd Must Contain	setUCHREnab 1 6				Done with setUCHREnab:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	loadAdpdCfg 40				Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	reg w adpd4000 0x0D:0x02710	Num of registers: '1'	M2M2_APP_COMMON_STATUS_OK
-	Cmd Must Contain	clockCalibration 6			M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	clockCalibration ${clk_calib_val}			M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	adpdAGCControl 1:1			Done with Static AGC Control:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start 		M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radpd6 add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
@@ -1151,7 +1150,7 @@ UC HR Test4
 	Cmd Must Contain	setUCHREnab 1 6				Done with setUCHREnab:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	loadAdpdCfg 40				Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	reg w adpd4000 0x0D:0x02710	Num of registers: '1'	M2M2_APP_COMMON_STATUS_OK
-	Cmd Must Contain	clockCalibration 6			M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	clockCalibration ${clk_calib_val}			M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	adpdAGCControl 1:1			Done with Static AGC Control:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start 		M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radpd6 add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
@@ -1178,7 +1177,7 @@ UC HR Test5
 	Cmd Must Contain	setUCHREnab 1 6				Done with setUCHREnab:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	loadAdpdCfg 40				Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	reg w adpd4000 0x0D:0x07D0	Num of registers: '1'	M2M2_APP_COMMON_STATUS_OK
-	Cmd Must Contain	clockCalibration 6			M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	clockCalibration ${clk_calib_val}			M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	adpdAGCControl 1:1			Done with Static AGC Control:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start 		M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radpd6 add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED
@@ -1204,7 +1203,7 @@ UC HR Test6
 	Cmd Must Contain	setUCHREnab 1 6				Done with setUCHREnab:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	loadAdpdCfg 40				Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	reg w adpd4000 0x0D:0x07D0	Num of registers: '1'	M2M2_APP_COMMON_STATUS_OK
-	Cmd Must Contain	clockCalibration 6			M2M2_APP_COMMON_STATUS_OK
+	Cmd Must Contain	clockCalibration ${clk_calib_val}			M2M2_APP_COMMON_STATUS_OK
 	Cmd Must Contain	adpdAGCControl 1:1			Done with Static AGC Control:	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain	sensor adpd4000 start 		M2M2_APP_COMMON_STATUS_STREAM_STARTED
 	Cmd Must Contain	sub radpd6 add				M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED

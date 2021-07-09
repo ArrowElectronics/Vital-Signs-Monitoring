@@ -38,13 +38,13 @@ typedef struct _ecg_packetizer_t {
 } ecg_packetizer_t;
 
 typedef struct _g_state_ecg_t {
-  uint16_t  num_subs;
-  uint16_t  num_starts;
   uint8_t   decimation_factor;
-  uint16_t  decimation_nsamples;
-  uint16_t  data_pkt_seq_num;
   uint8_t  ecgHR;
   ecg_packetizer_t  ecg_pktizer;
+  uint16_t  num_subs;
+  uint16_t  num_starts;
+  uint16_t  decimation_nsamples;
+  uint16_t  data_pkt_seq_num;
   uint16_t  leads_on_samplecount;
   uint16_t  leads_off_samplecount;
 }g_state_ecg_t;

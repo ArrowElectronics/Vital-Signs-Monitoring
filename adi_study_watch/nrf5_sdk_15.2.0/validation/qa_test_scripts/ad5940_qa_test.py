@@ -241,7 +241,7 @@ def ecg_freq_sweep_test():
     Sweep ECG across Valid Frequencies
     :return:
     """
-    freq = [12, 25, 50, 100, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
+    freq = [12, 25, 50, 100, 200, 250, 300, 400, 500, 800, 1000]
     for freq_hz in freq:
         ecg_stream_test(freq_hz=freq_hz)
 
@@ -279,7 +279,7 @@ def ecg_fs_freq_sweep_test():
     Sweep ECG across Valid Frequencies
     :return:
     """
-    freq = [12, 25, 50, 100, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000]
+    freq = [12, 25, 50, 100, 200, 250, 300, 400, 500, 800, 1000]
     for freq_hz in freq:
         ecg_fs_stream_test(freq_hz=freq_hz)
 

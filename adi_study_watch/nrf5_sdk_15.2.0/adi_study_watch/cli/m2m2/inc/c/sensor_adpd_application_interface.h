@@ -352,11 +352,6 @@ typedef struct _m2m2_sensor_adpd4000_set_fs_t {
   uint16_t  odr;
 } m2m2_sensor_adpd4000_set_fs_t;
 
-typedef struct _m2m2_adpd_agc_recalibrate_t {
-  uint8_t  command;
-  uint8_t  status;
-} m2m2_adpd_agc_recalibrate_t;
-
 typedef struct _agc_data_t{
   uint32_t ch1[10];
   uint32_t ch2[10];
@@ -384,13 +379,6 @@ typedef struct _m2m2_adpd_agc_cntrl_t {
   uint8_t  num_ops;
   m2m2_adpd_agc_cntrl_data_t  ops[0];
 } m2m2_adpd_agc_cntrl_t;
-
-typedef struct _m2m2_adpd_agc_status_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t agc_type;
-  uint8_t agc_status;
-} m2m2_adpd_agc_status_t;
 
 typedef struct _adpd_ext_data_stream_t {
   uint8_t  command;

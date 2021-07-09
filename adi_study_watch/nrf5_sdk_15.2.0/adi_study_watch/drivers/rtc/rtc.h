@@ -61,6 +61,8 @@
 
 #define MAX_RTC_TICKS_FOR_24_HOUR (uint32_t)(2764800000) /* = (NUMBER_OF_TICKS_FOR_24_HOUR*1000)<<10) */ //for 32KHz ticks resolution
 
+#define RTC_TICKS_PER_MILLI_SEC          32   //!< Number of rtc ticks per milli second
+
 #define SB_RTC_DEFAULT_CONFIG \
   {                             \
     .tm_year = 2019,            \

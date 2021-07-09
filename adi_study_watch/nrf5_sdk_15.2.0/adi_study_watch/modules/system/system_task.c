@@ -328,11 +328,11 @@ static uint8_t gsStartStatusCnt = 0, gsSubStatusCnt = 0, gsfslogStatusCnt = 0,
  * NAND config file size = 1 page size = 4096 bytes.
  * Gen block DCB size, with MAX_GEN_BLK_DCB_PKTS=18 pkts,
  * each having 57 * 4 bytes = 4104 bytes.
- * ADPD4000 DCB size, with MAX_ADPD4000_DCB_PKTS=2 pkts,
- * each having 57 * 4 bytes = 456 bytes.
+ * ADPD4000 DCB size, with MAX_ADPD4000_DCB_PKTS=4 pkts,
+ * each having 57 * 4 bytes = 912 bytes.
  * In the below array size definition, maximum of the above is chosen.
  */
-uint8_t gsConfigTmpFile[MAXGENBLKDCBSIZE * DCB_BLK_WORD_SZ * MAX_GEN_BLK_DCB_PKTS];
+uint32_t gsConfigTmpFile[MAXGENBLKDCBSIZE * MAX_GEN_BLK_DCB_PKTS];
 /* Variable to hold the index where DCB/NAND config file is to be written to */
 static uint16_t gsCfgWrIndex = 0;
 /* Variable pointer which holds the summary info on the DCB/NAND config file
@@ -355,14 +355,16 @@ struct _low_touch_info {
  ******************************************************************************/
 void InitConfigParam(bool_t nStart) {
 
+  uint8_t *gsConfigTmpFile_ptr = (uint8_t *)&gsConfigTmpFile[0];
+
   gsCfgFileSummaryPkt =
-      (m2m2_file_sys_user_cfg_summary_pkt_t *)&gsConfigTmpFile[M2M2_HEADER_SZ];
+      (m2m2_file_sys_user_cfg_summary_pkt_t *)&gsConfigTmpFile_ptr[M2M2_HEADER_SZ];
 
   if (nStart) {
     gsStartCmdsRunning = 1;
     gsStopCmdsRunning = 0;
     gsConfigFileHeadPtr =
-        &gsConfigTmpFile[CONFIG_FILE_SUMMARY_PKT_SIZE]; // Load the start cmds
+        &gsConfigTmpFile_ptr[CONFIG_FILE_SUMMARY_PKT_SIZE]; // Load the start cmds
                                                         // starting point
     gsConfigFileSize =
         gsCfgFileSummaryPkt->start_cmd_len; // start commands end point
@@ -370,7 +372,7 @@ void InitConfigParam(bool_t nStart) {
     gsStopCmdsRunning = 1;
     gsStartCmdsRunning = 0;
     // Load the stop cmds starting point
-    gsConfigFileHeadPtr = &gsConfigTmpFile[CONFIG_FILE_SUMMARY_PKT_SIZE +
+    gsConfigFileHeadPtr = &gsConfigTmpFile_ptr[CONFIG_FILE_SUMMARY_PKT_SIZE +
                                            gsCfgFileSummaryPkt->start_cmd_len];
     gsConfigFileSize =
         gsCfgFileSummaryPkt->stop_cmd_len; // stop commands end point
@@ -686,28 +688,47 @@ uint8_t gs_in_prgrs_cnt = 0;
 /*!
  ****************************************************************************
  * @brief   Function to validate the RESP command and status obtained after
- * running a m2m2 cmd from eithe the Start/Stop LT sequence
- * @param    nCommand-last command RESP received, nStatus-status of last REQ cmd
- * run
- * @retval   None
+ * running a m2m2 cmd from either the Start/Stop LT sequence
+ * @param    src - The application address used to differentiate FS application
+ * @param    nCommand-last command RESP received
+ * @param    nStatus-status of last REQ cmd run
+ * @retval   STATUS_VALID or STATUS_INVALID based on nStatus 
  ******************************************************************************/
-static uint8_t ValidateStatus(uint8_t nCommand, uint8_t nStatus) {
+static uint8_t ValidateStatus(M2M2_ADDR_ENUM_t  src, uint8_t nCommand, uint8_t nStatus) {
   uint8_t nStatusValid = STATUS_INVALID;
 
   switch (nCommand) {
   case M2M2_FILE_SYS_CMD_LOG_STREAM_REQ:
-    gsSubStatusCnt++;
-    nStatusValid = ((nStatus == M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED))
-                       ? STATUS_VALID
-                       : STATUS_INVALID;
+    if(M2M2_ADDR_SYS_FS == src)
+    {
+      gsSubStatusCnt++;
+      nStatusValid = ((nStatus == M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED))
+                         ? STATUS_VALID
+                         : STATUS_INVALID;
+    }
+    else
+    {
+      gsCommonStatusCnt++;
+      nStatusValid = (nStatus == M2M2_APP_COMMON_STATUS_OK)? STATUS_VALID :
+      STATUS_INVALID;
+    }
     break;
   case M2M2_FILE_SYS_CMD_STOP_STREAM_REQ:
-    gsSubStatusCnt++;
-    nStatusValid =
-        ((nStatus == M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED) ||
-            (nStatus == M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT))
-            ? STATUS_VALID
-            : STATUS_INVALID;
+    if(M2M2_ADDR_SYS_FS == src)
+    {
+      gsSubStatusCnt++;
+      nStatusValid =
+          ((nStatus == M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED) ||
+              (nStatus == M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT))
+              ? STATUS_VALID
+              : STATUS_INVALID;
+    }
+    else
+    {
+      gsCommonStatusCnt++;
+      nStatusValid = (nStatus == M2M2_APP_COMMON_STATUS_OK)? STATUS_VALID :
+      STATUS_INVALID;
+    }
     break;
   case M2M2_APP_COMMON_CMD_STREAM_START_REQ:
     gsStartStatusCnt++;
@@ -732,21 +753,37 @@ static uint8_t ValidateStatus(uint8_t nCommand, uint8_t nStatus) {
               : STATUS_INVALID;
     break;
   case M2M2_FILE_SYS_CMD_START_LOGGING_REQ:
-    gsfslogStatusCnt++;
-    nStatusValid = (nStatus == M2M2_FILE_SYS_STATUS_OK)
-                       ? STATUS_VALID
-                       : STATUS_INVALID; // M2M2_APP_COMMON_STATUS_OK
+    if(M2M2_ADDR_SYS_FS == src)
+    {
+      gsfslogStatusCnt++;
+      nStatusValid = (nStatus == M2M2_FILE_SYS_STATUS_OK)
+                         ? STATUS_VALID
+                         : STATUS_INVALID; // M2M2_APP_COMMON_STATUS_OK
+    }
+    else
+    {
+      gsCommonStatusCnt++;
+      nStatusValid = (nStatus == M2M2_APP_COMMON_STATUS_OK)? STATUS_VALID :
+      STATUS_INVALID;
+    }
     break;
   case M2M2_FILE_SYS_CMD_STOP_LOGGING_REQ:
-    gsfslogStatusCnt++;
-    nStatusValid = (nStatus == M2M2_FILE_SYS_STATUS_LOGGING_STOPPED)
-                       ? STATUS_VALID
-                       : STATUS_INVALID; // M2M2_APP_COMMON_STATUS_OK
+    if(M2M2_ADDR_SYS_FS == src)
+    {
+      gsfslogStatusCnt++;
+      nStatusValid = (nStatus == M2M2_FILE_SYS_STATUS_LOGGING_STOPPED)
+                         ? STATUS_VALID
+                         : STATUS_INVALID; // M2M2_APP_COMMON_STATUS_OK
+    }
+    else
+    {
+      gsCommonStatusCnt++;
+      nStatusValid = (nStatus == M2M2_APP_COMMON_STATUS_OK)? STATUS_VALID :
+      STATUS_INVALID;
+    }
     break;
   default:
     gsCommonStatusCnt++;
-    // nStatusValid = (nStatus == M2M2_APP_COMMON_STATUS_OK)? STATUS_VALID :
-    // STATUS_INVALID;//M2M2_APP_COMMON_STATUS_OK
     nStatusValid = STATUS_VALID;
     break;
   }
@@ -2264,6 +2301,7 @@ static void system_task(void *pArgument) {
             (m2m2_file_sys_get_file_count_pkt_t *)&pkt->data[0];
         if (get_num_files_resp->status != M2M2_APP_COMMON_STATUS_ERROR) {
           if (get_num_files_resp->file_count < MAX_FILE_COUNT) {
+            uint8_t *gsConfigTmpFile_ptr = (uint8_t *)&gsConfigTmpFile[0];
 #ifdef DCB
             // Load from gen Blk DCB
             find_low_touch_DCB();
@@ -2274,7 +2312,7 @@ static void system_task(void *pArgument) {
                   false); /*update the config file copy availability flag-since
                              new DCB is going to be loaded*/
               ret_val = copy_lt_config_from_gen_blk_dcb(
-                  &gsConfigTmpFile[gsCfgWrIndex], &gsCfgWrIndex);
+                  &gsConfigTmpFile_ptr[gsCfgWrIndex], &gsCfgWrIndex);
               if(GEN_BLK_DCB_STATUS_ERR == ret_val)
               {
                 SendLowTouchErrResp(M2M2_PM_SYS_STATUS_CONFIG_FILE_NOT_FOUND);
@@ -2469,7 +2507,8 @@ static void system_task(void *pArgument) {
         m2m2_file_sys_download_log_stream_t *resp = (m2m2_file_sys_download_log_stream_t *)&pkt->data[0];
         if (resp->status == M2M2_FILE_SYS_STATUS_OK ||
             resp->status == M2M2_FILE_SYS_END_OF_FILE) {
-          memcpy(&gsConfigTmpFile[gsCfgWrIndex], &resp->byte_stream[0],resp->len_stream);
+          uint8_t *gsConfigTmpFile_ptr = (uint8_t *)&gsConfigTmpFile[0];
+          memcpy(&gsConfigTmpFile_ptr[gsCfgWrIndex], &resp->byte_stream[0],resp->len_stream);
           gsCfgWrIndex += resp->len_stream;
           if (resp->status == M2M2_FILE_SYS_END_OF_FILE) {
             gsConfigFileSize = gsCfgWrIndex - CONFIG_FILE_SUMMARY_PKT_SIZE;
@@ -2700,9 +2739,8 @@ static void system_task(void *pArgument) {
         // if(0x28 != ctrl_cmd->command)
         //  NRF_LOG_INFO("Received cmd:%x",ctrl_cmd->command);
         if (ctrl_cmd->command == (gsConfigCtrl->command + 1)) {
-          gsSendNextConfigCmd = ValidateStatus(gsConfigCtrl->command,
+          gsSendNextConfigCmd = ValidateStatus(pkt->src, gsConfigCtrl->command,
               ctrl_cmd->status); // Check the status of the response pkt
-#if 0
               /* TODO:  This block is commented out, as as ValidateStatus()
                 was not handling command REQ cases which were having same values
                 for eg: M2M2_FILE_SYS_CMD_START_LOGGING_REQ =
@@ -2739,20 +2777,15 @@ static void system_task(void *pArgument) {
               }
               else
               {
-#endif
           gsCmdRetryCnt = 0;
           gsNumOfCommands++; // Command is properly being sent and ackd
           gsConfigFileReadPtr +=
               gsPktLenCopy; // Update the Config file read ptr to next command
-          //}
+          }
           if ((gsStartCmdsRunning) &&
               (gsCfgFileSummaryPkt->start_cmd_cnt == gsNumOfCommands)) {
             gsStartCmdsRunning = 0;
             gLowTouchRunning = 1; // Low touch logging has started
-            if(get_low_touch_trigger_mode2_status())
-                resume_low_touch_task();
-            // SetCfgCopyAvailableFlag(true);  /*update the config file copy
-            // availability flag*/
 #ifdef DCB
             if (!gbDCBCfgFoundFlag) {
 #endif
@@ -2764,7 +2797,7 @@ static void system_task(void *pArgument) {
               if(!get_low_touch_trigger_mode2_status())
               {
                 //Check if OFFWrist event had come in b/w start cmd seq execution
-                if(eCurDetection_State == OFF_WRIST) 
+                if(eCurDetection_State == OFF_WRIST)
                 {
                   InitConfigParam(0);
                   SendUserConfigCommands();

@@ -122,7 +122,7 @@ static void key_handle(uint8_t key_value)
             if(get_low_touch_trigger_mode2_status())
                 dis_page_jump(&page_menu);
             else
-                dis_page_jump(&page_logging_status);
+                dis_page_jump(&page_low_touch_lt_app_lcfg);
         }
         break;
         case KEY_SELECT_LONG_VALUE:

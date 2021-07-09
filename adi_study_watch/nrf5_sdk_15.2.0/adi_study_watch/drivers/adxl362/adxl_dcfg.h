@@ -45,7 +45,7 @@ typedef enum {
 
 
 ADXL_DCFG_STATUS_t load_adxl_dcfg(uint16_t device_id);
-ADXL_DCFG_STATUS_t read_adxl_dcfg(uint16_t *p_dcfg, uint8_t *p_dcfg_size);
+ADXL_DCFG_STATUS_t read_adxl_dcfg(uint32_t *p_dcfg, uint8_t *p_dcfg_size);
 ADXL_DCFG_STATUS_t write_adxl_dcfg(uint16_t *p_dcfg, uint16_t Size);
 ADXL_DCFG_STATUS_t stage_adxl_dcfg(uint16_t *p_device_id);
 static int8_t LoadDcfg(uint16_t *pCfg, uint16_t nBufSize);

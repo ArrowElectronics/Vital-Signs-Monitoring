@@ -99,6 +99,8 @@ enum M2M2_FILE_SYS_CMD_ENUM_t:uint8_t {
   M2M2_FILE_SYS_CMD_BLOCK_ERASE_RESP = 145,
   M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ = 146,
   M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_RESP = 147,
+  M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_REQ = 148,
+  M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_RESP = 149,
 };
 static_assert(sizeof(M2M2_FILE_SYS_CMD_ENUM_t) == 1, "Enum 'M2M2_FILE_SYS_CMD_ENUM_t' has an incorrect size!");
 
@@ -211,6 +213,31 @@ struct m2m2_file_sys_app_ref_hr_stream_t {
   uint32_t  TZ_sec; 
 };
 
+typedef struct _m2m2_file_sys_format_debug_info_req_t {
+  uint8_t  command;
+  uint8_t  status;
+} m2m2_file_sys_format_debug_info_req_t;
+
+struct m2m2_file_sys_format_debug_info_resp_t {
+  uint8_t  command;
+  uint8_t  status;
+  uint8_t erase_failed_due_bad_block_check;
+  uint8_t wrap_around_cond;
+  uint8_t nothing_is_written_to_erase_error;
+  uint8_t mem_full_in_partial_erase;
+  uint8_t toc_mem_erased_flag;
+  uint8_t succesfull_erase_flag;
+  uint16_t num_blocks_erased_in_mem_full_partial_erase;
+  uint16_t num_blocks_erased_in_partial_erase_1;
+  uint16_t num_blocks_erased_in_partial_erase_2;
+  uint16_t num_times_format_failed_due_bad_blocks_1;
+  uint16_t num_times_format_failed_due_bad_blocks_2;
+  uint32_t format_src_blk_ind;
+  uint32_t format_dest_blk_ind_1;
+  uint32_t format_dest_blk_ind_2;
+};
+
+
 struct m2m2_file_sys_set_key_value_pair_req_t {
   uint8_t  command; 
   uint8_t  status; 
@@ -258,9 +285,9 @@ typedef struct _m2m2_file_sys_debug_info_resp_t {
   M2M2_ADDR_ENUM_t  stream; 
   uint32_t  packets_received; 
   uint32_t  packets_missed; 
-    uint32_t  last_page_read;
+  uint32_t  last_page_read;
   uint32_t  last_page_read_offset;
-  uint8_t 	last_page_read_status;
+  uint8_t   last_page_read_status;
   uint32_t num_bytes_transferred;
   uint32_t bytes_read;
   uint8_t usb_cdc_write_failed;
@@ -383,6 +410,8 @@ struct m2m2_file_sys_impt_debug_info_resp_t {
   uint16_t data_offset;
   uint16_t config_file_occupied;
   uint32_t page_write_time;
+  uint16_t fs_display_query_cnt;
+  uint16_t min_timer_cnt;
 };
 // Reset struct packing outside of this file
 #pragma pack()

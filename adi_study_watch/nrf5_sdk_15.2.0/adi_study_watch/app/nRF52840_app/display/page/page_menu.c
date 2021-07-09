@@ -71,6 +71,7 @@ static void usb_detect_func(uint8_t value,ADP5360_PGOOD_STATUS status)
 
 
 static uint8_t flash_vol_req_refresh,refresh_cnt=0,status_display;
+uint16_t fs_display_query_cnt=0;
 
 /* Flag to indicate flash-reset-event so that vol-info get updated on display */
 static uint8_t flash_reset_evt =0;
@@ -125,6 +126,7 @@ static void menu_fs_display(void)
         ret = m2m2_memory_usage_get(&remain_level);
         flash_vol_req_refresh = remain_level;
         status_display = ret;
+        fs_display_query_cnt += 1;
       }
       refresh_cnt = 0;
     }
@@ -265,6 +267,7 @@ static void key_handle(uint8_t key_value)
 /*used to handle signal except key,
   for example
 */
+uint16_t min_timer_cnt=0;
 static void signal_handle(uint8_t signal_value)
 {
 
@@ -295,6 +298,7 @@ static void signal_handle(uint8_t signal_value)
                   menu_fs_display();
 #endif
                 }
+                  min_timer_cnt+=1;
 
             }
 

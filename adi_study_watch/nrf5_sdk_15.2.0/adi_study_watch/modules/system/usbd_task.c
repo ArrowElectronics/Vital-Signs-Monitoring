@@ -211,6 +211,7 @@ volatile bool g_usb_power_detected_flag = false;
 extern volatile uint32_t  g_lt_task_timeout;
 extern ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
 extern ADI_OSAL_THREAD_HANDLE gh_lt_task_handler;
+extern uint8_t gLowTouchRunning;
 /*!
  ****************************************************************************
  * @brief  Function to do FDS init adn RTC init
@@ -918,12 +919,12 @@ static void cdc_acm_user_ev_handler(
 bool get_usb_powered_event_status()
 {
   return(g_usb_power_detected_flag);
-} 
+}
 
 void reset_usb_powered_event_status()
 {
   g_usb_power_detected_flag = false;
-} 
+}
 
 /*!
  ****************************************************************************
@@ -951,7 +952,13 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
     if (!nrf_drv_usbd_is_enabled()) {
       app_usbd_enable();
     }
-    if(get_low_touch_trigger_mode2_status() && get_lt_mode2_selection_status())
+    /* Added gLowTouchRunning flag checking, in the below condition, to check
+       when to give the StopLog sequence.
+       Without this, if the USB cable is plugged in fast enough,(before LT logging actually starts),
+       then the Stop Cmds would be missed to be send and the rest of the flags gets cleared.
+    */
+    if(get_low_touch_trigger_mode2_status() && get_lt_mode2_selection_status()
+       && gLowTouchRunning)
     {
         reset_lt_mode2_selection_status();    /*reset the LT mode2 log selection status*/
         g_usb_power_detected_flag = true;
