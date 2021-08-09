@@ -33,8 +33,14 @@
 * SOFTWARE OR THE USE OR OTHER  DEALINGS IN THE SOFTWARE.
 * ****************************************************************************
 */
+
+#if defined(ENABLE_ECG_APP) || defined(ENABLE_EDA_APP) || defined(ENABLE_BCM_APP)
 #include <includes.h>
 #include <ecg_task.h>
+/* Buffer is reused in ECG,EDA,BCM applications to minmize RAM usage */
+uint32_t AppBuff[APPBUFF_SIZE];
+#endif
+
 #ifdef ENABLE_ECG_APP
 #include <adpd4000_dcfg.h>
 #include <power_manager.h>
@@ -78,8 +84,6 @@ ECG_ERROR_CODE_t delete_ecg_dcb(void);
 /////////////////////////////////////////
 g_state_ecg_t g_state_ecg;
 
-/* Buffer is reused in ECG,EDA,BCM applications to minmize RAM usage */
-uint32_t AppBuff[APPBUFF_SIZE];
 #ifdef EXTERNAL_TRIGGER_EDA	
 uint8_t ecg_start_req=0;
 #endif
@@ -223,7 +227,6 @@ void send_message_ad5940_ecg_task(m2m2_hdr_t *p_pkt) {
 
 void ad5940_ecg_start(void);
 void ad5940_fetch_data(void);
-//#define ECG_POLLING
 /*!
  ****************************************************************************
  *@brief      Ecg Task

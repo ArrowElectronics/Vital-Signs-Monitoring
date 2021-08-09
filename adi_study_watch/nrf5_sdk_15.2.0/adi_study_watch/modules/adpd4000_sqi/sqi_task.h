@@ -53,6 +53,12 @@ typedef enum {
   SQI_LCFG_MAX,
 } SQI_LCFG_t;
 
+typedef enum {
+  SQI_BUFF_SUCCESS = 0,
+  SQI_BUFF_IN_PROGRESS,
+  SQI_BUFF_ERROR
+} SQI_BUFF_RET_t;
+
 void sqi_app_task_init(void);
 void send_message_sqi_app_task(m2m2_hdr_t *p_pkt);
 void send_sqi_app_data(uint32_t *padpdData, uint32_t ts);

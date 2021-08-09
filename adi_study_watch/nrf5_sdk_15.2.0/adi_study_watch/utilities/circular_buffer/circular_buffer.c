@@ -127,3 +127,24 @@ CIRC_BUFF_STATUS_t circular_buffer_get(circular_buffer_t *p_cbuff, void *item) {
   p_cbuff->num_elements--;
   return CIRC_BUFF_STATUS_OK;
 }
+
+CIRC_BUFF_STATUS_t circular_buffer_get_chunk(circular_buffer_t *p_cbuff, void **pItem, uint32_t chunk_size) {
+  if (p_cbuff == NULL || pItem == NULL) {
+    return CIRC_BUFF_STATUS_NULL_PTR;
+  }
+  if (p_cbuff->num_elements == 0) {
+    return CIRC_BUFF_STATUS_EMPTY;
+  }
+
+  *pItem = p_cbuff->tail;
+  while(chunk_size--)
+  {
+    p_cbuff->tail = (uint8_t*)p_cbuff->tail + p_cbuff->element_sz;
+    // Make sure we wrap around properly
+    if (((uint8_t*)p_cbuff->tail + p_cbuff->element_sz) > p_cbuff->buffer_end) {
+      p_cbuff->tail = p_cbuff->buffer;
+    }
+    p_cbuff->num_elements--;
+  }
+  return CIRC_BUFF_STATUS_OK;
+}

@@ -827,7 +827,7 @@ def rename_stream_file(old_file_name, suffix='', row_offset=1, col_idx=1,
         plot_path = plot_and_save_png(new_name, col_idx, row_offset)
 
     if copy_to_shared_drive:
-        for retry in range(5):
+        for retry in range(1):  # has to be multiple iteration but limiting due to the delay
             try:
                 test_group_name = inspect.getmodule(inspect.stack()[1][0]).__name__.split('.')[-1]
                 test_group_dir = os.path.join(test_report_dir, test_group_name)

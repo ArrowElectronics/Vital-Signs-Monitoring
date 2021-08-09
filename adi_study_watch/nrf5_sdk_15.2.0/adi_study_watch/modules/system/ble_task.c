@@ -79,6 +79,7 @@
 #include "semphr.h"
 #include "task.h"
 #include "timers.h"
+#include "file_system_utils.h"
 
 #include "adp5360.h"
 #include "app_util.h"
@@ -458,8 +459,8 @@ static void gap_params_init(void) {
       ble_addr_t.addr[0]);
 #else
   sprintf((char *)device_name, "%s_%X%X%X%X%X%X", DEVICE_NAME,
-      ble_addr_t.addr[0], ble_addr_t.addr[1], ble_addr_t.addr[2],
-      ble_addr_t.addr[3], ble_addr_t.addr[4], ble_addr_t.addr[5]);
+      ble_addr_t.addr[5], ble_addr_t.addr[4], ble_addr_t.addr[3],
+      ble_addr_t.addr[2], ble_addr_t.addr[1], ble_addr_t.addr[0]);
 #endif
 
   err_code = sd_ble_gap_device_name_set(&sec_mode,
@@ -1271,10 +1272,23 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
     gn_ble_bas_timer_cnt = 0;
     err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
     APP_ERROR_CHECK(err_code);
+
+#if 0
+    //Update to use 2MBPS PHY
+    NRF_LOG_DEBUG("PHY update request.");
+    ble_gap_phys_t const phys = {
+        .rx_phys = BLE_GAP_PHY_2MBPS,
+        .tx_phys = BLE_GAP_PHY_2MBPS,
+    };
+    err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
+    APP_ERROR_CHECK(err_code);
+#endif
+
     break;
 
   case BLE_GAP_EVT_DISCONNECTED:
     NRF_LOG_INFO("BLE NUS disconnected");
+    NRF_LOG_INFO("disconnect reason %d", p_ble_evt->evt.gap_evt.params.disconnected.reason);
     m_conn_handle = BLE_CONN_HANDLE_INVALID;
     gb_ble_status = BLE_DISCONNECTED;
 #ifdef HIBERNATE_MD_EN
@@ -2175,6 +2189,14 @@ void ble_enter_bootloader_prepare(void) {
 uint32_t enter_bootloader_and_restart(void) {
   uint32_t err_code;
   uint8_t bat_soc;
+  /* if logging is in progress , close file */
+  if(UpdateFileInfo() == true){
+    NRF_LOG_INFO("Success file close ");
+  }
+  else {
+    /* failure */
+    NRF_LOG_INFO("Error file close");
+  }
   Adp5360_getBatSoC(&bat_soc);
   if ((bat_soc < UPGRADE_BATTERY_LEVEL) &&
       (0 != Adp5360_pgood_pin_status_get())) {

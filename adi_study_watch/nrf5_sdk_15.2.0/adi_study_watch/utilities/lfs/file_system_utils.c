@@ -87,7 +87,7 @@ static FS_FILE_STATE_ENUM_t ge_file_read_access = FS_FILE_ACCESS_START;
 static _file_handler gh_fs_file_write_handler;
 static _file_handler gh_fs_file_read_handler;
 static struct _memory_buffer go_lfs_buffer;
-_table_file_handler gh_fs_table_file_handler;
+_table_file_header gh_fs_table_file_header;
 vol_info_buff_t vol_info_buff_var;
 
 _memory_properties go_fs_mem_prop = {.mem_size = DATA_FLASH_SIZE,
@@ -96,8 +96,7 @@ _memory_properties go_fs_mem_prop = {.mem_size = DATA_FLASH_SIZE,
                                .pages_per_block = PAGES_PER_BLOCK,
                                .num_of_blocks = NUM_OF_BLOCKS};
 
-/* data file memory */
-uint32_t volatile gn_fs_used_memory = 0;
+
 /* config file memory */
 uint32_t volatile gn_fs_used_config_memory = 0;
 
@@ -166,29 +165,28 @@ FS_STATUS_ENUM_t fs_hal_init(void) {
        }
     }
     /* Read table page in structure to preserve contents */
-    memset(&gh_fs_table_file_handler,0,sizeof(gh_fs_table_file_handler));
+    memset(&gh_fs_table_file_header,0,sizeof(gh_fs_table_file_header));
 
-  if(read_table_file_in_toc(&gh_fs_table_file_handler) == LFS_ERROR) {
+  if(read_table_file_in_toc(&gh_fs_table_file_header) == LFS_ERROR) {
     return FS_STATUS_ERR;
   }
 
   /* Get remaining space */
-  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
+  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_header)) {
     return FS_STATUS_ERR;
   }
-  /* Update used memory */
-  gn_fs_used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
 
   /* temporary variables back up */
   memset(&vol_info_buff_var,0,sizeof(vol_info_buff_var));
-  vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_handler.table_file_info.head_pointer;
-  vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_handler.table_file_info.tail_pointer;
+  vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_header.head_pointer;
+  vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_header.tail_pointer;
   vol_info_buff_var.avail_memory = fs_rem_space;
+  vol_info_buff_var.used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
   uint32_t bad_block_num=0;
   if(vol_info_buff_var.tmp_head_pointer < vol_info_buff_var.tmp_tail_pointer) {
       /* Find no of Blocks which have gone bad in between */
       if(get_bad_block_number(&bad_block_num,vol_info_buff_var.tmp_head_pointer,vol_info_buff_var.tmp_tail_pointer,\
-                              &gh_fs_table_file_handler) != LFS_SUCCESS)  {
+                              &gh_fs_table_file_header) != LFS_SUCCESS)  {
         return FS_STATUS_ERR;
       }
   }
@@ -196,14 +194,14 @@ FS_STATUS_ENUM_t fs_hal_init(void) {
       uint32_t tmp_bad_blk_num=0;
       /* Find no of blocks which have gone bad in between current head till total number of blocks */
       if(get_bad_block_number(&bad_block_num,vol_info_buff_var.tmp_head_pointer,go_fs_mem_prop.num_of_blocks,\
-                              &gh_fs_table_file_handler) != LFS_SUCCESS)  {
+                              &gh_fs_table_file_header) != LFS_SUCCESS)  {
         return FS_STATUS_ERR;
       }
 
       tmp_bad_blk_num=0;
       /* get bad block number from File Block to Tail Pointer */
       if(get_bad_block_number(&tmp_bad_blk_num,FILEBLOCK,vol_info_buff_var.tmp_tail_pointer,\
-        &gh_fs_table_file_handler) != LFS_SUCCESS)  {
+        &gh_fs_table_file_header) != LFS_SUCCESS)  {
         return FS_STATUS_ERR;
       }
 
@@ -213,17 +211,16 @@ FS_STATUS_ENUM_t fs_hal_init(void) {
   else if(vol_info_buff_var.tmp_head_pointer == vol_info_buff_var.tmp_tail_pointer )  {
       /* Get no of Bad blocks betweeb FILEBLOCK and total blocks in flash */
      if(get_bad_block_number(&bad_block_num,FILEBLOCK,go_fs_mem_prop.num_of_blocks,\
-        &gh_fs_table_file_handler) != LFS_SUCCESS)  {
+        &gh_fs_table_file_header) != LFS_SUCCESS)  {
      return FS_STATUS_ERR;
     }
   }
 
-    /* Subtract area corresponding to Bad blocks */
-    gn_fs_used_memory += (bad_block_num*go_fs_mem_prop.block_size);
 
     /* copy bad block num in structure */
     vol_info_buff_var.bad_block_num = bad_block_num;
-    vol_info_buff_var.used_memory = gn_fs_used_memory;
+    vol_info_buff_var.used_memory += (bad_block_num*go_fs_mem_prop.block_size);
+    vol_info_buff_var.avail_memory -= (bad_block_num*go_fs_mem_prop.block_size);
   return FS_STATUS_OK;
 }
 
@@ -270,29 +267,27 @@ FS_STATUS_ENUM_t fs_hal_format(bool_t bfmt_config_blk) {
 
   /* update temp variables */
    /* Read table page in structure to preserve contents */
-    memset(&gh_fs_table_file_handler,0,sizeof(gh_fs_table_file_handler));
+    memset(&gh_fs_table_file_header,0,sizeof(gh_fs_table_file_header));
 
-  if(read_table_file_in_toc(&gh_fs_table_file_handler) == LFS_ERROR) {
+  if(read_table_file_in_toc(&gh_fs_table_file_header) == LFS_ERROR) {
     return FS_STATUS_ERR;
   }
 
   /* Get remaining space */
-  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
+  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_header)) {
     return FS_STATUS_ERR;
   }
-  /* Update used memory */
-  gn_fs_used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
 
   /* temporary variables back up */
-  vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_handler.table_file_info.head_pointer;
-  vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_handler.table_file_info.tail_pointer;
-  vol_info_buff_var.used_memory = gn_fs_used_memory;
+  vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_header.head_pointer;
+  vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_header.tail_pointer;
+  vol_info_buff_var.used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
   vol_info_buff_var.avail_memory = fs_rem_space;
 
   /* check if after format list is updated */
   if(vol_info_buff_var.bad_block_updated != 0){
       if(get_bad_block_number(&bad_block_num,FILEBLOCK,go_fs_mem_prop.num_of_blocks,\
-        &gh_fs_table_file_handler) != LFS_SUCCESS)  {
+        &gh_fs_table_file_header) != LFS_SUCCESS)  {
       return FS_STATUS_ERR;
       }
       /* subtract mem bytes */
@@ -402,29 +397,27 @@ FS_STATUS_ENUM_t fs_hal_flash_reset() {
 
   /* update temp variables */
    /* Read table page in structure to preserve contents */
-    memset(&gh_fs_table_file_handler,0,sizeof(gh_fs_table_file_handler));
+    memset(&gh_fs_table_file_header,0,sizeof(gh_fs_table_file_header));
 
-  if(read_table_file_in_toc(&gh_fs_table_file_handler) == LFS_ERROR) {
+  if(read_table_file_in_toc(&gh_fs_table_file_header) == LFS_ERROR) {
     return FS_STATUS_ERR;
   }
 
   /* Get remaining space */
-  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
+  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_header)) {
     return FS_STATUS_ERR;
   }
-  /* Update used memory */
-  gn_fs_used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
 
   /* temporary variables back up */
   memset(&vol_info_buff_var,0,sizeof(vol_info_buff_var));
-  vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_handler.table_file_info.head_pointer;
-  vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_handler.table_file_info.tail_pointer;
-  vol_info_buff_var.used_memory = gn_fs_used_memory;
+  vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_header.head_pointer;
+  vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_header.tail_pointer;
+  vol_info_buff_var.used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
   vol_info_buff_var.avail_memory = fs_rem_space;
 
   /* check if after format list is updated */
   if(get_bad_block_number(&bad_block_num,FILEBLOCK,go_fs_mem_prop.num_of_blocks,\
-        &gh_fs_table_file_handler) != LFS_SUCCESS)  {
+        &gh_fs_table_file_header) != LFS_SUCCESS)  {
       return FS_STATUS_ERR;
   }
   /* subtract mem bytes */
@@ -758,7 +751,7 @@ FS_STATUS_ENUM_t fs_hal_page_read_test(uint32_t* ppage_num, m2m2_file_sys_page_r
        memcpy(ppage_read_test_info->sample_data,(uint8_t *)&fileheader,num_bytes);
     }
     else{
-      _table_file_handler tableheader;
+      _table_file_header tableheader;
       /* table file handler */
        if(nand_func_read(&go_fs_mem_prop,(*ppage_num) * go_fs_mem_prop.page_size,num_bytes,\
           (uint8_t*)&tableheader) != NAND_FUNC_SUCCESS){
@@ -768,12 +761,12 @@ FS_STATUS_ENUM_t fs_hal_page_read_test(uint32_t* ppage_num, m2m2_file_sys_page_r
        else{
         ppage_read_test_info->data_region_status = 0;
        }
-          ppage_read_test_info->sample_data[0] = (uint8_t )tableheader.table_file_info.tail_pointer;
-          ppage_read_test_info->sample_data[1] = (uint8_t )tableheader.table_file_info.head_pointer;
-          ppage_read_test_info->sample_data[2] = (uint8_t )tableheader.table_file_info.initialized_circular_buffer;
-          ppage_read_test_info->sample_data[3] = (uint8_t )tableheader.table_file_info.mem_full_flag;
-          ppage_read_test_info->sample_data[4] = (uint8_t )tableheader.table_file_info.offset;
-          ppage_read_test_info->sample_data[5] = (uint8_t )tableheader.table_file_info.config_low_touch_occupied;
+          ppage_read_test_info->sample_data[0] = (uint8_t )tableheader.tail_pointer;
+          ppage_read_test_info->sample_data[1] = (uint8_t )tableheader.head_pointer;
+          ppage_read_test_info->sample_data[2] = (uint8_t )tableheader.initialized_circular_buffer;
+          ppage_read_test_info->sample_data[3] = (uint8_t )tableheader.mem_full_flag;
+          ppage_read_test_info->sample_data[4] = (uint8_t )tableheader.offset;
+          ppage_read_test_info->sample_data[5] = (uint8_t )tableheader.config_low_touch_occupied;
       }
     }
   else{
@@ -1000,10 +993,10 @@ FS_STATUS_ENUM_t fs_hal_read_pageoffset(char* p_file_path, uint8_t *p_buffer, \
 *****************************************************************************/
 FS_STATUS_ENUM_t fs_hal_open_file(char* p_file_path)
 {
-    uint32_t fs_rem_space = 0;
+  uint32_t fs_rem_space = 0;
   elfs_result lfs_status;
   uint8_t status = 0;
-
+  bool mem_full = false;
 
    /* Reset the memory */
   nand_flash_reset();
@@ -1014,26 +1007,17 @@ FS_STATUS_ENUM_t fs_hal_open_file(char* p_file_path)
     }
   }
 
-  /* Read table page in structure to preserve contents */
-    memset(&gh_fs_table_file_handler,0,sizeof(gh_fs_table_file_handler));
-
-  if(read_table_file_in_toc(&gh_fs_table_file_handler) == LFS_ERROR) {
-    return FS_STATUS_ERR;
-  }
-
-  /* Get remaining space */
-  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
-    return FS_STATUS_ERR;
-  }
-  /* Update used memory */
-  /* max used memory can be 2044 blocks data size */
-  gn_fs_used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
-
-
   /* Check for memory full */
-  if(gn_fs_used_memory >= DATA_FLASH_SIZE) {
-    return FS_STATUS_ERR_MEMORY_FULL;
+  if(get_memory_status(&mem_full) != LFS_SUCCESS) {
+    return FS_STATUS_ERR;
   }
+  else  {
+    /* check for memory full flag is set */
+    if(mem_full == true){
+      return FS_STATUS_ERR_MEMORY_FULL;
+    }
+  }
+
   /* File object */
   if (p_file_path == NULL) {
     return FS_STATUS_ERR;
@@ -1042,7 +1026,7 @@ FS_STATUS_ENUM_t fs_hal_open_file(char* p_file_path)
   NRF_LOG_INFO("********** Creating new file ****************");
   /* Create file */
   lfs_status = lfs_create_file((uint8_t *)p_file_path, &gh_fs_file_write_handler, \
-                              &gh_fs_table_file_handler,&go_lfs_buffer, LFS_DATA_FILE);
+                              &gh_fs_table_file_header,&go_lfs_buffer, LFS_DATA_FILE);
   if(lfs_status != LFS_SUCCESS) {
     if(lfs_status == LFS_MAX_FILE_COUNT_ERROR) {
       return FS_STATUS_ERR_MAX_FILE_COUNT;
@@ -1082,7 +1066,7 @@ FS_STATUS_ENUM_t fs_hal_open_config_file(uint8_t* p_file_path) {
   }
   /* Create file */
   if(LFS_SUCCESS != lfs_create_file(p_file_path, &gh_fs_file_write_handler,\
-                                  &gh_fs_table_file_handler,&go_lfs_buffer,\
+                                  &gh_fs_table_file_header,&go_lfs_buffer,\
                                    LFS_CONFIG_FILE)) {
     return FS_STATUS_ERR;
   }
@@ -1101,7 +1085,7 @@ FS_STATUS_ENUM_t fs_hal_close_file(_file_handler *file_handler) {
   uint32_t fs_rem_space = 0;
   elfs_result end_res;
   if(file_handler != NULL) {
-  end_res = lfs_end_file(file_handler,&gh_fs_table_file_handler);
+  end_res = lfs_end_file(file_handler,&gh_fs_table_file_header);
     if (end_res == LFS_SUCCESS) {
       ge_file_wr_access = FS_FILE_ACCESS_START;
       memset(file_handler, 0, sizeof(_file_handler));
@@ -1110,18 +1094,16 @@ FS_STATUS_ENUM_t fs_hal_close_file(_file_handler *file_handler) {
     }
   }
   /* Get remaining space */
-  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
+  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_header)) {
     return FS_STATUS_ERR;
   }
-  /* Update used memory */
-  gn_fs_used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
 
   /* update temp varaibles */
   /* temporary variables back up */
-  vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_handler.table_file_info.head_pointer;
-  vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_handler.table_file_info.tail_pointer;
+  vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_header.head_pointer;
+  vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_header.tail_pointer;
   vol_info_buff_var.avail_memory = fs_rem_space;
-  vol_info_buff_var.used_memory = gn_fs_used_memory;
+  vol_info_buff_var.used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
 
    /* Subtract area corresponding to Bad blocks */
   vol_info_buff_var.used_memory += (vol_info_buff_var.bad_block_num*go_fs_mem_prop.block_size);
@@ -1215,6 +1197,7 @@ FS_STATUS_ENUM_t fs_hal_write_file(uint8_t *p_buffer,
   static uint32_t nBytes_written = 0;
   uint32_t fs_rem_space = 0;
   uint32_t bad_block_num = 0;
+
   if (ge_file_wr_access != FS_FILE_ACCESS_IN_PROGRESS) {
     return FS_STATUS_ERR;
   }
@@ -1224,33 +1207,33 @@ nTick = MCU_HAL_GetTick();
 #endif
 
   /* Write data to File */
-  FS_Error = lfs_update_file(p_buffer, *nitems, file_handler,&gh_fs_table_file_handler);
+   FS_Error = lfs_update_file(p_buffer, *nitems, file_handler,&gh_fs_table_file_header);
+
 #ifdef PROFILE_TIME_ENABLED
      uint32_t pkt_update_time = MCU_HAL_GetTick() - nTick;
    //  NRF_LOG_INFO("Time taken for lfs update file = %d",pkt_update_time);
 #endif
-  /* Update Used memory */
-  gn_fs_used_memory += *nitems;
+
   /* Updated bytes written to Flash */
   nBytes_written += *nitems;
-  // TO DO
+
   if(nBytes_written >= BLOCK_SIZE) { /* updating header for block */
     nBytes_written = 0;
     /* Refresh Handler */
     if(file_handler->op_mode == LFS_MODE_MANUAL) {
-      lfs_refresh_header(file_handler,&gh_fs_table_file_handler);
+      lfs_refresh_header(file_handler,&gh_fs_table_file_header);
     }
 
      /* estimate for every block */
-    if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
-    return FS_STATUS_ERR;
+    if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_header)) {
+      return FS_STATUS_ERR;
     }
 
    /* update temp variables while writing */
-   vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_handler.table_file_info.head_pointer;
-   vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_handler.table_file_info.tail_pointer;
+   vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_header.head_pointer;
+   vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_header.tail_pointer;
    vol_info_buff_var.avail_memory = fs_rem_space;
-   vol_info_buff_var.used_memory = gn_fs_used_memory;
+   vol_info_buff_var.used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
 
    if(vol_info_buff_var.bad_block_updated != 0){
         /* subtract mem bytes 1 block of data*/
@@ -1260,17 +1243,38 @@ nTick = MCU_HAL_GetTick();
         vol_info_buff_var.bad_block_updated=0;
      }
   }
-  // TO DO
-  /* Check for memory full */
-  if(gn_fs_used_memory >= DATA_FLASH_SIZE) { /* 2044 blocks for data */
+  
+  /* process memory full error, here file is already closed with  file updation  */
+  if(FS_Error == LFS_MEMORY_FULL_ERROR){
+    
+    /* estimate for every block */
+    if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_header)) {
+      return FS_STATUS_ERR;
+    }
+
+    /* update temp variables while writing */
+    vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_header.head_pointer;
+    vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_header.tail_pointer;
+    vol_info_buff_var.avail_memory = fs_rem_space;
+    vol_info_buff_var.used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
+
+    if(vol_info_buff_var.bad_block_updated != 0){
+      /* subtract mem bytes 1 block of data*/
+      vol_info_buff_var.used_memory += go_fs_mem_prop.block_size;
+      vol_info_buff_var.avail_memory -= go_fs_mem_prop.block_size;
+      vol_info_buff_var.bad_block_num += 1;
+      vol_info_buff_var.bad_block_updated=0;
+    }
     return FS_STATUS_ERR_MEMORY_FULL;
   }
+ 
+  /* close file if error, except memory full as file is already closed inside */
   if (FS_Error != LFS_SUCCESS) {
     /* file closed as cannot be recovered */
     if(FS_Error == LFS_FILE_WRITE_ERROR)
       /* update in file header as invalid */
       file_handler->head.file_type = LFS_INVALID_FILE;
-    if (lfs_end_file(file_handler,&gh_fs_table_file_handler) == LFS_SUCCESS) {
+    if (lfs_end_file(file_handler,&gh_fs_table_file_header) == LFS_SUCCESS) {
       ge_file_wr_access = FS_FILE_ACCESS_START;
       if(FS_Error == LFS_FILE_WRITE_ERROR)
         return FS_STATUS_ERR_INVALID_FILE;
@@ -1283,6 +1287,7 @@ nTick = MCU_HAL_GetTick();
         return FS_STATUS_ERR;
     }
   }
+
   return FS_STATUS_OK;
 }
 
@@ -1302,40 +1307,37 @@ FS_STATUS_ENUM_t fs_hal_fixed_pattern_write_file(uint8_t *p_buffer,uint16_t star
   elfs_result      FS_Error;
   static uint32_t nBytes_written = 0;
   uint32_t fs_rem_space = 0;
+
   if (ge_file_wr_access != FS_FILE_ACCESS_IN_PROGRESS){
     return FS_STATUS_ERR;
   }
 
-    /* Get remaining space */
-  if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
-    return FS_STATUS_ERR;
-  }
-
+ 
   /* Write data to File */
   FS_Error = lfs_update_pattern_file(p_buffer, start_block_num,*nitems,file_handler,\
-                                    &gh_fs_table_file_handler,first_time_write);
-  /* Update Used memory */
-  gn_fs_used_memory += *nitems;
+                                    &gh_fs_table_file_header,first_time_write);
+
   /* Updated bytes written to Flash */
   nBytes_written += *nitems;
-  // TO DO
-  if(nBytes_written >= TOC_REPEATED_UPDATE_SIZE) { /* updating header for 4*page_size written */
+
+  /* update toc & fs vol info variables for block size */
+  if(nBytes_written >= TOC_REPEATED_UPDATE_SIZE) { 
     nBytes_written = 0;
     /* Refresh Handler */
     if(file_handler->op_mode == LFS_MODE_MANUAL) {
-      lfs_refresh_header(file_handler,&gh_fs_table_file_handler);
+      lfs_refresh_header(file_handler,&gh_fs_table_file_header);
     }
 
      /* estimate for every block */
-    if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_handler)) {
+    if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_header)) {
       return FS_STATUS_ERR;
     }
 
    /* update temp variables while writing */
-   vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_handler.table_file_info.head_pointer;
-   vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_handler.table_file_info.tail_pointer;
+   vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_header.head_pointer;
+   vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_header.tail_pointer;
    vol_info_buff_var.avail_memory = fs_rem_space;
-   vol_info_buff_var.used_memory = gn_fs_used_memory;
+   vol_info_buff_var.used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
 
    if(vol_info_buff_var.bad_block_updated != 0){
         /* subtract mem bytes 1 block of data*/
@@ -1345,17 +1347,38 @@ FS_STATUS_ENUM_t fs_hal_fixed_pattern_write_file(uint8_t *p_buffer,uint16_t star
         vol_info_buff_var.bad_block_updated=0;
      }
   }
-  // TO DO
-  /* Check for memory full */
-  if(gn_fs_used_memory >= DATA_FLASH_SIZE) { /* 2044 blocks for data */
+  
+   /* process memory full error, here file is already closed with  file updation  */
+  if(FS_Error == LFS_MEMORY_FULL_ERROR){
+    /* update temporary variables */
+    /* estimate for every block */
+    if(LFS_SUCCESS != lfs_get_remaining_space(&fs_rem_space,LFS_DATA_FILE,&gh_fs_table_file_header)) {
+      return FS_STATUS_ERR;
+    }
+
+   /* update temp variables while writing */
+   vol_info_buff_var.tmp_head_pointer = gh_fs_table_file_header.head_pointer;
+   vol_info_buff_var.tmp_tail_pointer = gh_fs_table_file_header.tail_pointer;
+   vol_info_buff_var.avail_memory = fs_rem_space;
+   vol_info_buff_var.used_memory = (go_fs_mem_prop.mem_size - fs_rem_space);
+
+   if(vol_info_buff_var.bad_block_updated != 0){
+        /* subtract mem bytes 1 block of data*/
+        vol_info_buff_var.used_memory += go_fs_mem_prop.block_size;
+        vol_info_buff_var.avail_memory -= go_fs_mem_prop.block_size;
+        vol_info_buff_var.bad_block_num += 1;
+        vol_info_buff_var.bad_block_updated=0;
+     }
     return FS_STATUS_ERR_MEMORY_FULL;
   }
+  
+  /* close file if error, except memory full as file is already closed inside */
   if (FS_Error != LFS_SUCCESS) {
     /* file closed as cannot be recovered */
     if(FS_Error == LFS_FILE_WRITE_ERROR)
     /* update in file header as invalid */
       file_handler->head.file_type = LFS_INVALID_FILE;
-    if (lfs_end_file(file_handler,&gh_fs_table_file_handler) == LFS_SUCCESS) {
+    if (lfs_end_file(file_handler,&gh_fs_table_file_header) == LFS_SUCCESS) {
       ge_file_wr_access = FS_FILE_ACCESS_START;
       if(FS_Error == LFS_FILE_WRITE_ERROR)
         return FS_STATUS_ERR_INVALID_FILE;
@@ -1438,17 +1461,24 @@ nTick = MCU_HAL_GetTick();
     if (fs_err_status != FS_STATUS_OK) {
       if (fs_err_status == FS_STATUS_ERR_EOF){
         return M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
-      } else if (fs_err_status == FS_STATUS_ERR_MEMORY_FULL){
+      } 
+      else if (fs_err_status == FS_STATUS_ERR_MEMORY_FULL){
+        /* reset flag write access */
+        ge_file_wr_access = FS_FILE_ACCESS_START;
         return (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_FILE_SYS_ERR_MEMORY_FULL;
-      }else if(fs_err_status == FS_STATUS_ERR_INVALID_FILE)
+      }
+      else if(fs_err_status == FS_STATUS_ERR_INVALID_FILE) {
         return (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_FILE_SYS_ERR_INVALID;
+      }
       else{
         return  M2M2_APP_COMMON_STATUS_ERROR;
       }
-    } else {
+    } 
+    else {
       return  M2M2_APP_COMMON_STATUS_OK;
     }
-  } else {
+  } 
+  else {
     return M2M2_APP_COMMON_STATUS_STREAM_NOT_STARTED;
   }
 }
@@ -1464,21 +1494,25 @@ M2M2_APP_COMMON_STATUS_ENUM_t fs_hal_test_pattern_write(uint8_t* pbuff,
                                                         uint32_t nbuff_size) {
   FS_STATUS_ENUM_t fs_err_status;
 	if (fs_hal_write_access_state() == FS_FILE_ACCESS_IN_PROGRESS) {
-		fs_err_status = fs_hal_write_file((uint8_t *)pbuff,
+          fs_err_status = fs_hal_write_file((uint8_t *)pbuff,
                                       &nbuff_size, &gh_fs_file_write_handler);
-		if (fs_err_status != FS_STATUS_OK) {
-		if (fs_err_status == FS_STATUS_ERR_EOF){
-			return M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
-		} else if (fs_err_status == FS_STATUS_ERR_MEMORY_FULL){
-			return (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_FILE_SYS_ERR_MEMORY_FULL;
-		}else{
-			return  M2M2_APP_COMMON_STATUS_ERROR;
-		}
-		} else {
-		return  M2M2_APP_COMMON_STATUS_OK;
-		}
+          if (fs_err_status != FS_STATUS_OK) {
+            if (fs_err_status == FS_STATUS_ERR_EOF) {
+		return M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
+            } 
+            else if (fs_err_status == FS_STATUS_ERR_MEMORY_FULL)  {
+              /* reset flag write access */
+              ge_file_wr_access = FS_FILE_ACCESS_START;
+              return (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_FILE_SYS_ERR_MEMORY_FULL;
+            }
+            else  {
+              return  M2M2_APP_COMMON_STATUS_ERROR;
+            }
+          } else {
+            return  M2M2_APP_COMMON_STATUS_OK;
+          }
 	}
-        return  M2M2_APP_COMMON_STATUS_ERROR;
+  return  M2M2_APP_COMMON_STATUS_ERROR;
 }
 
 /*!
@@ -1593,15 +1627,7 @@ FS_STATUS_ENUM_t fs_flash_power_on (bool benable) {
   return FS_STATUS_OK;
 }
 
-/*!
-  ****************************************************************************
-  *@brief       Get remaining space on flash
-  *@param       None
-  *@return      uint32_t: remaining space on flash
-*****************************************************************************/
-uint32_t fs_hal_get_remaining_memory (void) {
-  return (go_fs_mem_prop.mem_size - gn_fs_used_memory);
-}
+
 
 #ifdef TEST_FS_NAND
 #define MAX_BLOCKSIZE           2048

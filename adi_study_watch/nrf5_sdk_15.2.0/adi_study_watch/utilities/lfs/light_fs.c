@@ -78,30 +78,29 @@ uint32_t file_header_update_time=0;
 
 /************************************************* Private functions ***********************************************************/
 static elfs_result lfs_update_header(_file_handler *file_handler,
-                                    _table_file_handler *table_file_handler);
+                                    _table_file_header *table_file_header);
 static elfs_result lfs_set_read_pos(uint32_t read_pos,
                                    _file_handler *file_handler);
 static elfs_result lfs_read_oob(uint32_t page,
                                 struct _page_header *page_head);
 static elfs_result lfs_delete_page(uint32_t page);
-static elfs_result get_first_header_void(_table_file_handler *table_file_handler,
+static elfs_result get_first_header_void(_table_file_header *table_file_header,
                                         elfs_file_type file_type);
 static elfs_result get_first_config_page_free(uint32_t * first_page);
-static elfs_result get_next_writable_page(_file_handler *file_handler,
-                                        _table_file_handler *tmp_table_file_handler);
+static elfs_result get_next_writable_page(_table_file_header *tmp_table_file_header);
 static elfs_result get_next_page_files(_file_handler *file_handler,
-                                      _table_file_handler *tmp_table_file_handler);
-static elfs_result update_table_file_in_toc(_table_file_handler *table_file_handler,
+                                      _table_file_header *tmp_table_file_header);
+static elfs_result update_table_file_in_toc(_table_file_header *table_file_header,
                                             elfs_update_type type[],uint16_t num_of_var_to_be_updated);
 
-static elfs_result write_table_file_in_toc(_table_file_handler *table_file_handler);
-static elfs_result create_bad_block_list (_table_file_handler *table_file_handler,
+static elfs_result write_table_file_in_toc(_table_file_header *table_file_header);
+static elfs_result create_bad_block_list (_table_file_header *table_file_header,
                                          uint32_t *bad_block_num);
 
 static elfs_result check_current_block_is_bad(uint32_t blk_ind,
-                                              _table_file_handler *table_file_handler,
+                                              _table_file_header *table_file_header,
                                               bool *is_bad);
-static elfs_result read_bad_block_list (_table_file_handler *table_file_handler,
+static elfs_result read_bad_block_list (_table_file_header *table_file_header,
                                         uint32_t *bad_block_array,
                                         uint32_t *bad_blk_cnt);
 static elfs_result lfs_update_config_header(_file_handler *file_handler);
@@ -155,10 +154,10 @@ elfs_result lfs_openfs(_memory_properties * mem_prop)
   **********************************************************************************
   *@brief      Read table page ( last page of toc ) to get pointer information,
                 bad blocks and required flags information
-  *@param      _table_file_handler *_table_file_handler: Table page struct pointer
+  *@param      _table_file_header *table_file_header: Table page struct pointer
   *@return     elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   **********************************************************************************/
-elfs_result read_table_file_in_toc(_table_file_handler *table_file_handler)
+elfs_result read_table_file_in_toc(_table_file_header *table_file_header)
 {
   eNand_Func_Result result=NAND_FUNC_SUCCESS;
 
@@ -166,14 +165,14 @@ elfs_result read_table_file_in_toc(_table_file_handler *table_file_handler)
   uint32_t page_pos=TOCBLOCK*g_mem_prop->pages_per_block+TABLE_PAGE_INDEX_IN_TOC;
   /* read from memory */
   result = nand_func_read(g_mem_prop,page_pos*g_mem_prop->page_size,\
-           sizeof(_table_file_handler),(uint8_t*)table_file_handler);
+           sizeof(_table_file_header),(uint8_t*)table_file_header);
 
 #ifdef PRINTS_OUT
-  NRF_LOG_INFO("Size for reading:%d",sizeof(_table_file_header));
+  NRF_LOG_INFO("Size for reading:%d",sizeof(table_file_header));
   NRF_LOG_INFO("Read Table File Contents In Structure: head_pointer=%d,\
                   tail_pointer=%d",
-                  table_file_handler->table_file_info.head_pointer,
-                  table_file_handler->table_file_info.tail_pointer);
+                  table_file_header->head_pointer,
+                  table_file_header->tail_pointer);
 #endif
 
   /* data read from flash success */
@@ -231,14 +230,13 @@ elfs_result lfs_read_config_file(uint8_t *out_buffer,
   **********************************************************************************
   *@brief      Write table page ( last page of toc ) to update pointer information,
                 bad blocks and required flags information
-  *@param      _table_file_handler *_table_file_handler: Table page struct pointer
+  *@param      _table_file_header *tmp_table_file_header: Table page struct pointer
   *@return     elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   **********************************************************************************/
-static elfs_result write_table_file_in_toc(_table_file_handler *table_file_handler) {
+static elfs_result write_table_file_in_toc(_table_file_header *tmp_table_file_header) {
   eNand_Func_Result result = NAND_FUNC_SUCCESS;
 
    /* assign to temporary table file header */
-  _table_file_header *tmp_table_file_header=&table_file_handler->table_file_info;
   struct _page_header page_info;
 
   /* page position to write from toc block */
@@ -279,12 +277,12 @@ static elfs_result write_table_file_in_toc(_table_file_handler *table_file_handl
   *@brief       Check current block is bad/good by reading last page of toc where
                 bad block information is stored.
   *@param       blk_ind: block index to check bad/good
-  *@param       _table_file_handler *_table_file_handler: Table page struct pointer
+  *@param       _table_file_header *table_file_header: Table page struct pointer
   *@param       is_bad: return bad block information if block is bad/good
   *@return     elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   **********************************************************************************/
 static elfs_result check_current_block_is_bad(uint32_t blk_ind,
-                                              _table_file_handler *table_file_handler,
+                                              _table_file_header *table_file_header,
                                               bool *is_bad) {
    uint32_t word_pointer;
    uint32_t bit_pointer;
@@ -301,7 +299,7 @@ static elfs_result check_current_block_is_bad(uint32_t blk_ind,
    /* calculate bit pointer based on block index and size of each word */
    bit_pointer=blk_ind % MAX_NO_OF_BITS_IN_WORD;
    /* access group of blocks information based on word pointer */
-   block_word = table_file_handler->table_file_info.bad_block_marker[word_pointer];
+   block_word = table_file_header->bad_block_marker[word_pointer];
 
    /* access block information based on bit pointer, and block word */
    bit_val = ((block_word & (1 << bit_pointer))==0) ? 0:1;
@@ -324,11 +322,11 @@ static elfs_result check_current_block_is_bad(uint32_t blk_ind,
   *@brief       Create Bad block list by reading each block information from flash
                 and updating on to soft buffer where all block information is
                 stored.
-  *@param      _table_file_handler *_table_file_handler: Table page struct pointer
+  *@param      _table_file_header *table_file_header: Table page struct pointer
   *@param      bad_block_num: number of bad blocks
   *@return     elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   **********************************************************************************/
-static elfs_result create_bad_block_list (_table_file_handler *table_file_handler,
+static elfs_result create_bad_block_list (_table_file_header *table_file_header,
                                          uint32_t *bad_block_num) {
   bool is_bad_block = false;
   uint32_t blk_index = 0;
@@ -355,12 +353,12 @@ static elfs_result create_bad_block_list (_table_file_handler *table_file_handle
 
       if(is_bad_block == true)  {
         /* Set bit for bad block */
-        table_file_handler->table_file_info.bad_block_marker[word_pointer] |= (1 << bit_pointer);
+        table_file_header->bad_block_marker[word_pointer] |= (1 << bit_pointer);
         (*bad_block_num)++;
       }
       else  {
         /* Clear bit for good block */
-        table_file_handler ->table_file_info.bad_block_marker[word_pointer] &= ~(1 << bit_pointer);
+        table_file_header->bad_block_marker[word_pointer] &= ~(1 << bit_pointer);
       }
     }
   }
@@ -368,7 +366,7 @@ static elfs_result create_bad_block_list (_table_file_handler *table_file_handle
   /* flag taken for writing on to toc */
   del_table_page = 1;
   /* Update table page in toc with bad block information */
-  if(update_table_file_in_toc(table_file_handler,type,1) != LFS_SUCCESS)  {
+  if(update_table_file_in_toc(table_file_header,type,1) != LFS_SUCCESS)  {
     /* if updation of information is error, return error */
     NRF_LOG_INFO("Error in UpdateFileinTOC for Bad Block");
     return LFS_UPDATE_TABLE_FILE_ERROR;
@@ -388,12 +386,12 @@ static elfs_result create_bad_block_list (_table_file_handler *table_file_handle
 /*!
   **********************************************************************************
   *@brief       This provides list of Bad block Indexes
-  *@param      _table_file_handler *_table_file_handler: Table page struct pointer
+  *@param      _table_file_header *table_file_header: Table page struct pointer
   *@param       bad_block_array: pointer to bad block aray
   *@param       bad_blk_cnt: pointer to number of bad blocks
   *@return     elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   **********************************************************************************/
-static elfs_result read_bad_block_list (_table_file_handler *table_file_handler,
+static elfs_result read_bad_block_list (_table_file_header *table_file_header,
                                         uint32_t *bad_block_array,
                                         uint32_t *bad_blk_cnt)  {
   uint32_t blk_index;
@@ -402,7 +400,7 @@ static elfs_result read_bad_block_list (_table_file_handler *table_file_handler,
   uint8_t bit_val;
 
   /* Read table page in structure to preserve contents */
-  if(read_table_file_in_toc(table_file_handler) == LFS_ERROR) {
+  if(read_table_file_in_toc(table_file_header) == LFS_ERROR) {
     return LFS_ERROR;
   }
 
@@ -413,7 +411,7 @@ static elfs_result read_bad_block_list (_table_file_handler *table_file_handler,
 
     /* calculate bit value stored from block index to check block is
         good / bad*/
-    bit_val = (((table_file_handler->table_file_info.bad_block_marker[word_pointer])\
+    bit_val = (((table_file_header->bad_block_marker[word_pointer])\
             &(1 << bit_pointer))==0) ? 0:1;
 
     /* if bit is '1', update bad block array, and increment bad block count */
@@ -429,7 +427,7 @@ static elfs_result read_bad_block_list (_table_file_handler *table_file_handler,
   *******************************************************************************************
   *@brief       This function provides updation of different variables for last page of TOC.
 
-  *@param      _table_file_handler *_table_file_handler: Table page struct pointer
+  *@param      _table_file_header *table_file_header: Table page struct pointer
   *@param       type: elfs_update_type, select from below parameters
                 LFS_BAD_BLOCK_MARKER_UPDATE: Bad blocks update
                 LFS_HEAD_POINTER_UPDATE: Head pointer updated
@@ -441,18 +439,18 @@ static elfs_result read_bad_block_list (_table_file_handler *table_file_handler,
   *@param       num_of_var_to_be_updated: number of variables to be updated
   *@return     elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   ********************************************************************************************/
-static elfs_result update_table_file_in_toc(_table_file_handler *table_file_handler,
+static elfs_result update_table_file_in_toc(_table_file_header *table_file_header,
                                             elfs_update_type type[],
                                             uint16_t num_of_var_to_be_updated)  {
-  _table_file_handler tmp_table_file_handler;
+  _table_file_header tmp_table_file_header;
   uint32_t word_index=0;
   uint32_t bit_index=0;
   uint32_t bit_val=0;
 
   /* Read TOC File in structure to preserve contents */
-  memset(&tmp_table_file_handler,0,sizeof(_table_file_handler));
+  memset(&tmp_table_file_header,0,sizeof(_table_file_header));
 
-  if(read_table_file_in_toc(&tmp_table_file_handler) == LFS_ERROR)  {
+  if(read_table_file_in_toc(&tmp_table_file_header) == LFS_ERROR)  {
 #ifdef PRINTS_OUT
     NRF_LOG_INFO("Error in reading Table file");
 #endif
@@ -468,21 +466,21 @@ static elfs_result update_table_file_in_toc(_table_file_handler *table_file_hand
         for(word_index=0;word_index < MAX_NO_OF_WORDS;word_index++) {
           /** compare input temp handler bad block word value with read temp handler
               bad block word, if change update **/
-          if(table_file_handler->table_file_info.bad_block_marker[word_index] \
-             != tmp_table_file_handler.table_file_info.bad_block_marker[word_index])  {
+          if(table_file_header->bad_block_marker[word_index] \
+             != tmp_table_file_header.bad_block_marker[word_index])  {
 
             for(bit_index=0;bit_index < MAX_NO_OF_BITS_IN_WORD;bit_index++) {
               /** calculate bit value to know whether bad block / good block **/
-              bit_val = ((table_file_handler->table_file_info.bad_block_marker[word_index]\
+              bit_val = ((table_file_header->bad_block_marker[word_index]\
                         & (1 << bit_index)) == 0) ? 0:1;
 
               /* Set bit in read data if that particular block bit needs updation */
               if( bit_val == 1 ) {
-                tmp_table_file_handler.table_file_info.bad_block_marker[word_index] |= (1 << bit_index);
+                tmp_table_file_header.bad_block_marker[word_index] |= (1 << bit_index);
               }
               /* Clear bit in read data if that particular block bit needs updation */
               else  {
-                tmp_table_file_handler.table_file_info.bad_block_marker[word_index] &= ~(1 << bit_index);
+                tmp_table_file_header.bad_block_marker[word_index] &= ~(1 << bit_index);
               }
             }
           }
@@ -491,55 +489,50 @@ static elfs_result update_table_file_in_toc(_table_file_handler *table_file_hand
         case LFS_HEAD_POINTER_UPDATE:
         /** update head pointer **/
 #ifdef PRINTS_OUT
-        NRF_LOG_INFO("Head Pointer required to update:%d",table_file_handler->table_file_info.head_pointer);
+        NRF_LOG_INFO("Head Pointer required to update:%d",table_file_header->head_pointer);
 #endif
-        if(tmp_table_file_handler.table_file_info.head_pointer \
-          != table_file_handler->table_file_info.head_pointer)  {
-          tmp_table_file_handler.table_file_info.head_pointer=table_file_handler->table_file_info.head_pointer;
+        if(tmp_table_file_header.head_pointer != table_file_header->head_pointer)  {
+          tmp_table_file_header.head_pointer=table_file_header->head_pointer;
         }
         break;
 
         case LFS_TAIL_POINTER_UPDATE:
         /** update tail pointer **/
 #ifdef PRINTS_OUT
-        NRF_LOG_INFO("Tail Pointer required to update:%d",table_file_handler->table_file_info.tail_pointer);
+        NRF_LOG_INFO("Tail Pointer required to update:%d",table_file_handler->tail_pointer);
 #endif
-        if(tmp_table_file_handler.table_file_info.tail_pointer \
-          != table_file_handler->table_file_info.tail_pointer) {
-          tmp_table_file_handler.table_file_info.tail_pointer=table_file_handler->table_file_info.tail_pointer;
+        if(tmp_table_file_header.tail_pointer != table_file_header->tail_pointer) {
+          tmp_table_file_header.tail_pointer=table_file_header->tail_pointer;
         }
         break;
 
         case LFS_INITIALIZE_BUFFER_FLAG_UPDATE:
         /** circular buffer flag update **/
 #ifdef PRINTS_OUT
-        NRF_LOG_INFO("Initialize circular buffer flag to update:%d",table_file_handler->table_file_info.initialized_circular_buffer);
+        NRF_LOG_INFO("Initialize circular buffer flag to update:%d",table_file_header->initialized_circular_buffer);
 #endif
-        if(tmp_table_file_handler.table_file_info.initialized_circular_buffer \
-          != table_file_handler->table_file_info.initialized_circular_buffer) {
-          tmp_table_file_handler.table_file_info.initialized_circular_buffer=table_file_handler->table_file_info.initialized_circular_buffer;
+        if(tmp_table_file_header.initialized_circular_buffer != table_file_header->initialized_circular_buffer) {
+          tmp_table_file_header.initialized_circular_buffer=table_file_header->initialized_circular_buffer;
         }
         break;
 
         case LFS_MEM_FULL_FLAG_UPDATE:
         /** memory full flag update **/
 #ifdef PRINTS_OUT
-        NRF_LOG_INFO("Mem full flag to update:%d",table_file_handler->table_file_info.mem_full_flag);
+        NRF_LOG_INFO("Mem full flag to update:%d",table_file_handler->mem_full_flag);
 #endif
-        if(tmp_table_file_handler.table_file_info.mem_full_flag \
-          != table_file_handler->table_file_info.mem_full_flag) {
-          tmp_table_file_handler.table_file_info.mem_full_flag=table_file_handler->table_file_info.mem_full_flag;
+        if(tmp_table_file_header.mem_full_flag != table_file_header->mem_full_flag) {
+          tmp_table_file_header.mem_full_flag=table_file_header->mem_full_flag;
         }
         break;
 
         case LFS_OFFSET_UPDATE:
          /** offset update **/
 #ifdef PRINTS_OUT
-        NRF_LOG_INFO("Offset required to update:%d",table_file_handler->table_file_info.offset);
+        NRF_LOG_INFO("Offset required to update:%d",table_file_handler->offset);
 #endif
-        if(tmp_table_file_handler.table_file_info.offset \
-          != table_file_handler->table_file_info.offset) {
-          tmp_table_file_handler.table_file_info.offset=table_file_handler->table_file_info.offset;
+        if(tmp_table_file_header.offset != table_file_header->offset) {
+          tmp_table_file_header.offset = table_file_header->offset;
         }
         break;
 
@@ -548,10 +541,8 @@ static elfs_result update_table_file_in_toc(_table_file_handler *table_file_hand
 #ifdef PRINTS_OUT
         NRF_LOG_INFO("Config file pos req to update:%d",table_file_handler->table_file_info.config_low_touch_occupied);
 #endif
-        if(tmp_table_file_handler.table_file_info.config_low_touch_occupied \
-          != table_file_handler->table_file_info.config_low_touch_occupied)
-        {
-          tmp_table_file_handler.table_file_info.config_low_touch_occupied=table_file_handler->table_file_info.config_low_touch_occupied;
+        if(tmp_table_file_header.config_low_touch_occupied != table_file_header->config_low_touch_occupied) {
+          tmp_table_file_header.config_low_touch_occupied = table_file_header->config_low_touch_occupied;
         }
        break;
 
@@ -571,7 +562,7 @@ static elfs_result update_table_file_in_toc(_table_file_handler *table_file_hand
   }
  }
   /* Write Table page in TOC */
-  if(write_table_file_in_toc(&tmp_table_file_handler) == LFS_ERROR) {
+  if(write_table_file_in_toc(&tmp_table_file_header) == LFS_ERROR) {
    /** return success if updation success **/
     NRF_LOG_INFO("Write Table File in Update TOC is Error");
     return LFS_ERROR;
@@ -589,14 +580,14 @@ static elfs_result update_table_file_in_toc(_table_file_handler *table_file_hand
   *@return     elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   **********************************************************************************/
 elfs_result initialize_circular_buffer()  {
-  _table_file_handler tmp_table_file_handler;
+  _table_file_header tmp_table_file_header;
   uint32_t bad_block_num;
-  memset(&tmp_table_file_handler,0,sizeof(_table_file_handler));
+  memset(&tmp_table_file_header,0,sizeof(_table_file_header));
 
   bad_block_num=0;
 
   /* Run through the list and create bad block list*/
-  if(create_bad_block_list (&tmp_table_file_handler,&bad_block_num) != LFS_SUCCESS) {
+  if(create_bad_block_list (&tmp_table_file_header,&bad_block_num) != LFS_SUCCESS) {
 #ifdef PRINTS_OUT
       NRF_LOG_INFO("Error in creating bad block list");
 #endif
@@ -605,13 +596,13 @@ elfs_result initialize_circular_buffer()  {
 
 
   /* Initialize head and tail pointers to FILEBLOCK */
-  tmp_table_file_handler.table_file_info.head_pointer=FILEBLOCK*g_mem_prop->pages_per_block;
-  tmp_table_file_handler.table_file_info.tail_pointer=FILEBLOCK;
+  tmp_table_file_header.head_pointer=FILEBLOCK*g_mem_prop->pages_per_block;
+  tmp_table_file_header.tail_pointer=FILEBLOCK;
 
 
   /*Set initialized circular buffer flag, to 1 indicating buffers inited FILEBLOCK,
    which is used to distinguish between memory full/empty */
-  tmp_table_file_handler.table_file_info.initialized_circular_buffer = 1;
+  tmp_table_file_header.initialized_circular_buffer = 1;
 
   /* Delete table page and write */
   if(lfs_delete_page(TOCBLOCK*g_mem_prop->pages_per_block+TABLE_PAGE_INDEX_IN_TOC) == LFS_ERROR)  {
@@ -620,15 +611,15 @@ elfs_result initialize_circular_buffer()  {
   }
 
   /* Write Table page in TOC */
-  if(write_table_file_in_toc(&tmp_table_file_handler) == LFS_ERROR) {
+  if(write_table_file_in_toc(&tmp_table_file_header) == LFS_ERROR) {
     /* return if writing page is error */
      NRF_LOG_INFO("Error in writing table file");
      return LFS_ERROR;
   }
 #ifdef DEBUG_CODES
-  memset(&tmp_table_file_handler,0,sizeof(tmp_table_file_handler));
+  memset(&tmp_table_file_header,0,sizeof(tmp_table_file_header));
   uint32_t bad_block_array[3],bad_blk_cnt=0;
-  if(read_bad_block_list (&tmp_table_file_handler,bad_block_array,&bad_blk_cnt) != LFS_SUCCESS)
+  if(read_bad_block_list (&tmp_table_file_header,bad_block_array,&bad_blk_cnt) != LFS_SUCCESS)
   {
     NRF_LOG_INFO("Error in reading bad block list");
     return LFS_ERROR;
@@ -693,20 +684,20 @@ elfs_result lfs_get_file_size(_file_handler *file_handler,
   *@param       *bad_block_num: number of bad blocks
   *@param       src_ind: source block
   *@param       end_ind: end block index
-  *@param       _table_file_handler *table_file_handler: table page handler to read from last page of toc
+  *@param       _table_file_header *table_file_header: table page handler to read from last page of toc
   *@return     elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 elfs_result get_bad_block_number(uint32_t *bad_block_num,
                                 uint32_t src_ind,
                                 uint32_t end_ind,
-                                _table_file_handler *table_file_handler)  {
+                                _table_file_header *table_file_header)  {
   bool is_bad;
   uint32_t loop_ind;
   /* run loop from source block index, to end block index */
   for(loop_ind=src_ind;loop_ind < end_ind;loop_ind++) {
     is_bad = false;
     /* Check whether current block is bad from list read */
-    if(check_current_block_is_bad(loop_ind,table_file_handler,&is_bad) != LFS_SUCCESS)  {
+    if(check_current_block_is_bad(loop_ind,table_file_header,&is_bad) != LFS_SUCCESS)  {
      /* if current block index, is greater than block index 2048, return out of bounds */
 #ifdef PRINTS_OUT
       NRF_LOG_INFO("Error in Checking Block %d is bad,number of blocks out of bounds",loop_ind);
@@ -732,19 +723,19 @@ elfs_result get_bad_block_number(uint32_t *bad_block_num,
   *@brief      Get remaining space for data/config memory in flash
   *@param       *remaining_bytes: Pointer to remmianing bytes
   *@param       file_type: Configuration / data fle type
-  *@param      _table_file_handler *table_file_handler: table page handler to read from last page of toc
+  *@param      _table_file_header *table_file_header: table page handler to read from last page of toc
   *@return     elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 elfs_result lfs_get_remaining_space(uint32_t * remaining_bytes,
                                   elfs_file_type file_type,
-                                  _table_file_handler *table_file_handler)  {
+                                  _table_file_header *table_file_header)  {
   uint32_t bad_block_num=0;
   uint32_t used_space=0;
   uint16_t page_correction = 0;
 
 
   /* page correction based on files present/not */
-  page_correction = ((table_file_handler->table_file_info.offset != 0)?1:0);
+  page_correction = ((table_file_header->offset != 0)?1:0);
 
   /* if file type is config file */
   if(file_type == LFS_CONFIG_FILE)  {
@@ -752,7 +743,7 @@ elfs_result lfs_get_remaining_space(uint32_t * remaining_bytes,
     struct _page_header next_page_head;
     uint16_t next_page = CFGBLOCK*g_mem_prop->pages_per_block;
     /* Check config block is bad */
-    if(check_current_block_is_bad(CFGBLOCK,table_file_handler,&is_bad) != LFS_SUCCESS)  {
+    if(check_current_block_is_bad(CFGBLOCK,table_file_header,&is_bad) != LFS_SUCCESS)  {
       /* if block index is greater than 2048, return out of bounds error */
 #ifdef PRINTS_OUT
       NRF_LOG_WARNING("Error in Checking Block %d is bad,number of blocks out of bounds",CFGBLOCK);
@@ -807,50 +798,35 @@ elfs_result lfs_get_remaining_space(uint32_t * remaining_bytes,
    /* if file type is data file */
   else if(file_type == LFS_DATA_FILE) {
     /* calculate current head in block */
-    uint32_t curr_head = (table_file_handler->table_file_info.head_pointer/g_mem_prop->pages_per_block);
+    uint32_t curr_head = (table_file_header->head_pointer/g_mem_prop->pages_per_block);
     /* calculate current head in pages */
-    uint32_t curr_head_in_pages = table_file_handler->table_file_info.head_pointer;
+    uint32_t curr_head_in_pages = table_file_header->head_pointer;
     /* calculate current tail in block */
-    uint32_t curr_tail = table_file_handler->table_file_info.tail_pointer;
+    uint32_t curr_tail = table_file_header->tail_pointer;
     /* calculate current tail in pages */
-    uint32_t curr_tail_in_pages = (table_file_handler->table_file_info.tail_pointer*g_mem_prop->pages_per_block);
+    uint32_t curr_tail_in_pages = (table_file_header->tail_pointer*g_mem_prop->pages_per_block);
 
      /* Case 1: when Head Pointer < Tail Pointer */
     if(curr_head < curr_tail) {
-
-      /* If Tail Pointer is at not FILEBLOCK, add offset corresponding to block size to remaining bytes */
-      if(curr_tail != FILEBLOCK)  {
-        /* remaining bytes is tail - head + offset */
-        *remaining_bytes = (curr_tail_in_pages-curr_head_in_pages + g_mem_prop->pages_per_block)*g_mem_prop->page_size;
-      }
-      else  {
-         /* remaining bytes is tail - head */
+       // *remaining_bytes = (curr_tail_in_pages-curr_head_in_pages + g_mem_prop->pages_per_block)*g_mem_prop->page_size;
         *remaining_bytes = (curr_tail_in_pages-curr_head_in_pages)*g_mem_prop->page_size;
-      }
     }
     /* Case 2: When Head pointer > Tail Pointer */
     else if(curr_head > curr_tail)  {
-
-      /* If Tail Pointer is at not FILEBLOCK, subtract offset corresponding to block size to remaining bytes */
-      if(curr_tail != FILEBLOCK)  {
         /* Remaining Space is head - tail -offset */
-        *remaining_bytes = DATA_FLASH_SIZE - ((curr_head_in_pages -curr_tail_in_pages - g_mem_prop->pages_per_block)*g_mem_prop->page_size);
-      }
-      else  {
-         /* Remaining Space is head - tail */
+        //*remaining_bytes = DATA_FLASH_SIZE - ((curr_head_in_pages -curr_tail_in_pages - g_mem_prop->pages_per_block)*g_mem_prop->page_size);
         *remaining_bytes = DATA_FLASH_SIZE - ((curr_head_in_pages -curr_tail_in_pages)*g_mem_prop->page_size);
-      }
      }
 
      /* Case 3: When Head Pointer = Tail Pointer */
     else if(curr_head == curr_tail) {
       /* if memory full flag is not equal to '1' */
-      if(table_file_handler->table_file_info.mem_full_flag != 1) {
+      if(table_file_header->mem_full_flag != 1) {
         used_space = 0;
         /* if page correction is not zero, files present */
         if(page_correction != 0)  {
           /* used space = ( Head Pointer % 64 ) * page size */
-          used_space = (table_file_handler->table_file_info.head_pointer % g_mem_prop->pages_per_block)*g_mem_prop->page_size;
+          used_space = (table_file_header->head_pointer % g_mem_prop->pages_per_block)*g_mem_prop->page_size;
         }
 
         /* Remaining space is entire area */
@@ -861,11 +837,31 @@ elfs_result lfs_get_remaining_space(uint32_t * remaining_bytes,
       }
     }
 
-     /* if files present and remaining bytes is not zero */
-     if((page_correction != 0) && ((*remaining_bytes) != 0))  {
-        *remaining_bytes -= (page_correction*g_mem_prop->page_size);
-     }
+    /* if files present and remaining bytes is not zero */
+    if((page_correction != 0) && ((*remaining_bytes) != 0))  {
+      
+      struct _page_header next_page_head;
+      /* read spare area to consider currect page as pointed by head pointer 
+      for volume info calculation */
 
+      if(lfs_read_oob(table_file_header->head_pointer,&next_page_head) != LFS_SUCCESS)  {
+        NRF_LOG_INFO("lfs_get_remaining_space:OOB Error");
+        return LFS_ERROR;
+      }
+      /* check current page occupancy */
+      if(next_page_head.occupied != 1)  {
+        /*  */
+        /* adding page size or not considering as valid page which happens when head pointer
+        increments at boundary page and it should not be considered when we have page to write equal to
+        page size */
+        *remaining_bytes += g_mem_prop->page_size;
+      }
+      /* this is required, when data is written to <= single page of block pointed by head and tail */
+      /* this can happen when single file created after erase of file size <= page size */ 
+      *remaining_bytes -= (page_correction*g_mem_prop->page_size);
+    }
+
+    
 #ifdef PRINTS_OUT
     NRF_LOG_INFO("**** No of bad blocks = %d in rem space api *****",bad_block_num);
     NRF_LOG_INFO("Remaining Data memory in bytes =%d",*remaining_bytes);
@@ -1009,18 +1005,18 @@ elfs_result lfs_get_file_indexes_list(uint8_t * out_file_indexes,
   *@return     elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   ***********************************************************************************/
 elfs_result lfs_get_file_count(uint8_t *p_file_count)  {
-   _table_file_handler table_file_handler;
-   memset(&table_file_handler,0,sizeof(_table_file_handler));
+   _table_file_header table_file_header;
+   memset(&table_file_header,0,sizeof(_table_file_header));
 
   /* Read table page for  */
-  if(read_table_file_in_toc(&table_file_handler) == LFS_ERROR)  {
+  if(read_table_file_in_toc(&table_file_header) == LFS_ERROR)  {
 #ifdef PRINTS_OUT
     NRF_LOG_INFO("Error in reading Table file");
 #endif
     return LFS_ERROR;
   }
 
-  *p_file_count = table_file_handler.table_file_info.offset;
+  *p_file_count = table_file_header.offset;
 
   return LFS_SUCCESS;
 }
@@ -1034,7 +1030,7 @@ elfs_result lfs_get_file_count(uint8_t *p_file_count)  {
   *
   * @param    char * file_name (input): Name that will be assigned to the file
   * @param    _file_handler * file_handler (input) : file handler that will be used
-  * @param    _table_file_handler                  : table file handler that will be used
+  * @param    _table_file_header  *table_file_header : table file header that will be used
   * @param    struct MemoryBuffer * memory_location (input): location of the memory
   *           buffer that will be used along the handler
   * @param    elfs_file_type type type of the file to create. Valid values:
@@ -1048,7 +1044,7 @@ uint32_t tick3=0,tick4=0;
 #endif
 elfs_result lfs_create_file(uint8_t * file_name,
                            _file_handler *file_handler,
-                           _table_file_handler *table_file_handler,
+                           _table_file_header *table_file_header,
                            struct _memory_buffer * memory_location,
                            elfs_file_type type) {
   elfs_result status;
@@ -1063,10 +1059,10 @@ elfs_result lfs_create_file(uint8_t * file_name,
       break;
   }
 
-  memset(table_file_handler,0,sizeof(_table_file_handler));
+  memset(table_file_header,0,sizeof(_table_file_header));
 
    /* Read TOC File in structure to preserve contents  */
-  if(read_table_file_in_toc(table_file_handler) == LFS_ERROR)  {
+  if(read_table_file_in_toc(table_file_header) == LFS_ERROR)  {
     NRF_LOG_INFO("Reading table file error");
     return LFS_ERROR;
   }
@@ -1080,10 +1076,10 @@ elfs_result lfs_create_file(uint8_t * file_name,
 #endif
 
   /* Get first void page header number which is available file number to create */
-  status = get_first_header_void(table_file_handler,type);
+  status = get_first_header_void(table_file_header,type);
 
   if(type == LFS_DATA_FILE){
-    file_header->header_number = table_file_handler->table_file_info.offset;
+    file_header->header_number = table_file_header->offset;
   }
 
   if(status != LFS_SUCCESS)   {
@@ -1119,7 +1115,7 @@ elfs_result lfs_create_file(uint8_t * file_name,
     }
     break;
     case LFS_DATA_FILE:
-    if(get_next_writable_page(file_handler,table_file_handler) != LFS_SUCCESS)
+    if(get_next_writable_page(table_file_header) != LFS_SUCCESS)
     {
       NRF_LOG_INFO("Error in getting next valid data page to write");
       return LFS_INVALID_NEXT_WRITABLE_DATA_PAGE_ERROR;
@@ -1135,8 +1131,8 @@ elfs_result lfs_create_file(uint8_t * file_name,
     file_handler->curr_write_mem_loc = file_header->mem_loc*g_mem_prop->page_size;
   }
   else if(type ==  LFS_DATA_FILE) {
-    file_handler->head.mem_loc = table_file_handler->table_file_info.head_pointer;
-    file_handler->curr_write_mem_loc = table_file_handler->table_file_info.head_pointer * g_mem_prop->page_size;
+    file_handler->head.mem_loc = table_file_header->head_pointer;
+    file_handler->curr_write_mem_loc = table_file_header->head_pointer * g_mem_prop->page_size;
   }
 
   file_header->time_stamp = 0;
@@ -1148,7 +1144,7 @@ elfs_result lfs_create_file(uint8_t * file_name,
   file_handler->op_mode = LFS_MODE_FAST;
 
   /* update file handler atleast once during creation */
-  if(lfs_update_header(file_handler,table_file_handler) == LFS_ERROR){
+  if(lfs_update_header(file_handler,table_file_header) == LFS_ERROR){
     NRF_LOG_INFO("Error in updating header in TOC for closing of file");
     return LFS_UPDATE_HEADER_ERROR;
   }
@@ -1159,6 +1155,31 @@ elfs_result lfs_create_file(uint8_t * file_name,
   return LFS_SUCCESS;
 }
 
+/*!
+  **************************************************************************************************
+  @brief      Get memory status to know status of memory full/not
+  *
+  * @param    uint8_t *mem_stat: status of memory if full or not 
+  * @return   elfs_result Function result: LFS_SUCCESS/LFS_ERROR
+  **************************************************************************************************/
+elfs_result get_memory_status(bool *mem_stat) {
+  _table_file_header table_file_header;
+   memset(&table_file_header,0,sizeof(_table_file_header));
+
+    /* read table page from toc */
+  if(read_table_file_in_toc(&table_file_header) != LFS_SUCCESS) {
+     NRF_LOG_INFO("Error in reading table file");
+     return LFS_ERROR;
+  }
+  
+  if(table_file_header.mem_full_flag == 1){
+    *mem_stat = true;
+  }
+  else {
+    *mem_stat = false;
+  }
+  return LFS_SUCCESS;
+}
 
 /*!
   **************************************************************************************************
@@ -1334,14 +1355,14 @@ elfs_result lfs_read_file(uint8_t * outBuffer,
   **************************************************************************************************/
 elfs_result lfs_delete_config_file(_file_handler *file_handler)
 {
-   _table_file_handler tmp_table_file_handler;
+   _table_file_header tmp_table_file_header;
    memset(type,0,MAX_UPDATE_TYPE);
   type[0] = LFS_CONFIG_FILE_POS_OCCUPIED_UPDATE;
 
-  memset(&tmp_table_file_handler,0,sizeof(_table_file_handler));
+  memset(&tmp_table_file_header,0,sizeof(_table_file_header));
 
   /* Read TOC File in structure to preserve contents */
-  if(read_table_file_in_toc(&tmp_table_file_handler) == LFS_ERROR)
+  if(read_table_file_in_toc(&tmp_table_file_header) == LFS_ERROR)
   {
     NRF_LOG_INFO("Reading table file error");
     return LFS_ERROR;
@@ -1369,9 +1390,9 @@ elfs_result lfs_delete_config_file(_file_handler *file_handler)
    }
 
    /* make low touch config file occupied as '0' */
-    tmp_table_file_handler.table_file_info.config_low_touch_occupied =  0;
+    tmp_table_file_header.config_low_touch_occupied =  0;
     /* Write Table page in TOC */
-    if(write_table_file_in_toc(&tmp_table_file_handler) == LFS_ERROR) {
+    if(write_table_file_in_toc(&tmp_table_file_header) == LFS_ERROR) {
       NRF_LOG_INFO("Write Table File in Update TOC is Error");
       return LFS_ERROR;
     }
@@ -1388,7 +1409,7 @@ elfs_result lfs_delete_config_file(_file_handler *file_handler)
   *
   * @param    _file_handler * file_handler : file handler that has to be updated while pattern data
               is written.
-              _table_file_handler *table_file_handler: table page handler that has to be updated.
+              _table_file_header *table_file_header: table page handler that has to be updated.
               start_block_num: starting block number to write
               *in_buffer: Input data to write
               first_time_write: first time write flag when '1' will move head pointer to block
@@ -1399,21 +1420,21 @@ elfs_result lfs_update_pattern_file(uint8_t *in_buffer,
                           uint16_t start_block_num,
                           uint16_t size,
                           _file_handler *file_handler,
-                          _table_file_handler *table_file_handler,
+                          _table_file_header *table_file_header,
                           uint8_t first_time_write)
 {
     if(first_time_write){
       /* read table page from toc */
-      if(read_table_file_in_toc(table_file_handler) != LFS_SUCCESS) {
+      if(read_table_file_in_toc(table_file_header) != LFS_SUCCESS) {
         NRF_LOG_INFO("Error in reading table file");
         return LFS_ERROR;
       }
 
       /* move head pointer to start block given */
-      table_file_handler->table_file_info.head_pointer += start_block_num*g_mem_prop->pages_per_block;
+      table_file_header->head_pointer += start_block_num*g_mem_prop->pages_per_block;
     }
     /* Call file update for writing */
-    if(lfs_update_file(in_buffer,size,file_handler,table_file_handler) != LFS_SUCCESS)  {
+    if(lfs_update_file(in_buffer,size,file_handler,table_file_header) != LFS_SUCCESS)  {
        NRF_LOG_INFO("Error in updating file");
       return LFS_ERROR;
     }
@@ -1429,10 +1450,10 @@ int read_tmp_blk(uint32_t page_number,uint32_t *pdata_memory,uint8_t file_type)
 
   /* read table file handler type */
     if(file_type == 0) {
-      _table_file_handler gsTmpBlkPageContentHdr;
+      _table_file_header gsTmpBlkPageContentHdr;
       memset(&gsTmpBlkPageContentHdr,0,sizeof(gsTmpBlkPageContentHdr));
       result = nand_func_read(g_mem_prop,page_pos*g_mem_prop->page_size,\
-        sizeof(_table_file_handler),(uint8_t*)&gsTmpBlkPageContentHdr);
+        sizeof(_table_file_header),(uint8_t*)&gsTmpBlkPageContentHdr);
     }
     /* config file */
     else if(file_type == 1){
@@ -1506,25 +1527,25 @@ int read_page_ecc_zone(uint32_t page_num, uint32_t *pnext_page, uint8_t *poccupi
   * @return         0/-1
   **************************************************************************************************/
 int get_pointers_info(uint32_t *head_pointer,uint32_t *tail_pointer,uint16_t table_page_flags[])  {
-   _table_file_handler table_file_handler;
-   memset(&table_file_handler,0,sizeof(table_file_handler));
+   _table_file_header table_file_header;
+   memset(&table_file_header,0,sizeof(table_file_header));
 
     /* read table page from toc */
-  if(read_table_file_in_toc(&table_file_handler) != LFS_SUCCESS) {
+  if(read_table_file_in_toc(&table_file_header) != LFS_SUCCESS) {
      NRF_LOG_INFO("Error in reading table file");
      return -1;
   }
   
-  *head_pointer = table_file_handler.table_file_info.head_pointer;
+  *head_pointer = table_file_header.head_pointer;
   
   /* read tail pointer */
-  *tail_pointer = table_file_handler.table_file_info.tail_pointer;
+  *tail_pointer = table_file_header.tail_pointer;
 
   /* read other variables of table page */
-  table_page_flags[0] = table_file_handler.table_file_info.initialized_circular_buffer;
-  table_page_flags[1] = table_file_handler.table_file_info.mem_full_flag;
-  table_page_flags[2] = table_file_handler.table_file_info.offset;
-  table_page_flags[3] = table_file_handler.table_file_info.config_low_touch_occupied;
+  table_page_flags[0] = table_file_header.initialized_circular_buffer;
+  table_page_flags[1] = table_file_header.mem_full_flag;
+  table_page_flags[2] = table_file_header.offset;
+  table_page_flags[3] = table_file_header.config_low_touch_occupied;
 
   return 0;
 }
@@ -1546,13 +1567,14 @@ int get_pointers_info(uint32_t *head_pointer,uint32_t *tail_pointer,uint16_t tab
 elfs_result lfs_update_file(uint8_t *in_buffer,
                           uint16_t size,
                           _file_handler *file_handler,
-                          _table_file_handler *table_file_handler)
+                          _table_file_header *table_file_header)
 {
   int32_t i;
   int8_t hold_buff = 0;
   bool is_bad_block = false;
   uint32_t word_pointer;
   uint32_t bit_pointer;
+  elfs_result ret =  LFS_SUCCESS;
 
   /* Sanity check */
   _file_header *file_header = &file_handler->head;
@@ -1587,16 +1609,16 @@ elfs_result lfs_update_file(uint8_t *in_buffer,
 
     /* Write next page information */
     /* Check in first place that the page of the next byte is ok: */
-    table_file_handler->table_file_info.head_pointer=(file_handler->curr_write_mem_loc/g_mem_prop->page_size)+1;
+    table_file_header->head_pointer=(file_handler->curr_write_mem_loc/g_mem_prop->page_size)+1;
 
 #ifdef PROFILE_TIME_ENABLED
     nGetNextPageReadTick1 =  get_micro_sec();
 #endif
-
+    
     /* get next good page to write by traversing through bad blocks if any */
-    if(get_next_page_files(file_handler,table_file_handler) != LFS_SUCCESS) {
-      NRF_LOG_INFO("Error in finding Valid page to write");
-      return LFS_INVALID_NEXT_WRITABLE_DATA_PAGE_ERROR;
+    ret = get_next_page_files(file_handler,table_file_header);
+    if(ret != LFS_SUCCESS) {
+       return ret;
     }
 
 #ifdef PROFILE_TIME_ENABLED
@@ -1609,7 +1631,7 @@ elfs_result lfs_update_file(uint8_t *in_buffer,
 
     /* Update current page information (Which is the next page and set the current as occupied)
     history of head pointers are stored, in every page to smoothen file reading */
-    file_header->tmp_write_mem->next_page_data.next_page = table_file_handler->table_file_info.head_pointer;
+    file_header->tmp_write_mem->next_page_data.next_page = table_file_header->head_pointer;
     /* set current page occupied */
     file_header->tmp_write_mem->next_page_data.occupied = 1;
 
@@ -1669,12 +1691,12 @@ elfs_result lfs_update_file(uint8_t *in_buffer,
 
         /* if current block is bad */
         if(is_bad_block == true)  {
-          table_file_handler ->table_file_info.bad_block_marker[word_pointer] |= (1 << bit_pointer);
+          table_file_header->bad_block_marker[word_pointer] |= (1 << bit_pointer);
           del_table_page = 1;
           memset(type,0,MAX_UPDATE_TYPE);
           type[0] = LFS_BAD_BLOCK_MARKER_UPDATE;
           /* update table page with new bad block information */
-          if(update_table_file_in_toc(table_file_handler,type,1) != LFS_SUCCESS)  {
+          if(update_table_file_in_toc(table_file_header,type,1) != LFS_SUCCESS)  {
             NRF_LOG_INFO("Error in updating Table File in TOC");
             return LFS_UPDATE_TABLE_FILE_ERROR;
           }
@@ -1712,12 +1734,12 @@ elfs_result lfs_update_file(uint8_t *in_buffer,
               NRF_LOG_INFO("Last used page=%d,File size=%d updated till boundary",file_handler->head.last_used_page,file_handler->head.file_size);
 #endif
               /* Reinitialize Head Pointer to next block */
-              table_file_handler ->table_file_info.head_pointer = (curr_mem_loc_in_blk+1)*g_mem_prop->pages_per_block;
+              table_file_header->head_pointer = (curr_mem_loc_in_blk+1)*g_mem_prop->pages_per_block;
 #ifdef PRINTS_OUT
-              NRF_LOG_INFO("Head Pointer Initialized to beginning of next block=%d",table_file_handler ->table_file_info.head_pointer);
+              NRF_LOG_INFO("Head Pointer Initialized to beginning of next block=%d",table_file_header->head_pointer);
 #endif
               /*  Close File */
-              if(lfs_update_header(file_handler,table_file_handler) == LFS_ERROR)
+              if(lfs_update_header(file_handler,table_file_header) == LFS_ERROR)
               {
                 NRF_LOG_INFO("Error in updating header in TOC for closing of file");
                 return LFS_UPDATE_HEADER_ERROR;
@@ -1727,7 +1749,7 @@ elfs_result lfs_update_file(uint8_t *in_buffer,
             /* multiple files are written within block which went bad */
             else  {
               /* Reinitialize Head Pointer to next block */
-             table_file_handler ->table_file_info.head_pointer = (curr_mem_loc_in_blk+1)*g_mem_prop->pages_per_block;
+             table_file_header ->head_pointer = (curr_mem_loc_in_blk+1)*g_mem_prop->pages_per_block;
 #ifdef PRINTS_OUT
                NRF_LOG_INFO("Header Number to be deleted=%d",file_handler->head.header_number);
 #endif
@@ -1742,7 +1764,7 @@ elfs_result lfs_update_file(uint8_t *in_buffer,
               }
 
               /* write table page */
-              if(write_table_file_in_toc(table_file_handler) == LFS_ERROR)  {
+              if(write_table_file_in_toc(table_file_header) == LFS_ERROR)  {
                 NRF_LOG_INFO("Write Table File in Update TOC is Error");
                 return LFS_ERROR;
               }
@@ -1755,7 +1777,7 @@ elfs_result lfs_update_file(uint8_t *in_buffer,
 
     /* Update file handler variables */
     file_handler->tmp_write_mem_loc = 0;
-    file_handler->curr_write_mem_loc = table_file_handler->table_file_info.head_pointer*g_mem_prop->page_size;
+    file_handler->curr_write_mem_loc = table_file_header->head_pointer*g_mem_prop->page_size;
     file_header->file_size += g_mem_prop->page_size;
 
 
@@ -1764,7 +1786,7 @@ elfs_result lfs_update_file(uint8_t *in_buffer,
     {
       case LFS_MODE_SECURE:
         /* if secure mode , header is updated every page */
-        if(lfs_update_header(file_handler,table_file_handler) != LFS_SUCCESS) {
+        if(lfs_update_header(file_handler,table_file_header) != LFS_SUCCESS) {
           NRF_LOG_ERROR("Error in updating header in TOC for file handler updation in secure mode");
           return LFS_UPDATE_HEADER_ERROR;
         }
@@ -1971,7 +1993,7 @@ uint32_t file_end_start_time1,file_end_start_time2;
 uint32_t upd_header_start_time,upd_header_time;
 #endif
 elfs_result lfs_end_file(_file_handler *file_handler,
-                        _table_file_handler *table_file_handler)  {
+                        _table_file_header *table_file_header)  {
 #ifdef PROFILE_TIME_ENABLED
     file_end_start_time1 = get_micro_sec();
 #endif
@@ -2014,14 +2036,14 @@ elfs_result lfs_end_file(_file_handler *file_handler,
   /* update header for fast/manual mode as secure mode already updated while writing */
   switch(file_handler->op_mode) {
     case LFS_MODE_FAST:
-    if(lfs_update_header(file_handler,table_file_handler) == LFS_ERROR) {
+    if(lfs_update_header(file_handler,table_file_header) == LFS_ERROR) {
       NRF_LOG_INFO("Error in updating header in TOC for file closing");
       return LFS_UPDATE_HEADER_ERROR;
     }
     break;
     case LFS_MODE_SECURE:
     case LFS_MODE_MANUAL:
-    if(lfs_update_header(file_handler,table_file_handler) == LFS_ERROR) {
+    if(lfs_update_header(file_handler,table_file_header) == LFS_ERROR) {
       NRF_LOG_INFO("Error in updating header in TOC for closing of file");
       return LFS_UPDATE_HEADER_ERROR;
     }
@@ -2184,11 +2206,11 @@ elfs_result lfs_erase_memory(bool force){
   /* partial erase */
   else  {
     /* read table page to note down pointers information */
-    _table_file_handler tmp_table_file_handler;
-    memset(&tmp_table_file_handler,0,sizeof(_table_file_handler));
+    _table_file_header tmp_table_file_header;
+    memset(&tmp_table_file_header,0,sizeof(_table_file_header));
 
     /* read table page */
-    if(read_table_file_in_toc(&tmp_table_file_handler) != LFS_SUCCESS)  {
+    if(read_table_file_in_toc(&tmp_table_file_header) != LFS_SUCCESS)  {
       NRF_LOG_INFO("Error in reading table file");
       return LFS_ERROR;
     }
@@ -2199,17 +2221,66 @@ elfs_result lfs_erase_memory(bool force){
     uint8_t wrap_around_condition = 0;
     uint32_t src_blk_ind = 0;
     uint32_t dst_blk_ind = 0;
-    uint32_t curr_head = tmp_table_file_handler.table_file_info.head_pointer;
-    uint32_t curr_head_in_blk = tmp_table_file_handler.table_file_info.head_pointer / g_mem_prop->pages_per_block;
-    uint32_t curr_tail = tmp_table_file_handler.table_file_info.tail_pointer;
-    uint32_t tail_pointer_in_pages = tmp_table_file_handler.table_file_info.tail_pointer * g_mem_prop->pages_per_block;
+    uint32_t curr_head = tmp_table_file_header.head_pointer;
+    uint32_t curr_head_in_blk = tmp_table_file_header.head_pointer / g_mem_prop->pages_per_block;
+    uint32_t curr_tail = tmp_table_file_header.tail_pointer;
+    uint32_t tail_pointer_in_pages = tmp_table_file_header.tail_pointer * g_mem_prop->pages_per_block;
 
 
     /* current head = tail pointer in pages assuming head pointer closes and updates at boundary */
     if(curr_head == tail_pointer_in_pages)  {
       /* No erase */
-      if(tmp_table_file_handler.table_file_info.mem_full_flag != 1) {
-        NRF_LOG_WARNING("Nothing is written to erase");
+      if(tmp_table_file_header.mem_full_flag != 1) {
+        if(tmp_table_file_header.offset > 0) {
+          bool is_bad=false;
+          /* a page has been written at boundary */
+            if((nand_func_erase(g_mem_prop,curr_head_in_blk,1)) != NAND_FUNC_SUCCESS) {
+            NRF_LOG_INFO("Error in formatting block ind %d",curr_head_in_blk);
+             /* if erase fails, check current block if bad */
+             is_bad = false;
+             if(nand_func_is_bad_block(g_mem_prop,curr_head_in_blk,&is_bad) != NAND_FUNC_SUCCESS) {
+                NRF_LOG_INFO("Error in checking Bad block header for %d block",curr_head_in_blk);
+                return LFS_BAD_BLOCK_HEADER_CHECK_ERROR;
+             } else {
+                /* if current block is bad, then update bad block list */
+                if(is_bad == true)  {
+                  uint32_t word_pointer = curr_head_in_blk / MAX_NO_OF_BITS_IN_WORD;
+                  uint32_t bit_pointer = curr_head_in_blk % MAX_NO_OF_BITS_IN_WORD;
+
+                  /* Update Bad block list */
+                  tmp_table_file_header.bad_block_marker[word_pointer] |=  (1 << bit_pointer);
+                  del_table_page = 1;
+                  memset(type,0,MAX_UPDATE_TYPE);
+                  type[0] = LFS_BAD_BLOCK_MARKER_UPDATE;
+                  if(update_table_file_in_toc(&tmp_table_file_header,type,1) != LFS_SUCCESS) {
+                    NRF_LOG_INFO("Error in updating Table File %d block",curr_head_in_blk);
+                    return LFS_UPDATE_TABLE_FILE_ERROR;
+                  }
+                  del_table_page = 0;
+               }
+             }
+           }
+           /* erase toc memory */
+             /* Take back of TOC for config file */
+            if(erase_toc_memory(false) != LFS_SUCCESS)  {
+              NRF_LOG_INFO("Updated in formatting TOC Block");
+              return LFS_TOC_FORMAT_ERROR;
+            }
+            /* offset reset to '0' as count starts from '1'*/
+            tmp_table_file_header.offset = 0;
+
+           del_table_page = 1;
+           memset(type,0,MAX_UPDATE_TYPE);
+           type[0] = LFS_OFFSET_UPDATE;
+           if(update_table_file_in_toc(&tmp_table_file_header,type,1) != LFS_SUCCESS) {
+            NRF_LOG_INFO("Error in updating Table File %d block",curr_head_in_blk);
+            return LFS_UPDATE_TABLE_FILE_ERROR;
+           }
+           del_table_page = 0;
+        }
+        else {
+            NRF_LOG_WARNING("Nothing is written to erase");
+        }
         return LFS_SUCCESS;
       }
       /* full flash format from FILEBLOCK , TOC Block has only config if any */
@@ -2235,11 +2306,11 @@ elfs_result lfs_erase_memory(bool force){
                   uint32_t bit_pointer = loop_ind % MAX_NO_OF_BITS_IN_WORD;
 
                   /* Update Bad block list */
-                  tmp_table_file_handler.table_file_info.bad_block_marker[word_pointer] |=  (1 << bit_pointer);
+                  tmp_table_file_header.bad_block_marker[word_pointer] |=  (1 << bit_pointer);
                   del_table_page = 1;
                   memset(type,0,MAX_UPDATE_TYPE);
                   type[0] = LFS_BAD_BLOCK_MARKER_UPDATE;
-                  if(update_table_file_in_toc(&tmp_table_file_handler,type,1) != LFS_SUCCESS) {
+                  if(update_table_file_in_toc(&tmp_table_file_header,type,1) != LFS_SUCCESS) {
                     NRF_LOG_INFO("Error in updating Table File %d block",loop_ind);
                     return LFS_UPDATE_TABLE_FILE_ERROR;
                   }
@@ -2267,16 +2338,16 @@ elfs_result lfs_erase_memory(bool force){
         }
 
         /* Update Mem full flag for erased and for next use  */
-        tmp_table_file_handler.table_file_info.mem_full_flag = 0;
+        tmp_table_file_header.mem_full_flag = 0;
 
         /* offset reset to '0' as count starts from '1'*/
-        tmp_table_file_handler.table_file_info.offset = 0;
+        tmp_table_file_header.offset = 0;
 
         /* reset to '1' as its empty */
-        tmp_table_file_handler.table_file_info.initialized_circular_buffer = 1;
+        tmp_table_file_header.initialized_circular_buffer = 1;
 
         /* Write Table File in TOC  */
-        if(write_table_file_in_toc(&tmp_table_file_handler) == LFS_ERROR) {
+        if(write_table_file_in_toc(&tmp_table_file_header) == LFS_ERROR) {
           NRF_LOG_INFO("Write Table File in Update TOC is Error");
           return LFS_ERROR;
         }
@@ -2285,6 +2356,7 @@ elfs_result lfs_erase_memory(bool force){
     else  {
       /* Calculate Source and Destination Block Index for File Erase based on head and tail positions */
       /* Data written but not erased or repeated erase */
+      
       if((curr_tail == FILEBLOCK) && (curr_head > tail_pointer_in_pages))   {
         src_blk_ind = FILEBLOCK;
         dst_blk_ind = curr_head_in_blk;
@@ -2293,13 +2365,13 @@ elfs_result lfs_erase_memory(bool force){
       else if((curr_tail > FILEBLOCK) && (curr_head_in_blk > FILEBLOCK))  {
         /* Tail have moved foward then head */
         if(tail_pointer_in_pages > curr_head) {
-          src_blk_ind = tmp_table_file_handler.table_file_info.tail_pointer + 1;
+          src_blk_ind = tmp_table_file_header.tail_pointer;/* current tail pointer */
           dst_blk_ind = g_mem_prop->num_of_blocks-1;/* max is 2047 */
           wrap_around_condition = 1;
         }
         /* Head has moved forward than tail */
         else if(curr_head > tail_pointer_in_pages) {
-          src_blk_ind = tmp_table_file_handler.table_file_info.tail_pointer + 1;
+          src_blk_ind = tmp_table_file_header.tail_pointer;/* current tail pointer */
           dst_blk_ind = curr_head_in_blk;
         }
       }
@@ -2326,7 +2398,7 @@ elfs_result lfs_erase_memory(bool force){
 #endif
       for(loop_ind = src_blk_ind;loop_ind <= dst_blk_ind;loop_ind++)  {
         /* Check Bad Block list if to be erased is bad or good */
-        if(check_current_block_is_bad(loop_ind,&tmp_table_file_handler,&is_bad) != LFS_SUCCESS) {
+        if(check_current_block_is_bad(loop_ind,&tmp_table_file_header,&is_bad) != LFS_SUCCESS) {
           /* current block index ix greater than 2048 blocks */
           NRF_LOG_WARNING("Error in Checking Block %d is bad,number of blocks out of bounds",loop_ind);
           break;
@@ -2360,11 +2432,11 @@ elfs_result lfs_erase_memory(bool force){
               vol_info_buff_var.bad_block_updated = 1;
 
               /* Update Bad block list */
-              tmp_table_file_handler.table_file_info.bad_block_marker[word_pointer] |=  (1 << bit_pointer);
+              tmp_table_file_header.bad_block_marker[word_pointer] |=  (1 << bit_pointer);
               del_table_page = 1;
               memset(type,0,MAX_UPDATE_TYPE);
               type[0] = LFS_BAD_BLOCK_MARKER_UPDATE;
-              if(update_table_file_in_toc(&tmp_table_file_handler,type,1) != LFS_SUCCESS) {
+              if(update_table_file_in_toc(&tmp_table_file_header,type,1) != LFS_SUCCESS) {
                 NRF_LOG_INFO("Error in updating Table File %d block",loop_ind);
                 return LFS_UPDATE_TABLE_FILE_ERROR;
               }
@@ -2380,24 +2452,25 @@ elfs_result lfs_erase_memory(bool force){
       }
 
       /* Update Tail Pointer with dest block index as its erased */
-      tmp_table_file_handler.table_file_info.tail_pointer = dst_blk_ind;
+      tmp_table_file_header.tail_pointer = dst_blk_ind;
 
       /* If tail pointer has reached maximum available blocks, reset tail pointer*/
-      if((tmp_table_file_handler.table_file_info.tail_pointer == (g_mem_prop->num_of_blocks-1))\
+      if((tmp_table_file_header.tail_pointer == (g_mem_prop->num_of_blocks-1))\
           && wrap_around_condition) {
-        tmp_table_file_handler.table_file_info.tail_pointer = FILEBLOCK;
+        tmp_table_file_header.tail_pointer = FILEBLOCK;
 #ifdef FORMAT_DEBUG_INFO_CMD
         tmp_fs_format_debug_info.wrap_around_cond = 1;
 #endif
+
       }
 #ifdef PRINTS_OUT
       NRF_LOG_INFO("Head Pointer:%d,Tail Pointer:%d before further erasal",
-                             tmp_table_file_handler.table_file_info.head_pointer / g_mem_prop->pages_per_block,
-                             tmp_table_file_handler.table_file_info.tail_pointer);
+                             tmp_table_file_header.head_pointer / g_mem_prop->pages_per_block,
+                             tmp_table_file_header.tail_pointer);
 #endif
 
      /* update calculation of tail pointer variable */
-      tail_pointer_in_pages = tmp_table_file_handler.table_file_info.tail_pointer * g_mem_prop->pages_per_block;
+      tail_pointer_in_pages = tmp_table_file_header.tail_pointer * g_mem_prop->pages_per_block;
 
       /* check if tail still lags behind head, perform format from
         current tail till head and wrap around condition is set */
@@ -2409,11 +2482,11 @@ elfs_result lfs_erase_memory(bool force){
           /* format as pointed out from source and destination block index */
           for(loop_ind = src_blk_ind;loop_ind <= dst_blk_ind;loop_ind++)  {
             /* Check Bad Block list for current block if bad */
-            if(check_current_block_is_bad(loop_ind,&tmp_table_file_handler,&is_bad) != LFS_SUCCESS) {
+            if(check_current_block_is_bad(loop_ind,&tmp_table_file_header,&is_bad) != LFS_SUCCESS) {
 #ifdef PRINTS_OUT
             NRF_LOG_WARNING("Error in Checking Block %d is bad,out of bounds",loop_ind);
 #endif
-            break;
+              break;
             } else  {
               /* if bad block , skip current block and continue */
               if(is_bad == true)  {
@@ -2442,15 +2515,15 @@ elfs_result lfs_erase_memory(bool force){
                   uint32_t bit_pointer = loop_ind % MAX_NO_OF_BITS_IN_WORD;
 
                   /* Update Bad block list */
-                  tmp_table_file_handler.table_file_info.bad_block_marker[word_pointer] |=  (1 << bit_pointer);
+                  tmp_table_file_header.bad_block_marker[word_pointer] |=  (1 << bit_pointer);
                   del_table_page = 1;
                   memset(type,0,MAX_UPDATE_TYPE);
                   type[0] = LFS_BAD_BLOCK_MARKER_UPDATE;
-                
+ 
                   /* bad block updated, update again */
                   vol_info_buff_var.bad_block_updated = 1;
 
-                  if(update_table_file_in_toc(&tmp_table_file_handler,type,1) != LFS_SUCCESS) {
+                  if(update_table_file_in_toc(&tmp_table_file_header,type,1) != LFS_SUCCESS) {
                     NRF_LOG_INFO("Error in updating Table File for Bad Block");
                     return LFS_UPDATE_TABLE_FILE_ERROR;
                   }
@@ -2465,7 +2538,7 @@ elfs_result lfs_erase_memory(bool force){
 #endif
           }
         /* Update Tail Pointer after erase */
-          tmp_table_file_handler.table_file_info.tail_pointer = dst_blk_ind;
+          tmp_table_file_header.tail_pointer = dst_blk_ind;
           wrap_around_condition=0; /* clear flag now as wrap around is over and necessary blocks are erased */
 #ifdef FORMAT_DEBUG_INFO_CMD
           tmp_fs_format_debug_info.format_dest_blk_ind_2 = dst_blk_ind;
@@ -2488,19 +2561,19 @@ elfs_result lfs_erase_memory(bool force){
 #ifdef DEBUG_CODES
        /* get no of bad blocks */
        uint32_t bad_block_num = 0;
-      if(get_bad_block_number(&bad_block_num,FILEBLOCK,g_mem_prop->num_of_blocks,&tmp_table_file_handler) != LFS_SUCCESS)
+      if(get_bad_block_number(&bad_block_num,FILEBLOCK,g_mem_prop->num_of_blocks,&tmp_table_file_header) != LFS_SUCCESS)
       {
          return LFS_NUM_BLOCKS_OUT_OF_BOUNDS_ERROR;
       }
 #endif
      /* Reset Mem full flag for erased and for next use  */
-    tmp_table_file_handler.table_file_info.mem_full_flag=0;
+    tmp_table_file_header.mem_full_flag=0;
 
     /* offset reset to '0' as count starts from '1' */
-    tmp_table_file_handler.table_file_info.offset = 0;
+    tmp_table_file_header.offset = 0;
 
     /* reset to '1' as its empty */
-    tmp_table_file_handler.table_file_info.initialized_circular_buffer = 1;
+    tmp_table_file_header.initialized_circular_buffer = 1;
 
     memset(type,0,MAX_UPDATE_TYPE);
     type[0] = LFS_TAIL_POINTER_UPDATE;
@@ -2510,13 +2583,13 @@ elfs_result lfs_erase_memory(bool force){
     del_table_page = 1;
 
     /* Update Tail Pointer on to TOC */
-    if(update_table_file_in_toc(&tmp_table_file_handler,type,4) != LFS_SUCCESS) {
+    if(update_table_file_in_toc(&tmp_table_file_header,type,4) != LFS_SUCCESS) {
         NRF_LOG_INFO("Updated in updating Table File");
         return LFS_UPDATE_TABLE_FILE_ERROR;
     }
     else  {
 #ifdef PRINTS_OUT
-        NRF_LOG_INFO("Updated Tail Pointer:%d",tmp_table_file_handler.table_file_info.tail_pointer);
+        NRF_LOG_INFO("Updated Tail Pointer:%d",tmp_table_file_header.tail_pointer);
 #endif
       }
        del_table_page = 0;
@@ -2524,7 +2597,7 @@ elfs_result lfs_erase_memory(bool force){
 #ifdef DEBUG_CODES
        /* get no of bad blocks */
        uint32_t bad_block_num = 0;
-      if(get_bad_block_number(&bad_block_num,FILEBLOCK,g_mem_prop->num_of_blocks,&tmp_table_file_handler) != LFS_SUCCESS)
+      if(get_bad_block_number(&bad_block_num,FILEBLOCK,g_mem_prop->num_of_blocks,&tmp_table_file_header) != LFS_SUCCESS)
       {
          return LFS_NUM_BLOCKS_OUT_OF_BOUNDS_ERROR;
       }
@@ -2554,8 +2627,7 @@ elfs_result erase_toc_memory(bool force)  {
   uint32_t i;
   uint8_t new_file_number = 0;
   _file_header tmp_file_header;
-  _table_file_handler tmp_table_file_handler;
-  _table_file_header *tmp_table_file_header = &tmp_table_file_handler.table_file_info;
+  _table_file_header tmp_table_file_header;
   struct _page_header page_info;
 
   if(force == false)  {
@@ -2576,7 +2648,7 @@ elfs_result erase_toc_memory(bool force)  {
       if(nand_func_read(g_mem_prop,TOCBLOCK*g_mem_prop->block_size+\
                   i*g_mem_prop->page_size,sizeof(_file_header),\
                   (uint8_t*)&tmp_file_header) != NAND_FUNC_SUCCESS) {
-        NRF_LOG_ERROR("Error in reading config file Information %d",
+        NRF_LOG_INFO("Error in reading config file Information %d",
                     TOCBLOCK*g_mem_prop->pages_per_block+new_file_number);
         return LFS_ERROR;
       }
@@ -2595,8 +2667,12 @@ elfs_result erase_toc_memory(bool force)  {
         new_file_number++;
       }
     }
+
+    /* clear structure for last page read properly */
+    memset(&tmp_table_file_header,0,sizeof(_table_file_header));
+    
     /* Read TOC File in structure to preserve contents */
-    if(read_table_file_in_toc(&tmp_table_file_handler) == LFS_ERROR)  {
+    if(read_table_file_in_toc(&tmp_table_file_header) == LFS_ERROR)  {
       NRF_LOG_INFO("Error in read table file in TOC");
       return LFS_ERROR;
     }
@@ -2605,7 +2681,7 @@ elfs_result erase_toc_memory(bool force)  {
 
     /*  Write the header and the data */
     struct _page_write write_data = {.page_dest=page_pos,
-    .data_buf = (uint8_t*)tmp_table_file_header,
+    .data_buf = (uint8_t*)&tmp_table_file_header,
     .data_size = sizeof(_table_file_header),
     .offset = DATA_OFFSET,
     .spare_buf = (uint8_t*)&page_info,
@@ -2838,7 +2914,7 @@ elfs_result lfs_set_operating_mode(_file_handler *file_handler,
   *@return     elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 elfs_result lfs_refresh_header(_file_handler *file_handler,
-                              _table_file_handler *table_file_handler)  {
+                              _table_file_header *table_file_header)  {
   if(file_handler == NULL)
     return LFS_ERROR;
   if(file_handler->op_mode == LFS_MODE_MANUAL)  {
@@ -2847,7 +2923,7 @@ uint32_t nTick = 0;
 nTick = MCU_HAL_GetTick();
 #endif
     /* if manual mode , update header done for every block */
-    if(lfs_update_header(file_handler,table_file_handler) != LFS_SUCCESS) {
+    if(lfs_update_header(file_handler,table_file_header) != LFS_SUCCESS) {
       NRF_LOG_INFO("Error in updating File header Information");
       return LFS_UPDATE_HEADER_ERROR;
     }
@@ -2934,23 +3010,60 @@ elfs_result lfs_mark_good(uint32_t block_index) {
   return LFS_SUCCESS;
 }
 
+
+/*!
+  **************************************************************************************************
+   @brief       write last page when memory full
+  *
+  * @param      *file_handler: Pointer to file handler opened to write
+  *@return      elfs_result Function result LFS_SUCCESS/LFS_ERROR
+  **************************************************************************************************/
+elfs_result lfs_write_last_page_at_mem_full(_file_handler *file_handler) {
+    
+    _file_header *file_header = &file_handler->head;
+
+    /* Write the last bytes of the file */
+    file_header->tmp_write_mem->next_page_data.next_page = 0xFFFFFFFF;
+    file_header->tmp_write_mem->next_page_data.occupied = 1;
+
+    struct _page_write write_data = {.page_dest = file_handler->curr_write_mem_loc/g_mem_prop->page_size,
+                                      .data_buf = (uint8_t*)file_header->tmp_write_mem->data,
+                                      .data_size = g_mem_prop->page_size,
+                                      .offset = DATA_OFFSET,
+                                      .spare_buf = (uint8_t*)&file_header->tmp_write_mem->next_page_data,
+                                      .spare_size = sizeof(struct _page_header),
+                                      .spare_offset = SPARE_OFFSET};
+#ifdef PRINTS_OUT
+    NRF_LOG_INFO("*****************size of complete write end of file=%d******************************",sizeof(write_data));
+#endif
+
+    /* write remaining bytes */
+    if(nand_func_page_and_spare_write(&write_data) != NAND_FUNC_SUCCESS)  {
+      NRF_LOG_INFO("Error in closing of file");
+      return LFS_FILE_WRITE_ERROR;
+    }
+    file_header->file_size += g_mem_prop->page_size;
+    file_handler->tmp_write_mem_loc = 0;
+    file_header->last_used_page = file_handler->curr_write_mem_loc/g_mem_prop->page_size;
+}
+
 /*!
   **************************************************************************************************
   *@brief       Obtain the next page while writing. If bad blocks are found, block is skipped,
                 also function checks for memory full
   *
   *@param       *file_handler: Pointer to file handler opened to write
-  *             *table_file_handler: Pointer to table file handler
+  *             *tmp_table_file_header: Pointer to table file header
   *@return      elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 static elfs_result get_next_page_files(_file_handler *file_handler,
-                                      _table_file_handler *tmp_table_file_handler)  {
+                                      _table_file_header *tmp_table_file_header)  {
    uint32_t current_block;
    bool is_bad = false;
    uint8_t init_roll_over_flag = 0;
 
    /* start bad block check from current block as indicated by head pointer */
-   current_block = tmp_table_file_handler->table_file_info.head_pointer / g_mem_prop->pages_per_block;
+   current_block = floor(tmp_table_file_header->head_pointer / g_mem_prop->pages_per_block);
     do  {
       /* If current block is same when reached maximum number of blocks in flash */
       if(current_block >= (g_mem_prop->num_of_blocks))  {
@@ -2960,7 +3073,7 @@ static elfs_result get_next_page_files(_file_handler *file_handler,
       }
 
       /* check whether current block which is about to be written is bad */
-      if(check_current_block_is_bad(current_block,tmp_table_file_handler,&is_bad) != LFS_SUCCESS) {
+      if(check_current_block_is_bad(current_block,tmp_table_file_header,&is_bad) != LFS_SUCCESS) {
         NRF_LOG_INFO("Error in checking %d Bad block in Bad block list",current_block);
 
       }
@@ -2971,20 +3084,20 @@ static elfs_result get_next_page_files(_file_handler *file_handler,
     }while(is_bad == true);
 
     /* Update Head Pointer based on Bad block check if Current block has incremented bad block while skipping */
-    if(current_block != (tmp_table_file_handler->table_file_info.head_pointer / g_mem_prop->pages_per_block)) {
+    if(current_block != (tmp_table_file_header->head_pointer / g_mem_prop->pages_per_block)) {
       /* then modify Head Pointer to boundary of block which has been updated */
-      tmp_table_file_handler->table_file_info.head_pointer = current_block * g_mem_prop->pages_per_block;
+      tmp_table_file_header->head_pointer = current_block * g_mem_prop->pages_per_block;
     }
-    NRF_LOG_INFO("Updated head_pointer after Bad Block Check:%d",tmp_table_file_handler->table_file_info.head_pointer);
+    NRF_LOG_INFO("Updated head_pointer after Bad Block Check:%d",tmp_table_file_header->head_pointer);
     /* While traversing If Head reaches Max, roll it back to FILEBLOCK  */
     if(init_roll_over_flag == 1)  {
       /* reinitialized to 0 after roll back of Head Pointer */
-      tmp_table_file_handler->table_file_info.initialized_circular_buffer=0;
+      tmp_table_file_header->initialized_circular_buffer=0;
       del_table_page = 1;
       memset(type,0,MAX_UPDATE_TYPE);
       type[0] = LFS_INITIALIZE_BUFFER_FLAG_UPDATE;
       /* Update in TOC roll over flag */
-      if(update_table_file_in_toc(tmp_table_file_handler,type,1) != LFS_SUCCESS)  {
+      if(update_table_file_in_toc(tmp_table_file_header,type,1) != LFS_SUCCESS)  {
         NRF_LOG_INFO("Error in updating Table File for Circular Buffer Initialization");
         return LFS_UPDATE_TABLE_FILE_ERROR;
       }
@@ -2994,28 +3107,35 @@ static elfs_result get_next_page_files(_file_handler *file_handler,
 
     /* If Head and Tail both are initialized to FILEBLOCK , then do not write
        as its memory full */
-    if(tmp_table_file_handler->table_file_info.initialized_circular_buffer != 1)  {
-      if(((tmp_table_file_handler->table_file_info.head_pointer / g_mem_prop->pages_per_block) == FILEBLOCK) &&\
-       (tmp_table_file_handler->table_file_info.tail_pointer == FILEBLOCK)) {
+    if(tmp_table_file_header->initialized_circular_buffer != 1)  {
+      if(((tmp_table_file_header->head_pointer / g_mem_prop->pages_per_block) == FILEBLOCK) &&\
+       (tmp_table_file_header->tail_pointer == FILEBLOCK)) {
+
         NRF_LOG_WARNING("Case 1: Memory is full, call format");
-        tmp_table_file_handler->table_file_info.mem_full_flag=1;
+        tmp_table_file_header->mem_full_flag=1;
+        /* write last page data here */
+        lfs_write_last_page_at_mem_full(file_handler);
+
         /* close file as its memory full */
-        if(lfs_end_file(file_handler,tmp_table_file_handler) != LFS_SUCCESS)  {
+        if(lfs_end_file(file_handler,tmp_table_file_header) != LFS_SUCCESS)  {
           NRF_LOG_WARNING("Error in closing File %s",file_handler->head.file_name);
           return LFS_FILE_CLOSE_ERROR;
         }
         return LFS_MEMORY_FULL_ERROR;
       }
       /* When T and H Coincide ,  then do not write as its memory full */
-      else if(((tmp_table_file_handler->table_file_info.head_pointer/g_mem_prop->pages_per_block) > FILEBLOCK) && \
-              (tmp_table_file_handler->table_file_info.tail_pointer > FILEBLOCK)) {
+      else if(((tmp_table_file_header->head_pointer/g_mem_prop->pages_per_block) > FILEBLOCK) && \
+              (tmp_table_file_header->tail_pointer > FILEBLOCK)) {
 
-        if((tmp_table_file_handler->table_file_info.head_pointer/g_mem_prop->pages_per_block) == tmp_table_file_handler->table_file_info.tail_pointer)  {
+        if((tmp_table_file_header->head_pointer/g_mem_prop->pages_per_block) == tmp_table_file_header->tail_pointer)  {
           NRF_LOG_WARNING("Case 2: Memory is full, call format");
-          tmp_table_file_handler->table_file_info.mem_full_flag=1;
+          tmp_table_file_header->mem_full_flag=1;
+
+          /* write last page data here */
+          lfs_write_last_page_at_mem_full(file_handler);
 
           /* close file as its memory full */
-          if(lfs_end_file(file_handler,tmp_table_file_handler) != LFS_SUCCESS)  {
+          if(lfs_end_file(file_handler,tmp_table_file_header) != LFS_SUCCESS)  {
             NRF_LOG_WARNING("Error in closing File %s",file_handler->head.file_name);
             return LFS_FILE_CLOSE_ERROR;
           }
@@ -3034,13 +3154,13 @@ static elfs_result get_next_page_files(_file_handler *file_handler,
   *               file_type: LFS_DATA_FILE / LFS_CONFIG_FILE
   *@return      elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
-static elfs_result get_first_header_void(_table_file_handler *table_file_handler,
+static elfs_result get_first_header_void(_table_file_header *table_file_header,
                                         elfs_file_type file_type) {
 
   /* consider offset only if its data file */
   if(file_type == LFS_DATA_FILE){
    /* If offset > 63 ( config + data ) return error as max files that can be stored is reached */
-    if(table_file_handler->table_file_info.offset == (MAXFILENUMBER-1))  {
+    if(table_file_header->offset == (MAXFILENUMBER-1))  {
 #ifdef PRINTS_OUT
       NRF_LOG_ERROR("Maximum file count reached");
 #endif
@@ -3050,7 +3170,7 @@ static elfs_result get_first_header_void(_table_file_handler *table_file_handler
 
   /* low touch config pos if already occupied, return error as only one config file can be written */
   if((file_type == LFS_CONFIG_FILE) &&\
-      (table_file_handler->table_file_info.config_low_touch_occupied==1)) {
+      (table_file_header->config_low_touch_occupied==1)) {
     NRF_LOG_INFO("Error in obtaining File Position for Low touch config file \
                 because low touch cnfig file occupied");
     return LFS_CONFIG_FILE_POSITION_ERROR;
@@ -3058,14 +3178,14 @@ static elfs_result get_first_header_void(_table_file_handler *table_file_handler
 
   /* Increment offset from previous value for new file creation */
   if(file_type == LFS_DATA_FILE)  {
-    table_file_handler->table_file_info.offset += 1;
+    table_file_header->offset += 1;
   }
   else if(file_type == LFS_CONFIG_FILE) {
     /* config file pos occupied */
-    table_file_handler->table_file_info.config_low_touch_occupied =  1;
+    table_file_header->config_low_touch_occupied =  1;
   }
 
-  NRF_LOG_INFO("Position header number= %d",table_file_handler->table_file_info.offset);
+  NRF_LOG_INFO("Position header number= %d",table_file_header->offset);
   return LFS_SUCCESS;
 }
 
@@ -3148,11 +3268,11 @@ static elfs_result lfs_set_read_pos(uint32_t read_pos,
   **************************************************************************************************
   *@brief         When using manual mode, update the header of the file.
   * @param       _file_handler *file_handler : file handler that will be used
-  * @param       _table_file_handler *table_file_handler : table file handler that will be used
+  * @param       _table_file_header *table_file_header : table file handler that will be used
   *@return        elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 static elfs_result lfs_update_header(_file_handler *file_handler,
-                                    _table_file_handler *table_file_handler)  {
+                                    _table_file_header *table_file_header)  {
   eNand_Func_Result result = NAND_FUNC_SUCCESS;
   struct _page_header header_page_info;
   header_page_info.next_page=0xFFFFFFFF;
@@ -3199,10 +3319,10 @@ static elfs_result lfs_update_header(_file_handler *file_handler,
   }
 
    NRF_LOG_INFO("Head pointer during closing of file = %d, Tail pointer during closing of file = %d",
-    table_file_handler->table_file_info.head_pointer,table_file_handler->table_file_info.tail_pointer);
+    table_file_header->head_pointer,table_file_header->tail_pointer);
 
   /* write table page information */
-  if(write_table_file_in_toc(table_file_handler) == LFS_ERROR)  {
+  if(write_table_file_in_toc(table_file_header) == LFS_ERROR)  {
     /* If writing table page information, return error from header update */
     NRF_LOG_INFO("Write Table File in Update TOC is Error");
     return LFS_ERROR;
@@ -3364,7 +3484,7 @@ nTick = MCU_HAL_GetTick();
   * @brief          Get the next unused page within a good block.
   *
   * @param         *file_handler: Pointer to file handler
-  *                *tmp_table_file_handler: Pointer to table file handler
+  *                *tmp_table_file_header: Pointer to table file header
   * @return        elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 #ifdef PROFILE_TIME_ENABLED
@@ -3372,8 +3492,7 @@ uint32_t do_while_loop_tick2,do_while_loop_tick1;
 uint32_t spare_area_time_start,spare_area_time;
 uint32_t check_bad_block_time_start,check_bad_block_time;
 #endif
-static elfs_result get_next_writable_page(_file_handler *file_handler,
-                                          _table_file_handler *tmp_table_file_handler)  {
+static elfs_result get_next_writable_page(_table_file_header *tmp_table_file_header)  {
   uint32_t current_block;
   bool is_bad=false;
   struct _page_header nextPageHead = {0, 0};
@@ -3384,26 +3503,23 @@ static elfs_result get_next_writable_page(_file_handler *file_handler,
   /* Increment Head Pointer till we get WritablePage skipping all bad blocks
      If erased, write from next block,else write from current block next page
      check tail pointer has erased complete block if so, start from next block else next page */
-  uint32_t curr_head_in_blk = (tmp_table_file_handler->table_file_info.head_pointer/g_mem_prop->pages_per_block);
-  uint32_t curr_tail_in_blk = tmp_table_file_handler->table_file_info.tail_pointer;
-  uint32_t curr_head_in_pages = tmp_table_file_handler->table_file_info.head_pointer;
-  uint32_t curr_tail_in_pages = tmp_table_file_handler->table_file_info.tail_pointer*g_mem_prop->pages_per_block;
+  uint32_t curr_head_in_blk = (tmp_table_file_header->head_pointer/g_mem_prop->pages_per_block);
+  uint32_t curr_tail_in_blk = tmp_table_file_header->tail_pointer;
+  uint32_t curr_head_in_pages = tmp_table_file_header->head_pointer;
+  uint32_t curr_tail_in_pages = tmp_table_file_header->tail_pointer*g_mem_prop->pages_per_block;
 
   if((curr_head_in_blk == FILEBLOCK) && (curr_tail_in_blk == FILEBLOCK))  {
-    current_block = curr_head_in_blk;
-    page_offset_enable = 0;
+    //current_block = (curr_head_in_blk+1);/* start from file block +1 */
+    current_block = FILEBLOCK;
+    //page_offset_enable = 1;/* start from boundary of block 4 , if written partially erased or from block 4 itself for first time file create */
+    page_offset_enable = 1;
   }
   /*!comes here immediately after the erase*/
   else if(curr_head_in_blk == curr_tail_in_blk) {
     /*! Move it to new block after the first erase*/
-    if(tmp_table_file_handler->table_file_info.mem_full_flag != 1)  {
-        if(curr_head_in_blk == (g_mem_prop->num_of_blocks-1)) {
-          current_block = FILEBLOCK;
-          init_roll_over_flag = 1;
-        }
-        else  {
-          current_block = (curr_head_in_blk + 1);
-        }
+    if(tmp_table_file_header->mem_full_flag != 1)  {
+         // current_block = (curr_head_in_blk + 1);
+         current_block = curr_head_in_blk;
         page_offset_enable =1;
     }
     else  {
@@ -3422,7 +3538,7 @@ static elfs_result get_next_writable_page(_file_handler *file_handler,
   firstPage = current_block * g_mem_prop->pages_per_block;
   }
   else{
-    firstPage=tmp_table_file_handler->table_file_info.head_pointer;
+    firstPage=tmp_table_file_header->head_pointer;
   }
 
 #ifdef PROFILE_TIME_ENABLED
@@ -3445,7 +3561,7 @@ static elfs_result get_next_writable_page(_file_handler *file_handler,
     check_bad_block_time_start = get_micro_sec();
 #endif
 
-    if(check_current_block_is_bad(current_block,tmp_table_file_handler,&is_bad) != LFS_SUCCESS) {
+    if(check_current_block_is_bad(current_block,tmp_table_file_header,&is_bad) != LFS_SUCCESS) {
       NRF_LOG_INFO("Error in Checking %d Block is bad:Out of boundary conditions",current_block);
     }
 
@@ -3481,20 +3597,20 @@ static elfs_result get_next_writable_page(_file_handler *file_handler,
    do_while_loop_tick2=get_micro_sec() - do_while_loop_tick1;
 #endif
   /* Head pointer updated based on skipping bad block and occupied pages */
-  tmp_table_file_handler->table_file_info.head_pointer = firstPage;
+  tmp_table_file_header->head_pointer = firstPage;
 
 #ifdef PRINTS_OUT
-   NRF_LOG_INFO("Updated head_pointer after Bad Block Check and erasal if any %d",tmp_table_file_handler->table_file_info.head_pointer);
+   NRF_LOG_INFO("Updated head_pointer after Bad Block Check and erasal if any %d",tmp_table_file_header->head_pointer);
 #endif
   /* While traversing If Head reaches Max, roll it back to FILEBLOCK */
   if(init_roll_over_flag == 1)  {
     // reinitialized to 0 after roll back of Head Pointer
-    tmp_table_file_handler->table_file_info.initialized_circular_buffer = 0;
+    tmp_table_file_header->initialized_circular_buffer = 0;
     del_table_page = 1;
     memset(type,0,MAX_UPDATE_TYPE);
     type[0] = LFS_INITIALIZE_BUFFER_FLAG_UPDATE;
     /* Update in TOC for roll over flag update */
-    if(update_table_file_in_toc(tmp_table_file_handler,type,1) != LFS_SUCCESS)  {
+    if(update_table_file_in_toc(tmp_table_file_header,type,1) != LFS_SUCCESS)  {
       NRF_LOG_INFO("Error in updating Table File for Circular buffer pointer");
       return LFS_UPDATE_TABLE_FILE_ERROR;
     }
@@ -3503,20 +3619,20 @@ static elfs_result get_next_writable_page(_file_handler *file_handler,
   }
 
   /* update variable as head pointer is updated in do while loop above */
-  curr_head_in_blk = (tmp_table_file_handler->table_file_info.head_pointer/g_mem_prop->pages_per_block);
+  curr_head_in_blk = (tmp_table_file_header->head_pointer/g_mem_prop->pages_per_block);
 
   /* If Head and Tail both are initialized to FILEBLOCK ,and roll over has happened
     memory is full then do not write */
-  if(tmp_table_file_handler->table_file_info.initialized_circular_buffer != 1)  {
+  if(tmp_table_file_header->initialized_circular_buffer != 1)  {
     if((curr_head_in_blk == FILEBLOCK) && (curr_tail_in_blk == FILEBLOCK))  {
-      tmp_table_file_handler->table_file_info.mem_full_flag=1;
+      tmp_table_file_header->mem_full_flag=1;
 
       memset(type,0,MAX_UPDATE_TYPE);
       type[0] = LFS_HEAD_POINTER_UPDATE;
       type[1] = LFS_MEM_FULL_FLAG_UPDATE;
        del_table_page = 1;
       /* Update Head Pointer and memory full flag update in TOC */
-      if(update_table_file_in_toc(tmp_table_file_handler,type,2) != LFS_SUCCESS)  {
+      if(update_table_file_in_toc(tmp_table_file_header,type,2) != LFS_SUCCESS)  {
         NRF_LOG_INFO("Error in Updating Table file for Head Pointer");
         return LFS_UPDATE_TABLE_FILE_ERROR;
       }
@@ -3528,7 +3644,7 @@ static elfs_result get_next_writable_page(_file_handler *file_handler,
       memory is full then do not write */
     else if((curr_head_in_blk > FILEBLOCK) &&  (curr_tail_in_blk > FILEBLOCK))  {
       if(curr_head_in_blk == curr_tail_in_blk)  {
-        tmp_table_file_handler->table_file_info.mem_full_flag=1;
+        tmp_table_file_header->mem_full_flag=1;
 
          memset(type,0,MAX_UPDATE_TYPE);
          type[0] =  LFS_HEAD_POINTER_UPDATE;
@@ -3536,7 +3652,7 @@ static elfs_result get_next_writable_page(_file_handler *file_handler,
 
          del_table_page = 1;
         /* Update Head Pointer and memory full flag update in TOC */
-        if(update_table_file_in_toc(tmp_table_file_handler,type,2) != LFS_SUCCESS)  {
+        if(update_table_file_in_toc(tmp_table_file_header,type,2) != LFS_SUCCESS)  {
           NRF_LOG_INFO("Error in Updating Head Pointer");
           return LFS_UPDATE_TABLE_FILE_ERROR;
         }
@@ -3557,12 +3673,12 @@ static elfs_result get_next_writable_page(_file_handler *file_handler,
   **************************************************************************************************/
 elfs_result get_bad_block(uint32_t *bad_block_num)  {
   /*  Get bad blocks number  */
-  _table_file_handler table_file_handler;
+  _table_file_header table_file_header;
   *bad_block_num  = 0;
-  memset(&table_file_handler,0,sizeof(_table_file_handler));
+  memset(&table_file_header,0,sizeof(_table_file_header));
 
   /* Read table page for bad block count */
-  if(read_table_file_in_toc(&table_file_handler) == LFS_ERROR)  {
+  if(read_table_file_in_toc(&table_file_header) == LFS_ERROR)  {
 #ifdef PRINTS_OUT
     NRF_LOG_INFO("Error in reading Table file");
 #endif
@@ -3571,7 +3687,7 @@ elfs_result get_bad_block(uint32_t *bad_block_num)  {
 
   /* get no of bad blocks */
   if(get_bad_block_number(bad_block_num,FILEBLOCK,g_mem_prop->num_of_blocks,\
-    &table_file_handler) != LFS_SUCCESS)  {
+    &table_file_header) != LFS_SUCCESS)  {
      return LFS_NUM_BLOCKS_OUT_OF_BOUNDS_ERROR;
   }
   return LFS_SUCCESS;

@@ -65,8 +65,8 @@ def adpd_multi_led_stream_test(freq_hz=50, agc_state=0):
             common.test_logger.error('*** ADPD {}Hz {}_LED CH2 MultiStream Test - FAIL ***'.format(freq_hz, led))
             raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
         # Mean Calculation
-        ch1_mean = meas_check.calc_mean(f_path, 1)
-        ch2_mean = meas_check.calc_mean(f_path, 3)
+        ch1_mean = meas_check.calc_mean(f_path, 3, row_offset=5)
+        ch2_mean = meas_check.calc_mean(f_path, 5, row_offset=5)
         common.test_logger.info('ADPD MultiStream Mean | LED:{} |AGC:{} | CH1:{} | CH2:{}'.format(led,
                                                                                               agc_state,
                                                                                               ch1_mean,
@@ -113,8 +113,8 @@ def adpd_stream_test(freq_hz=50, agc_state=0):
             raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
         # Mean Calculation
-        ch1_mean = meas_check.calc_mean(f_path, 1)
-        ch2_mean = meas_check.calc_mean(f_path, 3)
+        ch1_mean = meas_check.calc_mean(f_path, 3, row_offset=5)
+        ch2_mean = meas_check.calc_mean(f_path, 5, row_offset=5)
         common.test_logger.info('ADPD Stream Mean | LED:{} |AGC:{} | CH1:{} | CH2:{}'.format(led,
                                                                                          agc_state,
                                                                                          ch1_mean,
@@ -364,7 +364,7 @@ def ppg_stream_test(agc_state=0):
         common.test_logger.error('***PPG {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
-    mean = meas_check.calc_mean(f_path, 1)
+    mean = meas_check.calc_mean(f_path, row_offset=3)
     common.test_logger.info('PPG Stream | AGC:{} | Mean:{}'.format(agc_state, mean))
     return mean
 

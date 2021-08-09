@@ -952,6 +952,7 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
     if (!nrf_drv_usbd_is_enabled()) {
       app_usbd_enable();
     }
+#ifdef ENABLE_WATCH_DISPLAY 
     /* Added gLowTouchRunning flag checking, in the below condition, to check
        when to give the StopLog sequence.
        Without this, if the USB cable is plugged in fast enough,(before LT logging actually starts),
@@ -964,6 +965,7 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
         g_usb_power_detected_flag = true;
         adi_osal_SemPost(lt_task_evt_sem);
     }
+#endif
   } break;
 
   case APP_USBD_EVT_POWER_REMOVED: {

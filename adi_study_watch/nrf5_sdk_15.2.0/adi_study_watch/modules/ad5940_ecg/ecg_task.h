@@ -52,8 +52,6 @@ typedef struct _g_state_ecg_t {
 /* app buffer size */
 #define APPBUFF_SIZE 1024
 
- 
-  
 /* Number of ECG samples send out for leadsoff indication*/
 #define MAX_SAMPLES_LEADS_OFF M2M2_SENSOR_ECG_NSAMPLES * 2
  /*Number of ECG samples checked continously for proper leadson*/

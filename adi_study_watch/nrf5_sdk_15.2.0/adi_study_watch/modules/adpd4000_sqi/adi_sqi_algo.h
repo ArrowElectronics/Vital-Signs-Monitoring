@@ -52,6 +52,6 @@ typedef enum {
 SQI_ALG_RETURN_CODE_t SqiAlgConfig(uint8_t input_sample_freq);
 SQI_ALG_RETURN_CODE_t SqiAlgInit(const adi_vsm_sqi_config_t* config_params);
 SQI_ALG_RETURN_CODE_t SqiAlgReset();
-SQI_ALG_RETURN_CODE_t SqiAlgProcess(float input_sample, adi_vsm_sqi_output_t* adi_vsm_sqi_output);
+SQI_ALG_RETURN_CODE_t SqiAlgProcess(float* ppg_data, adi_vsm_sqi_output_t* adi_vsm_sqi_output);
 
 #endif

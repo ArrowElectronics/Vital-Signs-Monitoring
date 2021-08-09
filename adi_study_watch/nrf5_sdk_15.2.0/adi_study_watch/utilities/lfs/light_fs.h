@@ -157,17 +157,10 @@ typedef struct _table_file_header{
   uint32_t head_pointer; // For circular buffer this has page precison
   uint32_t tail_pointer;// this has block precision
   uint8_t initialized_circular_buffer;// this for first time initialization and first time check before first time write
-  struct _memory_buffer *tmp_write_mem;
   uint16_t mem_full_flag;
   uint16_t offset;
   uint16_t config_low_touch_occupied;
 }_table_file_header;
-
-typedef struct _table_file_handler{
-  _table_file_header table_file_info;
-  //struct MemoryBuffer * tmp_write_mem;
-}_table_file_handler;
-
 
 typedef struct _fs_format_debug_info{
   uint8_t erase_failed_due_bad_block_check;
@@ -203,17 +196,17 @@ elfs_result lfs_get_file_size(_file_handler *file_handler,
 elfs_result get_bad_block_number(uint32_t *bad_block_num,
                                 uint32_t src_ind,
                                 uint32_t end_ind,
-                                _table_file_handler *table_file_handler);
+                                _table_file_header *table_file_header);
 elfs_result lfs_get_remaining_space(uint32_t * remaining_bytes,
                                   elfs_file_type file_type,
-                                  _table_file_handler *table_file_handler);
+                                  _table_file_header *table_file_header);
 elfs_result lfs_open_file_by_number(uint8_t file_no,
                                   _file_handler *file_handler);
 elfs_result lfs_get_config_file_status(bool *out_file_status);
 elfs_result lfs_get_file_indexes_list(uint8_t * out_file_indexes,
                                      uint8_t * out_file_no);
 elfs_result lfs_create_file(uint8_t * file_name, _file_handler *file_handler,
-                           _table_file_handler *table_file_handler,
+                           _table_file_header *table_file_header,
                            struct _memory_buffer * memory_location,
                            elfs_file_type type);
 elfs_result lfs_open_file_by_name(char * file_name,
@@ -226,9 +219,9 @@ elfs_result lfs_delete_config_file(_file_handler *file_handler);
 elfs_result lfs_update_file(uint8_t *inBuffer,
                            uint16_t size,
                            _file_handler *file_handler,
-                           _table_file_handler *table_file_handler);
+                           _table_file_header *table_file_header);
 elfs_result lfs_end_file(_file_handler *file_handler,
-                        _table_file_handler *table_file_handler);
+                        _table_file_header *table_file_header);
 elfs_result lfs_erase_memory(bool forze);
 elfs_result erase_toc_memory(bool forze);
 elfs_result lfs_check_comp_version(bool * is_compatible);
@@ -238,7 +231,7 @@ elfs_result lfs_set_time_stamp(_file_handler *file_handler,
 elfs_result lfs_set_operating_mode(_file_handler *file_handler,
                                   elfs_op_mode op_mode);
 elfs_result lfs_refresh_header(_file_handler *file_handler,
-                              _table_file_handler *table_file_handler);
+                              _table_file_header *table_file_header);
 elfs_result lfs_mark_bad(uint32_t block_index);
 elfs_result lfs_mark_good(uint32_t block_index);
 elfs_result initialize_circular_buffer();
@@ -257,12 +250,14 @@ elfs_result lfs_update_pattern_file(uint8_t *in_buffer,
                           uint16_t start_block_num,
                           uint16_t size,
                           _file_handler *file_handler,
-                          _table_file_handler *table_file_handler,
+                          _table_file_header *table_file_header,
                           uint8_t first_time_write);
 int get_pointers_info(uint32_t *head_pointer,uint32_t *tail_pointer,uint16_t table_page_flags[]) ;
 int read_tmp_blk(uint32_t page_number,uint32_t *pdata_memory,uint8_t file_type);
 int read_page_data(uint32_t page_num, uint8_t *pdata_mem, uint16_t page_size);
 int read_page_ecc_zone(uint32_t page_num, uint32_t *pnext_page, uint8_t *poccupied);
 elfs_result lfs_get_file_count(uint8_t * gn_file_count);
-elfs_result read_table_file_in_toc(_table_file_handler *table_file_handler);
+elfs_result read_table_file_in_toc(_table_file_header *table_file_header);
+elfs_result get_memory_status(bool *mem_stat);
+elfs_result lfs_write_last_page_at_mem_full(_file_handler *file_handler);
 #endif

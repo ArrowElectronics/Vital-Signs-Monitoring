@@ -400,7 +400,7 @@ void lcd_disp_on(void)
     app_timer_start(m_reverse_polarity_tmr, APP_TIMER_TICKS(REVERSE_POLARITY_PERIOD), NULL);
     lcd_extcomin_status = DISPLAY_REVERSE_LOW;
 #else
-    lcd_extcomin_status = DISPLAY_REVERSE_HIGH;
+    //lcd_extcomin_status = DISPLAY_REVERSE_HIGH;
     lcd_extcomin_status_set(DISPLAY_REVERSE_HIGH);
 #endif
 

@@ -568,9 +568,7 @@ AD5940Err AppECGISR(void *pBuff, uint32_t *pCount)
 
   return AD5940ERR_OK;
 }
-#endif
 
-//#define ECG_POLLING
 #ifndef ECG_POLLING
 struct gTrigInfo{
 uint32_t gaTrigTime[100];
@@ -665,4 +663,5 @@ void AD5940_Main(void)
   }
 }
 
+#endif
 #endif

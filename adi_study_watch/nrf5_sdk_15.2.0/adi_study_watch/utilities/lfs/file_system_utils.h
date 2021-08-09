@@ -135,6 +135,7 @@ FS_STATUS_ENUM_t fs_hal_get_file_info(uint8_t* pfile_index, file_info_t *pfile_i
 FS_STATUS_ENUM_t fs_hal_page_read_test(uint32_t* ppage_num, m2m2_file_sys_page_read_test_resp_pkt_t *pfile_info,uint8_t num_bytes);
 FS_STATUS_ENUM_t fs_write_rsd_block(uint32_t data[], uint16_t size);
 FS_STATUS_ENUM_t fs_block_erase(uint16_t block_no);
+bool UpdateFileInfo();
 #ifdef TEST_FS_NAND
 void fs_hal_test_features(void);
 void fs_hal_test_file_write_read(uint32_t inp_num_iter, uint32_t block_size);

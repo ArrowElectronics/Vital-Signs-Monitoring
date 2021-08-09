@@ -63,8 +63,8 @@ static void display_func(void)
 
     ble_gap_addr_t ble_addr_t;
     sd_ble_gap_addr_get(&ble_addr_t);
-    sprintf(ble_addr1,"%02X:%02X:%02X:%02X:",ble_addr_t.addr[0],ble_addr_t.addr[1],ble_addr_t.addr[2],ble_addr_t.addr[3]);
-    sprintf(ble_addr2,"%02X:%02X",ble_addr_t.addr[4],ble_addr_t.addr[5]);
+    sprintf(ble_addr1,"%02X:%02X:%02X:%02X:",ble_addr_t.addr[5],ble_addr_t.addr[4],ble_addr_t.addr[3],ble_addr_t.addr[2]);
+    sprintf(ble_addr2,"%02X:%02X",ble_addr_t.addr[1],ble_addr_t.addr[0]);
     lygl_dis_string_middle(&lygl_font_32,104,140,COLOR_WHITE,ble_addr1);
     lygl_dis_string_middle(&lygl_font_32,104,170,COLOR_WHITE,ble_addr2);
     lcd_display_refresh_all();

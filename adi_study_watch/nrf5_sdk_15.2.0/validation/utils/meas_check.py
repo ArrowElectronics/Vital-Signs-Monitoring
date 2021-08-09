@@ -141,14 +141,14 @@ def check_pkt_loss():
     return pkt_loss, failure_streams_str
 
 
-def calc_mean(f_path, col_idx=1):
+def calc_mean(f_path, col_idx=1, row_offset=1):
     """
 
     :param f_path:
     :param col_idx:
     :return:
     """
-    data_list = common.read_csv_col(f_path, col_idx=col_idx)
+    data_list = common.read_csv_col(f_path, col_idx=col_idx, row_offset=row_offset)
     data_list = [float(data) for data in data_list]
     data_len = len(data_list)
     data_mean = sum(data_list)/data_len

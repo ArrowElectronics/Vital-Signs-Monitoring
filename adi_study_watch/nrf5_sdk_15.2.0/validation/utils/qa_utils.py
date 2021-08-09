@@ -323,24 +323,24 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False)
         if stream == 'ecg':
             ch0_col_idx = 0
             ch1_col_idx = 0
-            row_offset = 1
+            row_offset = 3
         elif stream == 'syncppg':
             ch0_col_idx = 0
             ch1_col_idx = 2
             row_offset = 1
         elif stream == 'adpd':
-            ch0_col_idx = 0
-            ch1_col_idx = 2
-            row_offset = 1
+            ch0_col_idx = 1
+            ch1_col_idx = 1
+            row_offset = 5
         elif stream == 'adxl':
             ch0_col_idx = 0
             ch1_col_idx = 2
-            row_offset = 1
+            row_offset = 3
         else:
             ch0_col_idx = 0
             ch1_col_idx = 2
-            row_offset = 1
-        div = 32000
+            row_offset = 3
+        div = 1000
     col_idx = ch0_col_idx if ch == 1 else ch1_col_idx
     time_data_list = common.read_csv_col(file_path, col_idx, row_offset)
     i = 1

@@ -277,7 +277,13 @@ static void init_lt_app_lcfg() {
       user_applied_skinCapVal = 0;
 
     if( !user_applied_ltAppTrigMethd )
-      lt_app_cfg.ltAppTrigMethd  = LT_APP_BUTTON_TRIGGER;
+    {
+#ifdef ENABLE_WATCH_DISPLAY
+    lt_app_cfg.ltAppTrigMethd = LT_APP_BUTTON_TRIGGER;
+#else
+    lt_app_cfg.ltAppTrigMethd = LT_APP_CAPSENSE_TUNED_TRIGGER;
+#endif
+    }
     else
       user_applied_ltAppTrigMethd = 0;
   }
@@ -1128,6 +1134,7 @@ static void lt_task(void *arg) {
         post_office_send(p_out_pkt, &err);
       }
     }
+#ifdef ENABLE_WATCH_DISPLAY
     else if(get_low_touch_trigger_mode2_status())
     {
         if (get_usb_powered_event_status()) {
@@ -1151,6 +1158,9 @@ static void lt_task(void *arg) {
     }
     else if( lt_app_cfg.ltAppTrigMethd == LT_APP_CAPSENSE_TUNED_TRIGGER ||
        lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_DISPLAY_TRIGGER )
+#else
+    else if( lt_app_cfg.ltAppTrigMethd == LT_APP_CAPSENSE_TUNED_TRIGGER)
+#endif
     {
       LowTouchTimerEvent();
       LowTouchSensorEvent();
@@ -1170,7 +1180,7 @@ void resume_low_touch_task(void)
     vTaskResume((TaskHandle_t)gh_lt_task_handler);
 }
 
-
+#ifdef ENABLE_WATCH_DISPLAY
 /**
  * @brief  Function to resume the LT task and key task, if low touch log request failed
  *         Called by MaxFileErr(), LowTouchErr().
@@ -1190,6 +1200,7 @@ void resume_key_and_lt_task(void)
     key_detect_init();      /* Since Low touch log failed to start, enable the buttons back*/
   }
 }
+#endif
 
 /**
  * @brief  Function to send PO pkts to LT task
@@ -1218,7 +1229,11 @@ void lt_app_lcfg_set_fw_default()
     lt_app_cfg.offWristTimeThreshold = LT_OFF_WRIST_TIME_INTERVAL;
     lt_app_cfg.airCapVal  = LT_AIR_CAP_VAL;
     lt_app_cfg.skinCapVal = LT_SKIN_CAP_VAL;
+#ifdef ENABLE_WATCH_DISPLAY
     lt_app_cfg.ltAppTrigMethd = LT_APP_BUTTON_TRIGGER;
+#else
+    lt_app_cfg.ltAppTrigMethd = LT_APP_CAPSENSE_TUNED_TRIGGER;
+#endif
 }
 
 /**

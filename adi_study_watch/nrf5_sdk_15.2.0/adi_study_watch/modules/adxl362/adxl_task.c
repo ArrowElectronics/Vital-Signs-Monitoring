@@ -119,12 +119,14 @@ g_state_adxl_t g_state_adxl;
 
 volatile uint8_t gsOneTimeValueWhenReadAdxlData = 0;
 uint16_t gnAdxlODR;
+#ifdef ENABLE_PPG_APP
 /* counter used to send every kth sample to HR algo
    to have ppg odr = 50Hz, where k = odr of adxl*/
 uint32_t gnHRAdxlSampleCount = 0;
 extern Adpd400xLibConfig_t gAdpd400xLibCfg;
 extern volatile uint8_t gn_uc_hr_enable;
 extern volatile uint8_t gnAppSyncTimerStarted;
+#endif
 extern bool gRun_agc;
 /*-------------------------- Private Function Prototype ---------------------*/
 
@@ -709,7 +711,9 @@ static m2m2_hdr_t *adxl_app_reg_access(m2m2_hdr_t *p_pkt) {
                 p_in_payload->ops[i].value &
                 0x07); /*Last 3 bits give the frequency range */
             gsOneTimeValueWhenReadAdxlData = 0;
+#ifdef ENABLE_PPG_APP
             gnAppSyncTimerStarted = 0;
+#endif
           }
           status = M2M2_APP_COMMON_STATUS_OK;
         } else {

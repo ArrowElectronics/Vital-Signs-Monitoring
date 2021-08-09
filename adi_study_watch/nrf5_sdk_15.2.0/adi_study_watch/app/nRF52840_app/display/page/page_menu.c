@@ -301,8 +301,6 @@ static void signal_handle(uint8_t signal_value)
                   min_timer_cnt+=1;
 
             }
-
-
             if(0 == Adp5360_pgood_pin_status_get())
             {
                 //dis_dynamic_refresh(1000);

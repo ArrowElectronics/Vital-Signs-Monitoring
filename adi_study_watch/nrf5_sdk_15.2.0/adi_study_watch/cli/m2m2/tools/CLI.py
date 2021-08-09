@@ -27,6 +27,7 @@ class LowTouch():
     Stopcmdcount = 0
     Enable_lowtouch = False
 
+
 enable_csv_logs = 0
 lowtouch = LowTouch()
 class verboser():
@@ -5428,6 +5429,7 @@ list files.Command help to view files in the current directory.
             # end of loop
         return err_stat, fs_ls_list
 
+        
     def do_fs_vol_info(self, arg):
         """
 File system volume info. Command to get file system volume info.
@@ -5749,7 +5751,7 @@ read contents of file. Command is used to read file by getting data from file st
             reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_ls_resp_t(), 120)
             if reply_msg != None:
                 if (reply_msg.payload.status != M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_STATUS_OK):
-                    #self._print_file_system_status(reply_msg)
+                    self._print_file_system_status(reply_msg)
                     if(file_found == 0):
                         self.vrb.write(" File Not Found ")                    
                         return
@@ -5781,7 +5783,8 @@ read contents of file. Command is used to read file by getting data from file st
                 #print("\n Testing  by reading the each pages of File \n")
                 for page_index in range(start_page,end_page+1,1):
                     print("\n reading page: {}".format(page_index))
-                    arg_str = str(page_index) + " 0"
+                    arg_str = str(page_index) + " 1" + " 50"
+                    print(arg_str)
                     self.do_page_read_test(arg_str) 
                 print("completed reading all the pages of given file index")
                 print("Total No. of pages read = {}".format((end_page-start_page+1)))
@@ -5815,10 +5818,13 @@ read contents of file. Command is used to read file by getting data from file st
             msg.payload.base = int(args[3])
             msg.payload.num_files_to_write = int(args[4])
             status = M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK
+            if msg.payload.file_size < 4096:
+                self.vrb.err("provide file size greater than 4096 bytes!")
+                return
             while msg.payload.num_files_to_write > 0:
                 self._send_packet(msg)
                 print "File size computed = {}".format(msg.payload.file_size)
-                reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_pattern_write_resp_pkt_t(), 120)
+                reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_pattern_write_resp_pkt_t(), 5400)
                 if reply_msg != None:
                     if reply_msg.payload.status == M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK:
                         if msg.payload.scale_type == 0:#linear
@@ -5831,17 +5837,19 @@ read contents of file. Command is used to read file by getting data from file st
                     else:
                         if reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_ERR_MEMORY_FULL:
                             self.vrb.err("Memory full breaking loop as new files cannot be written!")
+                            status = M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_ERR_MEMORY_FULL
                             break  
                         elif reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_ERR_MAX_FILE_COUNT:
                             self.vrb.err("Max file count crossed!")
+                            status = M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_ERR_MAX_FILE_COUNT
                             break   
                     status |= reply_msg.payload.status 
                 else:
                     self.vrb.err("The device did not respond!")
                     time.sleep(5)
                 msg.payload.num_files_to_write -= 1
-            if status == M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK:
-                self._print_packet_status(reply_msg)
+                self._print_file_system_status(reply_msg)
+                
     def do_fs_sub_status(self, arg):
         fs_address = M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS
         address = None
@@ -5995,6 +6003,30 @@ read contents of file. Command is used to read file by getting data from file st
             self.onecmd("quickstart start_reg_read_adxl")
             self.onecmd("quickstart start_log_adxl_252")
         print "test #252 done"
+
+    def do_test_629(self,arg):
+        """
+        Maximum count tried / tested is 10.
+        """
+        args = self._parse_args(arg,1)
+        # for item in args:
+            # print item
+        cnt = int(args[0])
+        print cnt
+        if cnt == None:
+            return
+        for i in range(cnt):
+            print i
+            self.onecmd("fs_format")
+            self.onecmd("sensor adpd4000 start")
+            self.onecmd("fs_sub add radpd6")
+            self.onecmd("fs_log start")
+            self.onecmd("delay 10")
+            self.onecmd("fs_sub remove radpd6")
+            self.onecmd("sensor adpd4000 stop")
+            self.onecmd("fs_log stop")
+            self.onecmd("fs_ls")
+        print "test #629 done"    
         
     def do_flash_write_format_test(self,arg):
         """
@@ -6357,7 +6389,51 @@ read contents of file. Command is used to read file by getting data from file st
                 self.onecmd("delay 1")
                 self.onecmd("quickstop stop_stream_mv_uc4_1")
         print "test #502 done"
+        
+        
+    def do_test_627_log(self,arg) :
+        args = self._parse_args(arg,1)
+        cnt = int(args[0])
+        self.onecmd("flash_reset")
+        for _ in range(cnt):
+            self.onecmd("quickstart start_log_mv_uc1")
+            self.onecmd("delay 3")
+            self.onecmd("fs_status")             
+            self.onecmd("quickstop stop_log_mv_uc1")
+            self.onecmd("fs_vol_info")
+            self.onecmd("fs_req_debug_info")
+            self.onecmd("fs_ls")
+            self.onecmd("get_file_cnt")
+            self.onecmd("fs_get_bad_blocks")
+        self.onecmd("get_file_cnt")
+        
+    def do_test_627_download(self,arg) :
+        args = self._parse_args(arg,0)
+        error_msg, log_names_list = self.do_fs_ls("")
+        for file_name in log_names_list:
+            print file_name
+            self.onecmd("fs_stream "+ file_name["file"])
+    
+    def do_test_627_page(self,arg) :
+        args = self._parse_args(arg,0)
+        self.onecmd("flash_reset")
+        for _ in range(1):
+            self.onecmd("quickstart start_log_mv_uc1")
+            self.onecmd("delay 3")
+            self.onecmd("fs_status")
+            self.onecmd("quickstop stop_log_mv_uc1")
+            self.onecmd("page_read_test 4 1 40")
+            self.onecmd("fs_block_erase 1")
+            self.onecmd("page_read_test 4 1 40")
+            
+    def do_test_627_pattern_write(self,arg) :
+         args = self._parse_args(arg,0)
+         self.onecmd("flash_reset")
+         self.onecmd("pattern_write 16384 0 2 1 4")
+         self.onecmd("test_627_download")
 
+    
+    
     def do_get_apps_health_status(self, arg):    
         """
         read health status of all applications

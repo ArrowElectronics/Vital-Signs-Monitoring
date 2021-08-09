@@ -67,7 +67,7 @@ static uint16_t gsResultCnt;
 #define SINGLE_PULSE_SATURATION_VALUE 8000
 
 #define SQI_SAMPLING_RATE 50
-#define STATE_MEM_PER_INSTANCE 3816
+#define STATE_MEM_PER_INSTANCE 3820
 #define STATE_SQI_MEM_NUM_CHARS   STATE_MEM_PER_INSTANCE
 #define SQI_RESULT_CONVERSION 1024.0
 /* Allocate a max amount of memory for the SQI Algo state memory block */
@@ -109,6 +109,11 @@ INT_ERROR_CODE_t Adpd400xACOptInit(uint16_t deviceID) { /* deviceID not used dur
   //  return IERR_FAIL;
   
   config_handle.sampling_freq = SQI_SAMPLING_RATE;
+  /* 
+  -- running sqi algo on per sample basis --
+   --  1 sample will be fed to the algo per call
+  */
+  config_handle.ppg_data_chunk_length = 1;
   adi_vsm_sqi_mem_handle.state.block = STATE_memory_SQI;
   adi_vsm_sqi_mem_handle.state.length_numchars = STATE_MEM_PER_INSTANCE;
   
@@ -191,7 +196,7 @@ INT_ERROR_CODE_t Adpd400xACOptDoOptimization(uint32_t* rData, uint8_t* status ) 
     //adpdData *= gAdpd400x_lcfg->ppgscale;
     //AGCrtc = GetSignalMetrics(&adpdData, &sMetrics, &result);
     //gSqiSampleCnt++;
-    SQIAGCrtc = adi_vsm_sqi_process(sqi_instance, sqi_input, &adi_vsm_sqi_output);
+    SQIAGCrtc = adi_vsm_sqi_process(sqi_instance, &sqi_input, &adi_vsm_sqi_output);
 #endif
 
   //if (AGCrtc == -1) {

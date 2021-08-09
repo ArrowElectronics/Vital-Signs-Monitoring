@@ -47,6 +47,7 @@
 #include "adpd4000_task.h"
 #include "post_office.h"
 #include "nrf_log.h"
+#include <sqi_buffering.h>
 #ifdef PROFILE_TIME_ENABLED
 #include <us_tick.h>
 #endif
@@ -56,9 +57,12 @@
 #define SQI_ALGO_PATCH_VERSION     (ADI_SQI_VERSION_NUM & 0xFF)
 
 #define SQI_APP_MAX_LCFG_OPS (10)
+#define SQI_TIME_WINDOW      (5.12f) //!<Time window of SQI -> 5.12 seconds
+#define SQI_MAX_N_SAMPLES    (512U) //!< Max Samples that sqi algo expect, at max fs of 100Hz
+#define SQI_READ_N_SAMPLES   (64U) //!< No. of samples to read from circular buff
 /* -------------------------Public variables -------------------------------*/
-uint32_t  gnSQI_Slot = 0x20; //slot-F;
-uint32_t  sqi_event;
+uint8_t sqi_event;/* flag that is set when SQI stream is started */
+uint32_t gnSQI_Slot = 0x20; //slot-F;
 #ifdef DEBUG_PKT
 uint32_t g_sqi_pkt_cnt = 0;
 #endif
@@ -69,9 +73,14 @@ extern bool gAdpd_ext_data_stream_active;
 /* odr for externally fed adpd data */
 extern uint16_t gAdpd_ext_data_stream_odr;
 
-#undef PROFILE_TIME
-
 /* ------------------------- Private variables ----------------------------- */
+/* Stores the timestamp to be pktized in sqi pkt */
+static uint32_t gSqiTimestamp = 0;
+/* Current Index to store data from in gSqiPpgBuff */
+static uint16_t gSqiPpgBuffIndex = 0;
+/* Buffer to hold PPG samples for feeding it to algo */
+static float gSqiPpgBuff[SQI_MAX_N_SAMPLES] = {0};
+
 // Create the stack for task
 uint8_t sqi_task_stack[APP_OS_CFG_SQI_APP_TASK_STK_SIZE];
 
@@ -100,6 +109,7 @@ static struct _g_state_sqi {
   uint16_t nSubscriberCount;
   uint16_t nSequenceCount;
   uint16_t nStreamStartCount;
+  uint16_t nRequiredSamples;
   uint16_t nSQIODR;
 } g_state_sqi = {0, 0, 0, 0};
 
@@ -116,7 +126,9 @@ static m2m2_hdr_t *sqi_status(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *sqi_get_version(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *sqi_set_adpd_slot(m2m2_hdr_t *p_pkt);
 static void sqi_task(void *pArgument);
-static void packetize_sqi_data(uint32_t nSQIData, uint32_t nTimeStamp);
+static void packetize_sqi_data(float* nSQIData, uint32_t nTimeStamp);
+static SQI_BUFF_RET_t do_sqi_buffering(float *p_adpd_data);
+static void sqi_buff_reset();
 
 app_routing_table_entry_t sqi_routing_table[] = {
   {M2M2_APP_COMMON_CMD_STREAM_START_REQ, sqi_stream_config},
@@ -178,16 +190,13 @@ void sqi_app_task_init(void) {
   if (eOsStatus != ADI_OSAL_SUCCESS) {
       Debug_Handler();
   }
-
 }
 
-  uint32_t pn_RData=0;
-  uint32_t  nTimestamp = 0;
 static void sqi_task(void *pArgument) {
   m2m2_hdr_t *p_in_pkt = NULL;
   m2m2_hdr_t *p_out_pkt = NULL;
   ADI_OSAL_STATUS         err;
-
+  SqiAdpdDataBuffInit(4);
   post_office_add_mailbox(M2M2_ADDR_MED_SQI, M2M2_ADDR_MED_SQI_STREAM);
   while (1)
   {
@@ -195,8 +204,7 @@ static void sqi_task(void *pArgument) {
       p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_SQI_TASK_INDEX);
       if (p_in_pkt == NULL) {
         // No m2m2 messages to process, so fetch some data from the device.
-          uint32_t nSQIData = pn_RData;
-          packetize_sqi_data(nSQIData, nTimestamp);
+          packetize_sqi_data(gSqiPpgBuff, gSqiTimestamp);
       } else {
         // We got an m2m2 message from the queue, process it.
        PYLD_CST(p_in_pkt, _m2m2_app_common_cmd_t, p_in_cmd);
@@ -216,11 +224,10 @@ static void sqi_task(void *pArgument) {
 }
 
 #ifdef PROFILE_SQI
-#define SQI_TIME_WINDOW 5.12f
 uint16_t gSqiSampleCnt = 0, gSqiReqSampleCnt = 0;
 uint32_t gSqiStartTime = 0, gSqiEndTime = 0, gSqiTotalTime = 0;
 #endif
-static void packetize_sqi_data(uint32_t nSQIData, uint32_t nTimeStamp) {
+static void packetize_sqi_data(float* pSQIData, uint32_t nTimeStamp) {
   m2m2_hdr_t *resp_pkt;
   ADI_OSAL_STATUS err;
   adi_vsm_sqi_output_t sqi_result;
@@ -241,7 +248,7 @@ static void packetize_sqi_data(uint32_t nSQIData, uint32_t nTimeStamp) {
 #endif
       }
 #endif
-      alg_ret_code = SqiAlgProcess(nSQIData, &sqi_result);
+      alg_ret_code = SqiAlgProcess(pSQIData, &sqi_result);
 #ifdef PROFILE_SQI
      if(gSqiSampleCnt == gSqiReqSampleCnt)
       {
@@ -399,14 +406,14 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
     gSqiReqSampleCnt = g_state_sqi.nSQIODR * SQI_TIME_WINDOW;
 #endif
     if (g_state_sqi.nStreamStartCount == 0) {
-      if( SQI_ALG_SUCCESS == sqi_algo_init(g_state_sqi.nSQIODR))
+      if(sqi_algo_init(g_state_sqi.nSQIODR) ==  SQI_ALG_SUCCESS)
       {
         g_state_sqi.nStreamStartCount = 1;
         status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
       }
       else
       {
-        status = M2M2_APP_COMMON_STATUS_STREAM_NOT_STARTED;
+        status = M2M2_APP_COMMON_STATUS_ERROR;
       }
     }
     else
@@ -426,11 +433,13 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
         ret_code = SqiAlgReset();
         g_state_sqi.nStreamStartCount = 0;
         g_state_sqi.nSQIODR = 0;
+        g_state_sqi.nRequiredSamples = 0;
         g_state_sqi.nSequenceCount = 0;
-        if(gAdpd_ext_data_stream_active)
-          gAdpd_ext_data_stream_active = false;
+        gAdpd_ext_data_stream_active = false;
         if(SQI_ALG_SUCCESS == ret_code)
           status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
+        else
+          status = M2M2_APP_COMMON_STATUS_ERROR;
     }
     else
     {
@@ -442,7 +451,6 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
   case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
     sqi_event = 1;
     g_state_sqi.nSubscriberCount++;
-    //gnSQI_Slot = 0x20; //slot-F
     post_office_setup_subscriber(M2M2_ADDR_MED_SQI, M2M2_ADDR_MED_SQI_STREAM, p_pkt->src, true);
     status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
     command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;
@@ -451,8 +459,8 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
     if (g_state_sqi.nSubscriberCount <= 1)
     {
       sqi_event = 0;
-      g_state_sqi.nSubscriberCount = 0;
       gnSQI_Slot = 0;
+      g_state_sqi.nSubscriberCount = 0;
       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
     }
     else
@@ -588,15 +596,53 @@ static m2m2_hdr_t *sqi_set_adpd_slot(m2m2_hdr_t *p_pkt) {
 
 void send_sqi_app_data(uint32_t *p_adpd_data, uint32_t ts)
 {
-   pn_RData = *p_adpd_data;
-   nTimestamp = ts;
-   adi_osal_SemPost(sqi_task_evt_sem);
+   SQI_BUFF_RET_t ret_code = SQI_BUFF_ERROR;
+   float nSqiData = *p_adpd_data;
+   ret_code = do_sqi_buffering(&nSqiData);
+   if(ret_code == SQI_BUFF_SUCCESS)
+   {
+     gSqiTimestamp = ts;
+     adi_osal_SemPost(sqi_task_evt_sem);
+   }
 }
 
-uint32_t gStateMem = 0;
+SQI_BUFF_RET_t do_sqi_buffering(float *p_adpd_data)
+{
+  CIRC_BUFF_STATUS_t ret_code = CIRC_BUFF_STATUS_ERROR;
+  uint32_t num_elements = 0U;
+  ret_code = sqi_adpd_buff_put(p_adpd_data, &num_elements);
+  if(ret_code != CIRC_BUFF_STATUS_OK)
+  {
+     return SQI_BUFF_ERROR;
+  }
+  if(num_elements == SQI_READ_N_SAMPLES)
+  {
+    float *pSqiData;
+    ret_code = sqi_adpd_buff_get(&pSqiData, SQI_READ_N_SAMPLES);
+    if(ret_code != CIRC_BUFF_STATUS_OK)
+    {
+       return SQI_BUFF_ERROR;
+    }
+    memcpy(&gSqiPpgBuff[gSqiPpgBuffIndex], pSqiData, SQI_READ_N_SAMPLES * sizeof(float));
+    gSqiPpgBuffIndex += SQI_READ_N_SAMPLES;
+    if(gSqiPpgBuffIndex == g_state_sqi.nRequiredSamples)
+    {
+       gSqiPpgBuffIndex = 0;
+       return SQI_BUFF_SUCCESS;
+    } 
+  }
+  return SQI_BUFF_IN_PROGRESS;
+}
+
+static void sqi_buff_reset()
+{
+    gSqiPpgBuffIndex = 0;
+    SqiAdpdDataBuffClear(4);
+    memset(gSqiPpgBuff, 0, SQI_MAX_N_SAMPLES * sizeof(float));
+}
 /***************************SQI configurations****************************************************/
 /* Allocate a max amount of memory for the SQI Algo state memory block */
-#define STATE_SQI_MEM_NUM_CHARS  3816 /* actual 3815 */
+#define STATE_SQI_MEM_NUM_CHARS  3820 /* actual 3819 */
 
 unsigned char STATE_memory_SQI[STATE_SQI_MEM_NUM_CHARS];
 
@@ -612,16 +658,22 @@ adi_vsm_sqi_output_t adi_vsm_sqi_output;
 #include "adi_vsm_cycle_count.h"
 volatile uint32_t gn_sqi_algo_cycle_cnt=0;
 #endif
-
 SQI_ALG_RETURN_CODE_t SqiAlgConfig(uint8_t input_sample_freq)
 {
-    if (input_sample_freq != 25 && 
-            input_sample_freq != 50 && 
-                   input_sample_freq != 100)
+    if (input_sample_freq != 25 
+        && input_sample_freq != 50 
+        && input_sample_freq != 100)
     {
         return SQI_ALG_ERROR;
     }
+    
+    g_state_sqi.nRequiredSamples = input_sample_freq * SQI_TIME_WINDOW;
     config_handle.sampling_freq = input_sample_freq;
+    /* 
+    -- doing block processing --
+    -- hence ppg_data_chunk_length = Total no. of samples required for 1 SQI
+    */
+    config_handle.ppg_data_chunk_length = g_state_sqi.nRequiredSamples;
     return SQI_ALG_SUCCESS;
 }
 
@@ -631,7 +683,6 @@ SQI_ALG_RETURN_CODE_t SqiAlgInit(const adi_vsm_sqi_config_t* config_params)
     /* initialize the memory object for the SQI instance */
     sqi_memory_setup.state.block = STATE_memory_SQI;
     sqi_memory_setup.state.length_numchars = STATE_SQI_MEM_NUM_CHARS;
-    gStateMem = adi_vsm_sqi_numchars_state_memory();
     /* Create the SQI Measurement instance */
     sqi_instance = adi_vsm_sqi_create(&sqi_memory_setup, config_params);
     if (sqi_instance == NULL) {
@@ -649,7 +700,7 @@ SQI_ALG_RETURN_CODE_t SqiAlgReset()
     return SQI_ALG_SUCCESS;
 }
 
-SQI_ALG_RETURN_CODE_t SqiAlgProcess(float input_sample,
+SQI_ALG_RETURN_CODE_t SqiAlgProcess(float* ppg_data,
                                     adi_vsm_sqi_output_t* adi_vsm_sqi_output)
 {
     adi_vsm_sqi_return_code_t ret_code;
@@ -662,7 +713,7 @@ SQI_ALG_RETURN_CODE_t SqiAlgProcess(float input_sample,
       algo_status = 1; //in progress
     }
 #endif //#ifdef PROFILE_TIME
-    ret_code = adi_vsm_sqi_process(sqi_instance, input_sample, adi_vsm_sqi_output);
+    ret_code = adi_vsm_sqi_process(sqi_instance, ppg_data, adi_vsm_sqi_output);
     switch (ret_code)
     {
     case ADI_VSM_SQI_BUFFERING:
@@ -700,6 +751,7 @@ SQI_ALG_RETURN_CODE_t sqi_algo_init(uint8_t input_sample_freq)
 {
   SQI_ALG_RETURN_CODE_t ret_code;
 
+  sqi_buff_reset();
   ret_code = SqiAlgConfig(input_sample_freq);
   ASSERT(ret_code == SQI_ALG_SUCCESS);
 

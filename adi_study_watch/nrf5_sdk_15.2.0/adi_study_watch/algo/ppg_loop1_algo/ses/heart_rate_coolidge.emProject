@@ -5,7 +5,7 @@
       Name="Common"
       arm_core_type="Cortex-M4"
       c_preprocessor_definitions="NRF52840_XXAA;NRF_LOG;AGC_FEATURE;HRV;TIA_SAT_REG"
-      c_user_include_directories="..\\..\\..\\app\\nrf52840_app\\;..\\..\\..\\..\\components\\libraries\\log;..\\..\\..\\..\\components\\libraries\\util;..\\..\\..\\..\\components\\softdevice\\s140\\headers;..\\..\\..\\..\\modules\\nrfx\\mdk;..\\..\\..\\..\\components\\libraries\\experimental_section_vars;..\\..\\..\\..\\components\\toolchain\\cmsis\\include;..\\..\\..\\..\\components\\libraries\\log\\src;..\\..\\..\\..\\components\\libraries\\memobj;..\\..\\..\\..\\components\\libraries\\balloc;..\\..\\..\\..\\components\\libraries\\strerror;..\\..\\..\\algo\\sqi\\package;..\\..\\..\\algo\\hrv"
+      c_user_include_directories="..\\..\\..\\app\\nrf52840_app\\;..\\..\\..\\..\\components\\libraries\\log;..\\..\\..\\..\\components\\libraries\\util;..\\..\\..\\..\\components\\softdevice\\s140\\headers;..\\..\\..\\..\\modules\\nrfx\\mdk;..\\..\\..\\..\\components\\libraries\\experimental_section_vars;..\\..\\..\\..\\components\\toolchain\\cmsis\\include;..\\..\\..\\..\\components\\libraries\\log\\src;..\\..\\..\\..\\components\\libraries\\memobj;..\\..\\..\\..\\components\\libraries\\balloc;..\\..\\..\\..\\components\\libraries\\strerror;..\\..\\..\\algo\\sqi;..\\..\\..\\algo\\hrv"
       project_directory=""
       project_type="Library" />
     <folder Name="algorithm">

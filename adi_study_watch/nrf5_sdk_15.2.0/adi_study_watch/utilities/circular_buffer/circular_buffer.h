@@ -77,6 +77,8 @@ CIRC_BUFF_STATUS_t circular_buffer_init(circular_buffer_t *p_cbuff,
 CIRC_BUFF_STATUS_t circular_buffer_reset(circular_buffer_t *p_cbuff, uint32_t element_sz);
 CIRC_BUFF_STATUS_t circular_buffer_put(circular_buffer_t *p_cbuff, void *item);
 CIRC_BUFF_STATUS_t circular_buffer_get(circular_buffer_t *p_cbuff, void *item);
-
+CIRC_BUFF_STATUS_t circular_buffer_get_chunk(circular_buffer_t *p_cbuff, 
+                                             void **pItem, 
+                                             uint32_t chunk_size);
 
 #endif  // __CIRCULAR_BUFFER_H

@@ -307,11 +307,8 @@ def use_case_qa_ppg_eda_fs(start_stream=("eda", "adxl", "adpd", "temp"),
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_temp))
 
 
-def use_case_qa_ppg_ecg(start_stream=("ecg", "adxl", "adpd", "temp"),
-                        stop_stream=("temp", "adpd", "adxl", "ecg")):  # old order
-
-    # def use_case_qa_ppg_ecg(start_stream=("adpd", "adxl", "ecg", "temp"),
-    #                         stop_stream=("temp", "ecg", "adxl", "adpd")):
+def use_case_qa_ppg_ecg(start_stream=("ecg", "adpd", "adxl", "temp"),
+                        stop_stream=("temp", "adxl", "adpd", "ecg")):
     """
     Use Case - 3
     :param start_stream:
@@ -393,10 +390,8 @@ def use_case_qa_ppg_ecg(start_stream=("ecg", "adxl", "adpd", "temp"),
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_temp))
 
 
-def use_case_qa_ppg_ecg_fs(start_stream=("ecg", "adxl", "adpd", "temp"),
-                            stop_stream=("temp", "adpd", "adxl", "ecg")):  # old order
-    # def use_case_qa_ppg_ecg_fs(start_stream=("adpd", "adxl", "ecg", "temp"),
-    #                        stop_stream=("temp", "ecg", "adxl", "adpd")):
+def use_case_qa_ppg_ecg_fs(start_stream=("ecg", "adpd", "adxl", "temp"),
+                            stop_stream=("temp", "adxl", "adpd", "ecg")):
 
     """
     Use Case - 3
@@ -486,8 +481,7 @@ def use_case_qa_ppg_ecg_fs(start_stream=("ecg", "adxl", "adpd", "temp"),
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_temp))
 
 
-def use_case_qa_ecg(start_stream=("ecg", "ppg", "temp"), stop_stream=("temp", "ppg", "ecg")):  # old order
-    # def use_case_qa_ecg(start_stream=("ppg", "ecg", "temp"), stop_stream=("temp", "ecg", "ppg")):
+def use_case_qa_ecg(start_stream=("ecg", "ppg", "temp"), stop_stream=("temp", "ppg", "ecg")):
 
     """
     Use Case - 4
@@ -552,9 +546,7 @@ def use_case_qa_ecg(start_stream=("ecg", "ppg", "temp"), stop_stream=("temp", "p
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str_temp))
 
 
-def use_case_qa_ecg_fs(start_stream=("ecg", "ppg", "temp"), stop_stream=("temp", "ppg", "ecg")):  # old order
-    # def use_case_qa_ecg_fs(start_stream=("ppg", "ecg", "temp"), stop_stream=("temp", "ecg", "ppg")):
-
+def use_case_qa_ecg_fs(start_stream=("ecg", "ppg", "temp"), stop_stream=("temp", "ppg", "ecg")):
     """
     Use Case - 4
     :param start_stream:

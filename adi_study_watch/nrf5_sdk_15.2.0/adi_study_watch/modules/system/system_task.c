@@ -1108,7 +1108,7 @@ void update_ble_system_info() {
   sd_ble_gap_addr_get(&ble_addr_t);
 
   for (i = 0; i < BLE_GAP_ADDR_LEN; i++)
-    g_system_info.mac_addr[i] = ble_addr_t.addr[i];
+    g_system_info.mac_addr[i] = ble_addr_t.addr[BLE_GAP_ADDR_LEN-1-i];
 }
 /*!
  ****************************************************************************
@@ -1467,8 +1467,7 @@ static void system_task(void *pArgument) {
       }
 #endif
       case M2M2_PM_SYS_COMMAND_SYSTEM_RESET_REQ: {
-        response_mail =
-            post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_pm_sys_cmd_t));
+        response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_pm_sys_cmd_t));
         if (response_mail != NULL) {
           m2m2_pm_sys_cmd_t *set_sys_rst_resp =
               (m2m2_pm_sys_cmd_t *)&response_mail->data[0];
@@ -1482,9 +1481,16 @@ static void system_task(void *pArgument) {
               (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_PM_SYS_STATUS_OK;
           post_office_send(response_mail, &err);
           MCU_HAL_Delay(20);
+          /* if logging is in progress , close file */
+          if(UpdateFileInfo() == true){
+            NRF_LOG_INFO("Success file close ");
+          }
+          else {
+            /* failure */
+            NRF_LOG_INFO("Error file close");
+          }
           rtc_timestamp_store(320);
           NVIC_SystemReset();
-
           // pm_System_reboot();
 
           NRF_LOG_INFO("Initiating Software reset");
@@ -1510,6 +1516,14 @@ static void system_task(void *pArgument) {
           MCU_HAL_Delay(20);
           // rtc_timestamp_store(320);//no use at here,because the reset time is
           // unfixed.
+          /* if logging is in progress , close file */
+          if(UpdateFileInfo() == true){
+            NRF_LOG_INFO("Success file close ");
+          }
+          else {
+            /* failure */
+            NRF_LOG_INFO("Error file close");
+          }
           trigger_nRF_MCU_hw_reset();
           NRF_LOG_INFO("Initiating Hardware reset");
         }
@@ -2702,7 +2716,20 @@ static void system_task(void *pArgument) {
       }
 #endif//LOW_TOUCH_FEATURE
 #endif
+      
+      case M2M2_FILE_SYS_CMD_STOP_LOGGING_RESP: {
 
+        /* check if memory full event has occured */
+         m2m2_file_sys_stop_log_cmd_t *stop_log_resp = (m2m2_file_sys_stop_log_cmd_t *)&pkt->data[0];
+         if(stop_log_resp->status == (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_ERR_MEMORY_FULL) {  
+          /*low touch log stopped due to mem-full; stop the sensors and inform
+          * the tool*/
+          MaxFileErr(); /*Memory is full ; give indication on Display*/
+        }
+        //post_office_consume_msg(pkt);
+        //break;//intentionally commented out to let the default case for
+        // LT execute
+      }
       /* Insert new cases to be handled above this comment line */
 
       case M2M2_APP_COMMON_CMD_STREAM_STOP_RESP: {

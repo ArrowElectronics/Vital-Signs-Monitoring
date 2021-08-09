@@ -58,6 +58,7 @@
 #include "app_error.h"
 #include "sdk_common.h"
 #include "ble_task.h"
+#include "file_system_utils.h"
 
 #include <adi_osal.h>
 #include <app_cfg.h>
@@ -241,6 +242,14 @@ void key_detect_thread(void * arg)
                     /* reset operation not rely the other task*/
                     if(key_value == KEY_NAVIGATION_LONG_VALUE)
                     {
+                         /* if logging is in progress , close file */
+                        if(UpdateFileInfo() == true){
+                          NRF_LOG_INFO("Success file close ");
+                        }
+                        else {
+                          /* failure */
+                          NRF_LOG_INFO("Error file close");
+                        }
                         rtc_timestamp_store(320);
                         NVIC_SystemReset();
                     }
