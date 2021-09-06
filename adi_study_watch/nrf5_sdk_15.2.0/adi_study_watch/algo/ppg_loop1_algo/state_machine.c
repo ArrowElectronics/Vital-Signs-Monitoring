@@ -158,7 +158,7 @@ extern INT_ERROR_CODE_t Adpd400xACOptInit(uint16_t);
  Private Variables
  ************************************************************/
 static uint32_t gsSampleCnt;
-static uint16_t gRegInputs,gRegTrim;
+static uint16_t gRegInputs;
 static uint8_t gsHrSampleCnt, gsNewSetting_SkipSampleNum;
 #if defined(AGC_FEATURE) 
 static uint32_t gsHighMotionCounter, gsLowMotionCounter;
@@ -217,7 +217,7 @@ INT_ERROR_CODE_t Adpd400xStateMachineInit() {
   gDVT2 = (nDevId != 0xC0) ? 1 : 0;
   g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
   AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
-  if((gAdpd400x_lcfg->targetChs & 0xF) == TARGET_CH3){
+  if((gAdpd400x_lcfg->targetChs & BITM_TARGET_CH) == TARGET_CH3){
    AdpdDrvRegRead(ADPD400x_REG_INPUTS_A + g_reg_base,&gRegInputs);
    nTempReg = ((gRegInputs & 0xFFF0) | 0x0007);/*! IN1 and IN2 to channel 1 as single ended input */
    AdpdDrvRegWrite(ADPD400x_REG_INPUTS_A + g_reg_base,nTempReg); 
@@ -257,7 +257,7 @@ INT_ERROR_CODE_t Adpd400xStateMachineInit() {
   * @retval SUCCESS = Initialization successful
   */
 INT_ERROR_CODE_t Adpd400xStateMachineDeInit() {
-    uint16_t nTemp;
+    uint16_t nTemp,nRegTrim,nTsCtrl;
 #ifndef STATIC_AGC
     gAdpd400xPpgLibState = ADPDLIB_STAGE_START;
 #else 
@@ -266,7 +266,7 @@ INT_ERROR_CODE_t Adpd400xStateMachineDeInit() {
     g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
     Adpd400xDrvRegRead(ADPD400x_REG_OPMODE, &nTemp);
     AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
-    if((gAdpd400x_lcfg->targetChs & 0xF) == 3){//restore on sum mode
+    if((gAdpd400x_lcfg->targetChs & BITM_TARGET_CH) == 3){//restore on sum mode
       AdpdDrvRegWrite(ADPD400x_REG_INPUTS_A + g_reg_base,gRegInputs);
     }
     if (gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN) //Restore Sample Rate if changed by Dynamic AGC
@@ -274,7 +274,15 @@ INT_ERROR_CODE_t Adpd400xStateMachineDeInit() {
       PpgLibSetSampleRate(gAdpd400xOptmVal.sampleRate,gAdpd400xOptmVal.decimation,gAdpd400x_lcfg->targetSlots);
     }
     if(gDVT2){ 
-      AdpdDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, gRegTrim);
+      AdpdDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &nRegTrim);
+      nRegTrim &= ~(BITM_AFE_TRIM_X_TIA_CEIL_DETECT_EN_X);
+      AdpdDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, nRegTrim);
+
+        /*Disable Subsampling*/ 
+      AdpdDrvRegRead(ADPD400x_REG_TS_CTRL_A + g_reg_base, &nTsCtrl);
+      nTsCtrl &= ~(BITM_TS_CTRL_A_SUBSAMPLE_EN_A);
+      AdpdDrvRegWrite(ADPD400x_REG_TS_CTRL_A + g_reg_base, nTsCtrl);
+
     }
     if(nTemp & 0x0001){ // put back to sample mode only if its running previously
       AdpdMwLibSetMode(ADPD400xDrv_MODE_SAMPLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_32);
@@ -338,7 +346,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
       if((nslotDetectionCh1 >> (int)log2(gAdpd400x_lcfg->targetSlots))== 1){
         isSaturated = 1;
       } 
-      if(nCh2Enable && ((gAdpd400x_lcfg->targetChs & 0xF) != TARGET_CH3)){ // In sum mode or ch2 disable case, saturation check not needed
+      if(nCh2Enable && ((gAdpd400x_lcfg->targetChs & BITM_TARGET_CH) != TARGET_CH3)){ // In sum mode or ch2 disable case, saturation check not needed
         Adpd400xDrvRegRead(ADPD400x_REG_INT_STATUS_TC2, &nslotDetectionCh2);
         if((nslotDetectionCh2 >> (int)log2(gAdpd400x_lcfg->targetSlots))== 1){
           isSaturated = 1;
@@ -347,7 +355,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
       if(isSaturated){
         if (gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN){ // Saturation check only available for dynamic AGC        
           SaturationAdjust(0,nppgData);
-          gAdpd400xAGCStatInfo.setting[0] = AgcLog_Afe_Saturation;      // Saturation indication
+          Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_AFE_SATURATION);      // Saturation indication
         }else{
           SaturationAdjustCurrent();//reduce current by gAdpd400x_lcfg->satAdjustPercentForStaticAgc %
           Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_AFE_SATURATION);          
@@ -355,7 +363,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
         ret = IERR_AFE_SATURATION;
         PostNewSettingSetUp(1);
         Adpd400xDrvRegWrite(ADPD400x_REG_INT_STATUS_TC1, nslotDetectionCh1);//clear the detection bit ch1 register
-        if((gAdpd400x_lcfg->targetChs & 0xF) != TARGET_CH3){
+        if((gAdpd400x_lcfg->targetChs & BITM_TARGET_CH) != TARGET_CH3){
         Adpd400xDrvRegWrite(ADPD400x_REG_INT_STATUS_TC2, nslotDetectionCh2);//clear the detection bit ch2 register
         }
         return ret;
@@ -377,7 +385,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
         if (isSaturated == 1)  {
           PostNewSettingSetUp(1);
   #if defined(AGC_FEATURE)
-          gAdpd400xAGCStatInfo.setting[0] = AgcLog_Adc_Saturation;      // Saturation indication
+          Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_ADC_SATURATION);      // Saturation indication
   #endif        
           NRF_LOG_DEBUG("@@ saturated DC=%u, varch1=%u,varch2=%u, LED=%x, Pulse=%x \r\n",
             dc_mean, dc_varianceCh1,dc_varianceCh2,\
@@ -389,13 +397,13 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
         if(dc_varianceCh1 == 0){
           isSaturated = 1;
         }
-        if((dc_varianceCh2 == 0) && nCh2Enable && ((gAdpd400x_lcfg->targetChs & 0xF) != TARGET_CH3)){ // In sum mode or ch2 disable case, saturation check not needed
+        if((dc_varianceCh2 == 0) && nCh2Enable && ((gAdpd400x_lcfg->targetChs & BITM_TARGET_CH) != TARGET_CH3)){ // In sum mode or ch2 disable case, saturation check not needed
           isSaturated = 1;
         }
         if (isSaturated == 1){
           if (gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN){ // Saturation check only available for dynamic AGC        
             SaturationAdjust(0,dc_mean);
-            gAdpd400xAGCStatInfo.setting[0] = AgcLog_Afe_Saturation;      // Saturation indication
+            Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_AFE_SATURATION);       // Saturation indication
           }else{
             SaturationAdjustCurrent();//reduce current by gAdpd400x_lcfg->satAdjustPercentForStaticAgc %
             Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_AFE_SATURATION);           
@@ -434,6 +442,8 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
       SMDoAGC(slotData, acceldata);
       if (gsAgcStarted == Agc_Start && gsPreAgcState != Agc_Start)  {
         gAdpd400xAGCStatInfo.setting[0] = AgcLog_Start;         // first started
+        gAdpd400xAGCStatInfo.mts[0] = 0xFFFF;// signal quality not captured
+        gAdpd400xAGCStatInfo.setting[9] = 0x0000; // no power change
         Adpd400xACOptReset(0); //reset signal metrics buffer
         //debug(MODULE, "@@ AGC started, LED current=%x", gAdpd400xAGCStatInfo.setting[1]);
 		NRF_LOG_DEBUG("@@ AGC started, LED current=%x \r\n",gAdpd400xAGCStatInfo.setting[1]);
@@ -445,6 +455,8 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
       }
       if (gsAgcStarted == Agc_Stop_Motion && gsPreAgcState == Agc_Start) {
         gAdpd400xAGCStatInfo.setting[0] = AgcLog_Stop_Motion;   // stop when motion
+        gAdpd400xAGCStatInfo.mts[0] = 0xFFFF;// signal quality not captured
+        gAdpd400xAGCStatInfo.setting[9] = 0x0000; // no power change
         // skip 3 data here? No need
         //debug(MODULE, "@@ AGC stopped due to motion");
 		NRF_LOG_DEBUG("@@ AGC stopped due to motion");
@@ -831,19 +843,6 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
     }
 #endif
     Adpd400xheartRateInit();
-    uint16_t ledCurrent,ledTrim,tiaGain;
-    g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
-    Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &ledCurrent);
-    gAdpd400xOptmVal.ledB_Cur = ledCurrent;
-    if((ledCurrent & BITM_LED_POW12_X_LED_CURRENT1_X) != 0)
-      gAdpd400xOptmVal.ledB_CurVal = ledCurrent;
-
-    Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &ledTrim);
-    if((ledTrim & BITM_LED_POW34_X_LED_CURRENT3_X) != 0)
-      gAdpd400xOptmVal.ledB_Trim = ledTrim;
-
-    Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &tiaGain);
-    gAdpd400xOptmVal.tiaB_Gain = tiaGain;
 #if defined(AGC_FEATURE)
      if(gPpg_agc_done)
      {
@@ -854,19 +853,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
 
       if ((gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN) != 0) {
         SMDoAGCInit();
-        gAdpd400xAGCStatInfo.mts[0] = 0xFFFF;
-        gAdpd400xAGCStatInfo.setting[1] = gAdpd400xOptmVal.ledB_Cur;
-        gAdpd400xAGCStatInfo.setting[2] = gAdpd400xOptmVal.ledB_Trim;
-        gAdpd400xAGCStatInfo.setting[3] = gAdpd400xOptmVal.ledB_Pulse;
-        gAdpd400xAGCStatInfo.setting[4] = gAdpd400xOptmVal.tiaB_Gain;
-        gAdpd400xAGCStatInfo.setting[5] = gAdpd400xOptmVal.sampleRate;
-        gAdpd400xAGCStatInfo.setting[6] = g_Adpd400xchannelNums;
-        gAdpd400xAGCStatInfo.setting[8] = gAdpd400xPPGLibStatus.CtrValue;
-        gAdpd400xAGCStatInfo.timestamp = AdpdLibGetSensorTimeStamp();
-      }
-    //gb_static_agc_green_done = 0; /* not required */
-    //gAdpd400xPpgLibState = ADPDLIB_STAGE_HEART_RATE;
-    //gsSampleCnt = 0;    
+      } 
      }
      else
      {
@@ -874,15 +861,39 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
      }
 #endif //AGC_FEATURE
 #endif // STATIC_AGC 
-      uint16_t nRegTrim;
+      uint16_t ledCurrent,ledTrim,tiaGain;
+      g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
+      Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &ledCurrent);
+      gAdpd400xOptmVal.ledB_Cur = ledCurrent;
+      if((ledCurrent & BITM_LED_POW12_X_LED_CURRENT1_X) != 0)
+        gAdpd400xOptmVal.ledB_CurVal = ledCurrent;
+
+      Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &ledTrim);
+      if((ledTrim & BITM_LED_POW34_X_LED_CURRENT3_X) != 0)
+        gAdpd400xOptmVal.ledB_Trim = ledTrim;
+
+      Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &tiaGain);
+      gAdpd400xOptmVal.tiaB_Gain = tiaGain;
       if(gDVT2){
         g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
-        AdpdDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &gRegTrim);
-        nRegTrim = gRegTrim | (BITM_AFE_TRIM_X_TIA_CEIL_DETECT_EN_X);
         AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
-        AdpdDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, nRegTrim);
+        /*Enable TIA Saturation check*/ 
+        AdpdDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &tiaGain);
+        tiaGain |= (BITM_AFE_TRIM_X_TIA_CEIL_DETECT_EN_X);
+        AdpdDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_reg_base, tiaGain);
+        gAdpd400xOptmVal.tiaB_Gain = tiaGain;
+        /*Enable Subsampling*/ 
+        AdpdDrvRegRead(ADPD400x_REG_TS_CTRL_A + g_reg_base, &nTsCtrl);
+        nTsCtrl |= (BITM_TS_CTRL_A_SUBSAMPLE_EN_A);
+        AdpdDrvRegWrite(ADPD400x_REG_TS_CTRL_A + g_reg_base, nTsCtrl);
         AdpdMwLibSetMode(ADPD400xDrv_MODE_SAMPLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_32);
       }
+      gAdpd400xAGCStatInfo.mts[0] = 0xFFFF;
+      gAdpd400xAGCStatInfo.setting[1] = gAdpd400xOptmVal.ledB_Cur;
+      gAdpd400xAGCStatInfo.setting[2] = gAdpd400xOptmVal.ledB_Trim;
+      gAdpd400xAGCStatInfo.setting[3] = gAdpd400xOptmVal.ledB_Pulse;
+      gAdpd400xAGCStatInfo.setting[4] = gAdpd400xOptmVal.tiaB_Gain;
+      gAdpd400xAGCStatInfo.setting[5] = gAdpd400xOptmVal.sampleRate;
           // initialize loop2 setting.
       gAdpd400xOptmVal.ledB_Cur2 = gAdpd400xOptmVal.ledB_Cur;
       gAdpd400xOptmVal.ledB_Trim2 = gAdpd400xOptmVal.ledB_Trim;
@@ -1150,7 +1161,7 @@ static void SettingForHighMotion()  {
       gAdpd400xAGCStatInfo.mts[2] = 0;
       gAdpd400xAGCStatInfo.mts[3] = 0;
       gAdpd400xAGCStatInfo.setting[0] = AgcLog_Loop1;      // Switch to loop1 indication
-          
+      gAdpd400xAGCStatInfo.setting[9] = 0xEEEE;               // power changed
 	  NRF_LOG_INFO("HighMotion change Power!!\r\n");
     } else {
 	  NRF_LOG_INFO("HighMotion, Keep current Power!!\r\n");

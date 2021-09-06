@@ -4,6 +4,7 @@ from common_application_interface_def import *
 
 from common_sensor_interface_def import *
 
+
 class M2M2_BCM_APP_CMD_ENUM_t(c_ubyte):
     _M2M2_BCM_APP_CMD_LOWEST = 0x40
     M2M2_BCM_APP_CMD_SWEEP_FREQ_ENABLE_REQ = 0x42
@@ -26,12 +27,12 @@ class M2M2_SENSOR_BCM_RAW_DATA_TYPES_ENUM_t(c_ubyte):
     M2M2_SENSOR_BCM_DATA = 0x0
 
 class M2M2_SENSOR_BCM_SWEEP_FREQ_INDEX_ENUM_t(c_ubyte):
-    M2M2_SENSOR_BCM_FREQ_50KHZ = 0xFF
     M2M2_SENSOR_BCM_FREQ_1000HZ = 0x0
     M2M2_SENSOR_BCM_FREQ_3760HZ = 0x1
     M2M2_SENSOR_BCM_FREQ_14140HZ = 0x2
     M2M2_SENSOR_BCM_FREQ_53180HZ = 0x3
     M2M2_SENSOR_BCM_FREQ_200KHZ = 0x4
+    M2M2_SENSOR_BCM_FREQ_50KHZ = 0xFF
 
 class bcm_app_set_dft_num_t(Structure):
     _pack_ = 1
@@ -59,9 +60,9 @@ class bcm_app_lcfg_op_t(Structure):
 class bcm_app_dcb_lcfg_t(Structure):
     _pack_ = 1
     _fields_ = [
-                ("command", c_ubyte), 
-                ("status", c_ubyte),
-               ]
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ]
 
 def bcm_app_lcfg_op_hdr_t(array_size):
   class bcm_app_lcfg_op_hdr_t_internal(Structure):

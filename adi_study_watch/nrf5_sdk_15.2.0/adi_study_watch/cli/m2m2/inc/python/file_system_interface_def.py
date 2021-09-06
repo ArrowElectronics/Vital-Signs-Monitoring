@@ -4,6 +4,8 @@ from common_application_interface_def import *
 
 from m2m2_core_def import *
 
+MAX_NUM_OF_CHAR = (20)
+
 class FILE_STOP_LOGGING_t(c_ubyte):
     M2M2_FILE_SYS_STOP_LOGGING = 0x0
     M2M2_FILE_SYS_MEMORY_FULL = 0x1
@@ -12,7 +14,7 @@ class FILE_STOP_LOGGING_t(c_ubyte):
     M2M2_FILE_SYS_STOP_LOGGING_INVALID = 0xFF
 
 class M2M2_FILE_SYS_CMD_ENUM_t(c_ubyte):
-    __M2M2_FILE_SYS_CMD_LOWEST = 0x40
+    _M2M2_FILE_SYS_CMD_ENUM_t__M2M2_FILE_SYS_CMD_LOWEST = 0x40
     M2M2_FILE_SYS_CMD_MOUNT_REQ = 0x42
     M2M2_FILE_SYS_CMD_MOUNT_RESP = 0x43
     M2M2_FILE_SYS_CMD_FORMAT_REQ = 0x46
@@ -63,10 +65,12 @@ class M2M2_FILE_SYS_CMD_ENUM_t(c_ubyte):
     M2M2_FILE_SYS_CMD_CANCEL_DOWNLOAD_LOG_RESP = 0x7D
     M2M2_FILE_SYS_CMD_GET_BAD_BLOCKS_REQ = 0x7E
     M2M2_FILE_SYS_CMD_GET_BAD_BLOCKS_RESP = 0x7F
+    M2M2_FILE_SYS_CMD_FLASH_RESET_REQ = 0x80
+    M2M2_FILE_SYS_CMD_FLASH_RESET_RESP = 0x81
     M2M2_FILE_SYS_CMD_DISPLAY_VOL_INFO_REQ = 0x82
     M2M2_FILE_SYS_CMD_DISPLAY_VOL_INFO_RESP = 0x83
     M2M2_FILE_SYS_CMD_CHUNK_RETRANSMIT_REQ = 0x84
-    M2M2_FILE_SYS_CMD_CHUNK_RETRANSMIT_RESP = 0x85  
+    M2M2_FILE_SYS_CMD_CHUNK_RETRANSMIT_RESP = 0x85
     M2M2_FILE_SYS_BLOCKS_WRITE_REQ = 0x86
     M2M2_FILE_SYS_BLOCKS_WRITE_RESP = 0x87
     M2M2_FILE_SYS_CMD_GET_IMPT_DEBUG_INFO_REQ = 0x88
@@ -79,13 +83,17 @@ class M2M2_FILE_SYS_CMD_ENUM_t(c_ubyte):
     M2M2_FILE_SYS_CMD_PAGE_READ_TEST_RESP = 0x8F
     M2M2_FILE_SYS_CMD_BLOCK_ERASE_REQ = 0x90
     M2M2_FILE_SYS_CMD_BLOCK_ERASE_RESP = 0x91
-    M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ =  0x92
+    M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ = 0x92
     M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_RESP = 0x93
     M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_REQ = 0x94
     M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_RESP = 0x95
+    M2M2_FILE_SYS_CMD_APPEND_FILE_REQ = 0xA0
+    M2M2_FILE_SYS_CMD_APPEND_FILE_RESP = 0xA1
+    M2M2_FILE_SYS_CMD_FILE_READ_TEST_REQ = 0xA2
+    M2M2_FILE_SYS_CMD_FILE_READ_TEST_RESP = 0xA3
 
 class M2M2_FILE_SYS_STATUS_ENUM_t(c_ubyte):
-    __M2M2_FILE_SYS_ERR_LOWEST = 0x40
+    _M2M2_FILE_SYS_STATUS_ENUM_t__M2M2_FILE_SYS_ERR_LOWEST = 0x40
     M2M2_FILE_SYS_STATUS_OK = 0x41
     M2M2_FILE_SYS_STATUS_ERROR = 0x42
     M2M2_FILE_SYS_END_OF_FILE = 0x43
@@ -105,6 +113,8 @@ class M2M2_FILE_SYS_STATUS_ENUM_t(c_ubyte):
     M2M2_FILE_SYS_ERR_BATTERY_LOW = 0x51
     M2M2_FILE_SYS_ERR_POWER_STATE_SHUTDOWN = 0x52
     M2M2_FILE_SYS_ERR_CONFIG_FILE_POSITION = 0x53
+    M2M2_FILE_SYS_STATUS_BLOCKS_WRITE_ERROR = 0x54
+    M2M2_FILE_SYS_NO_FILE_TO_APPEND = 0x55
     M2M2_FILE_SYS_ERR_NOT_CHKD = 0xFF
 
 class FILE_TYPE_ENUM_t(c_ubyte):
@@ -117,19 +127,28 @@ class FILE_SYS_STREAM_SUBS_STATE_ENUM_t(c_ubyte):
     M2M2_FILE_SYS_SUBSCRIBED = 0x1
     M2M2_FILE_SYS_SUBS_INVALID = 0xFF
 
-class FILE_STOP_LOGGING_t(c_ubyte):
-    M2M2_FILE_SYS_STOP_LOGGING = 0x0
-    M2M2_FILE_SYS_MEMORY_FULL = 0x1
-    M2M2_FILE_SYS_BATTERY_LOW = 0x2
-    M2M2_FILE_SYS_POWER_STATE_SHUTDOWN = 0x3
-    M2M2_FILE_SYS_STOP_LOGGING_INVALID = 0xFF
-    
 class m2m2_file_sys_cmd_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
-              ]    
+              ]
+
+class m2m2_file_sys_blk_erase_cmd_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("block_no", c_ushort),
+              ]
+
+class m2m2_file_sys_write_rsd_blk_cmd_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("data", c_ulong * 20),
+              ]
 
 def m2m2_file_sys_ls_req_t(array_size):
   class m2m2_file_sys_ls_req_t_internal(Structure):
@@ -140,15 +159,6 @@ def m2m2_file_sys_ls_req_t(array_size):
               ("dir_path", c_ubyte * array_size),
               ]
   return m2m2_file_sys_ls_req_t_internal()
-
-class m2m2_file_sys_blk_erase_cmd_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-                ("command", c_ubyte),
-                ("status", c_ubyte),
-                ("block_no", c_ushort),
-               ]
-
 
 class m2m2_file_sys_ls_resp_t(Structure):
     _pack_ = 1
@@ -170,7 +180,7 @@ def m2m2_file_sys_get_req_t(array_size):
               ]
   return m2m2_file_sys_get_req_t_internal()
 
-class m2m2_file_sys_download_log_stream_t(Structure):
+class m2m2_file_sys_get_resp_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
@@ -180,13 +190,27 @@ class m2m2_file_sys_download_log_stream_t(Structure):
               ("crc16", c_ushort),
               ]
 
-class m2m2_file_sys_write_rsd_blk_cmd_t(Structure):
+def m2m2_file_sys_pkt_retransmit_req_t(array_size):
+  class m2m2_file_sys_pkt_retransmit_req_t_internal(Structure):
     _pack_ = 1
     _fields_ = [
-                ("command",c_ubyte),
-                ("status",c_ubyte),
-                ("data",c_ulong*20),
-                ]
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("Roll_over", c_ubyte),
+              ("chunk_number", c_ushort),
+              ("file_name", c_ubyte * array_size),
+              ]
+  return m2m2_file_sys_pkt_retransmit_req_t_internal()
+
+class m2m2_file_sys_download_log_stream_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("len_stream", c_ushort),
+              ("byte_stream", c_ubyte * 512),
+              ("crc16", c_ushort),
+              ]
 
 class m2m2_file_sys_app_ref_hr_stream_t(Structure):
     _pack_ = 1
@@ -227,6 +251,24 @@ class m2m2_file_sys_set_key_value_pair_resp_t(Structure):
               ("TZ_sec", c_ulong),
               ]
 
+class m2m2_file_sys_pattern_write_req_pkt_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("file_size", c_ulong),
+              ("scale_type", c_ubyte),
+              ("scale_factor", c_ushort),
+              ("num_files_to_write", c_ushort),
+              ]
+
+class m2m2_file_sys_pattern_write_resp_pkt_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ]
+
 class m2m2_file_sys_vol_info_resp_t(Structure):
     _pack_ = 1
     _fields_ = [
@@ -245,24 +287,7 @@ class m2m2_file_sys_get_subs_status_resp_t(Structure):
               ("stream", c_ushort),
               ("subs_state", c_ubyte),
               ]
-            
-class m2m2_file_sys_log_stream_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("command", c_ubyte),
-              ("status", c_ubyte),
-              ("stream", c_ushort),
-              ]
-                        
 
-class m2m2_file_sys_stop_log_cmd_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("command", c_ubyte),
-              ("status", c_ubyte),
-              ("stop_type", FILE_STOP_LOGGING_t),
-              ]
-           
 class m2m2_file_sys_debug_info_req_t(Structure):
     _pack_ = 1
     _fields_ = [
@@ -279,12 +304,19 @@ class m2m2_file_sys_debug_info_resp_t(Structure):
               ("stream", c_ushort),
               ("packets_received", c_ulong),
               ("packets_missed", c_ulong),
-              ("last_page_read", c_uint32),
-              ("last_page_read_offset",c_uint32),
-              ("last_page_read_status", c_uint8),
-              ("num_bytes_transferred", c_uint32),
-              ("bytes_read", c_uint32),
-              ("usb_cdc_write_failed", c_uint8),
+              ("last_page_read", c_ulong),
+              ("last_page_read_offset", c_ulong),
+              ("last_page_read_status", c_ubyte),
+              ("num_bytes_transferred", c_ulong),
+              ("bytes_read", c_ulong),
+              ("usb_cdc_write_failed", c_ubyte),
+              ]
+
+class m2m2_file_sys_debug_impt_info_req_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
               ]
 
 class m2m2_file_sys_user_config_data(Structure):
@@ -295,61 +327,6 @@ class m2m2_file_sys_user_config_data(Structure):
               ("len_configstream", c_ushort),
               ("byte_configstream", c_ubyte * 70),
               ]
-
-class m2m2_file_sys_impt_debug_info_req_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-                ("command", c_ubyte), 
-                ("status", c_ubyte), 
-               ]
-
-class m2m2_file_sys_impt_debug_info_resp_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-                ("command", c_ubyte),
-                ("status", c_ubyte),
-                ("head_pointer", c_uint32),
-                ("tail_pointer", c_uint32),
-                ("usb_avg_tx_time",c_uint32),
-                ("usb_avg_port_write_time",c_uint32),
-                ("page_read_time",c_uint32),
-                ("init_circular_buffer_flag",c_uint16),
-                ("mem_full_flag",c_uint16),
-                ("data_offset",c_uint16),
-                ("config_file_occupied",c_uint16),
-                ("page_write_time",c_uint32),
-                ("fs_display_query_cnt", c_uint16),
-                ("min_timer_cnt", c_uint16),
-               ]
-
-class m2m2_file_sys_format_debug_info_req_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-                ("command", c_ubyte),
-                ("status", c_ubyte),
-               ]
-
-class m2m2_file_sys_format_debug_info_resp_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-                ("command", c_ubyte),
-                ("status", c_ubyte),
-                ("erase_failed_due_bad_block_check",c_uint8),
-                ("wrap_around_cond",c_uint8),
-                ("nothing_is_written_to_erase_error",c_uint8),
-                ("mem_full_in_partial_erase",c_uint8),
-                ("toc_mem_erased_flag",c_uint8),
-                ("succesfull_erase_flag",c_uint8),
-                ("num_blocks_erased_in_mem_full_partial_erase",c_uint16),
-                ("num_blocks_erased_in_partial_erase_1",c_uint16),
-                ("num_blocks_erased_in_partial_erase_2",c_uint16),
-                ("num_times_format_failed_due_bad_blocks_1",c_uint16),
-                ("num_times_format_failed_due_bad_blocks_2",c_uint16),
-                ("format_src_blk_ind", c_uint32),
-                ("format_dest_blk_ind_1",c_uint32),
-                ("format_dest_blk_ind_2",c_uint32),
-              ]
-
 
 class m2m2_file_sys_user_cfg_summary_pkt_t(Structure):
     _pack_ = 1
@@ -369,79 +346,66 @@ class m2m2_file_sys_get_file_count_pkt_t(Structure):
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("file_count", c_ushort),
-              ] 
-              
+              ]
+
 class m2m2_file_sys_get_file_info_req_pkt_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("file_index", c_ubyte),
-              ]              
-      
+              ]
+
 class m2m2_file_sys_get_file_info_resp_pkt_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("file_name", c_ubyte * 16),
-              ("start_page", c_uint32),
-              ("end_page", c_uint32),
-              ("file_size", c_uint32),
-              ]       
-              
-class m2m2_file_sys_page_test_req_pkt_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("command", c_ubyte),
-              ("status", c_ubyte),
-              ("page_num", c_uint32),
-              ("num_bytes", c_ubyte),
-              ]              
-      
-class m2m2_file_sys_page_test_resp_pkt_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("command", c_ubyte),
-              ("status", c_ubyte),
-              ("page_num", c_uint32),
-              ("ecc_zone_status", c_ubyte),
-              ("next_page", c_uint32),
-              ("occupied", c_ubyte),
-              ("data_region_status", c_ubyte),
-              ("sample_data",  c_ubyte * 100),
-              ("num_bytes",  c_ubyte),
-              ]  
-              
-class m2m2_file_sys_pattern_write_req_pkt_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("command", c_ubyte),
-              ("status", c_ubyte),
-              ("file_size", c_uint32),
-              ("scale_type", c_ubyte),
-              ("scale_factor", c_uint16),
-              ("num_files_to_write", c_uint16),
+              ("start_page", c_ulong),
+              ("end_page", c_ulong),
+              ("file_size", c_ulong),
               ]
 
-class m2m2_file_sys_pattern_write_resp_pkt_t(Structure):
+class m2m2_file_sys_page_read_test_req_pkt_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
+              ("page_num", c_ulong),
+              ("num_bytes", c_ubyte),
               ]
-              
-def m2m2_file_sys_pkt_retransmit_req_t(array_size):
-  class m2m2_file_sys_pkt_retransmit_req_t_internal(Structure):
+
+class m2m2_file_sys_page_read_test_resp_pkt_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
-              ("Roll_over", c_ubyte),
-              ("chunk_number", c_ushort),
-              ("file_name", c_ubyte * array_size),
+              ("page_num", c_ulong),
+              ("ecc_zone_status", c_ubyte),
+              ("next_page", c_ulong),
+              ("occupied", c_ubyte),
+              ("num_bytes_written", c_ushort),
+              ("data_region_status", c_ubyte),
+              ("sample_data", c_ubyte * 100),
+              ("num_bytes", c_ubyte),
               ]
-  return m2m2_file_sys_pkt_retransmit_req_t_internal()
+
+class m2m2_file_sys_log_stream_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("stream", c_ushort),
+              ]
+
+class m2m2_file_sys_stop_log_cmd_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("stop_type", c_ubyte),
+              ]
 
 class m2m2_file_sys_get_bad_blocks_cmd_t(Structure):
     _pack_ = 1
@@ -451,12 +415,75 @@ class m2m2_file_sys_get_bad_blocks_cmd_t(Structure):
               ("bad_blocks", c_ulong),
               ]
 
-class m2m2_file_sys_get_resp_t(Structure):
+class m2m2_file_sys_write_blocks_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
-              ("len_stream", c_ushort),
-              ("byte_stream", c_ubyte * 512),
-              ("crc16", c_ushort),
+              ("num_blocks_write", c_ushort),
+              ("start_block_num", c_ushort),
               ]
+
+class m2m2_file_sys_format_debug_info_req_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ]
+
+class m2m2_file_sys_debug_impt_info_resp_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("head_pointer", c_ulong),
+              ("tail_pointer", c_ulong),
+              ("usb_avg_tx_time", c_ulong),
+              ("usb_avg_port_write_time", c_ulong),
+              ("page_read_time", c_ulong),
+              ("init_circular_buffer_flag", c_ushort),
+              ("mem_full_flag", c_ushort),
+              ("data_offset", c_ushort),
+              ("config_file_occupied", c_ushort),
+              ("page_write_time", c_ulong),
+              ("fs_display_query_cnt", c_ushort),
+              ("min_timer_cnt", c_ushort),
+              ]
+
+class m2m2_file_sys_format_debug_info_resp_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("erase_failed_due_bad_block_check", c_ubyte),
+              ("wrap_around_cond", c_ubyte),
+              ("nothing_is_written_to_erase_error", c_ubyte),
+              ("mem_full_in_partial_erase", c_ubyte),
+              ("toc_mem_erased_flag", c_ubyte),
+              ("succesfull_erase_flag", c_ubyte),
+              ("num_blocks_erased_in_mem_full_partial_erase", c_ushort),
+              ("num_blocks_erased_in_partial_erase_1", c_ushort),
+              ("num_blocks_erased_in_partial_erase_2", c_ushort),
+              ("num_times_format_failed_due_bad_blocks_1", c_ushort),
+              ("num_times_format_failed_due_bad_blocks_2", c_ushort),
+              ("format_src_blk_ind", c_ulong),
+              ("format_dest_blk_ind_1", c_ulong),
+              ("format_dest_blk_ind_2", c_ulong),
+              ]
+
+class m2m2_file_sys_sample_data_file_read_req_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("start_page_ind", c_uint32),
+              ("end_page_ind", c_uint32),
+              ]
+
+class m2m2_file_sys_sample_data_file_read_resp_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+               ("command", c_ubyte),
+               ("status", c_ubyte),
+               ("sample_data",c_ubyte * 202),
+               ]

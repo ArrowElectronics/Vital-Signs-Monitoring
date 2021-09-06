@@ -17,6 +17,7 @@
 #endif  // defined __CC_ARM || defined __IAR_SYSTEMS_ICC__ || __clang__ || defined _MSC_VER || defined __GNUC__
 #pragma pack(1)
 
+
 enum POST_OFFICE_CFG_CMD_ENUM_t:uint8_t {
   POST_OFFICE_CFG_CMD_ADD_MAILBOX = 1,
   POST_OFFICE_CFG_CMD_REMOVE_MAILBOX = 2,
@@ -26,9 +27,9 @@ enum POST_OFFICE_CFG_CMD_ENUM_t:uint8_t {
 static_assert(sizeof(POST_OFFICE_CFG_CMD_ENUM_t) == 1, "Enum 'POST_OFFICE_CFG_CMD_ENUM_t' has an incorrect size!");
 
 struct post_office_config_t {
-  POST_OFFICE_CFG_CMD_ENUM_t  cmd; 
-  M2M2_ADDR_ENUM_t  box; 
-  M2M2_ADDR_ENUM_t  sub; 
+  uint8_t  cmd; 
+  uint16_t  box; 
+  uint16_t  sub; 
 };
 
 // Reset struct packing outside of this file

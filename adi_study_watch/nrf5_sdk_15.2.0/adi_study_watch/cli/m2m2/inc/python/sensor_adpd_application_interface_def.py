@@ -4,6 +4,7 @@ from common_application_interface_def import *
 
 from common_sensor_interface_def import *
 
+
 class M2M2_SENSOR_ADPD_COMMAND_ENUM_t(c_ubyte):
     _M2M2_SENSOR_ADPD_COMMAND_LOWEST = 0x40
     M2M2_SENSOR_ADPD_COMMAND_LOAD_CFG_REQ = 0x42
@@ -96,6 +97,7 @@ class M2M2_SENSOR_ADPD_DEVICE_ID_ENUM_t(c_ubyte):
     M2M2_SENSOR_ADPD4000_DEVICE_4000_IR = 0x2A
     M2M2_SENSOR_ADPD4000_DEVICE_4000_B = 0x2B
     M2M2_SENSOR_ADPD4000_DEVICE_4000_G_R_IR_B = 0x2C
+    M2M2_SENSOR_ADPD4000_DEVICE_4100_SWO2 = 0x2D
 
 class m2m2_sensor_adpd_resp_t(Structure):
     _pack_ = 1
@@ -124,7 +126,7 @@ class adpd_data_header_t(Structure):
               ("timestamp", c_ulong),
               ]
 
-class adpdCl_data_header_t(Structure):
+class adpd4000_data_header_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
@@ -135,7 +137,7 @@ class adpdCl_data_header_t(Structure):
               ("timestamp", c_ulong),
               ]
 
-class m2m2_sensor_adpdCl_data_stream_t(Structure):
+class m2m2_sensor_adpd4000_data_stream_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
@@ -148,7 +150,7 @@ class m2m2_sensor_adpdCl_data_stream_t(Structure):
               ("adpddata", c_ubyte * 24),
               ]
 
-class m2m2_sensor_adpdCl_impulse_stream_t(Structure):
+class m2m2_sensor_adpd4000_impulse_stream_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
@@ -276,7 +278,7 @@ class m2m2_sensor_adpd_slot_resp_t(Structure):
               ("slotB", c_ubyte),
               ]
 
-class m2m2_sensor_adpdCl_slot_resp_t(Structure):
+class m2m2_sensor_adpd4000_slot_resp_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
@@ -287,7 +289,7 @@ class m2m2_sensor_adpdCl_slot_resp_t(Structure):
               ("channel_num", c_ubyte),
               ]
 
-class m2m2_sensor_adpdCl_slot_active_resp_t(Structure):
+class m2m2_sensor_adpd4000_slot_active_resp_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
@@ -312,7 +314,7 @@ class m2m2_sensor_com_mode_resp_t(Structure):
               ("com_mode", c_ubyte),
               ]
 
-class m2m2_sensor_adpdCl_resp_t(Structure):
+class m2m2_sensor_adpd4000_resp_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
@@ -342,6 +344,7 @@ class m2m2_sensor_fifo_status_bytes_t(Structure):
               ("tia_ch1_int", c_ushort),
               ("tia_ch2_int", c_ushort),
               ]
+
 class m2m2_sensor_adpd4000_set_fs_t(Structure):
     _pack_ = 1
     _fields_ = [
@@ -391,8 +394,8 @@ class m2m2_adpd_agc_info_t(Structure):
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("led_index", c_ubyte),
-              ("green_ch1", c_ulong * 10),
-              ("green_ch2", c_ulong * 10),
+              ("led_ch1", c_ulong * 10),
+              ("led_ch2", c_ulong * 10),
               ("DC0_LEDcurrent", c_ushort),
               ("TIA_ch1_i", c_ushort),
               ("TIA_ch2_i", c_ushort),
@@ -437,8 +440,9 @@ class adpd_ext_data_stream_odr_t(Structure):
 class m2m2_adpd_set_uc_hr_enab_t(Structure):
     _pack_ = 1
     _fields_ = [
-    ("command", c_ubyte),
-    ("status", c_ubyte),
-    ("control", c_ubyte),
-    ("slotNum", c_ushort),
-                ]
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("control", c_ubyte),
+              ("slotNum", c_ushort),
+              ]
+

@@ -417,11 +417,11 @@ const Adpd400xLibConfig_t AdpdLibCfg4000 = {
   20000000,       /* 32-bit. Reserved  */
   0x0066,         /* 16-bit. rmssdSampleWindow, Maximum = 102 */
 
-  80,             /* 8-bit.  Reserved  */ 
+  80,             /* 8-bit.  Reserved  */
   100,            /* 16-bit. Reserved  */
   0,              /* 16-bit. Reserved  */
 
-  200,            /* 16-bit. Max sampling rate after optimization. 1-26*/
+  500,            /* 16-bit. Max sampling rate after optimization. 1-26*/
   70,             /* 8-bit.  Target DC level in percentage */
   127,            /* 16-bit. LED Calibration: Maximum LED current */
   254,            /* 8-bit.  Max amount of pulses for each repeat cycle */

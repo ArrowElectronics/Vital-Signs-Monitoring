@@ -61,6 +61,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define PAGE_SIZE 4096      //bytes
 #define PAGES_PER_BLOCK 64
 #define NUM_OF_BLOCKS 2048
+#define DELIMITER ','
 
 typedef enum {
   FS_STATUS_OK = 0x00,
@@ -76,6 +77,7 @@ typedef enum {
   FS_STATUS_ERR_INVALID_FILE,
   FS_STATUS_INIT_DRIVER_ERR,
   FS_STATUS_ERR_CONFIG_FILE_NOT_FOUND,
+  FS_STATUS_NO_FILE_TO_APPEND_ERROR,
 }FS_STATUS_ENUM_t;
 
 typedef enum {
@@ -136,6 +138,8 @@ FS_STATUS_ENUM_t fs_hal_page_read_test(uint32_t* ppage_num, m2m2_file_sys_page_r
 FS_STATUS_ENUM_t fs_write_rsd_block(uint32_t data[], uint16_t size);
 FS_STATUS_ENUM_t fs_block_erase(uint16_t block_no);
 bool UpdateFileInfo();
+FS_STATUS_ENUM_t fs_hal_append_file();
+FS_STATUS_ENUM_t set_write_handler_mode();
 #ifdef TEST_FS_NAND
 void fs_hal_test_features(void);
 void fs_hal_test_file_write_read(uint32_t inp_num_iter, uint32_t block_size);

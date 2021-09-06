@@ -4,6 +4,7 @@ from common_application_interface_def import *
 
 from m2m2_core_def import *
 
+
 class M2M2_SENSOR_SYNC_DATA_TYPES_ENUM_t(c_ubyte):
     M2M2_SENSOR_ADPD_ADXL_SYNC_DATA = 0x0
 

@@ -839,9 +839,9 @@ elfs_result lfs_get_remaining_space(uint32_t * remaining_bytes,
 
     /* if files present and remaining bytes is not zero */
     if((page_correction != 0) && ((*remaining_bytes) != 0))  {
-      
+
       struct _page_header next_page_head;
-      /* read spare area to consider currect page as pointed by head pointer 
+      /* read spare area to consider currect page as pointed by head pointer
       for volume info calculation */
 
       if(lfs_read_oob(table_file_header->head_pointer,&next_page_head) != LFS_SUCCESS)  {
@@ -857,11 +857,11 @@ elfs_result lfs_get_remaining_space(uint32_t * remaining_bytes,
         *remaining_bytes += g_mem_prop->page_size;
       }
       /* this is required, when data is written to <= single page of block pointed by head and tail */
-      /* this can happen when single file created after erase of file size <= page size */ 
+      /* this can happen when single file created after erase of file size <= page size */
       *remaining_bytes -= (page_correction*g_mem_prop->page_size);
     }
 
-    
+
 #ifdef PRINTS_OUT
     NRF_LOG_INFO("**** No of bad blocks = %d in rem space api *****",bad_block_num);
     NRF_LOG_INFO("Remaining Data memory in bytes =%d",*remaining_bytes);
@@ -916,7 +916,7 @@ elfs_result lfs_open_file_by_number(uint8_t fileNo,
   }
   else
   {
-    return LFS_ERROR;
+    return LFS_FILE_NOT_PRESENT_ERROR;
   }
   return LFS_SUCCESS;
 }
@@ -1159,7 +1159,7 @@ elfs_result lfs_create_file(uint8_t * file_name,
   **************************************************************************************************
   @brief      Get memory status to know status of memory full/not
   *
-  * @param    uint8_t *mem_stat: status of memory if full or not 
+  * @param    uint8_t *mem_stat: status of memory if full or not
   * @return   elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 elfs_result get_memory_status(bool *mem_stat) {
@@ -1171,7 +1171,7 @@ elfs_result get_memory_status(bool *mem_stat) {
      NRF_LOG_INFO("Error in reading table file");
      return LFS_ERROR;
   }
-  
+
   if(table_file_header.mem_full_flag == 1){
     *mem_stat = true;
   }
@@ -1270,9 +1270,8 @@ uint8_t last_page_read_status=0;
 #endif
 elfs_result lfs_read_file(uint8_t * outBuffer,
                           uint32_t offset,
-                          uint32_t size,
+                          uint32_t *size,
                           _file_handler *file_handler)  {
-
   if(file_handler->current_offset != offset)  {
     /* set read position in page to read data bytes */
     if(lfs_set_read_pos(offset,file_handler) != LFS_SUCCESS)  {
@@ -1282,9 +1281,10 @@ elfs_result lfs_read_file(uint8_t * outBuffer,
   }
    struct _page_header page_header;
    uint32_t bytes_processed = 0;
+   uint32_t bytes_to_read = 0;
    /* read on to soft buffer till 'size; paramter is read from
    flash */
-   while(bytes_processed<size)  {
+   while(bytes_processed<(*size))  {
      /* Do page aligning */
      uint32_t read_pos=file_handler->current_read_pos;
      uint32_t read_page = read_pos/g_mem_prop->page_size;
@@ -1299,7 +1299,6 @@ elfs_result lfs_read_file(uint8_t * outBuffer,
       read_page,
       read_page_offset);
 #endif
-     if((size-bytes_processed) >= (g_mem_prop->page_size-read_page_offset)) {
       /* if spare area of page to be read */
        if(lfs_read_oob(read_page,&page_header) != LFS_SUCCESS)
        {
@@ -1309,24 +1308,25 @@ elfs_result lfs_read_file(uint8_t * outBuffer,
 #endif
          return LFS_ERROR;
        }
-        
-       /* if reading based on page offset */
-       if(nand_func_read(g_mem_prop,read_pos,(g_mem_prop->page_size-read_page_offset),\
+
+     if((*size-bytes_processed) >= (g_mem_prop->page_size-read_page_offset)) {
+          /* if number of bytes is only few bytes we read only those number of bytes */
+          if(nand_func_read(g_mem_prop,read_pos,page_header.num_bytes,\
                         (uint8_t*)&outBuffer[bytes_processed]) != NAND_FUNC_SUCCESS)  {
-         NRF_LOG_INFO("Error in reading file:%s",file_handler->head.file_name);
+            NRF_LOG_INFO("Error in reading file:%s",file_handler->head.file_name);
 #ifdef PAGE_READ_DEBUG_INFO
-         last_page_read_status = 1;
+            last_page_read_status = 1;
 #endif
-         return LFS_FILE_READ_ERROR;
-       }
-        
-       bytes_processed+=g_mem_prop->page_size-read_page_offset;
-       /* Next page write would have checked for bad block and accordingly written */
-       file_handler->current_read_pos=page_header.next_page*g_mem_prop->page_size;
+            return LFS_FILE_READ_ERROR;
+          }
+          bytes_processed += g_mem_prop->page_size-read_page_offset;
+          /* Next page write would have checked for bad block and accordingly written */
+          file_handler->current_read_pos=page_header.next_page*g_mem_prop->page_size;
      }
      else {
+        /* read truncating bytes */
         /* read bytes onto softbuffer */
-       if(nand_func_read(g_mem_prop,read_pos,(size-bytes_processed),\
+       if(nand_func_read(g_mem_prop,read_pos,page_header.num_bytes,\
                         (uint8_t*)&outBuffer[bytes_processed]) != NAND_FUNC_SUCCESS)  {
          NRF_LOG_INFO("Error in reading File Name:%s",file_handler->head.file_name);
 #ifdef PAGE_READ_DEBUG_INFO
@@ -1334,15 +1334,18 @@ elfs_result lfs_read_file(uint8_t * outBuffer,
 #endif
          return LFS_FILE_READ_ERROR;
        }
-       file_handler->current_read_pos += size-bytes_processed;
-       bytes_processed=size;
+       file_handler->current_read_pos= page_header.next_page*g_mem_prop->page_size;
+       bytes_processed=g_mem_prop->page_size;
      }
+
+      /* valid data num bytes */
+      *size = page_header.num_bytes;
    }
 #ifdef PAGE_READ_DEBUG_INFO
   bytes_processed_from_fs_task += bytes_processed;
   last_page_read_status = 0;
 #endif
-  file_handler->current_offset+=size;
+  file_handler->current_offset+=(*size);
   return LFS_SUCCESS;
 }
 
@@ -1505,7 +1508,7 @@ int read_page_data(uint32_t page_num, uint8_t *pdata_mem, uint16_t page_size)
     return result;
 }
 
-int read_page_ecc_zone(uint32_t page_num, uint32_t *pnext_page, uint8_t *poccupied)
+int read_page_ecc_zone(uint32_t page_num, uint32_t *pnext_page, uint8_t *poccupied,uint16_t *pnum_bytes)
 {
     elfs_result res;
     struct _page_header spare_head;
@@ -1513,6 +1516,7 @@ int read_page_ecc_zone(uint32_t page_num, uint32_t *pnext_page, uint8_t *poccupi
     res = lfs_read_oob(page_num,&spare_head);
     *pnext_page =  spare_head.next_page;
     *poccupied = spare_head.occupied;
+    *pnum_bytes = spare_head.num_bytes;
     return res;
 }
 
@@ -1535,9 +1539,9 @@ int get_pointers_info(uint32_t *head_pointer,uint32_t *tail_pointer,uint16_t tab
      NRF_LOG_INFO("Error in reading table file");
      return -1;
   }
-  
+
   *head_pointer = table_file_header.head_pointer;
-  
+
   /* read tail pointer */
   *tail_pointer = table_file_header.tail_pointer;
 
@@ -1614,7 +1618,7 @@ elfs_result lfs_update_file(uint8_t *in_buffer,
 #ifdef PROFILE_TIME_ENABLED
     nGetNextPageReadTick1 =  get_micro_sec();
 #endif
-    
+
     /* get next good page to write by traversing through bad blocks if any */
     ret = get_next_page_files(file_handler,table_file_header);
     if(ret != LFS_SUCCESS) {
@@ -1634,6 +1638,8 @@ elfs_result lfs_update_file(uint8_t *in_buffer,
     file_header->tmp_write_mem->next_page_data.next_page = table_file_header->head_pointer;
     /* set current page occupied */
     file_header->tmp_write_mem->next_page_data.occupied = 1;
+    /* fill number of bytes written */
+    file_header->tmp_write_mem->next_page_data.num_bytes = g_mem_prop->page_size;
 
     NRF_LOG_INFO("Page destination address for writing:%d",file_handler->curr_write_mem_loc/g_mem_prop->page_size);
 
@@ -1979,14 +1985,12 @@ elfs_result lfs_update_config_file(uint8_t *in_buffer,
   return LFS_SUCCESS;
 }
 
-
-
 /*!
   **************************************************************************************************
-  @brief  End the file by writing the remaining bytes and the TOC.
+  @brief      End the file by writing the remaining bytes and the TOC.
   *
   * @param    _file_header * _file_header : file handler of the file.
-  * @return     elfs_result Function result LFS_SUCCESS/LFS_ERROR
+  * @return    elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 #ifdef PROFILE_TIME_ENABLED
 uint32_t file_end_start_time1,file_end_start_time2;
@@ -1998,11 +2002,22 @@ elfs_result lfs_end_file(_file_handler *file_handler,
     file_end_start_time1 = get_micro_sec();
 #endif
   _file_header *file_header = &file_handler->head;
+
   /* if trailing bytes left, write */
   if(file_handler->tmp_write_mem_loc>0) {
+
+    /* Increment head pointer as its supposed to search by adding one */
+    table_file_header->head_pointer += 1;
+    if(get_next_page_files(file_handler,table_file_header) != LFS_SUCCESS) {
+       return LFS_ERROR;
+    }
+
     /* Write the last bytes of the file */
-    file_header->tmp_write_mem->next_page_data.next_page = 0xFFFFFFFF;
+    file_header->tmp_write_mem->next_page_data.next_page = table_file_header->head_pointer;
     file_header->tmp_write_mem->next_page_data.occupied = 1;
+
+    /* fill number of bytes written */
+    file_header->tmp_write_mem->next_page_data.num_bytes = file_handler->tmp_write_mem_loc;
 
     struct _page_write write_data = {.page_dest = file_handler->curr_write_mem_loc/g_mem_prop->page_size,
                                       .data_buf = (uint8_t*)file_header->tmp_write_mem->data,
@@ -2023,6 +2038,7 @@ elfs_result lfs_end_file(_file_handler *file_handler,
     file_header->file_size += file_handler->tmp_write_mem_loc;
     file_handler->tmp_write_mem_loc = 0;
     file_header->last_used_page = file_handler->curr_write_mem_loc/g_mem_prop->page_size;
+
   }
   /* else close file with last used page */
   else  {
@@ -2136,10 +2152,10 @@ elfs_result lfs_flash_reset() {
   uint32_t loop_ind = 0;
   eNand_Result result = NAND_SUCCESS;
   uint8_t status = 0;
-  
+
   /* erase reserved block */
   result = nand_flash_block_erase(RESERVEDBLOCK*g_mem_prop->pages_per_block);
-  
+
   /* write reserved block info*/
   if(lfs_reset_reserved_block() != LFS_SUCCESS) {
     NRF_LOG_INFO("Error in resetting reserved block");
@@ -2356,7 +2372,7 @@ elfs_result lfs_erase_memory(bool force){
     else  {
       /* Calculate Source and Destination Block Index for File Erase based on head and tail positions */
       /* Data written but not erased or repeated erase */
-      
+
       if((curr_tail == FILEBLOCK) && (curr_head > tail_pointer_in_pages))   {
         src_blk_ind = FILEBLOCK;
         dst_blk_ind = curr_head_in_blk;
@@ -2519,7 +2535,7 @@ elfs_result lfs_erase_memory(bool force){
                   del_table_page = 1;
                   memset(type,0,MAX_UPDATE_TYPE);
                   type[0] = LFS_BAD_BLOCK_MARKER_UPDATE;
- 
+
                   /* bad block updated, update again */
                   vol_info_buff_var.bad_block_updated = 1;
 
@@ -2611,6 +2627,89 @@ elfs_result lfs_erase_memory(bool force){
 
 /*!
   **************************************************************************************************
+  @brief        re open closed file
+  *
+  * @param      file_handler: Pointer to opened file handler
+                tmp_table_file_header: Pointer to table file header
+  * @return     elfs_result Function result LFS_SUCCESS/LFS_ERROR
+  **************************************************************************************************/
+elfs_result lfs_reopen_last_file_Info (_file_handler *file_handler,\
+                                      _table_file_header *tmp_table_file_header)  {
+  uint16_t file_no = tmp_table_file_header->offset;
+  struct _page_header page_header = {0, 0};
+
+  elfs_result ret = lfs_open_file_by_number(file_no,file_handler);
+
+  /* this is added when there is config file present which should not be
+  considered as valid file to append */
+  if(file_no == 0){
+    return LFS_NO_FILE_TO_APPEND_ERROR;
+  }
+
+  if(ret != LFS_SUCCESS) {
+    if(ret == LFS_FILE_NOT_PRESENT_ERROR)
+      return LFS_NO_FILE_TO_APPEND_ERROR;
+    else
+      return LFS_ERROR;
+  }
+
+  /* check if opened file is latest */
+  uint16_t page_num = file_no + TOC_BLOCK_FIRST_PAGE;
+  page_num += 1;
+
+  memset(&page_header,0,sizeof(page_header));
+
+  if(lfs_read_oob(page_num,&page_header) != LFS_SUCCESS)  {
+     NRF_LOG_INFO("lfs_reopen_last_file_Info:OOB Error");
+     return LFS_ERROR;
+  }
+
+  if(page_header.occupied == 0)  {
+    NRF_LOG_INFO("previous page is last page in toc corresponding to last closed file");
+  }
+  return LFS_SUCCESS;
+}
+
+/*!
+  **************************************************************************************************
+  @brief        re open closed file
+  *
+  * @param      file_handler: Pointer to opened file handler
+                tmp_table_file_header: Pointer to table file header
+  * @return     elfs_result Function result LFS_SUCCESS/LFS_ERROR
+  **************************************************************************************************/
+elfs_result lfs_append_opened_file (_file_handler *file_handler,_table_file_header *tmp_table_file_header) {
+  struct _page_header page_header = {0, 0};
+  _file_header *file_header = &file_handler->head;
+    uint32_t page_num = file_header->last_used_page;
+
+  /* read the last page spare area */
+   if(lfs_read_oob(page_num,&page_header) != LFS_SUCCESS)  {
+     NRF_LOG_INFO("lfs_append_opened_file:OOB Error");
+     return LFS_ERROR;
+   }
+    /* check address stored in spare area */
+    page_num = page_header.next_page;
+    NRF_LOG_INFO("page index to be chosen = %d",page_num);
+    memset(&page_header,0,sizeof(page_header));
+    if(lfs_read_oob(page_num,&page_header) != LFS_SUCCESS)  {
+     NRF_LOG_INFO("lfs_append_opened_file:OOB Error");
+     return LFS_ERROR;
+   }
+
+   /*check if current good page is empty, then assign it to head pointer */
+  if(page_header.occupied == 255){
+    tmp_table_file_header->head_pointer = page_num;
+  }
+  else  {
+    NRF_LOG_INFO("Current page is written ; file continuity lost; file cannot be appended");
+    return LFS_ERROR;
+  }
+  return LFS_SUCCESS;
+}
+
+/*!
+  **************************************************************************************************
   @brief            Erase the memory. This function will skip some of the blocks. The
   *                 reserved block will always be skipped. This contains information about
   *                 the version of the memory for now, but in the future it could also be
@@ -2670,7 +2769,7 @@ elfs_result erase_toc_memory(bool force)  {
 
     /* clear structure for last page read properly */
     memset(&tmp_table_file_header,0,sizeof(_table_file_header));
-    
+
     /* Read TOC File in structure to preserve contents */
     if(read_table_file_in_toc(&tmp_table_file_header) == LFS_ERROR)  {
       NRF_LOG_INFO("Error in read table file in TOC");
@@ -2761,7 +2860,7 @@ elfs_result lfs_check_comp_version(bool * is_compatible) {
   nrf_log_push(tmp_file_info.foot_print),
   tmp_file_info.version,
   tmp_file_info.revision);
-  
+
   NRF_LOG_INFO("foot print");
   for(int i=0;i< strlen(FSFOOTPRINT);i++){
     NRF_LOG_INFO("0x%x",
@@ -2806,7 +2905,7 @@ elfs_result lfs_format(bool bfmt_config_blk)  {
 
     /* Erase the reserved block */
     result = nand_func_erase(g_mem_prop,RESERVEDBLOCK,1);
-   
+
     if(result != NAND_FUNC_SUCCESS) {
       NRF_LOG_ERROR("Error in erasing reserved block");
      // return LFS_ERROR;
@@ -3019,7 +3118,7 @@ elfs_result lfs_mark_good(uint32_t block_index) {
   *@return      elfs_result Function result LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 elfs_result lfs_write_last_page_at_mem_full(_file_handler *file_handler) {
-    
+
     _file_header *file_header = &file_handler->head;
 
     /* Write the last bytes of the file */

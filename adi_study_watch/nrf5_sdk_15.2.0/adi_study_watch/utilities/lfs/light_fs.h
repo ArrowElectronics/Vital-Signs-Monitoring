@@ -61,7 +61,10 @@
 #define FSREVISION      0
 
 #define MAX_NUM_OF_BYTES_FOR_PAGE_READ_TEST 100
+#define MAX_NUM_OF_BYTES_USB_TRANSFER_FOR_FILE_READ_TEST 500
 #define TOC_REPEATED_UPDATE_SIZE 16384
+#define MAX_NUM_OF_SINGLE_PAGE_READ 101
+#define MAX_NUM_OF_DOUBLE_PAGE_READ 202
 
 
 #define MAXFILENUMBER                                     63
@@ -101,6 +104,8 @@ typedef enum {
    LFS_FILE_PARTIALLY_WRITTEN_ERROR,
    LFS_MAX_FILE_COUNT_ERROR,
    LFS_CONFIG_FILE_POSITION_ERROR,
+   LFS_NO_FILE_TO_APPEND_ERROR,
+   LFS_FILE_NOT_PRESENT_ERROR,
    LFS_OOB_ERROR,
 } elfs_result;
 
@@ -129,6 +134,7 @@ typedef enum {
 } elfs_op_mode;
 struct _page_header {
   uint32_t next_page;
+  uint16_t num_bytes;
   uint8_t occupied;
 };
 struct _memory_buffer {
@@ -211,10 +217,6 @@ elfs_result lfs_create_file(uint8_t * file_name, _file_handler *file_handler,
                            elfs_file_type type);
 elfs_result lfs_open_file_by_name(char * file_name,
                                  _file_handler *file_handler);
-elfs_result lfs_read_file(uint8_t * outBuffer,
-                         uint32_t offset,
-                         uint32_t size,
-                         _file_handler *file_handler);
 elfs_result lfs_delete_config_file(_file_handler *file_handler);
 elfs_result lfs_update_file(uint8_t *inBuffer,
                            uint16_t size,
@@ -255,9 +257,17 @@ elfs_result lfs_update_pattern_file(uint8_t *in_buffer,
 int get_pointers_info(uint32_t *head_pointer,uint32_t *tail_pointer,uint16_t table_page_flags[]) ;
 int read_tmp_blk(uint32_t page_number,uint32_t *pdata_memory,uint8_t file_type);
 int read_page_data(uint32_t page_num, uint8_t *pdata_mem, uint16_t page_size);
-int read_page_ecc_zone(uint32_t page_num, uint32_t *pnext_page, uint8_t *poccupied);
+int read_page_ecc_zone(uint32_t page_num, uint32_t *pnext_page, uint8_t *poccupied,uint16_t *pnum_bytes);
 elfs_result lfs_get_file_count(uint8_t * gn_file_count);
 elfs_result read_table_file_in_toc(_table_file_header *table_file_header);
 elfs_result get_memory_status(bool *mem_stat);
+elfs_result lfs_reopen_last_file_Info (_file_handler *file_handler,\
+                                      _table_file_header *tmp_table_file_header);
+elfs_result lfs_append_opened_file (_file_handler *file_handler,\
+                                  _table_file_header *tmp_table_file_header);
 elfs_result lfs_write_last_page_at_mem_full(_file_handler *file_handler);
+elfs_result lfs_read_file(uint8_t * outBuffer,
+                          uint32_t offset,
+                          uint32_t *size,
+                          _file_handler *file_handler);
 #endif

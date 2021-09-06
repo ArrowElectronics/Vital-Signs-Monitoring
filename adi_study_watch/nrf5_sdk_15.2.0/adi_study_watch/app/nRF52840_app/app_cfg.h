@@ -66,6 +66,7 @@
 #define  APP_OS_CFG_KEY_TASK_PRIO           5
 #define  APP_OS_CFG_TOUCH_TASK_PRIO         5
 #define  APP_OS_CFG_LT_APP_TASK_PRIO        5
+#define  APP_OS_CFG_USER0_CONFIG_APP_TASK_PRIO  5
 #define  APP_OS_BATTERY_TEMP_DETECT_TASK_PRIO         4
 
 //#define  APP_OS_CFG_USBD_RX_TASK_PRIO       8
@@ -80,7 +81,7 @@
 #define  APP_OS_CFG_SENSOR_ADXL_TASK_PRIO              6
 #define  APP_OS_CFG_BCM_TASK_PRIO                      6
 #define  APP_OS_CFG_ECG_TASK_PRIO                      7
-#define  APP_OS_CFG_EDA_TASK_PRIO                      7
+#define  APP_OS_CFG_EDA_TASK_PRIO                      6
 #define  APP_OS_CFG_PEDOMETER_APP_TASK_PRIO            6
 #define  APP_OS_CFG_PPG_APPLICATION_TASK_PRIO          6
 #define  APP_OS_CFG_TEMPERATURE_APP_TASK_PRIO          6
@@ -98,6 +99,7 @@
 #define  APP_OS_CFG_DISPLAY_TASK_STK_SIZE         2048
 #define  APP_OS_CFG_TOUCH_TASK_STK_SIZE           1024
 #define  APP_OS_CFG_LT_APP_TASK_STK_SIZE          2048
+#define  APP_OS_CFG_USER0_CONFIG_APP_TASK_STK_SIZE 1024
 //#define  APP_OS_CFG_AD7156_TASK_STK_SIZE          512
 #define  APP_OS_BATTERY_TEMP_DETECT_TASK_STK_SIZE           1024
 

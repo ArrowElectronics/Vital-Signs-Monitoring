@@ -104,7 +104,7 @@ static ADI_OSAL_STATIC_THREAD_ATTR sensor_adxl_task_attributes;
 static StaticTask_t adxlTaskTcb;
 
 /* Create semaphores */
-static ADI_OSAL_SEM_HANDLE adxl_task_evt_sem;
+ADI_OSAL_SEM_HANDLE adxl_task_evt_sem;
 
 /* Create Queue Handler for task */
 static ADI_OSAL_QUEUE_HANDLE adxl_task_msg_queue = NULL;
@@ -149,7 +149,6 @@ static void adxl_data_ready_cb(void);
 static void fetch_adxl_data(void);
 static void sensor_adxl_task(void *pArgument);
 static int32_t AdxlSampleMode(void);
-static uint16_t gnAdxlSequenceCount = 0;
 
 /* Table which maps adxl commands to the callback functions*/
 app_routing_table_entry_t adxl_app_routing_table[] = {
@@ -172,6 +171,18 @@ app_routing_table_entry_t adxl_app_routing_table[] = {
 #endif
     {M2M2_SENSOR_ADXL_COMMAND_SELF_TEST_REQ, adxl_do_self_test},
 };
+
+#ifdef USER0_CONFIG_APP
+#include "user0_config_app_task.h"
+#include "app_timer.h"
+#include "low_touch_task.h"
+APP_TIMER_DEF(m_adxl_timer_id);     /**< Handler for repeated timer for adxl. */
+static void adxl_timer_start(void);
+static void adxl_timer_stop(void);
+static void adxl_timeout_handler(void * p_context);
+void start_adxl_app_timer();
+static user0_config_app_timing_params_t adxl_app_timings = {0};
+#endif
 
 /**
  * @brief  Initializes the adxl task
@@ -212,6 +223,127 @@ void sensor_adxl_task_init(void) {
   }
 }
 
+#ifdef USER0_CONFIG_APP
+/**@brief Function for the Timer initialization.
+*
+* @details Initializes the timer module. This creates and starts application timers.
+*
+* @param[in]  None
+*
+* @return     None
+*/
+static void adxl_timer_init(void)
+{
+    ret_code_t err_code;
+
+    /*! Create timers */
+    err_code =  app_timer_create(&m_adxl_timer_id, APP_TIMER_MODE_REPEATED, adxl_timeout_handler);
+
+    APP_ERROR_CHECK(err_code);
+}
+
+/**@brief   Function for starting application timers.
+* @details Timers are run after the scheduler has started.
+*
+* @param[in]  None
+*
+* @return     None
+*/
+static void adxl_timer_start(void)
+{
+    /*! Start repeated timer */
+    ret_code_t err_code = app_timer_start(m_adxl_timer_id, APP_TIMER_TICKS(TIMER_ONE_SEC_INTERVAL), NULL);
+    APP_ERROR_CHECK(err_code);
+
+    adxl_app_timings.check_timer_started = true;
+}
+
+/**@brief   Function for stopping the application timers.
+*
+* @param[in]  None
+*
+* @return     None
+*/
+static void adxl_timer_stop(void)
+{
+    /*! Stop the repeated timer */
+    ret_code_t err_code = app_timer_stop(m_adxl_timer_id);
+    APP_ERROR_CHECK(err_code);
+
+    adxl_app_timings.check_timer_started = false;
+}
+
+/**@brief   Callback Function for application timer events
+*
+* @param[in]  p_context: pointer to the callback function arguments
+*
+* @return     None
+*/
+static void adxl_timeout_handler(void * p_context)
+{
+    if(adxl_app_timings.delayed_start && adxl_app_timings.start_time>0)
+    {
+      adxl_app_timings.start_time_count++; /*! Increment counter every sec., till it is equal to start_time Value in seconds. */
+      if(adxl_app_timings.start_time_count == adxl_app_timings.start_time)
+      {
+        //delayed start time expired-turn ON ADXL
+        if (ADXLDrv_SUCCESS == AdxlSampleMode())
+        {
+        }
+        adxl_app_timings.delayed_start = false;
+        adxl_app_timings.start_time_count = 0;
+        adxl_app_timings.app_mode_on = true;
+      }
+      return;
+    }
+
+    if(adxl_app_timings.app_mode_on && adxl_app_timings.on_time>0)
+    {
+      adxl_app_timings.on_time_count++; /*! Increment counter every sec. incase of ADPD ON, till it is equal to Ton Value in seconds. */
+      if(adxl_app_timings.on_time_count == adxl_app_timings.on_time)
+      {
+        //on timer expired - turn off ADXL
+        if (g_state_adxl.num_starts == 1) {
+            if (ADXLDrv_SUCCESS == AdxlDrvSetOperationMode(PRM_MEASURE_STANDBY_MODE)) {
+            }
+        }
+        adxl_app_timings.app_mode_on = false;
+        adxl_app_timings.on_time_count = 0;
+      }
+    }
+    else if(!adxl_app_timings.app_mode_on && adxl_app_timings.off_time>0)
+    {
+      adxl_app_timings.off_time_count++; /*! Increment counter every sec. incase of ADPD OFF, till it is equal to Toff Value in seconds.*/
+      if(adxl_app_timings.off_time_count == adxl_app_timings.off_time)
+      {
+         //off timer expired - turn on ADXL
+         if (g_state_adxl.num_starts == 1) {
+           if (ADXLDrv_SUCCESS == AdxlSampleMode())
+           {
+           }
+         }
+         adxl_app_timings.app_mode_on = true;
+         adxl_app_timings.off_time_count = 0;
+      }
+    }
+}
+
+/**@brief   Function to start ADXL app timer
+* @details  This is used in either interval based/intermittent LT mode3
+*
+* @param[in]  None
+*
+* @return     None
+*/
+void start_adxl_app_timer()
+{
+  if(adxl_app_timings.on_time > 0)
+  {
+    adxl_timer_start();
+  }
+}
+#endif//USER0_CONFIG_APP
+
 /**
  * @brief  Posts the message packet received into the Adxl task queue
  *
@@ -235,13 +367,18 @@ void send_message_adxl_task(m2m2_hdr_t *p_pkt) {
  * @return None
  */
 static void sensor_adxl_task(void *pArgument) {
-  m2m2_hdr_t *p_in_pkt = NULL;
-  m2m2_hdr_t *p_out_pkt = NULL;
   ADI_OSAL_STATUS err;
 
+#ifdef USER0_CONFIG_APP
+  adxl_timer_init();
+#endif
   adi_osal_SemCreate(&adxl_task_evt_sem, 0);
   AdxlDrvDataReadyCallback(adxl_data_ready_cb);
   AdxlInit();
+
+  /*Wait for FDS init to complete*/
+  adi_osal_SemPend(adxl_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+
   if (load_adxl_cfg(362) != ADXL_DCB_STATUS_OK) {
     /*device id ==362 ,bcz of ADXL362 is a sensor model.*/
     Debug_Handler(); /*exception handler */
@@ -255,6 +392,8 @@ static void sensor_adxl_task(void *pArgument) {
 
   post_office_add_mailbox(M2M2_ADDR_SENSOR_ADXL, M2M2_ADDR_SENSOR_ADXL_STREAM);
   while (1) {
+    m2m2_hdr_t *p_in_pkt = NULL;
+    m2m2_hdr_t *p_out_pkt = NULL;
     adi_osal_SemPend(adxl_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
     p_in_pkt =
         post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_ADXL_TASK_INDEX);
@@ -359,11 +498,20 @@ static void fetch_adxl_data(void) {
                 sizeof(m2m2_sensor_adxl_data_no_compress_stream_t));
             p_payload_ptr->command = M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
             p_payload_ptr->status = 0x00;
-            p_payload_ptr->sequence_num = gnAdxlSequenceCount++;
+            p_payload_ptr->sequence_num = g_state_adxl.data_pkt_seq_num++;
 #ifdef DEBUG_PKT
             post_office_msg_cnt(g_state_adxl.adxl_pktizer.p_pkt);
 #endif
+#ifdef USER0_CONFIG_APP
+           if(adxl_app_timings.app_mode_on)
+           {
+#endif //USER0_CONFIG_APP
             post_office_send(g_state_adxl.adxl_pktizer.p_pkt, &err);
+#ifdef USER0_CONFIG_APP
+            }//if(adxl_app_timings.app_mode_on)
+            else
+              post_office_consume_msg(g_state_adxl.adxl_pktizer.p_pkt);
+#endif //USER0_CONFIG_APP
             adi_osal_ExitCriticalRegion();
             g_state_adxl.adxl_pktizer.packet_nsamples = 0;
             g_state_adxl.adxl_pktizer.packet_max_nsamples = 0;
@@ -556,6 +704,10 @@ static m2m2_hdr_t *adxl_app_status(m2m2_hdr_t *p_pkt) {
 static m2m2_hdr_t *adxl_app_stream_config(m2m2_hdr_t *p_pkt) {
   M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
   M2M2_APP_COMMON_CMD_ENUM_t command;
+  /*Keeping nRetCode as success by default, to handle else part
+    of if(!adxl_app_timings.delayed_start) */
+  int16_t nRetCode = ADXLDrv_SUCCESS;
+
   /* Declare a pointer to access the input packet payload */
   PYLD_CST(p_pkt, m2m2_app_common_sub_op_t, p_in_payload);
   /* Declare and malloc a response packet */
@@ -580,7 +732,30 @@ static m2m2_hdr_t *adxl_app_stream_config(m2m2_hdr_t *p_pkt) {
         AdxlDrvRegRead(0x2C, &nRegVal1);
         gAdxlFreqSelected =
             nRegVal1 & 0x07; /*Check 0x2C reg & update timer freq */
-        if (ADXLDrv_SUCCESS == AdxlSampleMode()) {
+
+#ifdef USER0_CONFIG_APP
+      get_adxl_app_timings_from_user0_config_app_lcfg(&adxl_app_timings.start_time,\
+                                        &adxl_app_timings.on_time, &adxl_app_timings.off_time);
+      if(adxl_app_timings.start_time > 0)
+      {
+        adxl_app_timings.delayed_start = true;
+      }
+
+      //ADXL app not in continuous mode & its interval operation mode
+      if(!is_adxl_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+      {
+        start_adxl_app_timer();
+      }
+
+      if(!adxl_app_timings.delayed_start)
+      {
+        nRetCode = AdxlSampleMode();
+        adxl_app_timings.app_mode_on = true;
+      }
+      if(ADXLDrv_SUCCESS == nRetCode) {
+#else
+      if(ADXLDrv_SUCCESS == AdxlSampleMode()) {
+#endif// USER0_CONFIG_APP
           uint16_t nRegVal2;
           Adpd400xDrvRegRead(0x0022, &nRegVal2);
           nRegVal2 = nRegVal2 & 0xFFC7;
@@ -615,6 +790,16 @@ static m2m2_hdr_t *adxl_app_stream_config(m2m2_hdr_t *p_pkt) {
           reset_adxl_packetization();
           g_state_adxl.num_starts = 0;
           status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
+#ifdef USER0_CONFIG_APP
+          if(adxl_app_timings.check_timer_started)
+          {
+            adxl_timer_stop();
+            adxl_app_timings.on_time_count = 0;
+            adxl_app_timings.off_time_count = 0;
+            adxl_app_timings.start_time_count = 0;
+            adxl_app_timings.delayed_start =  false;
+          }
+#endif//USER0_CONFIG_APP
         } else {
           g_state_adxl.num_starts = 1;
           status = M2M2_APP_COMMON_STATUS_ERROR;
@@ -628,6 +813,11 @@ static m2m2_hdr_t *adxl_app_stream_config(m2m2_hdr_t *p_pkt) {
 
     case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
       g_state_adxl.num_subs++;
+      if(g_state_adxl.num_subs == 1)
+      {
+         /* reset pkt sequence no. only during 1st sub request */
+         g_state_adxl.data_pkt_seq_num = 0;
+      }
       post_office_setup_subscriber(M2M2_ADDR_SENSOR_ADXL,
           M2M2_ADDR_SENSOR_ADXL_STREAM, p_pkt->src, true);
       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;

@@ -2,10 +2,14 @@ from ctypes import *
 
 from common_application_interface_def import *
 
+from file_system_interface_def import *
+
 from m2m2_core_def import *
 
+PM_APPS_COUNT = (21)
+
 class M2M2_PM_SYS_COMMAND_ENUM_t(c_ubyte):
-    __M2M2_PM_SYS_COMMAND_LOWEST = 0x40
+    _M2M2_PM_SYS_COMMAND_ENUM_t__M2M2_PM_SYS_COMMAND_LOWEST = 0x40
     M2M2_PM_SYS_COMMAND_SET_DATE_TIME_REQ = 0x42
     M2M2_PM_SYS_COMMAND_SET_DATE_TIME_RESP = 0x43
     M2M2_PM_SYS_COMMAND_GET_BAT_INFO_REQ = 0x44
@@ -97,9 +101,10 @@ class M2M2_PM_SYS_COMMAND_ENUM_t(c_ubyte):
     M2M2_PM_SYS_GET_HIBERNATE_MODE_STATUS_RESP = 0x9B
     M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_REQ = 0x9C
     M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_RESP = 0x9D
+    M2M2_PM_SYS_BATTERY_LEVEL_ALERT = 0x9E
 
 class M2M2_PM_SYS_STATUS_ENUM_t(c_ubyte):
-    __M2M2_PM_SYS_STATUS_LOWEST = 0x40
+    _M2M2_PM_SYS_STATUS_ENUM_t__M2M2_PM_SYS_STATUS_LOWEST = 0x40
     M2M2_PM_SYS_STATUS_OK = 0x41
     M2M2_PM_SYS_STATUS_ERR_ARGS = 0x42
     M2M2_PM_SYS_STATUS_LOW_TOUCH_LOGGING_ALREADY_STARTED = 0x43
@@ -121,7 +126,7 @@ class M2M2_PM_SYS_STATUS_ENUM_t(c_ubyte):
     M2M2_PM_SYS_STATUS_DCB_CONFIG_LOG_DISABLED = 0x53
     M2M2_PM_SYS_STATUS_BATTERY_LEVEL_LOW = 0x54
     M2M2_PM_SYS_STATUS_BATTERY_LEVEL_CRITICAL = 0x55
-    M2M2_PM_SYS_BATTERY_LEVEL_ALERT = 0x56
+    M2M2_PM_SYS_STATUS_BATTERY_LEVEL_FULL = 0x56
     M2M2_PM_SYS_STATUS_ERR_NOT_CHKD = 0xFF
 
 class M2M2_PM_SYS_BAT_STATE_ENUM_t(c_ubyte):
@@ -148,7 +153,6 @@ class M2M2_PM_SYS_USB_PWR_ACTION_ENUM_t(c_ubyte):
 
 class M2M2_PM_SYS_PWR_STATE_ENUM_t(c_ubyte):
     M2M2_PM_SYS_PWR_STATE_ACTIVE = 0x0
-    M2M2_PM_SYS_PWR_STATE_FLEXI = 0x1
     M2M2_PM_SYS_PWR_STATE_HIBERNATE = 0x2
     M2M2_PM_SYS_PWR_STATE_SHUTDOWN = 0x3
 
@@ -166,6 +170,23 @@ class M2M2_PM_SYS_OVP_ENUM_t(c_ubyte):
 class M2M2_PM_SYS_BOOST_ENUM_t(c_ubyte):
     M2M2_PM_SYS_BOOST_ENABLE = 0x0
     M2M2_PM_SYS_BOOST_DISABLE = 0x1
+
+class M2M2_PM_SYS_DG2502_SELECT_ENUM_t(c_ubyte):
+    M2M2_PM_SYS_DG2502_8233_SW = 0x0
+    M2M2_PM_SYS_DG2502_5940_SW = 0x1
+    M2M2_PM_SYS_DG2502_4K_SW = 0x2
+
+class M2M2_PM_SYS_DG2502_EN_ENUM_t(c_ubyte):
+    M2M2_PM_SYS_DG2502_DISABLE = 0x0
+    M2M2_PM_SYS_DG2502_ENABLE = 0x1
+
+class M2M2_PM_SYS_CHIP_ID_ENUM_t(c_ubyte):
+    M2M2_PM_SYS_ADXL362 = 0x1
+    M2M2_PM_SYS_ADPD4K = 0x2
+    M2M2_PM_SYS_ADP5360 = 0x3
+    M2M2_PM_SYS_AD5940 = 0x4
+    M2M2_PM_SYS_NAND_FLASH = 0x5
+    M2M2_PM_SYS_AD7156 = 0x6
 
 class ADI_PM_BOARD_TYPE_t(c_ubyte):
     ADI_PM_BOARD_TYPE_UNKNOWN = 0x0
@@ -245,7 +266,6 @@ class m2m2_pm_sys_bat_info_resp_t(Structure):
               ("bat_chrg_stat", c_ubyte),
               ("bat_lvl", c_ubyte),
               ("bat_mv", c_ushort),
-              #("bat_temp", c_ushort),
               ]
 
 class m2m2_pm_sys_bat_thr_req_t(Structure):
@@ -387,35 +407,43 @@ class m2m2_pm_sys_sensor_apps_info_req_t(Structure):
               ("app_info", m2m2_pm_sys_sensor_app_status * 21),
               ]
 
+class m2m2_pm_force_stream_stop_cmd_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ]
+
 class m2m2_get_apps_running_stat_req_cmd_t(Structure):
     _pack_ = 1
     _fields_ = [
-               ("command", c_ubyte),
-               ("status", c_ubyte),
+              ("command", c_ubyte),
+              ("status", c_ubyte),
               ]
 
 class m2m2_get_apps_running_stat_resp_cmd_t(Structure):
     _pack_ = 1
     _fields_ = [
-                ("command", c_ubyte),
-                ("status", c_ubyte),
-                ("ad5940_isr_cnt", c_uint32),
-                ("adpd4000_isr_cnt", c_uint32),
-                ("adxl_isr_cnt", c_uint32),
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("ad5940_isr_cnt", c_ulong),
+              ("adpd4000_isr_cnt", c_ulong),
+              ("adxl_isr_cnt", c_ulong),
               ]
 
 class m2m2_ble_max_tx_pkt_comb_cnt_resp_cmd_t(Structure):
     _pack_ = 1
     _fields_ = [
-                ("command", c_ubyte),
-                ("status", c_ubyte),
-                ("max_tx_pkt_comb_cnt", c_ubyte),
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("max_tx_pkt_comb_cnt", c_ubyte),
               ]
 
 class m2m2_hibernate_mode_status_resp_cmd_t(Structure):
     _pack_ = 1
     _fields_ = [
-                ("command", c_ubyte),
-                ("status", c_ubyte),
-                ("hib_mode_status", c_ubyte),
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("hib_mode_status", c_ubyte),
               ]
+

@@ -22,6 +22,8 @@
 #ifndef STATIC_ASSERT_PROJ
 #define STATIC_ASSERT_PROJ(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 #endif // STATIC_ASSERT_PROJ
+
+
 typedef enum M2M2_EDA_APP_CMD_ENUM_t {
   _M2M2_EDA_APP_CMD_LOWEST = 64,
   M2M2_EDA_APP_CMD_DYNAMIC_SCALE_REQ = 66,

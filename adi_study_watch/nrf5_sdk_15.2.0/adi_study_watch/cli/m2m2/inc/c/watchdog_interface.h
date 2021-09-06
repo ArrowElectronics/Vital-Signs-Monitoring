@@ -21,6 +21,8 @@
 #ifndef STATIC_ASSERT_PROJ
 #define STATIC_ASSERT_PROJ(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 #endif // STATIC_ASSERT_PROJ
+
+
 typedef enum M2M2_WDT_CMD_ENUM_t {
   M2M2_WDT_WDT_CMD_LOWEST = 192,
   M2M2_WDT_WDT_TASK_BROADCAST_CMD = 193,
@@ -36,8 +38,8 @@ typedef enum M2M2_WDT_STATUS_ENUM_t {
 STATIC_ASSERT_PROJ(sizeof(M2M2_WDT_STATUS_ENUM_t) == 1, INCORRECT_SIZE_M2M2_WDT_STATUS_ENUM_t);
 
 typedef struct _m2m2_wdt_cmd_t {
-  M2M2_WDT_CMD_ENUM_t  command; 
-  M2M2_WDT_STATUS_ENUM_t  status; 
+  uint8_t  command; 
+  uint8_t  status; 
 } m2m2_wdt_cmd_t;
 
 // Reset struct packing outside of this file

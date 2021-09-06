@@ -1,0 +1,18 @@
+#UseCase2 DCB with Customer4 Edit - ADPD@500Hz w ch1, ADXL@50Hz, EDA@8Hz, Temp@1Hz
+
+#ADXL_DCB
+20 00 # THRESH_ACT_L
+21 00 # THRESH_ACT_H
+22 00 # TIME_ACT
+23 00 # THRESH_INACT_L
+24 00 # THRESH_INACT_H
+25 00 # TIME_INACT_L
+26 00 # TIME_INACT_H
+27 00 # ACT_INACT_CTL
+28 02 # FIFO_CONTROL [3]Above Half(0), [1:0]FIFO_MODE=Stream(10)
+29 0B # FIFO_SAMPLES [7:0]FIFO_SAMPLES=11
+2A 84 # INTMAP1 [7]INT1 Active Low(1), [2]Assign FIFO Water Mark to INT1 pin(1)
+2B 80 # INTMAP2 [7]INT2 Active Low(1)
+2C 92 # FILTER_CTL [7:6]RANGE=8g(10), [4]Filter Cut Off ODR/4(1), [3]Ext Sampling Trigger Disable(0), [2:0]ODR 50Hz(010)
+2D 10 # POWER_CTL [6]EXT Clock Disable, [5:4]Low Noise Mode(01), [3]Wake up disable(0), [2]Autosleep disable(0), [1:0]Measuring standby(00)
+2E 00 # SELF_TEST

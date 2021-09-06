@@ -3,10 +3,10 @@
 // #############################################################################
 #pragma once
 
+#include "dcb_interface.hpp"
 #include "m2m2_core.hpp"
 #include <stdint.h>
 
-#define MAXTXRXDCFGSIZE       (57) /*  MAXTXRXDCFGSIZE is equal to MAXADPD4000DCBSIZE in dcb_interface.hpp */
 
 /* Explicitly enforce struct packing so that the nested structs and unions are laid out
     as expected. */
@@ -17,6 +17,9 @@
   You must add an equivalent compiler directive to the file generator!"
 #endif  // defined __CC_ARM || defined __IAR_SYSTEMS_ICC__ || __clang__ || defined _MSC_VER || defined __GNUC__
 #pragma pack(1)
+
+#define MAXTXRXDCFGSIZE	57
+#define PING_PKT_SZ	230
 
 enum M2M2_APP_COMMON_STATUS_ENUM_t:uint8_t {
   M2M2_APP_COMMON_STATUS_OK = 0,
@@ -31,7 +34,7 @@ enum M2M2_APP_COMMON_STATUS_ENUM_t:uint8_t {
   M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED = 9,
   M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED = 10,
   M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT = 11,
-  __M2M2_APP_COMMON_STATUS_HIGHEST = 32,
+  _M2M2_APP_COMMON_STATUS_ENUM_t__M2M2_APP_COMMON_STATUS_HIGHEST = 32,
 };
 static_assert(sizeof(M2M2_APP_COMMON_STATUS_ENUM_t) == 1, "Enum 'M2M2_APP_COMMON_STATUS_ENUM_t' has an incorrect size!");
 
@@ -64,7 +67,7 @@ enum M2M2_APP_COMMON_CMD_ENUM_t:uint8_t {
   M2M2_APP_COMMON_CMD_WRITE_LCFG_RESP = 25,
   M2M2_APP_COMMON_CMD_PING_REQ = 26,
   M2M2_APP_COMMON_CMD_PING_RESP = 27,
-  __M2M2_APP_COMMON_CMD_HIGHEST = 32,
+  _M2M2_APP_COMMON_CMD_ENUM_t__M2M2_APP_COMMON_CMD_HIGHEST = 32,
 };
 static_assert(sizeof(M2M2_APP_COMMON_CMD_ENUM_t) == 1, "Enum 'M2M2_APP_COMMON_CMD_ENUM_t' has an incorrect size!");
 
@@ -82,6 +85,7 @@ struct m2m2_app_common_ping_t {
   uint8_t  command; 
   uint8_t  status; 
   uint32_t  sequence_num; 
+  uint8_t  data[230]; 
 };
 
 struct m2m2_app_common_version_t {
@@ -97,7 +101,7 @@ struct m2m2_app_common_version_t {
 struct m2m2_app_common_status_t {
   uint8_t  command; 
   uint8_t  status; 
-  M2M2_ADDR_ENUM_t  stream; 
+  uint16_t  stream; 
   uint8_t  num_subscribers; 
   uint8_t  num_start_reqs; 
 };
@@ -105,15 +109,15 @@ struct m2m2_app_common_status_t {
 struct m2m2_app_common_sub_op_t {
   uint8_t  command; 
   uint8_t  status; 
-  M2M2_ADDR_ENUM_t  stream; 
+  uint16_t  stream; 
 };
 
 struct m2m2_sensor_dcfg_data_t {
   uint8_t  command; 
   uint8_t  status; 
-  uint8_t  size;
-  uint8_t  num_tx_pkts;
-  uint32_t  dcfgdata[57];
+  uint8_t  size; 
+  uint8_t  num_tx_pkts; 
+  uint32_t  dcfgdata[57]; 
 };
 
 struct m2m2_app_lcfg_data_t {

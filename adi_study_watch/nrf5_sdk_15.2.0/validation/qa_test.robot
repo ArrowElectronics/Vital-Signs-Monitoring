@@ -192,6 +192,11 @@ EDA Frequency Sweep Test
     [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
     eda_freq_sweep_test
 
+EDA FS Frequency Sweep Test
+    [Documentation]
+    [Tags]  AD5940_TEST   FS_TEST    ROUTINE_TEST    FULL_REGRESSION
+    eda_fs_freq_sweep_test
+
 EDA Repeatability Sweep Test
     [Documentation]
     [Tags]  AD5940_TEST    FULL_REGRESSION
@@ -232,10 +237,55 @@ ECG Frequency Sweep Test
     [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
     ecg_freq_sweep_test
 
+ECG FS Frequency Sweep Test
+    [Documentation]
+    [Tags]  AD5940_TEST   FS_TEST    ROUTINE_TEST    FULL_REGRESSION
+    ecg_fs_freq_sweep_test
+
 ECG Repeatability Sweep Test
     [Documentation]
     [Tags]  AD5940_TEST    FULL_REGRESSION
     ecg_repeatability_sweep_test
+
+BCM DCB Test
+    [Documentation]
+    [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
+    bcm_dcb_test
+
+BCM DCB Stream Test
+    [Documentation]
+    [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
+    bcm_dcb_stream_test
+
+BCM DCB Repeatability Test
+    [Documentation]
+    [Tags]  AD5940_TEST   FULL_REGRESSION
+    bcm_dcb_repeatability_test
+
+BCM Stream Test
+    [Documentation]
+    [Tags]  AD5940_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
+    bcm_stream_test
+
+BCM FS Stream Test
+    [Documentation]
+    [Tags]  AD5940_TEST   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
+    bcm_fs_stream_test
+
+BCM Frequency Sweep Test
+    [Documentation]
+    [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
+    bcm_freq_sweep_test
+
+BCM FS Frequency Sweep Test
+    [Documentation]
+    [Tags]  AD5940_TEST   FS_TEST    ROUTINE_TEST    FULL_REGRESSION
+    bcm_fs_freq_sweep_test
+
+BCM Repeatability Sweep Test
+    [Documentation]
+    [Tags]  AD5940_TEST    FULL_REGRESSION
+    bcm_repeatability_sweep_test
 
 
 

@@ -94,6 +94,26 @@ static uint64_t gs_current_time=0; //holds current system time in 32kHz resoluti
  */
 static nrf_drv_rtc_t const m_rtc = NRF_DRV_RTC_INSTANCE(2);
 
+#ifdef CUST4_SM
+/* Variable to be used, to continue raising compare interrupts, since more
+ * compares are required to reach the requested RTC wakeup timeout
+ */
+static uint8_t gn_cont_comp_int = false;
+/* Variable to hold the remaining compare value, to  reach the requested
+ * RTC wakeup timeout
+*/
+static uint32_t gn_pending_comp_value = 0;
+/* Variable to keep count of no: of compare interrupts */
+static uint8_t gn_comp_int_count = 0;
+
+/*
+ * Maximum secs that can be counted with RTC_PRESCALER_1, 30.51us resolution,
+ * after which overflow happens
+*/
+#define MAX_SECS_COMPARED (512)
+
+uint32_t get_rtc_wakeup_time_to_be_configured(uint32_t sleep_time);
+#endif
 
 static void rtc_handler(nrf_drv_rtc_int_type_t int_type)
 {
@@ -104,20 +124,51 @@ static void rtc_handler(nrf_drv_rtc_int_type_t int_type)
         microsecond &= 0x7FFF;
         gs_current_time += (1<<24); //increment it by number of 32Khz ticks elapsed in 24 bit wide register
     }
+#ifdef CUST4_SM
+    if(NRF_DRV_RTC_INT_COMPARE0 ==  int_type)
+    {
+      gn_comp_int_count++;
+      /*Still more comparisons required to reach requested RTC wakeup timeout*/
+      if(gn_cont_comp_int)
+      {
+        uint32_t compare_val;
+
+        if(gn_pending_comp_value > MAX_SECS_COMPARED)
+        {
+          compare_val = get_rtc_wakeup_time_to_be_configured(MAX_SECS_COMPARED);
+          gn_pending_comp_value -= MAX_SECS_COMPARED;
+          gn_cont_comp_int = true;
+        }
+        else
+        {
+          compare_val = get_rtc_wakeup_time_to_be_configured(gn_pending_comp_value);
+          gn_pending_comp_value = 0;
+          gn_cont_comp_int = false;
+        }
+        nrfx_rtc_cc_set(&m_rtc,NRFX_RTC_INT_COMPARE0,compare_val,true);
+      }
+      /*Reached the compare value requested*/
+      else
+      {
+        rtc_timestamp_store(320);
+        NVIC_SystemReset();
+      }
+    }
+#endif
 }
 
 void rtc_init(void)
 {
     ret_code_t err_code;
     static nrf_drv_rtc_config_t m_rtc_config = NRF_DRV_RTC_DEFAULT_CONFIG;
-    m_rtc_config.prescaler = RTC_PRESCALER_1;//ticks at 32Khz resolution; 
-    
+    m_rtc_config.prescaler = RTC_PRESCALER_1;//ticks at 32Khz resolution;
+
     err_code = nrf_drv_rtc_init(&m_rtc, &m_rtc_config, rtc_handler);//can count 24 day.
-    if (err_code != NRF_SUCCESS)                      
-    { 
+    if (err_code != NRF_SUCCESS)
+    {
         NRF_LOG_INFO("rtc init failure!");
-        return;                              
-    } 
+        return;
+    }
     rtc_timestamp_restore(0xA000);
     nrf_drv_rtc_overflow_enable(&m_rtc,true);
 //    nrf_drv_rtc_tick_enable(&m_rtc,true);
@@ -125,21 +176,86 @@ void rtc_init(void)
     nrf_drv_rtc_enable(&m_rtc);
 }
 
-/* 
+#ifdef CUST4_SM
+/*!
+ ****************************************************************************
+ * @brief  Function to get the wakeup time which has to be configured in RTC
+ * @desc   This function takes sleep_time in secs, finds out the compare time
+ *         which has to be configured in the RTC, so that RTC compare interrupt
+ *         can be raised. Its based on this that Watch needs to be awakened
+ *         This function will be further called from RTC callback handler,
+ *         to continue setting the compare value, till requested sleep_time is
+ *         reached.
+ * @param  sleep_time: specify the absolute time in seconds, after poweron,
+           at which rtc wakeup needs to happen
+ * @return wakeup time in secs
+ ******************************************************************************/
+uint32_t get_rtc_wakeup_time_to_be_configured(uint32_t sleep_time)
+{
+    static volatile uint64_t rtc_cnt;
+    static volatile uint64_t sleep_time_ticks;
+    static volatile uint32_t total_ticks;
+
+    rtc_cnt = nrf_drv_rtc_counter_get(&m_rtc);//Current Watch operation time
+    sleep_time_ticks = (sleep_time << 15);    //Expressing seconds in terms of 32Khz clock ticks
+    /*Return Wakeup time in ticks which is equal to total of time watch has been
+      in operation + sleep time required */
+    total_ticks =  (rtc_cnt + sleep_time_ticks);
+
+    return total_ticks;
+}
+
+/*!
+ ****************************************************************************
+ * @brief  Function to set the compare value in RTC to get NRF_DRV_RTC_INT_COMPARE0
+           interrupt type
+ * @desc   This function takes in the value in seconds, which starts from NOW,
+ *         afer which the RTC compare interrupt should be triggered and after
+ *         which the Watch needs to be awakened
+ * @param  value: specify the time in seconds at which rtc wakeup needs to happen
+ *         and Watch needs to poweron.
+ * @return None
+ ******************************************************************************/
+void enable_rtc_wakeup(uint32_t value)
+{
+  uint32_t compare_val;
+
+  gn_comp_int_count = 0;
+  /*With RTC_PRESCALER_1, 30.5us counter resolution, overflow happens in 512 secs
+    So for wakeup greater than 512 sec, NRFX_RTC_INT_COMPARE0 needs to be split and
+    set.
+  */
+  if(value > MAX_SECS_COMPARED)
+  {
+    compare_val = get_rtc_wakeup_time_to_be_configured(MAX_SECS_COMPARED);
+    gn_pending_comp_value = value - MAX_SECS_COMPARED;
+    gn_cont_comp_int = true;
+  }
+  else
+  {
+    compare_val = get_rtc_wakeup_time_to_be_configured(value);
+    gn_pending_comp_value = 0;
+    gn_cont_comp_int = false;
+  }
+  nrfx_rtc_cc_set(&m_rtc,NRFX_RTC_INT_COMPARE0,compare_val,true);
+}
+#endif
+
+/*
   *  @brief: Function to set the current timestamp of the system
   *  @timestamp: total of date, time and timezone in secs
 */
 void rtc_timestamp_set(uint32_t timestamp)
 {
     nrf_drv_rtc_counter_clear(&m_rtc);
-    
+
     current_time = timestamp;
     microsecond = 0;
     gs_current_time = timestamp;
     gs_current_time = (gs_current_time << 15);  // Expressing seconds in terms of 32Khz clock ticks
 }
 
-/* 
+/*
   *  @brief: Function to get the current timestamp in 32kHz ticks resolution, by the sensors for packet TS
 */
 uint32_t get_sensor_time_stamp(void)
@@ -153,7 +269,7 @@ uint32_t get_sensor_time_stamp(void)
     return ((uint32_t)rtc_cnt);
 }
 
-/* 
+/*
   *  @brief: Function to get the current timestamp in ms resolution, by the sensor tasks
 */
 uint32_t get_ms_time_stamp(void)
@@ -166,7 +282,7 @@ uint32_t get_ms_time_stamp(void)
     return ((uint32_t)time_ticks);
 }
 
-/* 
+/*
   *  @brief: Function to get the current timestamp and current timezone of the system
   *          in 1sec resolution,by FS task for file name creation and system task for get/set of dateTime
   *  @timestamp: total of date, time in secs
@@ -189,7 +305,7 @@ uint32_t get_log_time_stamp(time_t *timestamp,int16_t *timezone_offset)
     return 0;
 }
 
-/* 
+/*
   *  @brief: Function to set the current timezone of the system
 */
 void rtc_timezone_set(int32_t timezone)
@@ -206,7 +322,7 @@ m_time_struct *rtc_date_time_get(void)
     return m_sec_to_date_time(time);
 }
 
-/* 
+/*
   *  @brief: Function to get the current timezone of the system
 */
 void rtc_timezone_get(int32_t *timezone)
@@ -217,7 +333,7 @@ void rtc_timezone_get(int32_t *timezone)
     }
 }
 
-/* 
+/*
   * @brief: Function to store the rtc details to FDS before system reset
   *         current_time in secs, current rtc count in seconds and current_timezone are saved
   * @param: offset offset value that needs to be updated with rtc count value
@@ -226,7 +342,7 @@ void rtc_timestamp_store(uint32_t offset)
 {
     uint32_t rtc_cnt;
     uint32_t w_data[FDS_RTC_ENTRIES];
-        
+
     rtc_cnt = nrf_drv_rtc_counter_get(&m_rtc);
     nrf_drv_rtc_counter_clear(&m_rtc);
     microsecond += (rtc_cnt+offset);
@@ -235,13 +351,13 @@ void rtc_timestamp_store(uint32_t offset)
 
     w_data[0] = microsecond;
     w_data[1] = (uint32_t) current_timezone;
-    w_data[2] = (uint32_t) (current_time);   
+    w_data[2] = (uint32_t) (current_time);
 
     NRF_LOG_INFO("FDS write values: %x %x %x",w_data[0], w_data[1], w_data[2]);
     adi_fds_update_entry(ADI_RTC_FILE, ADI_DCB_RTC_TIME_BLOCK_IDX, w_data, sizeof(w_data));
 }
 
-/* 
+/*
   * @brief: Function to re-store the rtc details from FDS after system boot
   *         current_time in secs, current rtc count in seconds and current_timezone are saved
   * @param: offset offset value that needs to be updated with rtc count value

@@ -75,7 +75,6 @@ ADI_OSAL_THREAD_HANDLE key_task_handler;
 
 #define KEY_USER_MAX (2)  //!< Maximum number of key handlers can be registered
 
-
 /*------------------------- Private Function Prototypes ----------------------*/
 static Send_key_func key_user_handle[KEY_USER_MAX] = {NULL};
 
@@ -168,7 +167,7 @@ static void gpiote_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t
 /** @brief  Initializes the gpios required for key press detection
 *
 * @param  None
-* @retval uint32_t 0: SUCCESS, 1: ERROR 
+* @retval uint32_t 0: SUCCESS, 1: ERROR
 */
 uint32_t key_port_init(void)
 {
@@ -242,7 +241,7 @@ void key_detect_thread(void * arg)
                     /* reset operation not rely the other task*/
                     if(key_value == KEY_NAVIGATION_LONG_VALUE)
                     {
-                         /* if logging is in progress , close file */
+                        /* if logging is in progress , close file */
                         if(UpdateFileInfo() == true){
                           NRF_LOG_INFO("Success file close ");
                         }

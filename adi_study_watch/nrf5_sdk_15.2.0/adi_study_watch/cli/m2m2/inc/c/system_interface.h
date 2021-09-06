@@ -22,8 +22,11 @@
 #ifndef STATIC_ASSERT_PROJ
 #define STATIC_ASSERT_PROJ(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 #endif // STATIC_ASSERT_PROJ
+
+#define PM_APPS_COUNT	21
+
 typedef enum M2M2_PM_SYS_COMMAND_ENUM_t {
-  __M2M2_PM_SYS_COMMAND_LOWEST = 64,
+  _M2M2_PM_SYS_COMMAND_ENUM_t__M2M2_PM_SYS_COMMAND_LOWEST = 64,
   M2M2_PM_SYS_COMMAND_SET_DATE_TIME_REQ = 66,
   M2M2_PM_SYS_COMMAND_SET_DATE_TIME_RESP = 67,
   M2M2_PM_SYS_COMMAND_GET_BAT_INFO_REQ = 68,
@@ -115,11 +118,12 @@ typedef enum M2M2_PM_SYS_COMMAND_ENUM_t {
   M2M2_PM_SYS_GET_HIBERNATE_MODE_STATUS_RESP = 155,
   M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_REQ = 156,
   M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_RESP = 157,
+  M2M2_PM_SYS_BATTERY_LEVEL_ALERT = 158,
 } M2M2_PM_SYS_COMMAND_ENUM_t;
 STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_COMMAND_ENUM_t) == 1, INCORRECT_SIZE_M2M2_PM_SYS_COMMAND_ENUM_t);
 
 typedef enum M2M2_PM_SYS_STATUS_ENUM_t {
-  __M2M2_PM_SYS_STATUS_LOWEST = 64,
+  _M2M2_PM_SYS_STATUS_ENUM_t__M2M2_PM_SYS_STATUS_LOWEST = 64,
   M2M2_PM_SYS_STATUS_OK = 65,
   M2M2_PM_SYS_STATUS_ERR_ARGS = 66,
   M2M2_PM_SYS_STATUS_LOW_TOUCH_LOGGING_ALREADY_STARTED = 67,
@@ -135,15 +139,13 @@ typedef enum M2M2_PM_SYS_STATUS_ENUM_t {
   M2M2_PM_SYS_STATUS_LOW_TOUCH_MAX_FILE_ERR = 77,
   M2M2_PM_SYS_STATUS_LOW_TOUCH_MEMORY_FULL_ERR = 78,
   M2M2_PM_SYS_ERR_RESET = 79,
-#ifdef DCB
   M2M2_PM_SYS_STATUS_ENABLE_DCB_CONFIG_LOG_FAILED = 80,
   M2M2_PM_SYS_STATUS_DCB_CONFIG_LOG_ENABLED = 81,
   M2M2_PM_SYS_STATUS_DISABLE_DCB_CONFIG_LOG_FAILED = 82,
   M2M2_PM_SYS_STATUS_DCB_CONFIG_LOG_DISABLED = 83,
-#endif
   M2M2_PM_SYS_STATUS_BATTERY_LEVEL_LOW = 84,
   M2M2_PM_SYS_STATUS_BATTERY_LEVEL_CRITICAL = 85,
-  M2M2_PM_SYS_BATTERY_LEVEL_ALERT = 86,
+  M2M2_PM_SYS_STATUS_BATTERY_LEVEL_FULL = 86,
   M2M2_PM_SYS_STATUS_ERR_NOT_CHKD = 255,
 } M2M2_PM_SYS_STATUS_ENUM_t;
 STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_STATUS_ENUM_t) == 1, INCORRECT_SIZE_M2M2_PM_SYS_STATUS_ENUM_t);
@@ -180,7 +182,6 @@ STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_USB_PWR_ACTION_ENUM_t) == 1, INCORRECT_SIZ
 
 typedef enum M2M2_PM_SYS_PWR_STATE_ENUM_t {
   M2M2_PM_SYS_PWR_STATE_ACTIVE = 0,
-  //M2M2_PM_SYS_PWR_STATE_FLEXI = 1,
   M2M2_PM_SYS_PWR_STATE_HIBERNATE = 2,
   M2M2_PM_SYS_PWR_STATE_SHUTDOWN = 3,
 } M2M2_PM_SYS_PWR_STATE_ENUM_t;
@@ -207,6 +208,29 @@ typedef enum M2M2_PM_SYS_BOOST_ENUM_t {
 } M2M2_PM_SYS_BOOST_ENUM_t;
 STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_BOOST_ENUM_t) == 1, INCORRECT_SIZE_M2M2_PM_SYS_BOOST_ENUM_t);
 
+typedef enum M2M2_PM_SYS_DG2502_SELECT_ENUM_t {
+  M2M2_PM_SYS_DG2502_8233_SW = 0,
+  M2M2_PM_SYS_DG2502_5940_SW = 1,
+  M2M2_PM_SYS_DG2502_4K_SW = 2,
+} M2M2_PM_SYS_DG2502_SELECT_ENUM_t;
+STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_DG2502_SELECT_ENUM_t) == 1, INCORRECT_SIZE_M2M2_PM_SYS_DG2502_SELECT_ENUM_t);
+
+typedef enum M2M2_PM_SYS_DG2502_EN_ENUM_t {
+  M2M2_PM_SYS_DG2502_DISABLE = 0,
+  M2M2_PM_SYS_DG2502_ENABLE = 1,
+} M2M2_PM_SYS_DG2502_EN_ENUM_t;
+STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_DG2502_EN_ENUM_t) == 1, INCORRECT_SIZE_M2M2_PM_SYS_DG2502_EN_ENUM_t);
+
+typedef enum M2M2_PM_SYS_CHIP_ID_ENUM_t {
+  M2M2_PM_SYS_ADXL362 = 1,
+  M2M2_PM_SYS_ADPD4K = 2,
+  M2M2_PM_SYS_ADP5360 = 3,
+  M2M2_PM_SYS_AD5940 = 4,
+  M2M2_PM_SYS_NAND_FLASH = 5,
+  M2M2_PM_SYS_AD7156 = 6,
+} M2M2_PM_SYS_CHIP_ID_ENUM_t;
+STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_CHIP_ID_ENUM_t) == 1, INCORRECT_SIZE_M2M2_PM_SYS_CHIP_ID_ENUM_t);
+
 typedef enum ADI_PM_BOARD_TYPE_t {
   ADI_PM_BOARD_TYPE_UNKNOWN = 0,
   ADI_PM_BOARD_TYPE_ADPD107_WATCH = 1,
@@ -217,234 +241,200 @@ typedef enum ADI_PM_BOARD_TYPE_t {
 STATIC_ASSERT_PROJ(sizeof(ADI_PM_BOARD_TYPE_t) == 1, INCORRECT_SIZE_ADI_PM_BOARD_TYPE_t);
 
 typedef struct _m2m2_pm_sys_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
+  uint8_t  command; 
+  uint8_t  status; 
 } m2m2_pm_sys_cmd_t;
 
-typedef struct _m2m2_file_reset_cmd_t{
-  uint8_t  command;
-  uint8_t  status;
-}m2m2_file_reset_cmd_t;
+typedef struct _m2m2_file_reset_cmd_t {
+  uint8_t  command; 
+  uint8_t  status; 
+} m2m2_file_reset_cmd_t;
 
 typedef struct _m2m2_pm_sys_pwr_state_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_PM_SYS_PWR_STATE_ENUM_t  state;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  state; 
 } m2m2_pm_sys_pwr_state_t;
 
 typedef struct _m2m2_pm_sys_info_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  version;
-  uint8_t  mac_addr[6];
-  uint32_t  device_id;
-  uint32_t  model_number;
-  uint16_t  hw_id;
-  uint16_t  bom_id;
-  uint8_t  batch_id;
-  uint32_t  date;
-  ADI_PM_BOARD_TYPE_t  board_type;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  version; 
+  uint8_t  mac_addr[6]; 
+  uint32_t  device_id; 
+  uint32_t  model_number; 
+  uint16_t  hw_id; 
+  uint16_t  bom_id; 
+  uint8_t  batch_id; 
+  uint32_t  date; 
+  ADI_PM_BOARD_TYPE_t  board_type; 
 } m2m2_pm_sys_info_t;
 
 typedef struct _m2m2_pm_sys_date_time_req_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  year;
-  uint8_t  month;
-  uint8_t  day;
-  uint8_t  hour;
-  uint8_t  minute;
-  uint8_t  second;
-  uint32_t  TZ_sec;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  year; 
+  uint8_t  month; 
+  uint8_t  day; 
+  uint8_t  hour; 
+  uint8_t  minute; 
+  uint8_t  second; 
+  uint32_t  TZ_sec; 
 } m2m2_pm_sys_date_time_req_t;
 
-typedef struct{
-    uint8_t  command;
-    uint8_t  status;
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-}m2m2_manufacture_date_t;
+typedef struct _m2m2_manufacture_date_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  year; 
+  uint8_t  month; 
+  uint8_t  day; 
+} m2m2_manufacture_date_t;
 
 typedef struct _m2m2_pm_sys_bat_info_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint32_t  timestamp;
-  M2M2_PM_SYS_BAT_STATE_ENUM_t  bat_chrg_stat;
-  uint8_t  bat_lvl;
-  uint16_t  bat_mv;
-  //uint16_t  bat_temp;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint32_t  timestamp; 
+  M2M2_PM_SYS_BAT_STATE_ENUM_t  bat_chrg_stat; 
+  uint8_t  bat_lvl; 
+  uint16_t  bat_mv; 
 } m2m2_pm_sys_bat_info_resp_t;
 
 typedef struct _m2m2_pm_sys_bat_thr_req_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  bat_level_low;
-  uint8_t  bat_level_critical;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  bat_level_low; 
+  uint8_t  bat_level_critical; 
 } m2m2_pm_sys_bat_thr_req_t;
 
 typedef struct _m2m2_bat_crit_info_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  bat_mv;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  bat_mv; 
 } m2m2_bat_crit_info_resp_t;
 
 typedef struct _m2m2_pm_sys_usb_pwr_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_PM_SYS_USB_PWR_ENUM_t  enable;
-  M2M2_PM_SYS_USB_PWR_ACTION_ENUM_t  action;
+  uint8_t  command; 
+  uint8_t  status; 
+  M2M2_PM_SYS_USB_PWR_ENUM_t  enable; 
+  M2M2_PM_SYS_USB_PWR_ACTION_ENUM_t  action; 
 } m2m2_pm_sys_usb_pwr_cmd_t;
 
 typedef struct _m2m2_pm_sys_bat_thermistor_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_PM_SYS_THERMISTOR_STATE_ENUM_t  enable;
+  uint8_t  command; 
+  uint8_t  status; 
+  M2M2_PM_SYS_THERMISTOR_STATE_ENUM_t  enable; 
 } m2m2_pm_sys_bat_thermistor_cmd_t;
 
 typedef struct _m2m2_pm_sys_mcu_version_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_PM_SYS_MCU_TYPE_ENUM_t  mcu;
+  uint8_t  command; 
+  uint8_t  status; 
+  M2M2_PM_SYS_MCU_TYPE_ENUM_t  mcu; 
 } m2m2_pm_sys_mcu_version_t;
 
 typedef struct _m2m2_pm_sys_boost_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_PM_SYS_BOOST_ENUM_t  enable;
-  M2M2_PM_SYS_OVP_ENUM_t  ovp;
+  uint8_t  command; 
+  uint8_t  status; 
+  M2M2_PM_SYS_BOOST_ENUM_t  enable; 
+  M2M2_PM_SYS_OVP_ENUM_t  ovp; 
 } m2m2_pm_sys_boost_cmd_t;
 
 typedef struct _m2m2_pm_sys_powerboost_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_PM_SYS_BOOST_ENUM_t  enable;
-  uint8_t  ovp;
+  uint8_t  command; 
+  uint8_t  status; 
+  M2M2_PM_SYS_BOOST_ENUM_t  enable; 
+  uint8_t  ovp; 
 } m2m2_pm_sys_powerboost_cmd_t;
 
 typedef struct _m2m2_pm_sys_eeprom_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  size;
-  uint8_t  byte_stream[16];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  size; 
+  uint8_t  byte_stream[16]; 
 } m2m2_pm_sys_eeprom_cmd_t;
 
-typedef enum M2M2_PM_SYS_DG2502_EN_ENUM_t {
-  M2M2_PM_SYS_DG2502_ENABLE = 1,
-  M2M2_PM_SYS_DG2502_DISABLE = 0,
-} M2M2_PM_SYS_DG2502_EN_ENUM_t;
-STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_DG2502_EN_ENUM_t) == 1, INCORRECT_SIZE_M2M2_PM_SYS_DG2502_EN_ENUM_t);
-
-typedef enum M2M2_PM_SYS_DG2502_SELECT_ENUM_t {
-  M2M2_PM_SYS_DG2502_8233_SW = 0,
-  M2M2_PM_SYS_DG2502_5940_SW = 1,
-  M2M2_PM_SYS_DG2502_4K_SW = 2,
-} M2M2_PM_SYS_DG2502_SELECT_ENUM_t;
-STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_DG2502_SELECT_ENUM_t) == 1, INCORRECT_SIZE_M2M2_PM_SYS_DG2502_SELECT_ENUM_t);
-
 typedef struct _m2m2_pm_sys_dg2502_sw_ctrl_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_PM_SYS_DG2502_SELECT_ENUM_t  sw_name;
-  M2M2_PM_SYS_DG2502_EN_ENUM_t  sw_enable;
+  uint8_t  command; 
+  uint8_t  status; 
+  M2M2_PM_SYS_DG2502_SELECT_ENUM_t  sw_name; 
+  M2M2_PM_SYS_DG2502_EN_ENUM_t  sw_enable; 
 } m2m2_pm_sys_dg2502_sw_ctrl_cmd_t;
 
 typedef struct _m2m2_pm_sys_ldo_ctrl_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  ldo_num;
-  uint8_t  ldo_enable;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  ldo_num; 
+  uint8_t  ldo_enable; 
 } m2m2_pm_sys_ldo_ctrl_cmd_t;
 
-typedef enum M2M2_PM_SYS_CHIP_ID_ENUM_t {
-  M2M2_PM_SYS_ADXL362 = 1,
-  M2M2_PM_SYS_ADPD4K = 2,
-  M2M2_PM_SYS_ADP5360 = 3,
-  M2M2_PM_SYS_AD5940 = 4,
-  M2M2_PM_SYS_NAND_FLASH = 5,
-  M2M2_PM_SYS_AD7156 = 6,
-  //M2M2_PM_SYS_LCD_DISPLAY = 3,
-  //M2M2_PM_SYS_AD8233 = 3,
-} M2M2_PM_SYS_CHIP_ID_ENUM_t;
-STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_CHIP_ID_ENUM_t) == 1, INCORRECT_SIZE_M2M2_PM_SYS_CHIP_ID_ENUM_t);
-
 typedef struct _m2m2_pm_sys_chip_id_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_PM_SYS_CHIP_ID_ENUM_t  chip_name;
-  uint16_t chip_id;
+  uint8_t  command; 
+  uint8_t  status; 
+  M2M2_PM_SYS_CHIP_ID_ENUM_t  chip_name; 
+  uint16_t  chip_id; 
 } m2m2_pm_sys_chip_id_cmd_t;
 
 typedef struct _m2m2_pm_sys_cap_sense_test_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  enable;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  enable; 
 } m2m2_pm_sys_cap_sense_test_cmd_t;
 
 typedef struct _m2m2_pm_sys_cap_sense_test_data_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  touch_position;//
-  uint8_t  touch_value;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  touch_position; 
+  uint8_t  touch_value; 
 } m2m2_pm_sys_cap_sense_test_data_t;
 
 typedef struct _m2m2_pm_sys_enter_bloader_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
+  uint8_t  command; 
+  uint8_t  status; 
 } m2m2_pm_sys_enter_bloader_cmd_t;
 
 typedef struct _m2m2_pm_sys_sensor_app_status {
-  M2M2_ADDR_ENUM_t  sensor_app_id;
-  M2M2_ADDR_ENUM_t  sensor_stream;
-  uint8_t  num_subscribers;
-  uint8_t  num_start_reqs;
-  FILE_SYS_STREAM_SUBS_STATE_ENUM_t  fs_sub_stat; //1-> subscribed to FS, 0-> unsubscribed to FS
+  M2M2_ADDR_ENUM_t  sensor_app_id; 
+  M2M2_ADDR_ENUM_t  sensor_stream; 
+  uint8_t  num_subscribers; 
+  uint8_t  num_start_reqs; 
+  uint16_t  fs_sub_stat; 
 } m2m2_pm_sys_sensor_app_status;
 
-/*The macro is used to specify the number of applications in
-the system, for which Info maybe obtained. This is based on
-the entries in m2m2_routing_table[] in post_office.c file,
-excluding the indices from 0-13 which is for system upkeeping.
-As of now there are 20 applications, including the status which
-could be queried from Slot A-L from ADPD application.
-*/
-#define PM_APPS_COUNT (21)
 typedef struct _m2m2_pm_sys_sensor_apps_info_req_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  num_sensor_apps;
-  m2m2_pm_sys_sensor_app_status  app_info[PM_APPS_COUNT];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  num_sensor_apps; 
+  m2m2_pm_sys_sensor_app_status  app_info[21]; 
 } m2m2_pm_sys_sensor_apps_info_req_t;
 
 typedef struct _m2m2_pm_force_stream_stop_cmd_t {
-  uint8_t  command;
-  uint8_t  status;
+  uint8_t  command; 
+  uint8_t  status; 
 } m2m2_pm_force_stream_stop_cmd_t;
 
-typedef struct _m2m2_get_apps_running_stat_req_cmd_t{
-  uint8_t  command;
-  uint8_t  status;
-}m2m2_get_apps_running_stat_req_cmd_t;
+typedef struct _m2m2_get_apps_running_stat_req_cmd_t {
+  uint8_t  command; 
+  uint8_t  status; 
+} m2m2_get_apps_running_stat_req_cmd_t;
 
-typedef struct _m2m2_get_apps_running_stat_resp_cmd_t{
-  uint8_t  command;
-  uint8_t  status;
-  uint32_t ad5940_isr_cnt;
-  uint32_t adpd4000_isr_cnt;
-  uint32_t adxl_isr_cnt;
-}m2m2_get_apps_running_stat_resp_cmd_t;
+typedef struct _m2m2_get_apps_running_stat_resp_cmd_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint32_t  ad5940_isr_cnt; 
+  uint32_t  adpd4000_isr_cnt; 
+  uint32_t  adxl_isr_cnt; 
+} m2m2_get_apps_running_stat_resp_cmd_t;
 
-typedef struct _m2m2_ble_max_tx_pkt_comb_cnt_resp_cmd_t{
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t max_tx_pkt_comb_cnt;
-}m2m2_ble_max_tx_pkt_comb_cnt_resp_cmd_t;
+typedef struct _m2m2_ble_max_tx_pkt_comb_cnt_resp_cmd_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  max_tx_pkt_comb_cnt; 
+} m2m2_ble_max_tx_pkt_comb_cnt_resp_cmd_t;
 
-typedef struct _m2m2_hibernate_mode_status_resp_cmd_t{
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t hib_mode_status;
-}m2m2_hibernate_mode_status_resp_cmd_t;
+typedef struct _m2m2_hibernate_mode_status_resp_cmd_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  hib_mode_status; 
+} m2m2_hibernate_mode_status_resp_cmd_t;
 
 // Reset struct packing outside of this file
 #pragma pack()

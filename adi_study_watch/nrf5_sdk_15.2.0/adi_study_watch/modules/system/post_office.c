@@ -58,7 +58,9 @@
 #endif
 #include <low_touch_task.h>
 #include <touch_detect.h>
-
+#ifdef USER0_CONFIG_APP
+#include <user0_config_app_task.h>
+#endif
 #include <m2m2_core.h>
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -129,7 +131,6 @@ post_office_routing_table_entry_t m2m2_routing_table[] = {
   {M2M2_ADDR_SYS_PM,              send_message_system_task},//13
 #ifdef ENABLE_PPG_APP
   {M2M2_ADDR_MED_PPG,               send_message_ppg_application_task},//14
-  //{M2M2_ADDR_MED_SYNC_ADPD_ADXL,    send_message_ppg_application_task},//13
 #endif
 #ifdef ENABLE_EDA_APP
   {M2M2_ADDR_MED_EDA,               send_message_ad5940_eda_task},//15
@@ -150,6 +151,9 @@ post_office_routing_table_entry_t m2m2_routing_table[] = {
   {M2M2_ADDR_SENSOR_ADPD4000,       send_message_adpd4000_task},//21
 #ifdef ENABLE_SQI_APP
   {M2M2_ADDR_MED_SQI,      send_message_sqi_app_task},//22
+#endif
+#ifdef USER0_CONFIG_APP
+  {M2M2_ADDR_USER0_CONFIG_APP,    send_message_user0_config_app},//23
 #endif
 //  //  M2M2_ADDR_HIGHEST
 //  //  M2M2_ADDR_GLOBAL
@@ -291,12 +295,13 @@ uint8_t get_routing_table_index(M2M2_ADDR_ENUM_t m2m2_address) {
   *@return      None.
  */
 static void PostOfficeTask(void *pArgument) {
-  post_office_app_msg_send_func_t *p_msg_send_func;
-  m2m2_hdr_t  *p_msg;
+
 
 
   mailbox_list_init(DEFAULT_MAX_NUM_MAILBOXES);
   while (1) {
+    post_office_app_msg_send_func_t *p_msg_send_func;
+    m2m2_hdr_t  *p_msg;
     // wait for a message
     if (adi_osal_MsgQueuePend(post_office_task_msg_queue,(void **)&p_msg,ADI_OSAL_TIMEOUT_FOREVER) != ADI_OSAL_SUCCESS)
       continue;

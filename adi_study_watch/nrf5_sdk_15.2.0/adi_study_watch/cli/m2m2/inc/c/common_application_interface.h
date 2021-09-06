@@ -3,12 +3,10 @@
 // #############################################################################
 #pragma once
 
-#include "m2m2_core.h"
 #include "dcb_interface.h"
-#include "ble_nus.h"
+#include "m2m2_core.h"
 #include <stdint.h>
 
-#define MAXTXRXDCFGSIZE       (57)  /*  MAXTXRXDCFGSIZE is equal to MAXADPD4000DCBSIZE in dcb_interface.h */
 
 /* Explicitly enforce struct packing so that the nested structs and unions are laid out
     as expected. */
@@ -24,6 +22,9 @@
 #define STATIC_ASSERT_PROJ(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 #endif // STATIC_ASSERT_PROJ
 
+#define MAXTXRXDCFGSIZE	57
+#define PING_PKT_SZ	230
+
 typedef enum M2M2_APP_COMMON_STATUS_ENUM_t {
   M2M2_APP_COMMON_STATUS_OK = 0,
   M2M2_APP_COMMON_STATUS_ERROR = 1,
@@ -37,7 +38,7 @@ typedef enum M2M2_APP_COMMON_STATUS_ENUM_t {
   M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED = 9,
   M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED = 10,
   M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT = 11,
-  __M2M2_APP_COMMON_STATUS_HIGHEST = 32,
+  _M2M2_APP_COMMON_STATUS_ENUM_t__M2M2_APP_COMMON_STATUS_HIGHEST = 32,
 } M2M2_APP_COMMON_STATUS_ENUM_t;
 STATIC_ASSERT_PROJ(sizeof(M2M2_APP_COMMON_STATUS_ENUM_t) == 1, INCORRECT_SIZE_M2M2_APP_COMMON_STATUS_ENUM_t);
 
@@ -70,7 +71,7 @@ typedef enum M2M2_APP_COMMON_CMD_ENUM_t {
   M2M2_APP_COMMON_CMD_WRITE_LCFG_RESP = 25,
   M2M2_APP_COMMON_CMD_PING_REQ = 26,
   M2M2_APP_COMMON_CMD_PING_RESP = 27,
-  __M2M2_APP_COMMON_CMD_HIGHEST = 32,
+  _M2M2_APP_COMMON_CMD_ENUM_t__M2M2_APP_COMMON_CMD_HIGHEST = 32,
 } M2M2_APP_COMMON_CMD_ENUM_t;
 STATIC_ASSERT_PROJ(sizeof(M2M2_APP_COMMON_CMD_ENUM_t) == 1, INCORRECT_SIZE_M2M2_APP_COMMON_CMD_ENUM_t);
 
@@ -84,14 +85,11 @@ typedef struct _m2m2_app_common_ver_req_t {
   uint8_t  status; 
 } m2m2_app_common_ver_req_t;
 
-#define PING_PKT_SZ (BLE_NUS_MAX_DATA_LEN-8-6)//Max pkt size=BLE_NUS_MAX_DATA_LEN
-//Max ping pkt size can be BLE_NUS_MAX_DATA_LEN-8(header length)-1-1-4(remaining field in m2m2_app_common_ping_t)=230
-
 typedef struct _m2m2_app_common_ping_t {
   uint8_t  command; 
   uint8_t  status; 
-  uint32_t  sequence_num;
-  uint8_t  data[PING_PKT_SZ];
+  uint32_t  sequence_num; 
+  uint8_t  data[230]; 
 } m2m2_app_common_ping_t;
 
 typedef struct _m2m2_app_common_version_t {
@@ -107,7 +105,7 @@ typedef struct _m2m2_app_common_version_t {
 typedef struct _m2m2_app_common_status_t {
   uint8_t  command; 
   uint8_t  status; 
-  M2M2_ADDR_ENUM_t  stream; 
+  uint16_t  stream; 
   uint8_t  num_subscribers; 
   uint8_t  num_start_reqs; 
 } m2m2_app_common_status_t;
@@ -115,15 +113,15 @@ typedef struct _m2m2_app_common_status_t {
 typedef struct _m2m2_app_common_sub_op_t {
   uint8_t  command; 
   uint8_t  status; 
-  M2M2_ADDR_ENUM_t  stream; 
+  uint16_t  stream; 
 } m2m2_app_common_sub_op_t;
 
 typedef struct _m2m2_sensor_dcfg_data_t {
   uint8_t  command; 
   uint8_t  status; 
   uint8_t  size; 
-  uint8_t  num_tx_pkts;
-  uint32_t  dcfgdata[MAXADPD4000DCBSIZE];
+  uint8_t  num_tx_pkts; 
+  uint32_t  dcfgdata[57]; 
 } m2m2_sensor_dcfg_data_t;
 
 typedef struct _m2m2_app_lcfg_data_t {

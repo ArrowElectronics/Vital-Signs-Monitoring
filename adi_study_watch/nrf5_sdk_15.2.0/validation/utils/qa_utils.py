@@ -107,6 +107,8 @@ def get_fs_log(app_name='ADXL'):
                     csv_file_name["ecg"] = os.path.join(csv_files_folder, file)
                 elif "eda" in file_name_lower:
                     csv_file_name["eda"] = os.path.join(csv_files_folder, file)
+                elif "bcm" in file_name_lower:
+                    csv_file_name["bcm"] = os.path.join(csv_files_folder, file)
 
     return log_file_name, csv_file_name
 
@@ -343,6 +345,7 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False)
         div = 1000
     col_idx = ch0_col_idx if ch == 1 else ch1_col_idx
     time_data_list = common.read_csv_col(file_path, col_idx, row_offset)
+    value_data_list = common.read_csv_col(file_path, col_idx+1, row_offset)
     i = 1
     for i, ts in enumerate(time_data_list):  # calculate repeat count
         if ts != time_data_list[0]:
@@ -361,7 +364,11 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False)
             common.test_logger.warning('Median Ref Delta TS calculation Failed. Switching to start index calculation!')
         else:
             if not(0.9 * ref_delta_ts <= delta_ts <= 1.1 * ref_delta_ts):
-                ts_mismatch_count += 1
+                if stream == "adpd" or stream == "ppg" or stream == "syncppg" or stream == "adpd_combined":
+                    if value_data_list[i-1] > 524200 and delta_ts < 4 * ref_delta_ts:
+                        pass
+                    else:
+                        ts_mismatch_count += 1
             else:
                 delta_ts_sum += delta_ts
     avg_delta_ts = delta_ts_sum/(i-ts_mismatch_count)

@@ -5,7 +5,6 @@
 
 #include "common_application_interface.h"
 #include "common_sensor_interface.h"
-#include "m2m2_core.h"
 #include <stdint.h>
 
 
@@ -19,9 +18,11 @@
 #endif  // defined __CC_ARM || defined __IAR_SYSTEMS_ICC__ || __clang__ || defined _MSC_VER || defined __GNUC__
 #pragma pack(1)
 
-#ifndef STATIC_ASSERT
-#define STATIC_ASSERT(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
-#endif // STATIC_ASSERT
+#ifndef STATIC_ASSERT_PROJ
+#define STATIC_ASSERT_PROJ(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
+#endif // STATIC_ASSERT_PROJ
+
+
 typedef enum M2M2_SQI_APP_CMD_ENUM_t {
   _M2M2_SQI_APP_CMD_LOWEST = 90,
   M2M2_SQI_APP_CMD_SET_SLOT_REQ = 94,
@@ -44,14 +45,14 @@ typedef struct _sqi_app_lcfg_op_hdr_t {
 } sqi_app_lcfg_op_hdr_t;
 
 typedef struct _sqi_app_stream_t {
-  uint8_t   command; 
-  uint8_t   status; 
+  uint8_t  command; 
+  uint8_t  status; 
   uint16_t  sequence_num; 
-  float     sqi;
-  uint16_t  nSQISlot;
+  float  sqi; 
+  uint16_t  nSQISlot; 
   uint16_t  nAlgoStatus; 
   uint32_t  nTimeStamp; 
-  int8_t    nReserved; 
+  int8_t  nReserved; 
 } sqi_app_stream_t;
 
 typedef struct _sqi_app_set_slot_t {

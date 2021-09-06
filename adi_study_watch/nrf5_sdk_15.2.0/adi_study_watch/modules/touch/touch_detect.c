@@ -156,8 +156,6 @@ int top_touch_deinit() {
 */
 void touch_detect_thread(void * arg)
 {
-    m2m2_hdr_t *p_in_pkt = NULL;
-    m2m2_hdr_t *p_out_pkt = NULL;
     ADI_OSAL_STATUS         err;
 
     static uint8_t touch_up_value = AD7156_RELEASE;
@@ -176,6 +174,8 @@ void touch_detect_thread(void * arg)
 #endif
     while(true)
     {
+        m2m2_hdr_t *p_in_pkt = NULL;
+        m2m2_hdr_t *p_out_pkt = NULL;
         p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_TOUCH_TASK_INDEX);
 
         // We got an m2m2 message from the queue, process it.
@@ -193,8 +193,8 @@ void touch_detect_thread(void * arg)
           post_office_consume_msg(p_in_pkt);
           if (p_out_pkt != NULL) {
             post_office_send(p_out_pkt, &err);
-            adi_osal_ThreadSuspend(NULL);
           }
+          adi_osal_ThreadSuspend(NULL);
         }
 #ifdef ENABLE_TOP_TOUCH
         else

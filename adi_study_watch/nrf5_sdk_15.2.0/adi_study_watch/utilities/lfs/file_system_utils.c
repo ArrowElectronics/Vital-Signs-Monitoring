@@ -585,6 +585,67 @@ FS_STATUS_ENUM_t fs_hal_delete_config_file( uint8_t *pfile_name, uint8_t nfile_n
 
 /*!
   ****************************************************************************
+  *@brief       Opens last closed file handler and assigns head pointer
+  *@param       None
+  *@return      FS_STATUS_ENUM_t:file system status.
+******************************************************************************/
+FS_STATUS_ENUM_t fs_hal_append_file() {
+  elfs_result ret = LFS_SUCCESS;
+
+  /* Init structures */
+  memset(&gh_fs_file_write_handler,0,sizeof(gh_fs_file_write_handler));
+  memset(&gh_fs_table_file_header,0,sizeof(gh_fs_table_file_header));
+
+  /* read table page */
+  if(read_table_file_in_toc(&gh_fs_table_file_header) == LFS_ERROR) {
+    return LFS_ERROR;
+  }
+
+  /* open file handler which is latest */
+  ret = lfs_reopen_last_file_Info (&gh_fs_file_write_handler,\
+                                   &gh_fs_table_file_header);
+  if( ret != LFS_SUCCESS) {
+    if(ret == LFS_NO_FILE_TO_APPEND_ERROR)  {
+      NRF_LOG_INFO("Cannot append file as file is not found");
+      return FS_STATUS_NO_FILE_TO_APPEND_ERROR;
+    }
+    else {
+      NRF_LOG_INFO("Error in opening file handler");
+       return FS_STATUS_ERR;
+    }
+  }
+
+  /* re assign head pointer */
+  if(lfs_append_opened_file (&gh_fs_file_write_handler,\
+                            &gh_fs_table_file_header) != LFS_SUCCESS) {
+    NRF_LOG_INFO("Error in initializing head pointer");
+    return FS_STATUS_ERR;
+  }
+  
+  NRF_LOG_INFO("Successfully opened and assigned; head pointer = %d",gh_fs_table_file_header.head_pointer);
+
+  /* this field is very much needed to continue writing from last page which is head pointer */
+  gh_fs_file_write_handler.curr_write_mem_loc = gh_fs_table_file_header.head_pointer * go_fs_mem_prop.page_size;
+
+  return FS_STATUS_OK;
+}
+
+/*!
+  ****************************************************************************
+  *@brief       Opens last closed file handler and assigns head pointer
+  *@param       None
+  *@return      FS_STATUS_ENUM_t:file system status.
+******************************************************************************/
+FS_STATUS_ENUM_t set_write_handler_mode() {
+     /* Set operating mode to Manual */
+  lfs_set_operating_mode(&gh_fs_file_write_handler, LFS_MODE_MANUAL);
+  
+  /* Open file for writing */
+  ge_file_wr_access = FS_FILE_ACCESS_IN_PROGRESS;
+}
+
+/*!
+  ****************************************************************************
   *@brief       List files in directory
   *@param       p_dir_path: pointer to character array of directory path
   *@param       p_file_path: pointer to character array of file path
@@ -772,11 +833,9 @@ FS_STATUS_ENUM_t fs_hal_page_read_test(uint32_t* ppage_num, m2m2_file_sys_page_r
   else{
     ppage_read_test_info->data_region_status = read_page_data(*ppage_num, (uint8_t *)&ppage_read_test_info->sample_data, num_bytes);  
   }
-  for(int i=0;i < num_bytes;i++){
-      NRF_LOG_INFO("%d",ppage_read_test_info->sample_data[i]);
-    }
 
-  ppage_read_test_info->ecc_zone_status = read_page_ecc_zone(*ppage_num, &ppage_read_test_info->next_page, &ppage_read_test_info->occupied);
+  ppage_read_test_info->ecc_zone_status = read_page_ecc_zone(*ppage_num, &ppage_read_test_info->next_page,\
+                                                            &ppage_read_test_info->occupied,&ppage_read_test_info->num_bytes_written);
   return (ppage_read_test_info->data_region_status | ppage_read_test_info->ecc_zone_status);
 }
 
@@ -831,6 +890,8 @@ FS_STATUS_ENUM_t fs_hal_get_vol_info(uint32_t *p_size) {
   uint16_t num_times_read;
 #endif
 /* Start node to be scanned (also used as work area) */
+uint32_t gbytesread;
+uint8_t flag_failure;
 FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t *p_length) {
   static uint32_t nfile_size = 0;
   static uint32_t read_size = 0;
@@ -855,9 +916,10 @@ FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t
     bytes_read_start_time = get_micro_sec();
 #endif
       /* Read Data from file */
-      if(lfs_read_file(p_buffer, bytes_read, read_size, &gh_fs_file_read_handler) != LFS_SUCCESS) {
+      if(lfs_read_file(p_buffer, bytes_read, &read_size, &gh_fs_file_read_handler) != LFS_SUCCESS) {
         ge_file_read_access = FS_FILE_ACCESS_START;
         bytes_read = 0;
+        flag_failure=1;
         return FS_STATUS_ERR_STDIO;
       }
 //t2
@@ -883,6 +945,7 @@ FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t
       }
       *p_length = read_size;
       ge_file_read_access = FS_FILE_ACCESS_IN_PROGRESS;
+      gbytesread = read_size;
       return FS_STATUS_OK;
     } else {      /* ... dir does not exist.        */
       ge_file_read_access = FS_FILE_ACCESS_START;
@@ -899,13 +962,15 @@ FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t
       }
 
       /* Read Data from file */
-      if(lfs_read_file(p_buffer, bytes_read, read_size, &gh_fs_file_read_handler) != LFS_SUCCESS) {
+      if(lfs_read_file(p_buffer, bytes_read, &read_size, &gh_fs_file_read_handler) != LFS_SUCCESS) {
         ge_file_read_access = FS_FILE_ACCESS_START;
         bytes_read = 0;
+        flag_failure=2;
         return FS_STATUS_ERR_STDIO;
       }
 
       bytes_read += read_size;
+      gbytesread = read_size;
 
       if (bytes_read == nfile_size) {
         *p_length = read_size;
@@ -965,7 +1030,7 @@ FS_STATUS_ENUM_t fs_hal_read_pageoffset(char* p_file_path, uint8_t *p_buffer, \
         return FS_STATUS_ERR;
       }
       /* Read Data from file */
-      if(lfs_read_file(p_buffer, bytes_read, read_size, &gh_fs_file_read_handler) != LFS_SUCCESS) {
+      if(lfs_read_file(p_buffer, bytes_read, &read_size, &gh_fs_file_read_handler) != LFS_SUCCESS) {
         bytes_read = 0;
         return FS_STATUS_ERR_STDIO;
       }
@@ -1205,6 +1270,7 @@ FS_STATUS_ENUM_t fs_hal_write_file(uint8_t *p_buffer,
 uint32_t nTick = 0;
 nTick = MCU_HAL_GetTick();
 #endif
+  
 
   /* Write data to File */
    FS_Error = lfs_update_file(p_buffer, *nitems, file_handler,&gh_fs_table_file_header);

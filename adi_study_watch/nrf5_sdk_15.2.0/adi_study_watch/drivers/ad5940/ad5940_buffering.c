@@ -582,7 +582,7 @@ AD5940Err AppEDAISR(void *pBuff, uint32_t *pCount)  {
       AD5940_INTCClrFlag(AFEINTSRC_DATAFIFOTHRESH);
        /* If there is need to do AFE re-configure, do it here when AFE is in active state */
       AppEDARegModify(pBuff, &FifoCount);
-#ifndef EXTERNAL_TRIGGER_EDA	      
+#ifndef EXTERNAL_TRIGGER_EDA
       /* Manually put AFE back to hibernate mode. This operation only takes effect when register value is ACTIVE previously */
       AD5940_EnterSleepS();
       /* Don't enter hibernate */
@@ -624,7 +624,7 @@ AD5940Err AppEDAISR(void *pBuff, uint32_t *pCount)  {
       current time value by difference between current time when data is processed and
       time corresponding to interrupt occured */
       if ((nTcv > gnAd5940TimeCurVal) && (gnAd5940TimeGap != 0))  {
-        gnAd5940TimeCurVal += nTcv - gnAd5940TimeCurVal;
+//        gnAd5940TimeCurVal += nTcv - gnAd5940TimeCurVal;
       }
       /* If current data processed time < Interrupt occured time, this could be case of
        roll over, update current time based on data processes time */
@@ -731,7 +731,7 @@ int8_t ad5940_read_bcm_data_to_buffer() {
     nTcv =  get_sensor_time_stamp();
 
     if ((nTcv > gnAd5940TimeCurVal) && (gnAd5940TimeGap != 0))  {
-       gnAd5940TimeCurVal += nTcv - gnAd5940TimeCurVal;
+//       gnAd5940TimeCurVal += nTcv - gnAd5940TimeCurVal;
     }
      /* Normally, data processed time > interrupt occured time , hence update
       current time value by difference between current time when data is processed and

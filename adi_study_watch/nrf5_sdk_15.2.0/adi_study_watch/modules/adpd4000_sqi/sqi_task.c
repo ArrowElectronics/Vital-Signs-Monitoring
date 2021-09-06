@@ -193,13 +193,13 @@ void sqi_app_task_init(void) {
 }
 
 static void sqi_task(void *pArgument) {
-  m2m2_hdr_t *p_in_pkt = NULL;
-  m2m2_hdr_t *p_out_pkt = NULL;
   ADI_OSAL_STATUS         err;
   SqiAdpdDataBuffInit(4);
   post_office_add_mailbox(M2M2_ADDR_MED_SQI, M2M2_ADDR_MED_SQI_STREAM);
   while (1)
   {
+      m2m2_hdr_t *p_in_pkt = NULL;
+      m2m2_hdr_t *p_out_pkt = NULL;   
       adi_osal_SemPend(sqi_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
       p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_SQI_TASK_INDEX);
       if (p_in_pkt == NULL) {
@@ -231,8 +231,8 @@ static void packetize_sqi_data(float* pSQIData, uint32_t nTimeStamp) {
   m2m2_hdr_t *resp_pkt;
   ADI_OSAL_STATUS err;
   adi_vsm_sqi_output_t sqi_result;
-  SQI_ALG_RETURN_CODE_t alg_ret_code = SQI_ALG_SUCCESS;
-  SQI_ERROR_CODE_t sqi_ret_code = SQI_SUCCESS;
+  SQI_ALG_RETURN_CODE_t alg_ret_code = SQI_ALG_ERROR;
+  SQI_ERROR_CODE_t sqi_ret_code = SQI_ERROR;
 
   memset(&sqi_result, 0x00, sizeof(sqi_result));
   if (g_state_sqi.nStreamStartCount > 0) {
@@ -434,7 +434,6 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
         g_state_sqi.nStreamStartCount = 0;
         g_state_sqi.nSQIODR = 0;
         g_state_sqi.nRequiredSamples = 0;
-        g_state_sqi.nSequenceCount = 0;
         gAdpd_ext_data_stream_active = false;
         if(SQI_ALG_SUCCESS == ret_code)
           status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
@@ -451,6 +450,11 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
   case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
     sqi_event = 1;
     g_state_sqi.nSubscriberCount++;
+    if(g_state_sqi.nSubscriberCount == 1)
+    {
+       /* reset pkt sequence no. only during 1st sub request */
+       g_state_sqi.nSequenceCount = 0;
+    }
     post_office_setup_subscriber(M2M2_ADDR_MED_SQI, M2M2_ADDR_MED_SQI_STREAM, p_pkt->src, true);
     status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
     command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;

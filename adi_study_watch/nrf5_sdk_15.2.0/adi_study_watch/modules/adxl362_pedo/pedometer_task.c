@@ -56,8 +56,7 @@
 
 /* -------------------------Public variables -------------------------------*/
 uint32_t pedometer_event;
-int16_t pnRData[6] = {0,0,0,0,0,0};
-uint32_t nlen = 6;
+int16_t pnRData[ADXL_MAXDATASETSIZE] = {0,0,0};
 uint32_t ntimestamp = 0;
 extern g_state_adxl_t  g_state_adxl;
 
@@ -191,13 +190,13 @@ void pedometer_app_task_init(void) {
 * @return              None
 *****************************************************************************/
 static void pedometer_app_task(void *pArgument) {
-  m2m2_hdr_t *p_in_pkt = NULL;
-  m2m2_hdr_t *p_out_pkt = NULL;
   ADI_OSAL_STATUS         err;
   adi_osal_SemCreate(&pedometer_app_task_evt_sem, 0);
   post_office_add_mailbox(M2M2_ADDR_MED_PED, M2M2_ADDR_MED_PED_STREAM);
   while (1)
   {
+      m2m2_hdr_t *p_in_pkt = NULL;
+      m2m2_hdr_t *p_out_pkt = NULL;
       adi_osal_SemPend(pedometer_app_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
       p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, \
                                             APP_OS_CFG_PEDOMETER_TASK_INDEX);
@@ -425,6 +424,11 @@ static m2m2_hdr_t *pedometer_app_stream_config(m2m2_hdr_t *p_pkt) {
   case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
     pedometer_event = 1;
     g_state_pedometer.nSubscriberCount++;
+    if(g_state_pedometer.nSubscriberCount == 1)
+    {
+       /* reset pkt sequence no. only during 1st sub request */
+       g_state_pedometer.nSequenceCount = 0;
+    }
     post_office_setup_subscriber(M2M2_ADDR_MED_PED, M2M2_ADDR_MED_PED_STREAM, \
                                                               p_pkt->src, true);
     status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
@@ -574,12 +578,12 @@ static m2m2_hdr_t *pedometer_app_lcfg_access(m2m2_hdr_t *p_pkt) {
 *****************************************************************************/
 void send_pedometer_app_data(int16_t *adxlData, uint32_t ts)
 {
-  for(uint8_t i = 0; i < nlen ; i++)
-    {
+   for(uint8_t i = 0; i < ADXL_MAXDATASETSIZE; i++)
+   {
       pnRData[i] = *adxlData;
       adxlData++;
-    }
- ntimestamp = ts;
- adi_osal_SemPost(pedometer_app_task_evt_sem);
+   }
+   ntimestamp = ts;
+   adi_osal_SemPost(pedometer_app_task_evt_sem);
 }
 #endif

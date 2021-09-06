@@ -72,7 +72,7 @@
     .tm_min  = 0,             \
     .tm_sec  = 0,             \
   }
-  
+
 typedef enum{
     RTC_PRESCALER_1 = 0,//accuracy = 30.51us.LCLK = 32.768kHz
     RTC_PRESCALER_2 = 1,//accuracy = 61.03us
@@ -99,7 +99,7 @@ m_time_struct *rtc_date_time_get(void);
 /*
 * @brief  get the current date time..
 
-* @param[out]: 
+* @param[out]:
 *   @timezone: precision is second
 */
 void rtc_timezone_get(int32_t *timezone);
@@ -146,15 +146,22 @@ uint32_t get_sensor_time_stamp(void);
 
 
 /*
-* @brief  Provides system time in 1hz resolution; 
+* @brief  Provides system time in 1hz resolution;
 
 */
 
 uint32_t get_log_time_stamp(time_t *timestamp,int16_t *timezone_offset);
 
-/* 
+/*
   *  @brief: Function to get the current timestamp in ms resolution, by the sensor tasks
 */
 uint32_t get_ms_time_stamp(void);
+
+#ifdef USER0_CONFIG_APP
+/*
+  *  @brief: Function to set the compare value to get NRF_DRV_RTC_INT_COMPARE0 interrupt type
+*/
+void enable_rtc_wakeup(uint32_t value);
+#endif
 
 #endif

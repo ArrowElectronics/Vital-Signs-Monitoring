@@ -280,8 +280,6 @@ static volatile bool gb_ble_force_stream_stop = false;
 /* Maximum length of data (in bytes) that can be transmitted to the peer by
  * the Nordic UART service module. */
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;
-/* Flag to mark that ble tx task is suspended or not(active) */
-uint8_t gn_ble_tx_task_suspended = 0;
 /* Universally unique service identifier. */
 #ifdef BLE_CUSTOM_PROFILE1
 static ble_uuid_t m_adv_uuids_more[] = {
@@ -341,6 +339,13 @@ static uint8_t sub_add_cnt = 0;
  * based on which msg needs to be sent */
 static uint8_t tx_pkt_send_now = 0;
 
+#ifdef CUST4_SM
+/*Variables updated for debugging, BLE Turned On/Off state*/
+uint8_t gn_turn_on = false;
+uint8_t gn_turn_off = false;
+#endif
+static void advertising_start(void *p_context);
+
 /* Enable BLE_THROUGHTPUT_DEBUG macro, to see in real time, the BLE throughput
    in SES Debug terminal, when BLE streaming is happening */
 //#define BLE_THROUGHTPUT_DEBUG 1
@@ -358,6 +363,10 @@ uint32_t gBleTaskMsgPostCnt=0, gBleTaskMsgPostCntFailed=0, gBleTaskMsgProcessCnt
 #include "us_tick.h"
 #endif
 
+#ifdef CUST4_SM
+#include "user0_config_app_task.h"
+extern bool usbd_get_cradle_disconnection_status();
+#endif
 /*!
  ****************************************************************************
  * @brief Function for assert macro callback.
@@ -406,6 +415,45 @@ uint8_t set_max_tx_pkt_comb_cnt(uint8_t max_tx_kt_comb_cnt) {
 uint8_t get_max_tx_pkt_comb_cnt() {
     return gn_max_tx_kt_comb_cnt;
 }
+
+#ifdef CUST4_SM
+/*!
+ ****************************************************************************
+ * @brief Function to turn ON BLE
+ *
+ * @details This function is to be used by user0 config app state machine
+ *          framework to turn BLE ON, when required. This turns on the BLE
+ *          advertising.
+ * @param[in]  None
+ * @param[out] None
+ ******************************************************************************/
+void turn_on_BLE() {
+  /*For debugging*/
+  gn_turn_on = true;
+  gn_turn_off = false;
+
+  advertising_start(NULL);
+}
+
+/*!
+ ****************************************************************************
+ * @brief Function to turn OFF BLE
+ *
+ * @details This function is to be used by user0 config app state machine
+ *          framework to turn BLE OFF, when required. This disconnects from the
+ *          Central if already connected and stops BLE advertising
+ * @param[in]  None
+ * @param[out] None
+ ******************************************************************************/
+void turn_off_BLE() {
+  /*For debugging*/
+  gn_turn_off = true;
+  gn_turn_on = false;
+
+  ble_disconnect_and_unbond();
+  sd_ble_gap_adv_stop(m_advertising.adv_handle);
+}
+#endif
 
 /**@brief Function for performing battery measurement and updating the Battery Level characteristic
  *        in Battery Service.
@@ -562,7 +610,6 @@ static void nus_data_handler(ble_nus_evt_t *p_evt) {
   } else if (BLE_NUS_EVT_COMM_STARTED == p_evt->type) {
     gb_ble_status = BLE_PORT_OPENED;
     gb_ble_force_stream_stop = false;
-    adi_osal_ThreadResumeFromISR(gh_ble_app_task_handler);
     adi_osal_SemPost(g_ble_tx_task_evt_sem);
   } else if (BLE_NUS_EVT_COMM_STOPPED == p_evt->type) {
     gb_ble_status = BLE_PORT_CLOSED;
@@ -1075,6 +1122,9 @@ static void ble_services_sensor_task(void *arg) {
           gn_ble_hr_service_sensor_init = 0;
         }
 
+        p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_FOREVER, APP_OS_CFG_BLE_SERVICES_SENSOR_TASK_INDEX);
+        if (p_in_pkt != NULL)
+            post_office_consume_msg(p_in_pkt);
 #ifdef BLE_CUSTOM_PROFILE1
         if(gn_ble_ecg_raw_samp_service_sensor_enab && gn_ble_ecg_raw_samp_service_sensor_init)
         {
@@ -1200,8 +1250,15 @@ reset). err_code = sd_power_system_off(); APP_ERROR_CHECK(err_code);
 static void advertising_start(void *p_context) {
   UNUSED_PARAMETER(p_context);
 
+#ifdef CUST4_SM
+  if(!gn_turn_off)
+  {
+#endif
   uint32_t err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
   APP_ERROR_CHECK(err_code);
+#ifdef CUST4_SM
+  }
+#endif
 }
 
 /*!
@@ -1218,8 +1275,21 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt) {
   case BLE_ADV_EVT_FAST:
     break;
   case BLE_ADV_EVT_IDLE:
-    NRF_LOG_INFO("Advertising timeout, restarting.")
-    advertising_start(NULL);
+#ifdef CUST4_SM
+    //Check curr state and do re-adv only for intermittent state
+    if(get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING)
+    {
+      NRF_LOG_INFO("Advertising timeout, entering sleep state.")
+      user0_config_app_enter_state_sleep();
+    }
+    else
+    {
+#endif
+      NRF_LOG_INFO("Advertising timeout, restarting.")
+      advertising_start(NULL);
+#ifdef CUST4_SM
+    }
+#endif
     break;
   default:
     break;
@@ -1273,6 +1343,22 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
     err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
     APP_ERROR_CHECK(err_code);
 
+#ifdef CUST4_SM
+     //Watch connected to tool and its connected to cradle for charging
+     //if(get_user0_config_app_state() == STATE_START &&
+     if(get_user0_config_app_state() == STATE_ADMIT_STANDBY &&
+        !usbd_get_cradle_disconnection_status())
+     {
+        user0_config_app_enter_state_admit_standby();
+     }
+     //Watch connected to tool and its disconnected from cradle
+     else if(get_user0_config_app_state() == STATE_ADMIT_STANDBY &&
+             usbd_get_cradle_disconnection_status())
+     {
+        user0_config_app_enter_state_start_monitoring();
+     }
+#endif
+
 #if 0
     //Update to use 2MBPS PHY
     NRF_LOG_DEBUG("PHY update request.");
@@ -1304,6 +1390,28 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
     advertising_start(NULL);
     gsErrResources = 0;
     adi_osal_ThreadResumeFromISR(gh_ble_services_sensor_task_handler);
+#ifdef CUST4_SM
+     //Unexpected BLE disconnection, when in STATE_ADMIT_STANDBY
+     /*Do nothing*/
+     //Central gave BLE disconnection, when in STATE_ADMIT_STANDBY
+     /*Do nothing*/
+
+     /*Unexpected BLE disconnection, when in STATE_START_MONITORING,
+     STATE_INTERMITTENT_MONITORING*/
+     /*Stay in same state*/
+     //p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_CONNECTION_TIMEOUT
+
+
+     /*Central gave BLE disconnection, when in STATE_START_MONITORING or
+     STATE_INTERMITTENT_MONITORING */
+     if( p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION
+     && (get_user0_config_app_state() == STATE_START_MONITORING
+     || get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING) )
+     {
+        user0_config_app_enter_state_sleep();
+     }
+
+#endif
     break;
 
   case BLE_GAP_EVT_PHY_UPDATE_REQUEST: {
@@ -1617,6 +1725,25 @@ void bsp_event_handler(bsp_event_t event)
 }
 #endif
 
+#ifdef CUST4_SM
+/*!
+ ****************************************************************************
+ * @brief Function to change the BLE advertising duration
+ *
+ * @details This function is to be used by user0 config app state machine
+ *          framework to change the BLE advertising duration as put in user0
+ *          config DCB. APIs turn_off_BLE() , turn_on_BLE() is to be used before
+ *          and after calling this function.
+ * @param[in]  new_adv_duration: New advertising duration to be changed to, in secs
+ * @param[out] None
+ ******************************************************************************/
+void change_ble_adv_duration(uint32_t new_adv_duration)
+{
+  new_adv_duration *= 100; // Expressing in units of 10 milliseconds.
+  m_advertising.adv_modes_config.ble_adv_fast_timeout = new_adv_duration;
+}
+#endif
+
 /*!
  ****************************************************************************
  * @brief Function for initializing the Advertising functionality.
@@ -1779,15 +1906,10 @@ static void ble_tx_task(void *arg) {
   /* To hold no: of retries to do when ble_nus_send fails with resource err */
   static volatile uint8_t tx_retry_cnt = 0;
 
-  /* Suspend BLE task */
-  gn_ble_tx_task_suspended = 1;
-  vTaskSuspend(NULL);
-
   while (1) {
     adi_osal_SemPend(g_ble_tx_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
-    gn_ble_tx_task_suspended = 0;
+    p_in_pkt =post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_BLE_TASK_INDEX);
     if (gb_ble_status == BLE_PORT_OPENED) {
-      p_in_pkt =post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_BLE_TASK_INDEX);
       if (p_in_pkt == NULL) {
         /* No m2m2 messages to process, so fetch some data from the device. */
         continue;
@@ -1995,13 +2117,8 @@ static void ble_tx_task(void *arg) {
     } // End of if condition for ble connection ON
     else if ((gb_ble_status == BLE_PORT_CLOSED) ||
              (gb_ble_status == BLE_DISCONNECTED)) {
-      if (!gb_ble_force_stream_stop) {
-        gn_ble_tx_task_suspended = 1;
+      if (gb_ble_force_stream_stop) {
         ble_tx_msg_queue_reset();
-        ble_pkt_src = M2M2_ADDR_UNDEFINED;
-        /* Suspend BLE task */
-        vTaskSuspend(NULL);
-      } else {
         /* Force-stop Sensor streaming that wasn't stopped */
         m2m2_hdr_t *req_pkt = NULL;
         ADI_OSAL_STATUS err;
@@ -2021,10 +2138,12 @@ static void ble_tx_task(void *arg) {
               M2M2_PM_SYS_COMMAND_FORCE_STREAM_STOP_REQ;
           NRF_LOG_INFO("Sending Force stream stop cmd from BLE");
           post_office_send(req_pkt, &err);
+          ble_pkt_src = M2M2_ADDR_UNDEFINED;
           gb_ble_force_stream_stop = false;
-          adi_osal_SemPost(g_ble_tx_task_evt_sem);
         }
       }
+      if(p_in_pkt != NULL)
+          post_office_consume_msg(p_in_pkt);
     }
   }
 }

@@ -161,7 +161,6 @@ static m2m2_hdr_t *ad5940_app_reg_access(m2m2_hdr_t *p_pkt);
 #endif
 static void fetch_eda_data(void);
 static void sensor_eda_task(void *pArgument);
-static uint16_t gnEDASequenceCount = 0;
 void Enable_ephyz_power(void);
 uint32_t ad5940_port_deInit(void);
 
@@ -212,6 +211,138 @@ app_routing_table_entry_t eda_app_routing_table[] = {
   (sizeof(eda_app_routing_table) / sizeof(eda_app_routing_table[0]))
 
 ADI_OSAL_QUEUE_HANDLE eda_task_msg_queue = NULL;
+
+#ifdef USER0_CONFIG_APP
+#include "user0_config_app_task.h"
+#include "app_timer.h"
+#include "low_touch_task.h"
+APP_TIMER_DEF(m_eda_timer_id);     /**< Handler for repeated timer for EDA. */
+static void eda_timer_start(void);
+static void eda_timer_stop(void);
+static void eda_timeout_handler(void * p_context);
+void start_eda_app_timer();
+static user0_config_app_timing_params_t eda_app_timings = {0};
+static volatile uint8_t gnDoEdaStart = 0; //Flag to do EDAInit() from task context
+static volatile uint8_t gnDoEdaStop = 0;  //Flag to do EDADeInit() from task context
+
+/**@brief Function for the Timer initialization.
+*
+* @details Initializes the timer module. This creates and starts application timers.
+*
+* @param[in]  None
+*
+* @return     None
+*/
+static void eda_timer_init(void)
+{
+    ret_code_t err_code;
+
+    /*! Create timers */
+    err_code =  app_timer_create(&m_eda_timer_id, APP_TIMER_MODE_REPEATED, eda_timeout_handler);
+
+    APP_ERROR_CHECK(err_code);
+}
+
+/**@brief   Function for starting application timers.
+* @details Timers are run after the scheduler has started.
+*
+* @param[in]  None
+*
+* @return     None
+*/
+static void eda_timer_start(void)
+{
+    /*! Start repeated timer */
+    ret_code_t err_code = app_timer_start(m_eda_timer_id, APP_TIMER_TICKS(TIMER_ONE_SEC_INTERVAL), NULL);
+    APP_ERROR_CHECK(err_code);
+
+    eda_app_timings.check_timer_started = true;
+}
+
+/**@brief   Function for stopping the application timers.
+*
+* @param[in]  None
+*
+* @return     None
+*/
+static void eda_timer_stop(void)
+{
+    /*! Stop the repeated timer */
+    ret_code_t err_code = app_timer_stop(m_eda_timer_id);
+    APP_ERROR_CHECK(err_code);
+
+    eda_app_timings.check_timer_started = false;
+}
+
+/**@brief   Callback Function for application timer events
+*
+* @param[in]  p_context: pointer to the callback function arguments
+*
+* @return     None
+*/
+static void eda_timeout_handler(void * p_context)
+{
+    if(eda_app_timings.delayed_start && eda_app_timings.start_time>0)
+    {
+      eda_app_timings.start_time_count++; /*! Increment counter every sec., till it is equal to start_time Value in seconds. */
+      if(eda_app_timings.start_time_count == eda_app_timings.start_time)
+      {
+        //delayed start time expired-turn ON EDA
+        gnDoEdaStart = 1; //Do EDAInit() from task context
+        adi_osal_SemPost(eda_task_evt_sem);//Intimate EDA task
+        eda_app_timings.delayed_start = false;
+        eda_app_timings.start_time_count = 0;
+        eda_app_timings.app_mode_on = true;
+      }
+      return;
+    }
+
+    if(eda_app_timings.app_mode_on && eda_app_timings.on_time>0)
+    {
+        eda_app_timings.on_time_count++; /*! Increment counter every sec. incase of ADPD ON, till it is equal to Ton Value in seconds. */
+        if(eda_app_timings.on_time_count == eda_app_timings.on_time)
+        {
+          //on timer expired - turn off EDA
+          if (g_state_eda.num_starts == 1) {
+              gnDoEdaStop = 1;//Do EDADeInit() from task context
+              adi_osal_SemPost(eda_task_evt_sem);//Intimate EDA task
+          }
+          eda_app_timings.app_mode_on = false;
+          eda_app_timings.on_time_count = 0;
+        }
+    }
+    else if(!eda_app_timings.app_mode_on && eda_app_timings.off_time>0)
+    {
+      eda_app_timings.off_time_count++; /*! Increment counter every sec. incase of ADPD OFF, till it is equal to Toff Value in seconds.*/
+      if(eda_app_timings.off_time_count == eda_app_timings.off_time)
+        {
+           //off timer expired - turn on EDA
+           if (g_state_eda.num_starts == 1) {
+               gnDoEdaStart = 1;
+               adi_osal_SemPost(eda_task_evt_sem);//Intimate EDA task
+           }
+           eda_app_timings.app_mode_on = true;
+           eda_app_timings.off_time_count = 0;
+        }
+    }
+}
+
+/**@brief   Function to start EDA app timer
+* @details  This is used in either interval based/intermittent LT mode3
+*
+* @param[in]  None
+*
+* @return     None
+*/
+void start_eda_app_timer()
+{
+  if(eda_app_timings.on_time > 0)
+  {
+    eda_timer_start();
+  }
+
+}
+#endif//USER0_CONFIG_APP
 
 /*!
  ****************************************************************************
@@ -361,11 +492,19 @@ void send_message_ad5940_eda_task(m2m2_hdr_t *p_pkt) {
  *@return     None
  ******************************************************************************/
 static void sensor_eda_task(void *pArgument) {
-  m2m2_hdr_t *p_in_pkt = NULL;
-  m2m2_hdr_t *p_out_pkt = NULL;
   ADI_OSAL_STATUS err;
   post_office_add_mailbox(M2M2_ADDR_MED_EDA, M2M2_ADDR_MED_EDA_STREAM);
+
+  /*Wait for FDS init to complete*/
+  adi_osal_SemPend(eda_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+
+#ifdef USER0_CONFIG_APP
+  eda_timer_init();
+#endif
+
   while (1) {
+    m2m2_hdr_t *p_in_pkt = NULL;
+    m2m2_hdr_t *p_out_pkt = NULL;
     adi_osal_SemPend(eda_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
     p_in_pkt =
         post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_EDA_TASK_INDEX);
@@ -389,7 +528,21 @@ static void sensor_eda_task(void *pArgument) {
         else{
           /* false trigger */
         }
+#ifdef USER0_CONFIG_APP
+    } if(gnDoEdaStart && (g_state_eda.num_starts == 1)) {
+       gnDoEdaStart = 0;
+       if(EDA_SUCCESS == EDAAppInit())
+       {
+       }
+    } if(gnDoEdaStop && (g_state_eda.num_starts == 1)) {
+       gnDoEdaStop = 0;
+       if(EDA_SUCCESS == EDAAppDeInit())
+       {
+       }
+    } if (p_in_pkt != NULL) {
+#else
     } else {
+#endif //USER0_CONFIG_APP
       /* Got an m2m2 message from the queue, process it */
       PYLD_CST(p_in_pkt, _m2m2_app_common_cmd_t, p_in_cmd);
       /* Look up the appropriate function to call in the function table */
@@ -494,11 +647,20 @@ static void fetch_eda_data(void) {
           p_payload_ptr->datatype = M2M2_SENSOR_EDA_DATA;
           g_state_eda.eda_pktizer.p_pkt->src = M2M2_ADDR_MED_EDA;
           g_state_eda.eda_pktizer.p_pkt->dest = M2M2_ADDR_MED_EDA_STREAM;
-          p_payload_ptr->sequence_num = gnEDASequenceCount++;
+          p_payload_ptr->sequence_num = g_state_eda.data_pkt_seq_num++;
 #ifdef DEBUG_PKT
           post_office_msg_cnt(g_state_eda.eda_pktizer.p_pkt);
 #endif
+#ifdef USER0_CONFIG_APP
+          if(eda_app_timings.app_mode_on)
+          {
+#endif //USER0_CONFIG_APP
           post_office_send(g_state_eda.eda_pktizer.p_pkt, &err);
+#ifdef USER0_CONFIG_APP
+          }//if(eda_app_timings.app_mode_on)
+          else
+            post_office_consume_msg(g_state_eda.eda_pktizer.p_pkt);
+#endif //USER0_CONFIG_APP
 #ifdef PROFILE_TIME_ENABLED
           time_elapsed_for_eda = MCU_HAL_GetTick() - eda_start_time;
 #endif
@@ -742,6 +904,7 @@ static m2m2_hdr_t *eda_app_dynamic_scaling(m2m2_hdr_t *p_pkt) {
 static m2m2_hdr_t *eda_app_stream_config(m2m2_hdr_t *p_pkt) {
   M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
   M2M2_APP_COMMON_CMD_ENUM_t command;
+  int32_t nRetCode = EDA_SUCCESS;
   PYLD_CST(p_pkt, m2m2_app_common_sub_op_t, p_in_payload);
   PKT_MALLOC(p_resp_pkt, m2m2_app_common_sub_op_t, 0);
   if (NULL != p_resp_pkt) {
@@ -755,7 +918,29 @@ static m2m2_hdr_t *eda_app_stream_config(m2m2_hdr_t *p_pkt) {
 #ifdef EXTERNAL_TRIGGER_EDA
         eda_start_req = 1; /* eda app to start */
 #endif
-        if (EDAAppInit() == EDA_SUCCESS) {
+#ifdef USER0_CONFIG_APP
+      get_eda_app_timings_from_user0_config_app_lcfg(&eda_app_timings.start_time,\
+                                        &eda_app_timings.on_time, &eda_app_timings.off_time);
+      if(eda_app_timings.start_time > 0)
+      {
+        eda_app_timings.delayed_start = true;
+      }
+      //EDA app not in continuous mode & its interval operation mode
+      if(!is_eda_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+      {
+        start_eda_app_timer();
+      }
+
+      if(!eda_app_timings.delayed_start)
+      {
+        nRetCode = EDAAppInit();
+        eda_app_timings.app_mode_on = true;
+      }
+      if(EDA_SUCCESS == nRetCode) {
+#else
+      if(EDA_SUCCESS == EDAAppInit()) {
+#endif// USER0_CONFIG_APP
+        //if (EDAAppInit() == EDA_SUCCESS) {
           g_state_eda.num_starts = 1;
 #ifdef DEBUG_EDA
           eda_start_time = MCU_HAL_GetTick();
@@ -782,6 +967,16 @@ static m2m2_hdr_t *eda_app_stream_config(m2m2_hdr_t *p_pkt) {
         if (EDAAppDeInit()) {
           g_state_eda.num_starts = 0;
           status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
+#ifdef USER0_CONFIG_APP
+          if(eda_app_timings.check_timer_started)
+          {
+            eda_timer_stop();
+            eda_app_timings.on_time_count = 0;
+            eda_app_timings.off_time_count = 0;
+            eda_app_timings.start_time_count = 0;
+            eda_app_timings.delayed_start =  false;
+          }
+#endif//USER0_CONFIG_APP
         } else {
           g_state_eda.num_starts = 1;
           status = M2M2_APP_COMMON_STATUS_ERROR;
@@ -795,6 +990,11 @@ static m2m2_hdr_t *eda_app_stream_config(m2m2_hdr_t *p_pkt) {
 
     case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
       g_state_eda.num_subs++;
+      if(g_state_eda.num_subs == 1)
+      {
+         /* reset pkt sequence no. only during 1st sub request */
+         g_state_eda.data_pkt_seq_num = 0;
+      }
       post_office_setup_subscriber(
           M2M2_ADDR_MED_EDA, M2M2_ADDR_MED_EDA_STREAM, p_pkt->src, true);
       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
@@ -836,6 +1036,8 @@ uint32_t eda_de_init_diff_time;
  * @return ECG_ERROR_CODE_t: Success/Error
  *****************************************************************************/
 EDA_ERROR_CODE_t EDAAppDeInit() {
+  if(init_flag)
+  {
 #ifdef PROFILE_TIME_ENABLED
   uint32_t eda_de_init_start_time = get_micro_sec();
 #endif
@@ -862,6 +1064,7 @@ EDA_ERROR_CODE_t EDAAppDeInit() {
 #ifdef PROFILE_TIME_ENABLED
   eda_de_init_diff_time = get_micro_sec() - eda_de_init_start_time;
 #endif
+  }
   return EDA_SUCCESS;
 }
 

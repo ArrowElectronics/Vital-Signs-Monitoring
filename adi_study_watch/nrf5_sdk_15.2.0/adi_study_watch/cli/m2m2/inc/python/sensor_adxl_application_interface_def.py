@@ -4,6 +4,7 @@ from common_application_interface_def import *
 
 from common_sensor_interface_def import *
 
+
 class M2M2_SENSOR_ADXL_COMMAND_ENUM_t(c_ubyte):
     _M2M2_SENSOR_ADXL_COMMAND_LOWEST = 0x40
     M2M2_SENSOR_ADXL_COMMAND_LOAD_CFG_REQ = 0x42

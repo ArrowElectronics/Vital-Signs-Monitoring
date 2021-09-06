@@ -67,10 +67,16 @@ extern "C" {
 #define HR_ALGO_EN              ((uint16_t)(1 << HR_ALGO_BIT_P))   /* 0x1000 */
 
 /* Target Channel input options*/
+/* bit[3:0] options */
+#define  BITM_TARGET_CH  0x0F 
 #define TARGET_CH1 1 /* ch1-> PD1 ch2-> PD2 ,ch1 data will be fed to HRM*/
 #define TARGET_CH2 2 /* ch1-> PD1 ch2-> PD2 ,ch2 data will be fed to HRM*/
 #define TARGET_CH3 3 /* ch1-> PD1+PD2-> ,ch1 data will be fed to HRM (Analog Sum)*/
-#define TARGET_CH4 4 /* ch1-> ch1 >> sift factor + ch2 >> shift factor ,ch1 data will be fed to HRM (Digital Sum)*/ 
+#define TARGET_CH4 4 /* ch1-> ch1 >> shift factor + ch2 >> shift factor ,ch1 data will be fed to HRM (Digital Sum)*/ 
+/* bit[6:4] option */
+#define BITM_CHANNEL_SHIFT_FACTOR 0x70 /* shift factor on channel data for targetChs TARGET_CH3 and TARGET_CH4 options*/ 
+/* bit[7] option */
+#define BITM_DISABLE_CH2_PACKETIZATION 0x80 /* setting bit position 8 in targetChs lcfg will skip ch2 packetization in adpd task for targetChs TARGET_CH3 and TARGET_CH4 options*/
 
 /*Maximum Gain settings for ch1 and ch2*/
 #define CH1_GAIN_MAX_REG_VAL 4
@@ -94,13 +100,13 @@ typedef enum {
     ADPDLIB_ERR_AFE_SATURATION             = -14,// no variance 
     ADPDLIB_ERR_ALGO_INPUT_OVERFLOW        = -15,// algo input limit exceeded 
     ADPDLIB_ERR_STATIC_AGC_ADJUSTED        = -16,
-    // Code < 100 should be the same as AdpdLibCommon.h //
+    /* Code < 100 should be the same as AdpdLibCommon.h */
     ADPDLIB_ERR_SYNC_ERR                   = -100,
     ADPDLIB_ERR_SYNC_BUFFERING             = -101,
     ADPDLIB_ERR_SYNC_OUTOFSYNC             = -102
 } ADPDLIB_ERROR_CODE_t;
 
-/* enum similar to what we have in adi_vsm_hrv.h */
+/* enum similar to what is there in adi_vsm_hrv.h */
 typedef enum {
 ADPDLIB_HRV_PPG_B2B_VALID_RR = 1,
 ADPDLIB_HRV_PPG_B2B_GAP = 8
@@ -138,7 +144,7 @@ typedef struct AlgoRawDataStruct {
 
 /* New structure for LCFG parameters */
 typedef struct Adpd400xLibConfig {
-/*  AdpdLib2 specific parameters  */
+/*  AdpdLib2 specific parameters */
 /*  New elements to be added at the end of the structure  */
     uint16_t partNum;
     uint16_t targetSlots;
@@ -189,7 +195,7 @@ typedef struct Adpd400xLibConfig {
     uint16_t sqiLowPowerThreshold;
     uint16_t sqiHighPowerThreshold;
 
-    /*ADI algo parameters*/
+    /* ADI algo parameters */
     int16_t  spotalgosamplerate;
     int16_t  spotalgodecimation;
     int16_t  mindifftrackSpot;
@@ -295,7 +301,7 @@ extern void Adpd400xLibGetAlgoRawData(AlgoRawDataStruct_t*);
 extern uint8_t Adpd400xLibGetDetectOnValues(uint32_t *val,
                       uint32_t *valAir,
                       uint32_t *var);
-extern void Adpd400xLibAdjestAmbient(void);  // adjuest for float mode Ambient.
+extern void Adpd400xLibAdjestAmbient(void);  /* adjust for float mode Ambient */
 extern void Adpd400xLibSyncInit();
 extern int16_t *AdpdLibGetSyncAccel();
 extern uint32_t AdpdLibGetSyncAccelTs();

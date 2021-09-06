@@ -116,7 +116,7 @@ static char PatternFileName[16] = "PATTERN.LOG";
 
 /* Size of flash in bytes = 2048 * 64 * 4096 */
 #define FLASH_SIZE                      536870912
-                   
+
 /* Total num of pages in Flash */
 #define TOTAL_NUM_OF_PAGES              (FLASH_SIZE/PAGE_SIZE)
 /* ADI_FS_FILE_MAX_SIZE is the no of pages allocated
@@ -149,6 +149,10 @@ extern uint16_t fs_display_query_cnt;
 #endif
 uint8_t fs_status_stored = 0;
 uint32_t num_bytes_processed = 0;
+uint8_t append_req = 0;
+
+/* keep disabled this feature by default */
+bool file_append=false;
 
 #ifdef LOW_TOUCH_FEATURE
 extern uint8_t gSendRespToPmApp;
@@ -173,15 +177,24 @@ extern uint8_t ConfigFileName[16];
 NRF_LOG_MODULE_REGISTER();
 
 ADI_OSAL_SEM_HANDLE   qspi_task_evt_sem;
+ADI_OSAL_SEM_HANDLE   fs_task_evt_sem;
 /* semaphore handler for low touch task */
 extern ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
-
+#ifdef USER0_CONFIG_APP
+#include "user0_config_app_task.h"
+extern ADI_OSAL_SEM_HANDLE   user0_config_app_evt_sem;
+#endif
 extern uint8_t setFsDownloadFlag(uint8_t flag);
 extern uint8_t get_file_download_chunk_count();
 #ifdef ENABLE_WATCH_DISPLAY
 extern void reset_display_vol_info();
+#ifdef CUST4_SM
+extern void reset_display_vol_info1();
+#endif
 #endif
 extern volatile uint8_t gsCfgFileFoundFlag;
+/* this is made global variable to handler start log response/appended response*/
+uint16_t appended_status = (M2M2_FILE_SYS_STATUS_ENUM_t)M2M2_FILE_SYS_STATUS_ERROR;
 #ifdef PROFILE_TIME_ENABLED
 extern uint32_t num_bytes_transferred,usb_avg_tx_time,usb_avg_cdc_write_time;
 extern uint32_t min_file_read_time,avg_file_read_time,max_file_read_time;
@@ -366,6 +379,7 @@ void file_system_task_init(void) {
   }
 
   adi_osal_SemCreate(&qspi_task_evt_sem, 0);
+  adi_osal_SemCreate(&fs_task_evt_sem, 0);
 #endif
 }
 
@@ -653,20 +667,20 @@ void get_file_misd_packet_debug_info(m2m2_file_sys_debug_info_resp_t *debug_info
     @return           void
 ****************************************************************************************************/
 void get_fs_format_debug_info(m2m2_file_sys_format_debug_info_resp_t *debug_info) {
-    debug_info->format_src_blk_ind = tmp_fs_format_debug_info.format_src_blk_ind; 
-    debug_info->format_dest_blk_ind_1 = tmp_fs_format_debug_info.format_dest_blk_ind_1; 
-    debug_info->format_dest_blk_ind_2 = tmp_fs_format_debug_info.format_dest_blk_ind_2; 
-    debug_info->wrap_around_cond = tmp_fs_format_debug_info.wrap_around_cond; 
-    debug_info->erase_failed_due_bad_block_check = tmp_fs_format_debug_info.erase_failed_due_bad_block_check; 
-    debug_info->nothing_is_written_to_erase_error = tmp_fs_format_debug_info.nothing_is_written_to_erase_error; 
-    debug_info->mem_full_in_partial_erase = tmp_fs_format_debug_info.mem_full_in_partial_erase; 
-    debug_info->num_blocks_erased_in_mem_full_partial_erase = tmp_fs_format_debug_info.num_blocks_erased_in_mem_full_partial_erase; 
-    debug_info->num_blocks_erased_in_partial_erase_1 = tmp_fs_format_debug_info.num_blocks_erased_in_partial_erase_1; 
-    debug_info->num_blocks_erased_in_partial_erase_2 = tmp_fs_format_debug_info.num_blocks_erased_in_partial_erase_2; 
-    debug_info->num_times_format_failed_due_bad_blocks_1 = tmp_fs_format_debug_info.num_times_format_failed_due_bad_blocks_1; 
-    debug_info->num_times_format_failed_due_bad_blocks_2 = tmp_fs_format_debug_info.num_times_format_failed_due_bad_blocks_2; 
-    debug_info->toc_mem_erased_flag = tmp_fs_format_debug_info.toc_mem_erased_flag; 
-    debug_info->succesfull_erase_flag = tmp_fs_format_debug_info.succesfull_erase_flag; 
+    debug_info->format_src_blk_ind = tmp_fs_format_debug_info.format_src_blk_ind;
+    debug_info->format_dest_blk_ind_1 = tmp_fs_format_debug_info.format_dest_blk_ind_1;
+    debug_info->format_dest_blk_ind_2 = tmp_fs_format_debug_info.format_dest_blk_ind_2;
+    debug_info->wrap_around_cond = tmp_fs_format_debug_info.wrap_around_cond;
+    debug_info->erase_failed_due_bad_block_check = tmp_fs_format_debug_info.erase_failed_due_bad_block_check;
+    debug_info->nothing_is_written_to_erase_error = tmp_fs_format_debug_info.nothing_is_written_to_erase_error;
+    debug_info->mem_full_in_partial_erase = tmp_fs_format_debug_info.mem_full_in_partial_erase;
+    debug_info->num_blocks_erased_in_mem_full_partial_erase = tmp_fs_format_debug_info.num_blocks_erased_in_mem_full_partial_erase;
+    debug_info->num_blocks_erased_in_partial_erase_1 = tmp_fs_format_debug_info.num_blocks_erased_in_partial_erase_1;
+    debug_info->num_blocks_erased_in_partial_erase_2 = tmp_fs_format_debug_info.num_blocks_erased_in_partial_erase_2;
+    debug_info->num_times_format_failed_due_bad_blocks_1 = tmp_fs_format_debug_info.num_times_format_failed_due_bad_blocks_1;
+    debug_info->num_times_format_failed_due_bad_blocks_2 = tmp_fs_format_debug_info.num_times_format_failed_due_bad_blocks_2;
+    debug_info->toc_mem_erased_flag = tmp_fs_format_debug_info.toc_mem_erased_flag;
+    debug_info->succesfull_erase_flag = tmp_fs_format_debug_info.succesfull_erase_flag;
   }
 
 /*!
@@ -805,15 +819,14 @@ bool UpdateFileInfo(){
   uint32_t vol_info_timer_start=0;
   uint32_t vol_info_timer_gap=0;
 #endif
+
 void file_system_task(void *pArgument) {
   m2m2_hdr_t                            *pkt = NULL;
-  _m2m2_app_common_cmd_t                *ctrl_cmd = NULL;
-  m2m2_hdr_t                            *response_mail = NULL;
   ADI_OSAL_STATUS                       err;
   bool                                  file_hdr_wr_progress = false;
-  uint32_t                              timeout = ADI_OSAL_TIMEOUT_FOREVER;
   uint8_t                               fs_stream_final_buffer = 1;
   uint16_t                              nSeqNum = 0;
+  static uint32_t                       timeout = ADI_OSAL_TIMEOUT_FOREVER;
   M2M2_ADDR_ENUM_t                      nTempAdress;
 
 #ifdef DEBUG_LOG_START
@@ -827,7 +840,7 @@ void file_system_task(void *pArgument) {
       /* delete thread, only if driver error */
       adi_osal_ThreadDestroy(gh_fs_task_handler);
   }
-  
+
   /* flash power off */
   adp5360_enable_ldo(FS_LDO,false);
 
@@ -845,13 +858,26 @@ void file_system_task(void *pArgument) {
     post_office_send(pkt, &err);
   }
 
+  /*Wait for FDS init to complete*/
+  adi_osal_SemPend(fs_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+
   FindConfigFile(&gsCfgFileFoundFlag);
 #ifdef LOW_TOUCH_FEATURE
 
   adi_osal_SemPost(lt_task_evt_sem);
+#ifdef CUST4_SM
+  /*If wakeup from RTC timer interrupt, switch to intermittent operation
+   And for that send message that the config file update status is ready*/
+  if(get_user0_config_app_state() == STATE_SLEEP)
+  {
+     adi_osal_SemPost(user0_config_app_evt_sem);
+  }
+#endif
 #endif
 
   while (1) {
+    m2m2_hdr_t *response_mail = NULL;
+    _m2m2_app_common_cmd_t *ctrl_cmd = NULL;
     pkt = post_office_get(timeout,APP_OS_CFG_FS_TASK_INDEX);
     if (pkt != NULL) {
 //      gFileSystemMsgProcessCnt++;
@@ -925,7 +951,12 @@ void file_system_task(void *pArgument) {
             }
             else {
 #ifdef ENABLE_WATCH_DISPLAY
-              reset_display_vol_info();
+              if(!get_low_touch_trigger_mode3_status())
+                reset_display_vol_info();
+#ifdef CUST4_SM
+              else
+                reset_display_vol_info1();
+#endif
 #endif
               format_resp->status = M2M2_FILE_SYS_STATUS_OK;
             }
@@ -942,7 +973,7 @@ void file_system_task(void *pArgument) {
         }
         break;
        } /* response_mail != NULL */
-#ifdef FS_TEST_CODE        
+#ifdef FS_TEST_CODE
         case M2M2_FILE_SYS_CMD_BLOCK_ERASE_REQ: {
         m2m2_file_sys_blk_erase_cmd_t *block_erase_req = (m2m2_file_sys_blk_erase_cmd_t *)&pkt->data[0];
         response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_blk_erase_cmd_t));
@@ -970,7 +1001,7 @@ void file_system_task(void *pArgument) {
           fs_flash_power_on(false);
         }
         break;
-       }       
+       }
         case M2M2_FILE_SYS_WRITE_RANDOM_DATA_TO_RSD_BLK_REQ: {
         m2m2_file_sys_write_rsd_blk_cmd_t *input_payload = (m2m2_file_sys_write_rsd_blk_cmd_t *)&pkt->data[0];
         response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_write_rsd_blk_cmd_t));
@@ -1164,7 +1195,7 @@ void file_system_task(void *pArgument) {
         }
         break;
       }
-
+#if 0
       case M2M2_FILE_SYS_CMD_PAGE_READ_TEST_REQ: {
         FS_STATUS_ENUM_t fs_err_status = FS_STATUS_ERR;
         m2m2_file_sys_page_read_test_req_pkt_t *page_read_test_req = (m2m2_file_sys_page_read_test_req_pkt_t *)&pkt->data[0];
@@ -1188,6 +1219,9 @@ void file_system_task(void *pArgument) {
               response_mail->src = pkt->dest;
               response_mail->dest = pkt->src;
               page_read_test_resp->page_num = page_read_test_req->page_num;
+              /* stream started */
+              fs_stream_state = ADI_FS_STREAM_STARTED;
+
               /* read the data and spare area of a page */
               page_read_test_resp->num_bytes = page_read_test_req->num_bytes;
               fs_err_status = fs_hal_page_read_test(&page_read_test_req->page_num,page_read_test_resp,\
@@ -1196,11 +1230,13 @@ void file_system_task(void *pArgument) {
                 page_read_test_resp->status = fs_err_status;
               } else {
                 page_read_test_resp->status = M2M2_FILE_SYS_STATUS_OK;
-
               }
               post_office_send(response_mail, &err);
+
+               /* stream started */
+              fs_stream_state = ADI_FS_STREAM_STOPPED;
             }
-            
+
           /* Power off Flash */
           if(fs_flash_power_on(false) != FS_STATUS_OK) {
             NRF_LOG_INFO("Error flash power on");
@@ -1208,7 +1244,7 @@ void file_system_task(void *pArgument) {
         }
         break;
       }
-
+#endif
       case M2M2_FILE_SYS_CMD_LS_REQ: {
         FS_STATUS_ENUM_t fs_err_status = FS_STATUS_ERR;
         char file_dir[16];
@@ -1537,6 +1573,86 @@ void file_system_task(void *pArgument) {
           resp_payload->stream = req_payload->stream;
           response_mail->src = pkt->dest;
           post_office_send(response_mail, &err);
+        }
+        break;
+      }case M2M2_FILE_SYS_CMD_APPEND_FILE_REQ : {
+        FS_STATUS_ENUM_t ret;
+
+         /* open previous file handler and assign it to global array */
+         ret = fs_hal_append_file();
+         if( ret != FS_STATUS_OK)  {
+          if(ret == FS_STATUS_NO_FILE_TO_APPEND_ERROR)  {
+
+            /* allow create new file , reset flag */
+            file_append = false;
+
+            /* assign file src */
+            FileSrc = pkt->src;
+
+            /* assign flag to skip set of flag */
+            append_req=1;
+
+            appended_status = (M2M2_FILE_SYS_STATUS_ENUM_t)M2M2_FILE_SYS_STATUS_OK;
+
+              /* send command to file system task to create file */
+              response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
+              if (response_mail != NULL) {
+                _m2m2_app_common_cmd_t *file_stream_start_resp = (_m2m2_app_common_cmd_t *)&response_mail->data[0];
+                file_stream_start_resp->command = M2M2_FILE_SYS_CMD_START_LOGGING_REQ;
+                file_stream_start_resp->status = M2M2_FILE_SYS_STATUS_OK;
+
+                /* send response packet */
+                response_mail->src = M2M2_ADDR_SYS_FS;
+                response_mail->dest = M2M2_ADDR_SYS_FS;
+                post_office_send(response_mail, &err);
+              }
+
+            /* response is broken , so that response is given from start logging request */
+            break;
+          }
+          else  {
+            appended_status = (M2M2_FILE_SYS_STATUS_ENUM_t)M2M2_FILE_SYS_STATUS_ERROR;
+          }
+         }
+         else  {
+          /* allow previous file to append */
+          file_append = true;
+          appended_status = (M2M2_FILE_SYS_STATUS_ENUM_t)M2M2_FILE_SYS_STATUS_OK;
+
+          /* variables required for logging */
+
+          /* update file source for destination address */
+	  FileSrc = pkt->src;
+
+          /* file header write made false for stream write */
+         file_hdr_wr_progress = false;
+
+          /* set appropriate write mode */
+          set_write_handler_mode();
+#ifdef ENABLE_WATCH_DISPLAY
+          /* reset variables to track counters for logging */
+          min_timer_cnt = fs_display_query_cnt = 0;
+          if(!get_low_touch_trigger_mode3_status())
+            reset_display_vol_info();
+#ifdef CUST4_SM
+          else
+            reset_display_vol_info1();
+#endif
+           //Update the NAND memory progress bar in Main menu page of Display
+           send_private_type_value(DIS_REFRESH_SIGNAL);
+#endif
+         }
+
+        /* send response to source back */
+        m2m2_file_sys_cmd_t *req_payload= (m2m2_file_sys_cmd_t*)&pkt->data[0];
+        response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_cmd_t));
+        if (response_mail != NULL) {
+            m2m2_file_sys_cmd_t *resp_payload = (m2m2_file_sys_cmd_t*)&response_mail->data[0];
+            response_mail->dest = pkt->src;
+            response_mail->src = pkt->dest;
+            resp_payload->command = M2M2_FILE_SYS_CMD_APPEND_FILE_RESP;
+            resp_payload->status = appended_status;
+            post_office_send(response_mail, &err);
         }
         break;
       }case M2M2_FILE_SYS_CMD_GET_IMPT_DEBUG_INFO_REQ : {
@@ -1877,22 +1993,25 @@ void file_system_task(void *pArgument) {
 #endif
             /* Create file and start logging */
             file_hdr_wr_progress = true;
-            /* Generate file name from RTC Time */
-            time_t return_time;
-            int16_t timezone_offset;
 
-            fs_err_status = fs_hal_get_file_count(&nFileCount);
-            if( (fs_err_status == FS_STATUS_OK) && (nFileCount >= (MAXFILENUMBER-1)) )
-              fs_err_status = FS_STATUS_ERR_MAX_FILE_COUNT;
+            /* create a file in write mode */
+            if(file_append == false)  {
+              /* Generate file name from RTC Time */
+              time_t return_time;
+              int16_t timezone_offset;
 
-            if(fs_err_status == FS_STATUS_OK) {
-              /*reintialize the status variable*/
-              fs_err_status = FS_STATUS_ERR;
-              if( !get_log_time_stamp(&return_time, &timezone_offset)) {
-              /* For file name creation timezone_offset is not required */
-               local_get_date_time = m_sec_to_date_time(return_time + timezone_offset);
-                 do {
-                   snprintf(caTime, sizeof(caTime), "%2u%2u%2u", local_get_date_time->tm_hour,
+              fs_err_status = fs_hal_get_file_count(&nFileCount);
+              if( (fs_err_status == FS_STATUS_OK) && (nFileCount >= (MAXFILENUMBER-1)) )
+                fs_err_status = FS_STATUS_ERR_MAX_FILE_COUNT;
+
+              if(fs_err_status == FS_STATUS_OK) {
+                /*reintialize the status variable*/
+                fs_err_status = FS_STATUS_ERR;
+                if( !get_log_time_stamp(&return_time, &timezone_offset)) {
+                  /* For file name creation timezone_offset is not required */
+                  local_get_date_time = m_sec_to_date_time(return_time + timezone_offset);
+                  do {
+                    snprintf(caTime, sizeof(caTime), "%2u%2u%2u", local_get_date_time->tm_hour,
                             local_get_date_time->tm_min,nFileCount+1);
                    /* set spaces to zeros */
                    while (caTime[nIndex] != '\0') {
@@ -1923,31 +2042,32 @@ void file_system_task(void *pArgument) {
                        date[nIndex] = '0';
                      }
                      nIndex++;
-                   }
-                   nIndex = 0;
-                   snprintf(fname, sizeof(fname), "%s.LOG\0",&date[0]);
-                   fs_err_status = fs_hal_find_file(fname);
-                 } while(fs_err_status == FS_STATUS_OK);
-               } else {
-                 /* use default file name if file name could not be generated */
-                 snprintf(fname, sizeof(fname), "%s\\NANDDFLT.LOG", fs_hal_vol_name());
-               }
-              fs_err_status = fs_hal_open_file(fname);
-            }
-            if (fs_err_status != FS_STATUS_OK) {
-              /* Send response for log start */
-              response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_cmd_t));
-              if (response_mail != NULL) {
-                m2m2_file_sys_cmd_t *file_stream_start_resp = (m2m2_file_sys_cmd_t *)&response_mail->data[0];
-                file_stream_start_resp->command = M2M2_FILE_SYS_CMD_START_LOGGING_RESP;
-                switch(fs_err_status) {
-                 case FS_STATUS_ERR_MAX_FILE_COUNT: {
-                   file_stream_start_resp->status = M2M2_FILE_SYS_ERR_MAX_FILE_COUNT;
-                   break;
-                 }
-                 case FS_STATUS_ERR_CONFIG_FILE_POSITION: {
-                   file_stream_start_resp->status = M2M2_FILE_SYS_ERR_CONFIG_FILE_POSITION;
-                   break;
+                    }
+                    nIndex = 0;
+                    snprintf(fname, sizeof(fname), "%s.LOG\0",&date[0]);
+                    fs_err_status = fs_hal_find_file(fname);
+                  } while(fs_err_status == FS_STATUS_OK);
+                } else {
+                      /* use default file name if file name could not be generated */
+                      snprintf(fname, sizeof(fname), "%s\\NANDDFLT.LOG", fs_hal_vol_name());
+                  }
+                fs_err_status = fs_hal_open_file(fname);
+              }
+              if (fs_err_status != FS_STATUS_OK) {
+                /* Send response for log start */
+                response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_cmd_t));
+                if (response_mail != NULL) {
+                  m2m2_file_sys_cmd_t *file_stream_start_resp = (m2m2_file_sys_cmd_t *)&response_mail->data[0];
+                  file_stream_start_resp->command = M2M2_FILE_SYS_CMD_START_LOGGING_RESP;
+
+                  switch(fs_err_status) {
+                  case FS_STATUS_ERR_MAX_FILE_COUNT: {
+                    file_stream_start_resp->status = M2M2_FILE_SYS_ERR_MAX_FILE_COUNT;
+                    break;
+                  }
+                  case FS_STATUS_ERR_CONFIG_FILE_POSITION: {
+                    file_stream_start_resp->status = M2M2_FILE_SYS_ERR_CONFIG_FILE_POSITION;
+                    break;
                  }
                  case FS_STATUS_ERR_INVALID_DIR: {
                    file_stream_start_resp->status = M2M2_FILE_SYS_ERR_INVALID;
@@ -1964,8 +2084,40 @@ void file_system_task(void *pArgument) {
                 post_office_send(response_mail, &err);
               }
             } else {
-              FileSrc = pkt->src;
+              if(append_req != 1) {
+                FileSrc = pkt->src;
+              }
+
+#ifdef USER0_CONFIG_APP
+              uint16_t exp_id = 0;
+              uint8_t exp_id_str[16] = "\0";
+              /* Read exp_id: from user0 config DCB first,
+                 if it doesnt exist read from fw lcfg */
+              if( (get_id_num(USER0_CONFIG_LCFG_EXP_ID, &exp_id)==GET_ID_FAILURE) ) {
+                get_id_num_fw_lcfg(&exp_id);
+              }
+              //If experiment id is Valid(ie from 1-9999 range)
+              if(exp_id != 0){
+                //Update the g_userinfo structure
+                m_time_struct *local_get_date_time;
+                time_t return_time;
+                int16_t timezone_offset;
+
+                get_log_time_stamp(&return_time, &timezone_offset);
+                local_get_date_time = m_sec_to_date_time(return_time + timezone_offset);//For file getDateTime timezone_offset IS required
+                sprintf(exp_id_str,"%d", exp_id);
+                memcpy(&g_userinfo.valueID[0], (void *)&exp_id_str,sizeof(g_userinfo.valueID));
+                g_userinfo.keyID = M2M2_KEY_ID;
+                g_userinfo.year = local_get_date_time->tm_year;
+                g_userinfo.month = local_get_date_time->tm_mon;
+                g_userinfo.day = local_get_date_time->tm_mday;
+                g_userinfo.hour = local_get_date_time->tm_hour;
+                g_userinfo.minute = local_get_date_time->tm_min;
+                g_userinfo.second = local_get_date_time->tm_sec;
+                g_userinfo.TZ_sec = timezone_offset;
+#else
               if((g_userinfo.keyID != M2M2_DEFAULT_KEY_ID)){
+#endif
                 /* Create Key Value pair packet */
                 response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_set_key_value_pair_resp_t));
                 if (response_mail != NULL) {
@@ -1983,7 +2135,8 @@ void file_system_task(void *pArgument) {
                   }
                   post_office_consume_msg(response_mail);
                 }
-              }
+              }//if(exp_id != 0) or if((g_userinfo.keyID != M2M2_DEFAULT_KEY_ID))
+
               /* 2 - Request PM Date and time Information */
               response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
               if (response_mail != NULL) {
@@ -1995,26 +2148,35 @@ void file_system_task(void *pArgument) {
                 response_mail->dest = M2M2_ADDR_SYS_PM;
                 post_office_send(response_mail, &err);
               }
-            }
+
 #ifdef ENABLE_WATCH_DISPLAY
-            reset_display_vol_info();
-            //Update the NAND memory progress bar in Main menu page of Display
-            send_private_type_value(DIS_REFRESH_SIGNAL);
+              /* reset variables to track counters for logging */
+              min_timer_cnt = fs_display_query_cnt = 0;
+              if(!get_low_touch_trigger_mode3_status())
+                reset_display_vol_info();
+#ifdef CUST4_SM
+              else
+                reset_display_vol_info1();
 #endif
-          } else {
-            /* Send Error response as logging is already in progress */
-            response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
-            if (response_mail != NULL) {
-              _m2m2_app_common_cmd_t *file_stream_start_resp = (_m2m2_app_common_cmd_t *)&response_mail->data[0];
-              file_stream_start_resp->command = M2M2_FILE_SYS_CMD_START_LOGGING_RESP;
-              file_stream_start_resp->status = M2M2_FILE_SYS_STATUS_LOGGING_IN_PROGRESS;
-              /* send response packet */
-              response_mail->src = pkt->dest;
-              response_mail->dest = pkt->src;
-              post_office_send(response_mail, &err);
-            }
+              //Update the NAND memory progress bar in Main menu page of Display
+              send_private_type_value(DIS_REFRESH_SIGNAL);
+#endif
+            }//else for if (fs_err_status != FS_STATUS_OK)
+            }//if(file_append == false)
+          } else { //else of if(fs_hal_write_access_state() == FS_FILE_ACCESS_START)
+                /* Send Error response as logging is already in progress */
+                response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
+                if (response_mail != NULL) {
+                  _m2m2_app_common_cmd_t *file_stream_start_resp = (_m2m2_app_common_cmd_t *)&response_mail->data[0];
+                  file_stream_start_resp->command = M2M2_FILE_SYS_CMD_START_LOGGING_RESP;
+                  file_stream_start_resp->status = M2M2_FILE_SYS_STATUS_LOGGING_IN_PROGRESS;
+                  /* send response packet */
+                  response_mail->src = pkt->dest;
+                  response_mail->dest = pkt->src;
+                  post_office_send(response_mail, &err);
+                }
           }
-        }
+        }//else of if(fs_flash_power_on(true) != FS_STATUS_OK)
         break;
       }
       /* Resp for Date time req(step2) */
@@ -2330,25 +2492,33 @@ void file_system_task(void *pArgument) {
             file_hdr_wr_progress = true;
           } else {
 #endif
-            response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
+
+            response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_cmd_t));
             if (response_mail != NULL) {
-              _m2m2_app_common_cmd_t *file_stream_start_resp = (_m2m2_app_common_cmd_t *)&response_mail->data[0];
-              file_stream_start_resp->command = M2M2_FILE_SYS_CMD_START_LOGGING_RESP;
-              file_stream_start_resp->status = M2M2_FILE_SYS_STATUS_OK;
+              m2m2_file_sys_cmd_t *resp_payload= (m2m2_file_sys_cmd_t*)&response_mail->data[0];
+
               file_hdr_wr_progress = false;
-              /* send response packet */
+              if(append_req) {
+                resp_payload->command = M2M2_FILE_SYS_CMD_APPEND_FILE_RESP;
+                resp_payload->status = appended_status;
+                /* clear flag */
+                append_req = 0;
+              } else {
+                resp_payload->command = M2M2_FILE_SYS_CMD_START_LOGGING_RESP;
+                resp_payload->status = M2M2_FILE_SYS_STATUS_OK;
+              }
               response_mail->src = pkt->dest;
               response_mail->dest = FileSrc;
               post_office_send(response_mail, &err);
+            }
 #ifdef DEBUG_LOG_START
-              start_log_timer_gap = get_micro_sec() -  start_log_timer_start;
+            start_log_timer_gap = get_micro_sec() -  start_log_timer_start;
 #endif
 #ifdef ENABLE_WATCH_DISPLAY
-              /* reset variables to track counters for logging */ 
-              min_timer_cnt = fs_display_query_cnt = 0;
+            /* reset variables to track counters for logging */
+            min_timer_cnt = fs_display_query_cnt = 0;
 #endif
-            }
-          }
+          }//else of if(err_status != M2M2_APP_COMMON_STATUS_OK)
         }
         break;
       }
@@ -2476,7 +2646,7 @@ void file_system_task(void *pArgument) {
               nTick = MCU_HAL_GetTick();
 #endif
               fs_error |= fs_hal_test_pattern_write(pArr, sizeof(pArr));
-              
+
 #ifdef NAND_WRITE_TEST
             g_write_time = (MCU_HAL_GetTick() - nTick);
             g_file_write_time += g_write_time;
@@ -2535,13 +2705,13 @@ void file_system_task(void *pArgument) {
               if(fs_error != FS_STATUS_OK)  {
                 if(fs_error == FS_STATUS_ERR_MAX_FILE_COUNT)  {
                   fs_err_open_status = M2M2_FILE_SYS_ERR_MAX_FILE_COUNT;
-                } 
+                }
                 else if(fs_error == FS_STATUS_ERR_CONFIG_FILE_POSITION) {
                   fs_err_open_status = M2M2_FILE_SYS_ERR_CONFIG_FILE_POSITION;
-                } 
+                }
                 else if(fs_error == FS_STATUS_ERR_MEMORY_FULL)  {
                   fs_err_open_status =  (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_ERR_MEMORY_FULL;
-                } 
+                }
                else  {
                  fs_err_open_status = M2M2_FILE_SYS_STATUS_ERROR;
                 }
@@ -2558,7 +2728,12 @@ void file_system_task(void *pArgument) {
                 FileSrc = pkt->src;
 
 #ifdef ENABLE_WATCH_DISPLAY
-                reset_display_vol_info();
+                if(!get_low_touch_trigger_mode3_status())
+                  reset_display_vol_info();
+#ifdef CUST4_SM
+                else
+                  reset_display_vol_info1();
+#endif
                 //Update the NAND memory progress bar in Main menu page of Display
                 send_private_type_value(DIS_REFRESH_SIGNAL);
 #endif
@@ -2576,7 +2751,7 @@ void file_system_task(void *pArgument) {
                   g_write_time = (MCU_HAL_GetTick() - nTick);
                   g_file_write_time += g_write_time;
                   NRF_LOG_INFO("Write time for a page = %d",g_write_time);
-#endif  
+#endif
                 }
               }
             }
@@ -2591,7 +2766,7 @@ void file_system_task(void *pArgument) {
             if(fs_err_open_status != FS_STATUS_OK)  {
               /* failure in creation of file */
               ctrl->status = fs_err_open_status;
-            } 
+            }
             else  {
               /* process write errors */
               if(fs_error ==  (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_ERR_MEMORY_FULL){
@@ -2605,7 +2780,7 @@ void file_system_task(void *pArgument) {
                 ctrl->status = FS_STATUS_OK;
               }
             }
-              
+
             response_mail->dest = pkt->src;
             response_mail->src =  pkt->dest;
             post_office_send(response_mail, &err);
@@ -2628,9 +2803,14 @@ void file_system_task(void *pArgument) {
             /* update file src */
             FileSrc = M2M2_ADDR_UNDEFINED;
 #ifdef ENABLE_WATCH_DISPLAY
+            if(!get_low_touch_trigger_mode3_status())
               reset_display_vol_info();
-              //Update the NAND memory progress bar in Main menu page of Display
-              send_private_type_value(DIS_REFRESH_SIGNAL);
+#ifdef CUST4_SM
+            else
+              reset_display_vol_info1();
+#endif
+            //Update the NAND memory progress bar in Main menu page of Display
+            send_private_type_value(DIS_REFRESH_SIGNAL);
 #endif
 
 #endif /* PATTERN_WRITE_ENABLED */
@@ -2672,7 +2852,134 @@ void file_system_task(void *pArgument) {
         }
         break;
       }
+#if 0
+      case M2M2_FILE_SYS_CMD_FILE_READ_TEST_REQ: {
+        m2m2_file_sys_sample_data_file_read_req_t *payload = (m2m2_file_sys_sample_data_file_read_req_t*)&pkt->data[0];
+         /* Flash power on */
+        if(fs_flash_power_on(true) != FS_STATUS_OK) {
+             response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_sample_data_file_read_resp_t));
+              if(response_mail != NULL) {
+                m2m2_file_sys_sample_data_file_read_resp_t *resp_payload = (m2m2_file_sys_sample_data_file_read_resp_t *)&response_mail->data[0];
+                resp_payload->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_CMD_FILE_READ_TEST_RESP;
+                response_mail->src = pkt->dest;
+                response_mail->dest = pkt->src;
+                resp_payload->status = (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_FILE_SYS_STATUS_ERROR;
+                /* send error response packet */
+                post_office_send(response_mail, &err);
+              }
+          }
+          else {
+            m2m2_file_sys_page_read_test_resp_pkt_t page_read_test_info;
+            M2M2_APP_COMMON_STATUS_ENUM_t fs_err_status = FS_STATUS_OK;
+            uint16_t data_offset=0;
+            uint16_t page_offset=0;
+            memset(pArr,0,PAGE_SIZE);
+            for (int i=payload->start_page_ind;i <= payload->end_page_ind;i++)  {
+                memset(&page_read_test_info,0,sizeof(page_read_test_info));
+                fs_err_status |= fs_hal_page_read_test(&i,&page_read_test_info,MAX_NUM_OF_BYTES_FOR_PAGE_READ_TEST);
+                if (fs_err_status != FS_STATUS_OK) {
+                    break;
+                }
 
+                /* clear pointer after every page read */
+                page_offset = 0;
+                int j;
+
+                for(j=data_offset;j < (data_offset+MAX_NUM_OF_BYTES_FOR_PAGE_READ_TEST);j++)  {
+                  pArr[j] = page_read_test_info.sample_data[page_offset++];
+                }
+
+                /* append a delimiter */
+                pArr[j] = DELIMITER;
+
+                data_offset += (MAX_NUM_OF_BYTES_FOR_PAGE_READ_TEST+sizeof(DELIMITER));
+                if(data_offset == MAX_NUM_OF_DOUBLE_PAGE_READ)  {
+                  response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_sample_data_file_read_resp_t));
+                  if(response_mail == NULL) {
+                    NRF_LOG_INFO("Wait for memory to get allocated");
+
+                    MCU_HAL_Delay(50);
+
+                    i--;/* stay in same page as no memory is allocated */
+                  }
+                  else  {
+                    m2m2_file_sys_sample_data_file_read_resp_t *resp_payload = (m2m2_file_sys_sample_data_file_read_resp_t *)&response_mail->data[0];
+                    resp_payload->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_CMD_FILE_READ_TEST_RESP;
+                    response_mail->src = pkt->dest;
+                    response_mail->dest = pkt->src;
+                    if(fs_err_status == FS_STATUS_OK)  {
+                      resp_payload->status = (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_FILE_SYS_STATUS_OK;
+                    }
+                    else {
+                      resp_payload->status = fs_err_status;
+                    }
+
+                   // hike_fs_prio();
+                    timeout = ADI_OSAL_TIMEOUT_NONE;
+                    fs_stream_state = ADI_FS_STREAM_STARTED;
+
+                    /* copy data */
+                    memcpy(resp_payload->sample_data,pArr,MAX_NUM_OF_DOUBLE_PAGE_READ);
+
+                    /* send response packet */
+                    post_office_send(response_mail, &err);
+
+                    while(get_usbd_tx_pending_status())  {
+                      MCU_HAL_Delay(1);
+                    }
+                    /*clear parray*/
+                    memset(pArr,0,MAX_NUM_OF_DOUBLE_PAGE_READ);
+                    data_offset = 0;
+                  }
+		}
+		else  {
+                  /* if data offset is less than 500 bytes , only few bytes left and in last page , then as well send */
+                  if(i == payload->end_page_ind)  {
+                    response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_sample_data_file_read_resp_t));
+                    if(response_mail == NULL) {
+                      NRF_LOG_INFO("Wait for memory to get allocated");
+
+                      MCU_HAL_Delay(50);
+                      i--;/* stay in same page as no memory is allocated */
+                    }
+                    else  {
+                      m2m2_file_sys_sample_data_file_read_resp_t *resp_payload = (m2m2_file_sys_sample_data_file_read_resp_t *)&response_mail->data[0];
+                      resp_payload->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_CMD_FILE_READ_TEST_RESP;
+                      response_mail->src = pkt->dest;
+                      response_mail->dest = pkt->src;
+
+                      if(fs_err_status == FS_STATUS_OK)
+                        resp_payload->status = (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_FILE_SYS_STATUS_OK;
+
+                      /* copy data */
+                      memcpy(resp_payload->sample_data,pArr,MAX_NUM_OF_SINGLE_PAGE_READ);
+
+                      /* send response packet */
+                      post_office_send(response_mail, &err);
+                    }
+                    /*clear parray*/
+                    memset(pArr,0,MAX_NUM_OF_SINGLE_PAGE_READ);
+                    data_offset = 0;
+
+                    while(get_usbd_tx_pending_status()) {
+                      MCU_HAL_Delay(1);
+                    }
+                  }
+               }
+            }
+         }
+
+        // revert_fs_prio();
+         timeout = ADI_OSAL_TIMEOUT_FOREVER;
+         fs_stream_state = ADI_FS_STREAM_STOPPED;
+
+        /* Flash power off */
+        if(fs_flash_power_on(false) != FS_STATUS_OK) {
+          NRF_LOG_INFO("Flash power off error");
+        }
+        break;
+      }
+#endif
        case M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_REQ: {
         m2m2_file_sys_format_debug_info_req_t *payload = (m2m2_file_sys_format_debug_info_req_t*)&pkt->data[0];
         response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_format_debug_info_resp_t));
@@ -2715,7 +3022,12 @@ void file_system_task(void *pArgument) {
               /* Stop File logging */
               fs_error = fs_hal_close_file(fs_hal_write_file_pointer());
 #ifdef ENABLE_WATCH_DISPLAY
-              reset_display_vol_info();
+              if(!get_low_touch_trigger_mode3_status())
+                reset_display_vol_info();
+#ifdef CUST4_SM
+              else
+                reset_display_vol_info1();
+#endif
               //Update the NAND memory progress bar in Main menu page of Display
               send_private_type_value(DIS_REFRESH_SIGNAL);
 #endif
@@ -2754,6 +3066,8 @@ void file_system_task(void *pArgument) {
                   else {
                     resp_payload->stop_type = M2M2_FILE_SYS_STOP_LOGGING;
                     resp_payload->status = M2M2_FILE_SYS_STATUS_LOGGING_STOPPED;
+                    /*clear flag for next cycle of append , by default this has to be disabled*/
+                    file_append=false;
                   }
                   FileSrc = M2M2_ADDR_UNDEFINED;
                   g_userinfo.keyID = M2M2_DEFAULT_KEY_ID;
@@ -2979,7 +3293,7 @@ void file_system_task(void *pArgument) {
                 if(fs_flash_power_on(false) != FS_STATUS_OK) {
                   NRF_LOG_INFO("Flash power off error");
                 }
-                
+
                 /* send message to source */
                 response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_stop_log_cmd_t));
                 if(response_mail != NULL) {
@@ -2994,7 +3308,7 @@ void file_system_task(void *pArgument) {
                   }
                   FileSrc = M2M2_ADDR_UNDEFINED;
                 }
-            
+
             if (index != -1) {
               file_misd_packet_table[index].missedpackets++;
             }
@@ -3113,6 +3427,7 @@ void file_system_task(void *pArgument) {
 
           nTick = MCU_HAL_GetTick();
 #endif /* NAND_READ_TEST */
+          fs_stream.fs_buffer_size = sizeof(fs_stream.file_buff);
           fs_stream.fs_err_status = fs_hal_read_file(fs_stream.file_path, &fs_stream.file_buff[0], &fs_stream.fs_buffer_size);
           fs_status_stored = fs_stream.fs_err_status;
 #ifdef NAND_READ_TEST

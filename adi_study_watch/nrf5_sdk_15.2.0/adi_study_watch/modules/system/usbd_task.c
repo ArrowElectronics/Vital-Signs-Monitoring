@@ -77,6 +77,9 @@
 #include "adxl_dcfg.h"
 #include "dcb_general_block.h"
 #include "lt_app_lcfg_block.h"
+#ifdef USER0_CONFIG_APP
+#include "dcb_user0_block.h"
+#endif
 #include "mw_ppg.h"
 #include "semphr.h"
 #include "task.h"
@@ -198,8 +201,6 @@ static volatile uint8_t gb_usb_status = USB_DISCONNECTED;
 /* Variable to initiate stream stop from all sensors when USB connection
  * status is either USB_DISCONNECTED or USB_PORT_CLOSED */
 static volatile bool gb_force_stream_stop = false;
-/* Flag to mark that usbd tx task is suspended or not(active) */
-uint8_t gn_usbd_tx_task_suspended = 0;
 /* Variable to hold the current status of USB tx: done or not; to be used by
  * FS task for log download decisions */
 static volatile uint8_t g_usb_tx_pending_flag = 0;
@@ -212,6 +213,14 @@ extern volatile uint32_t  g_lt_task_timeout;
 extern ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
 extern ADI_OSAL_THREAD_HANDLE gh_lt_task_handler;
 extern uint8_t gLowTouchRunning;
+extern ADI_OSAL_SEM_HANDLE   user0_config_app_evt_sem;
+extern ADI_OSAL_SEM_HANDLE   adpd4000_task_evt_sem;
+extern ADI_OSAL_SEM_HANDLE   adxl_task_evt_sem;
+extern ADI_OSAL_SEM_HANDLE   bcm_task_evt_sem;
+extern ADI_OSAL_SEM_HANDLE   ecg_task_evt_sem;
+extern ADI_OSAL_SEM_HANDLE   eda_task_evt_sem;
+extern ADI_OSAL_SEM_HANDLE   ppg_application_task_evt_sem;
+extern ADI_OSAL_SEM_HANDLE   fs_task_evt_sem;
 /*!
  ****************************************************************************
  * @brief  Function to do FDS init adn RTC init
@@ -401,6 +410,25 @@ void dcb_block_status_update() {
   eda_update_dcb_present_flag();
 #endif
   ad7156_update_dcb_present_flag();
+#ifdef USER0_CONFIG_APP
+  user0_blk_update_dcb_present_flag();
+#endif
+}
+#endif
+
+#ifdef CUST4_SM
+/*!
+ ****************************************************************************
+ * @brief  Get status of watch:whether disconnected or connected to the Cradle
+ * @param  None
+ * @return true-> watch disconnected from cradle false->watch connected to cradle
+ ******************************************************************************/
+bool usbd_get_cradle_disconnection_status()
+{
+  if(gb_usb_status == USB_DISCONNECTED)
+    return true;
+  else
+    return false;
 }
 #endif
 
@@ -454,16 +482,26 @@ static void usbd_tx_task(void *pArgument) {
   fds_rtc_init();
   dcb_block_status_update();
 
-  /* Suspend USBD tx task */
-  gn_usbd_tx_task_suspended = 1;
-  vTaskSuspend(NULL);
+  /*
+   FDS garbage collection has a delay, hence all tasks need
+   to wait for it to complete, before FDS can be accessed.
+   Intimate all tasks to continue with SemPend
+  */
+  adi_osal_SemPost(lt_task_evt_sem);
+  adi_osal_SemPost(user0_config_app_evt_sem);
+  adi_osal_SemPost(adpd4000_task_evt_sem);
+  adi_osal_SemPost(adxl_task_evt_sem);
+  adi_osal_SemPost(bcm_task_evt_sem);
+  adi_osal_SemPost(ecg_task_evt_sem);
+  adi_osal_SemPost(eda_task_evt_sem);
+  adi_osal_SemPost(ppg_application_task_evt_sem);
+  adi_osal_SemPost(fs_task_evt_sem);
 
   while (1) {
     adi_osal_SemPend(g_usbd_tx_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
-    gn_usbd_tx_task_suspended = 0;
+    pkt = post_office_get(
+        ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_USBD_TX_TASK_INDEX);
     if (gb_usb_status == USB_PORT_OPENED) {
-      pkt = post_office_get(
-          ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_USBD_TX_TASK_INDEX);
       if (pkt == NULL) {
         continue;
       } else {
@@ -581,12 +619,9 @@ static void usbd_tx_task(void *pArgument) {
     }
     else if ((gb_usb_status == USB_PORT_CLOSED) ||
                (gb_usb_status == USB_DISCONNECTED)) {
-      if (!gb_force_stream_stop) {
-        gn_usbd_tx_task_suspended = 1;
-        usbd_tx_msg_queue_reset();
-        usb_pkt_src = M2M2_ADDR_UNDEFINED;
-        vTaskSuspend(NULL); /* Suspend USB task */
-      } else {
+
+      if (gb_force_stream_stop) {
+        usbd_tx_msg_queue_reset();//TODO: we can read the message from queue and return it to pool
         /* Force-stop Sensor streaming that wasn't stopped */
         m2m2_hdr_t *req_pkt = NULL;
         ADI_OSAL_STATUS err;
@@ -607,9 +642,11 @@ static void usbd_tx_task(void *pArgument) {
           NRF_LOG_INFO("Sending Force stream stop cmd from USB");
           post_office_send(req_pkt, &err);
           gb_force_stream_stop = false;
-          adi_osal_SemPost(g_usbd_tx_task_evt_sem);
+          usb_pkt_src = M2M2_ADDR_UNDEFINED;
         }
       }
+      if(pkt != NULL)
+        post_office_consume_msg(pkt);
     }
   }
 }
@@ -635,7 +672,6 @@ static void cdc_acm_user_ev_handler(
   case APP_USBD_CDC_ACM_USER_EVT_PORT_OPEN: {
     gb_usb_status = USB_PORT_OPENED;
     gb_force_stream_stop = false;
-    adi_osal_ThreadResumeFromISR(gh_usbd_tx_task_handler);
     adi_osal_SemPost(g_usbd_tx_task_evt_sem);
     /* Set up the first transfer */
 #ifdef USE_USB_READ
@@ -952,7 +988,8 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
     if (!nrf_drv_usbd_is_enabled()) {
       app_usbd_enable();
     }
-#ifdef ENABLE_WATCH_DISPLAY 
+    gb_usb_status = USB_CONNECTED;
+#ifdef ENABLE_WATCH_DISPLAY
     /* Added gLowTouchRunning flag checking, in the below condition, to check
        when to give the StopLog sequence.
        Without this, if the USB cable is plugged in fast enough,(before LT logging actually starts),

@@ -37,6 +37,7 @@ application_name_map = {
 "ad7156":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156, 'help':"The AD7156 device."},
 "sqi":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SQI, 'help':"The SQI service."},
 "lt_app_lcfg":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, 'help':"The lt_app_lcfg."},
+"user0_config":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, 'help':"The user0_config lcfg."},
 }
 
 stream_name_map = {

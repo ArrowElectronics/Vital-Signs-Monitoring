@@ -216,13 +216,27 @@ def adpd_agc_test(freq_hz=50):
     :param freq_hz:
     :return:
     """
+    agc_values = {
+        "G": {"agc_off_min_ch1": 87992, "agc_off_max_ch1": 97255, "agc_off_min_ch2": 27971, "agc_off_max_ch2": 30916,
+              "agc_on_min_ch1": 314572, "agc_on_min_ch2": 235929, "agc_on_max": 471859},
+        "R": {"agc_off_min_ch1": 51034, "agc_off_max_ch1": 56406, "agc_off_min_ch2": 20434, "agc_off_max_ch2": 22585,
+              "agc_on_min_ch1": 314572, "agc_on_min_ch2": 235929, "agc_on_max": 471859},
+        "IR": {"agc_off_min_ch1": 40021, "agc_off_max_ch1": 44234, "agc_off_min_ch2": 23962, "agc_off_max_ch2": 26185,
+               "agc_on_min_ch1": 314572, "agc_on_min_ch2": 235929, "agc_on_max": 471859},
+        "B": {"agc_off_min_ch1": 44759, "agc_off_max_ch1": 54706, "agc_off_min_ch2": 16701, "agc_off_max_ch2": 18459,
+              "agc_on_min_ch1": 314572, "agc_on_min_ch2": 235929, "agc_on_max": 471859},
+        "ppg": {"agc_off_min": 256324, "agc_off_max": 283305, "agc_on_min": 314572, "agc_on_max": 471859}
+    }
     agc_off_results_dict = adpd_stream_test(freq_hz, 0)
     agc_on_results_dict = adpd_stream_test(freq_hz, 1)
     err_led_list = []
     err_stat = False
-    for k, v in agc_on_results_dict.items():
-        if (abs(v[0] - agc_off_results_dict[k][0]) > (0.2 * v[0])) and (abs(v[1] - agc_off_results_dict[k][1]) > (0.2 * v[1])):
-            pass
+    for k in agc_on_results_dict.keys():
+        if(agc_values[k]["agc_off_min_ch1"] <= agc_off_results_dict[k][0] <= agc_values[k]["agc_off_max_ch1"] and
+                agc_values[k]["agc_off_min_ch2"] <= agc_off_results_dict[k][1] <= agc_values[k]["agc_off_max_ch2"] and
+                agc_values[k]["agc_on_min_ch1"] <= agc_on_results_dict[k][0] <= agc_values[k]["agc_on_max"] and
+                agc_values[k]["agc_on_min_ch2"] <= agc_on_results_dict[k][1] <= agc_values[k]["agc_on_max"]):
+                pass
         else:
             err_led_list.append(k)
             err_stat = True
@@ -376,11 +390,15 @@ def ppg_agc_test():
     """
     # TODO verify this function -- When running PPG stream send time plot throws error but executes
     freq_hz = 50
+    agc_values = {
+        "ppg": {"agc_off_min": 256324, "agc_off_max": 283305, "agc_on_min": 314572, "agc_on_max": 471859}
+    }
 
     mean_agc_on = ppg_stream_test(1)
     mean_agc_off = ppg_stream_test(0)
 
-    if 1.2 * mean_agc_off <= mean_agc_on:
+    if(agc_values["ppg"]["agc_off_min"] <= mean_agc_off <= agc_values["ppg"]["agc_off_max"] and
+            agc_values["ppg"]["agc_on_min"] <= mean_agc_on <= agc_values["ppg"]["agc_on_max"]):
         common.test_logger.info('{}Hz PPG AGC Test Pass'.format(freq_hz))
     else:
         common.test_logger.error('***PPG {}Hz AGC Test - FAIL ***'.format(freq_hz))

@@ -76,6 +76,9 @@
 #include <watch_dog_task.h>
 #include "wdt.h"
 #include "ad7156.h"
+#ifdef USER0_CONFIG_APP
+#include <user0_config_app_task.h>
+#endif
 #ifdef RTOS_TASK_INFO_PRINT
 #include "rtos_test.h"
 #endif
@@ -245,6 +248,10 @@ int main(void)
 
 #ifdef RTOS_TASK_INFO_PRINT
     rtos_test_init();
+#endif
+
+#ifdef USER0_CONFIG_APP
+    user0_config_app_task_init();
 #endif
     NRF_LOG_INFO("App started\n");
 

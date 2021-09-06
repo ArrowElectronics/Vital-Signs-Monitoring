@@ -6,60 +6,32 @@ import m2m2_core
 
 import common_application_interface
 
-import common_sensor_interface
+import common_sensor_interface #not needed
 
-M2M2_PED_APP_CMD_ENUM_t = {
-    "type":c_uint8,
-    "enum_values":
-    [
-        ("_M2M2_PED_APP_CMD_LOWEST",                               0x5A),
-        ("M2M2_PED_APP_CMD_GET_ALGO_VENDOR_VERSION_REQ",           0x5C),
-        ("M2M2_PED_APP_CMD_GET_ALGO_VENDOR_VERSION_RESP",          0x5D),
-    ]
-}
+class M2M2_PED_APP_CMD_ENUM_t(c_uint8):
+    _M2M2_PED_APP_CMD_LOWEST = 0x5A
+    M2M2_PED_APP_CMD_GET_ALGO_VENDOR_VERSION_REQ = 0x5C
+    M2M2_PED_APP_CMD_GET_ALGO_VENDOR_VERSION_RESP = 0x5D
 
-ped_app_lcfg_op_t = {
-    "struct_fields":
-    [
-        {"name":"field",
-        "type":c_ubyte},
-        {"name":"value",
-        "type":c_ushort},
-    ]
-}
+class ped_app_lcfg_op_t(Structure):
+    fields = [
+              ("field", c_uint8),
+              ("value", c_uint16),
+              ]
 
-ped_app_lcfg_op_hdr_t = {
-    "struct_fields":
-    [
-        {"name":"command",
-        "type":c_ubyte},
-        {"name":"status",
-        "type":c_ubyte},
-        {"name":"num_ops",
-        "type":c_ubyte},
-        {"name": "ops",
-        "length":0,
-        "type": ped_app_lcfg_op_t},
-    ]
-}
+class ped_app_lcfg_op_hdr_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_common_cmd_t),
+              ("num_ops", c_uint8),
+              ("ops", ped_app_lcfg_op_t * 0),
+              ]
 
-pedometer_app_stream_t = {
-    "struct_fields":
-    [
-        {"name":"command",
-        "type":c_ubyte},
-        {"name":"status",
-        "type":c_ushort},
-        {"name":"sequence_num",
-        "type":c_ushort},
-        {"name":"uNumSteps",
-        "type":c_long},
-        {"name":"nAlgoStatus",
-        "type":c_ushort},
-        {"name":"nTimeStamp",
-        "type":c_ulong},
-        {"name":"nReserved",
-        "type":c_byte},
-    ]
-}
-
+class pedometer_app_stream_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_common_cmd_t),
+              ("sequence_num", c_uint16),
+              ("nNumSteps", c_int32),
+              ("nAlgoStatus", c_uint16),
+              ("nTimeStamp", c_uint32),
+              ("nReserved", c_int8),
+              ]

@@ -19,6 +19,7 @@
 #endif  // defined __CC_ARM || defined __IAR_SYSTEMS_ICC__ || __clang__ || defined _MSC_VER || defined __GNUC__
 #pragma pack(1)
 
+
 enum M2M2_EDA_APP_CMD_ENUM_t:uint8_t {
   _M2M2_EDA_APP_CMD_LOWEST = 64,
   M2M2_EDA_APP_CMD_DYNAMIC_SCALE_REQ = 66,

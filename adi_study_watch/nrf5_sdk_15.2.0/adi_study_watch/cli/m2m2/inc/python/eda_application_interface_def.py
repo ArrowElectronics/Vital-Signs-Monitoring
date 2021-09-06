@@ -6,6 +6,7 @@ from common_sensor_interface_def import *
 
 from m2m2_core_def import *
 
+
 class M2M2_EDA_APP_CMD_ENUM_t(c_ubyte):
     _M2M2_EDA_APP_CMD_LOWEST = 0x40
     M2M2_EDA_APP_CMD_DYNAMIC_SCALE_REQ = 0x42

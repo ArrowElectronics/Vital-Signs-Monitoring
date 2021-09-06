@@ -83,7 +83,7 @@ uint32_t* Adpd400xDrvGetDebugInfo();
 static uint8_t gsTotalSlotSize;         //!< Total active slot size in bytes
 static uint16_t gsHighestSelectedSlot;  //!< Highest selected slot
 static Adpd400xComMode_t nAdpd400xCommMode = ADPD400x_UNKNOWN_BUS; //!< Communication mode of sensor (I2C or SPI)
-static uint8_t gnAdpdFifoWaterMark = 1; //!< FIFO watermark set to 1. Interrupt obtaimed as one sample is in FIFO
+uint8_t gnAdpdFifoWaterMark = 1; //!< FIFO watermark set to 1. Interrupt obtaimed as one sample is in FIFO
 static uint32_t gnAccessCnt[5];   //!< Debug variable
 static uint16_t gnFifoLevel;      //!< Stores number of bytes in FIFO
 static uint16_t pre_active_setting[SLOT_NUM][SLOT_DISABLE_SETTINGS]; //!< stores LED settings of all slots
@@ -339,8 +339,7 @@ int16_t Adpd400xDrvSetOperationMode(uint8_t nOpMode) {
       return ADPD400xDrv_ERROR;
     } else {
       nSampleSize = nSampleSize + nFifoStatusByte;
-      Adpd400xDrvGetParameter(ADPD400x_WATERMARKING, 0, &nWaterMark);
-      nRetCode = Adpd400xDrvRegWrite(ADPD400x_REG_FIFO_CTL,  (nWaterMark*nSampleSize - 1) & nMaximumFifoTh);
+      nRetCode = Adpd400xDrvRegWrite(ADPD400x_REG_FIFO_CTL,  (nSampleSize - 1) & nMaximumFifoTh);
     }
 
     nRetCode |= Adpd400xDrvRegWrite(ADPD400x_REG_INT_STATUS_FIFO, 0x8000); // Clear FIFO
@@ -1160,16 +1159,14 @@ static uint16_t _FifoLevel(void) {
 
   //Calculating LCM for the decimations of all 12 slots
   gnLcmValue = calculate_lcm(gsSlot, gsHighestSelectedSlot);
-  //total_samples_size = get_max_sample_size(datapattern_length, &slot_sz[0], &slot_channel_num[0], highest_slot_num);
   nSampleSize = get_max_sample_size(gnLcmValue, gsSlot, gsHighestSelectedSlot);
-
 
   nSampleSize += nFifoStatusByte;
   adpd4000_buff_reset(nSampleSize);
   nReadSequence = 1;
   nInterruptSequence = 1;
   nWriteSequence = 1;
-  nSampleSize = get_samples_size(1, gsSlot, &nInterruptSequence,
+  nSampleSize = get_samples_size(gnAdpdFifoWaterMark, gsSlot, &nInterruptSequence,
                                   gnLcmValue, gsHighestSelectedSlot);
   return nSampleSize;
 }

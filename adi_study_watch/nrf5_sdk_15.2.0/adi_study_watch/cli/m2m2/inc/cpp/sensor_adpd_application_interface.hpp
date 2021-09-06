@@ -18,6 +18,7 @@
 #endif  // defined __CC_ARM || defined __IAR_SYSTEMS_ICC__ || __clang__ || defined _MSC_VER || defined __GNUC__
 #pragma pack(1)
 
+
 enum M2M2_SENSOR_ADPD_COMMAND_ENUM_t:uint8_t {
   _M2M2_SENSOR_ADPD_COMMAND_LOWEST = 64,
   M2M2_SENSOR_ADPD_COMMAND_LOAD_CFG_REQ = 66,
@@ -118,224 +119,281 @@ enum M2M2_SENSOR_ADPD_DEVICE_ID_ENUM_t:uint8_t {
   M2M2_SENSOR_ADPD4000_DEVICE_4000_IR = 42,
   M2M2_SENSOR_ADPD4000_DEVICE_4000_B = 43,
   M2M2_SENSOR_ADPD4000_DEVICE_4000_G_R_IR_B = 44,
+  M2M2_SENSOR_ADPD4000_DEVICE_4100_SWO2 = 45,
 };
 static_assert(sizeof(M2M2_SENSOR_ADPD_DEVICE_ID_ENUM_t) == 1, "Enum 'M2M2_SENSOR_ADPD_DEVICE_ID_ENUM_t' has an incorrect size!");
 
 struct m2m2_sensor_adpd_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_SENSOR_ADPD_DEVICE_ID_ENUM_t  deviceid;
-  uint16_t  retdata[5];
+  uint8_t  command; 
+  uint8_t  status; 
+  M2M2_SENSOR_ADPD_DEVICE_ID_ENUM_t  deviceid; 
+  uint16_t  retdata[5]; 
 };
 
 struct m2m2_sensor_adpd_testcommand_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint32_t  retdata[3];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint32_t  retdata[3]; 
 };
 
 struct adpd_data_header_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  sequence_num;
-  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type;
-  uint32_t  timestamp;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type; 
+  uint32_t  timestamp; 
 };
 
-struct adpdCl_data_header_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  sequence_num;
-  uint16_t  data_format;
-  uint8_t  channel_num;
-  uint32_t  timestamp;
+struct adpd4000_data_header_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  uint16_t  data_format; 
+  uint8_t  channel_num; 
+  uint32_t  timestamp; 
 };
 
-struct m2m2_sensor_adpdCl_data_stream_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  sequence_num;
-  uint16_t  data_format;
-  uint8_t  channel_num;
-  uint32_t  timestamp;
-  uint8_t  sample_num;
-  uint8_t  adpddata[24];
+struct m2m2_sensor_adpd4000_data_stream_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  uint16_t  data_format; 
+  uint8_t  channel_num; 
+  uint32_t  timestamp; 
+  uint8_t  sample_num; 
+  uint8_t  adpddata[24]; 
 };
 
-struct m2m2_sensor_adpdCl_impulse_stream_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  sequence_num;
-  uint16_t  data_format;
-  uint8_t  channel_num;
-  uint32_t  timestamp;
-  uint8_t  sample_num;
-  uint8_t  adpddata[256];
+struct m2m2_sensor_adpd4000_impulse_stream_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  uint16_t  data_format; 
+  uint8_t  channel_num; 
+  uint32_t  timestamp; 
+  uint8_t  sample_num; 
+  uint8_t  adpddata[256]; 
 };
 
 struct adpd_4ch32_data_set_t {
-  uint32_t  ch1;
-  uint32_t  ch2;
-  uint32_t  ch3;
-  uint32_t  ch4;
+  uint32_t  ch1; 
+  uint32_t  ch2; 
+  uint32_t  ch3; 
+  uint32_t  ch4; 
 };
 
 struct adpd_4ch16_data_set_t {
-  uint16_t  ch1;
-  uint16_t  ch2;
-  uint16_t  ch3;
-  uint16_t  ch4;
+  uint16_t  ch1; 
+  uint16_t  ch2; 
+  uint16_t  ch3; 
+  uint16_t  ch4; 
 };
 
 struct adpd_sum32_data_no_compress_format_t {
-  uint16_t  incTS;
-  uint32_t  sum32data;
+  uint16_t  incTS; 
+  uint32_t  sum32data; 
 };
 
 struct adpd_4ch32_data_no_compress_format_t {
-  uint16_t  incTS;
-  adpd_4ch32_data_set_t  ch32data;
+  uint16_t  incTS; 
+  adpd_4ch32_data_set_t  ch32data; 
 };
 
 struct adpd_sum16_data_no_compress_format_t {
-  uint16_t  incTS;
-  uint16_t  sum16data;
+  uint16_t  incTS; 
+  uint16_t  sum16data; 
 };
 
 struct adpd_4ch16_data_no_compress_format_t {
-  uint16_t  incTS;
-  adpd_4ch16_data_set_t  ch16data;
+  uint16_t  incTS; 
+  adpd_4ch16_data_set_t  ch16data; 
 };
 
 struct m2m2_sensor_adpd_data_sum32_no_compress_stream_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  sequence_num;
-  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type;
-  uint32_t  timestamp;
-  uint32_t  first_adpddata;
-  adpd_sum32_data_no_compress_format_t  adpddata[6];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type; 
+  uint32_t  timestamp; 
+  uint32_t  first_adpddata; 
+  adpd_sum32_data_no_compress_format_t  adpddata[6]; 
 };
 
 struct m2m2_sensor_adpd_data_4ch32_no_compress_stream_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  sequence_num;
-  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type;
-  uint32_t  timestamp;
-  adpd_4ch32_data_set_t  first_adpddata;
-  adpd_4ch32_data_no_compress_format_t  adpddata[1];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type; 
+  uint32_t  timestamp; 
+  adpd_4ch32_data_set_t  first_adpddata; 
+  adpd_4ch32_data_no_compress_format_t  adpddata[1]; 
 };
 
 struct m2m2_sensor_adpd_data_sum16_no_compress_stream_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  sequence_num;
-  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type;
-  uint32_t  timestamp;
-  uint16_t  first_adpddata;
-  adpd_sum16_data_no_compress_format_t  adpddata[10];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type; 
+  uint32_t  timestamp; 
+  uint16_t  first_adpddata; 
+  adpd_sum16_data_no_compress_format_t  adpddata[10]; 
 };
 
 struct m2m2_sensor_adpd_data_4ch16_no_compress_stream_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  sequence_num;
-  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type;
-  uint32_t  timestamp;
-  adpd_4ch16_data_set_t  first_adpddata;
-  adpd_4ch16_data_no_compress_format_t  adpddata[3];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type; 
+  uint32_t  timestamp; 
+  adpd_4ch16_data_set_t  first_adpddata; 
+  adpd_4ch16_data_no_compress_format_t  adpddata[3]; 
 };
 
 struct m2m2_sensor_adpd_data_sum32_compress_stream_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  sequence_num;
-  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type;
-  uint32_t  timestamp;
-  uint8_t  first_adpddata[3];
-  int16_t  inc_sum[21];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  M2M2_SENSOR_ADPD_RAW_DATA_TYPES_ENUM_t  data_type; 
+  uint32_t  timestamp; 
+  uint8_t  first_adpddata[3]; 
+  int16_t  inc_sum[21]; 
 };
 
 struct m2m2_sensor_adpd_slot_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_SENSOR_ADPD_SLOTMODE_ENUM_t  slotA;
-  M2M2_SENSOR_ADPD_SLOTMODE_ENUM_t  slotB;
+  uint8_t  command; 
+  uint8_t  status; 
+  M2M2_SENSOR_ADPD_SLOTMODE_ENUM_t  slotA; 
+  M2M2_SENSOR_ADPD_SLOTMODE_ENUM_t  slotB; 
 };
 
 struct m2m2_sensor_adpd4000_slot_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  slot_num;
-  uint8_t  slot_enable;
-  uint16_t  slot_format;
-  uint8_t  channel_num;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  slot_num; 
+  uint8_t  slot_enable; 
+  uint16_t  slot_format; 
+  uint8_t  channel_num; 
 };
 
 struct m2m2_sensor_adpd4000_slot_active_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  slot_num;
-  uint8_t  slot_active;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  slot_num; 
+  uint8_t  slot_active; 
 };
 
 struct m2m2_sensor_clockcal_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  clockcalid;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  clockcalid; 
 };
 
 struct m2m2_sensor_com_mode_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  com_mode;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  com_mode; 
 };
 
 struct m2m2_sensor_adpd4000_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  M2M2_SENSOR_ADPD_DEVICE_ID_ENUM_t  deviceid;
-  uint16_t  retdata[5];
+  uint8_t  command; 
+  uint8_t  status; 
+  M2M2_SENSOR_ADPD_DEVICE_ID_ENUM_t  deviceid; 
+  uint16_t  retdata[5]; 
 };
 
 struct m2m2_sensor_efuse_resp_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  efusedata[16];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  efusedata[16]; 
 };
 
 struct m2m2_sensor_fifo_status_bytes_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint32_t  timestamp;
-  uint8_t  sequence_num;
-  uint16_t  data_int;
-  uint16_t  level0_int;
-  uint16_t  level1_int;
-  uint16_t  tia_ch1_int;
-  uint16_t  tia_ch2_int;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint32_t  timestamp; 
+  uint8_t  sequence_num; 
+  uint16_t  data_int; 
+  uint16_t  level0_int; 
+  uint16_t  level1_int; 
+  uint16_t  tia_ch1_int; 
+  uint16_t  tia_ch2_int; 
+};
+
+struct m2m2_sensor_adpd4000_set_fs_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  odr; 
+};
+
+struct m2m2_adpd4k_slot_info_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  slots; 
+};
+
+struct m2m2_adpd_dcfg_resp_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  slotid; 
+  uint16_t  appid; 
+};
+
+struct m2m2_adpd_dcfg_op_t {
+  uint16_t  slotid; 
+  uint16_t  appid; 
+};
+
+struct m2m2_adpd_dcfg_op_hdr_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  num_ops; 
+  m2m2_adpd_dcfg_op_t  ops[1]; // NOTE: THIS FIELD IS INTENDED TO BE OF VARIABLE LENGTH! 
+        // NOTE: Use offsetof(m2m2_adpd_dcfg_op_hdr_t, ops) instead of sizeof(m2m2_adpd_dcfg_op_hdr_t)
+};
+
+struct m2m2_adpd_agc_info_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  led_index; 
+  uint32_t  led_ch1[10]; 
+  uint32_t  led_ch2[10]; 
+  uint16_t  DC0_LEDcurrent; 
+  uint16_t  TIA_ch1_i; 
+  uint16_t  TIA_ch2_i; 
+};
+
+struct m2m2_adpd_agc_cntrl_data_t {
+  uint8_t  agc_cntrl; 
+  uint8_t  agc_type; 
+};
+
+struct m2m2_adpd_agc_cntrl_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  num_ops; 
+  m2m2_adpd_agc_cntrl_data_t  ops[1]; // NOTE: THIS FIELD IS INTENDED TO BE OF VARIABLE LENGTH! 
+        // NOTE: Use offsetof(m2m2_adpd_agc_cntrl_t, ops) instead of sizeof(m2m2_adpd_agc_cntrl_t)
 };
 
 struct adpd_ext_data_stream_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint32_t sequence_num;
-  uint32_t data;
-  uint32_t timestamp;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint32_t  sequence_num; 
+  uint32_t  data; 
+  uint32_t  timestamp; 
 };
 
 struct adpd_ext_data_stream_odr_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t sampling_freq;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sampling_freq; 
 };
 
 struct m2m2_adpd_set_uc_hr_enab_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  control;
-  uint16_t  slotNum;
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  control; 
+  uint16_t  slotNum; 
 };
 
 // Reset struct packing outside of this file

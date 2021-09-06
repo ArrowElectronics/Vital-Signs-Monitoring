@@ -62,7 +62,7 @@
 extern volatile uint8_t gsCfgFileFoundFlag;
 static uint8_t lt_app_enab_status;
 
-static void display_low_touch_config(void)
+static void display_low_touch_enable(void)
 {
     char str_enab_status[10];
     lcd_background_color_set(COLOR_BACKGROUND);
@@ -78,7 +78,7 @@ static void display_low_touch_config(void)
 }
 static void display_func(void)
 {
-    display_low_touch_config();
+    display_low_touch_enable();
     dis_dynamic_refresh(500);
 }
 
@@ -146,7 +146,7 @@ static void signal_handle(uint8_t signal_value)
     {
         case DIS_REFRESH_SIGNAL:
         {
-            display_low_touch_config();
+            display_low_touch_enable();
         }
         break;
         /*can add other key handle*/

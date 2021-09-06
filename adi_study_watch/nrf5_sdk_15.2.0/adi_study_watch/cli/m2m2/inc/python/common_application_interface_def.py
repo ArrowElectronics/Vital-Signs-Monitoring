@@ -1,6 +1,11 @@
 from ctypes import *
 
+from dcb_interface_def import *
+
 from m2m2_core_def import *
+
+MAXTXRXDCFGSIZE = (57)
+PING_PKT_SZ = (230)
 
 class M2M2_APP_COMMON_STATUS_ENUM_t(c_ubyte):
     M2M2_APP_COMMON_STATUS_OK = 0x0
@@ -15,7 +20,7 @@ class M2M2_APP_COMMON_STATUS_ENUM_t(c_ubyte):
     M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED = 0x9
     M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED = 0xA
     M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT = 0xB
-    __M2M2_APP_COMMON_STATUS_HIGHEST = 0x20
+    _M2M2_APP_COMMON_STATUS_ENUM_t__M2M2_APP_COMMON_STATUS_HIGHEST = 0x20
 
 class M2M2_APP_COMMON_CMD_ENUM_t(c_ubyte):
     M2M2_APP_COMMON_CMD_GET_VERSION_REQ = 0x0
@@ -46,7 +51,7 @@ class M2M2_APP_COMMON_CMD_ENUM_t(c_ubyte):
     M2M2_APP_COMMON_CMD_WRITE_LCFG_RESP = 0x19
     M2M2_APP_COMMON_CMD_PING_REQ = 0x1A
     M2M2_APP_COMMON_CMD_PING_RESP = 0x1B
-    __M2M2_APP_COMMON_CMD_HIGHEST = 0x20
+    _M2M2_APP_COMMON_CMD_ENUM_t__M2M2_APP_COMMON_CMD_HIGHEST = 0x20
 
 class _m2m2_app_common_cmd_t(Structure):
     _pack_ = 1
@@ -61,9 +66,7 @@ class m2m2_app_common_ver_req_t(Structure):
               ("command", c_ubyte),
               ("status", c_ubyte),
               ]
-#PING_PKT_SZ = (BLE_NUS_MAX_DATA_LEN-8-6)
-#Max pkt size = BLE_NUS_MAX_DATA_LEN
-#Max ping pkt size can be BLE_NUS_MAX_DATA_LEN-8(header length)-1-1-4(remaining field in m2m2_app_common_ping_t)=230
+
 class m2m2_app_common_ping_t(Structure):
     _pack_ = 1
     _fields_ = [
@@ -109,8 +112,8 @@ class m2m2_sensor_dcfg_data_t(Structure):
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("size", c_ubyte),
-              ("num_tx_pkts" ,c_ubyte),
-              ("dcfgdata",  c_uint32 * 57),
+              ("num_tx_pkts", c_ubyte),
+              ("dcfgdata", c_ulong * 57),
               ]
 
 class m2m2_app_lcfg_data_t(Structure):

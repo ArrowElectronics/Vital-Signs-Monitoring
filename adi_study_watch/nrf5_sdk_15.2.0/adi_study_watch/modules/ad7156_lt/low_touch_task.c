@@ -70,6 +70,10 @@
 #include "lt_app_lcfg_block.h"
 #include <dcb_interface.h>
 #endif
+#ifdef USER0_CONFIG_APP
+#include "user0_config_app_task.h"
+#include "user0_config_application_interface.h"
+#endif
 /* Low touch App Module Log settings */
 #define NRF_LOG_MODULE_NAME LT_App
 
@@ -279,10 +283,10 @@ static void init_lt_app_lcfg() {
     if( !user_applied_ltAppTrigMethd )
     {
 #ifdef ENABLE_WATCH_DISPLAY
-    lt_app_cfg.ltAppTrigMethd = LT_APP_BUTTON_TRIGGER;
+      lt_app_cfg.ltAppTrigMethd  = LT_APP_BUTTON_TRIGGER;
 #else
     lt_app_cfg.ltAppTrigMethd = LT_APP_CAPSENSE_TUNED_TRIGGER;
-#endif
+#endif//#ifdef ENABLE_WATCH_DISPLAY
     }
     else
       user_applied_ltAppTrigMethd = 0;
@@ -564,6 +568,33 @@ bool get_low_touch_trigger_mode2_status(void)
   }
 }
 
+#ifdef CUST4_SM
+/** @brief   Check if LT application trigger method is LT_APP_INTERMITTENT_TRIGGER
+ * @details  This is to be used for a LT config file(NAND/gen blk DCB) write/delete
+             such that the trigger happens properly for
+             LT_APP_INTERMITTENT_TRIGGER
+ * @param    None
+ * @retval   0  --> LT_APP_INTERMITTENT_TRIGGER not enabled
+             1 --> LT_APP_INTERMITTENT_TRIGGER enabled
+ */
+bool get_low_touch_trigger_mode3_status(void)
+{
+  if( lt_app_cfg.ltAppTrigMethd  == LT_APP_INTERMITTENT_TRIGGER )
+  {
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+#else
+bool get_low_touch_trigger_mode3_status(void)
+{
+  return false;
+}
+#endif
+
 /** @brief   Get LT application trigger method
  * @details  This is to be used from the display page: page_low_touch_trigger_mode.c
              to show the current Mode set
@@ -597,7 +628,6 @@ int low_touch_init() {
       //Detect initial Wrist status
       capVal = AD7156_ReadChannelCap(2); // unit in uF
     }
-    gsLowTouchInitFlag = 1;
 
     if( lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_TUNED_TRIGGER )
     {
@@ -629,6 +659,9 @@ int low_touch_init() {
       NRF_LOG_INFO("ON wrist detected. cap2=%d", capVal);
       g_onWrCapValue = capVal;
     }
+
+    gsLowTouchInitFlag = 1;
+
     return 0;
   }
   return 1;
@@ -647,18 +680,20 @@ int low_touch_deinit() {
     {
       bottom_touch_func_set(0);
       Unregister_out2_pin_detect_func(out2_pin_detect);
+
+      gsLowTouchAd7156IntFlag = 0;
+      gsLowTouchAd7156IntCount = 0;
+      gsLowTouchAd7156IntValue = 0;
+      gsLowTouchAd7156CapVal = 0;
+      g_onWrCapValue = TOUCH_DETECTION_THRESHOLD;
+      g_offWrCapValue = TOUCH_DETECTION_THRESHOLD;
+      lt_on_timer_stop();
+      lt_off_timer_stop();
+      gLowTouchTimerUp = 0;
+      eDetection_State = OFF_WRIST, eCurDetection_State = OFF_WRIST;
     }
     lt_app_cfg.ltAppTrigMethd = LT_APP_TRIGGER_INVALID;
-    gsLowTouchAd7156IntFlag = 0;
-    gsLowTouchAd7156IntCount = 0;
-    gsLowTouchAd7156IntValue = 0;
-    gsLowTouchAd7156CapVal = 0;
-    g_onWrCapValue = TOUCH_DETECTION_THRESHOLD;
-    g_offWrCapValue = TOUCH_DETECTION_THRESHOLD;
-    lt_on_timer_stop();
-    lt_off_timer_stop();
-    gLowTouchTimerUp = 0;
-    eDetection_State = OFF_WRIST, eCurDetection_State = OFF_WRIST;
+
     /*stop low touch logging*/
     SendStopLowTouchLogReq();
     gsLowTouchInitFlag = 0;
@@ -1042,25 +1077,24 @@ static void out2_pin_detect(uint8_t value) {
  * @return none
  */
 static void lt_task(void *arg) {
-  m2m2_hdr_t *p_in_pkt = NULL;
-  m2m2_hdr_t *p_out_pkt = NULL;
   ADI_OSAL_STATUS err;
   UNUSED_PARAMETER(arg);
 
   touch_detect_init();
+
+  /*Wait for FDS init to complete*/
+  adi_osal_SemPend(lt_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
 
   if (lt_app_lcfg_get_dcb_present_flag()) {
     lt_app_lcfg_set_from_dcb();
   }
   else
   {
-    //lt_app_lcfg_set_fw_default();
     lt_app_cfg.ltAppTrigMethd = LT_APP_TRIGGER_INVALID;
   }
 
 
   /* Wait for FS task FindConfigFile() completes */
-
   adi_osal_SemPend(lt_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
 
   /* Check & Load from DCB LT lcfg if lcfg is available in lt_app_lcfg_dcb
@@ -1080,6 +1114,8 @@ static void lt_task(void *arg) {
   static volatile uint8_t gb_trig_event = 0;
 
   while (1) {
+    m2m2_hdr_t *p_in_pkt = NULL;
+    m2m2_hdr_t *p_out_pkt = NULL;
     p_in_pkt = post_office_get(5000, APP_OS_CFG_LT_TASK_INDEX); //LT events
 
     // We got an m2m2 message from the queue, process it.
@@ -1115,6 +1151,8 @@ static void lt_task(void *arg) {
 #else
 
   while (1) {
+    m2m2_hdr_t *p_in_pkt = NULL;
+    m2m2_hdr_t *p_out_pkt = NULL;
     adi_osal_SemPend(lt_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
     p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_LT_TASK_INDEX); //LT events
 
@@ -1156,11 +1194,34 @@ static void lt_task(void *arg) {
             // Nothing //
         }
     }
+#ifdef CUST4_SM
+    else if(get_low_touch_trigger_mode3_status())
+    {
+        USER0_CONFIG_APP_STATE_t read_user0_config_app_state = get_user0_config_app_state();
+        if ((read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_STOP_LOG) ||
+            (read_user0_config_app_state == STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING)) {
+          SendStopLowTouchLogReq();
+          //key_detect_init();
+        } else if (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING) {
+          if (gsCfgFileFoundFlag || gen_blk_get_dcb_present_flag())
+          {
+            SendStartLowTouchLogReq();  /* start the low touch logging*/
+            set_user0_config_app_state(STATE_INTERMITTENT_MONITORING_START_LOG);
+          }
+          else
+          {
+            LowTouchErr();
+          }
+        } else {
+            // Nothing //
+        }
+    }
+#endif
     else if( lt_app_cfg.ltAppTrigMethd == LT_APP_CAPSENSE_TUNED_TRIGGER ||
        lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_DISPLAY_TRIGGER )
 #else
     else if( lt_app_cfg.ltAppTrigMethd == LT_APP_CAPSENSE_TUNED_TRIGGER)
-#endif
+#endif //ENABLE_WATCH_DISPLAY
     {
       LowTouchTimerEvent();
       LowTouchSensorEvent();
@@ -1229,11 +1290,12 @@ void lt_app_lcfg_set_fw_default()
     lt_app_cfg.offWristTimeThreshold = LT_OFF_WRIST_TIME_INTERVAL;
     lt_app_cfg.airCapVal  = LT_AIR_CAP_VAL;
     lt_app_cfg.skinCapVal = LT_SKIN_CAP_VAL;
+
 #ifdef ENABLE_WATCH_DISPLAY
     lt_app_cfg.ltAppTrigMethd = LT_APP_BUTTON_TRIGGER;
 #else
     lt_app_cfg.ltAppTrigMethd = LT_APP_CAPSENSE_TUNED_TRIGGER;
-#endif
+#endif//ENABLE_WATCH_DISPLAY
 }
 
 /**

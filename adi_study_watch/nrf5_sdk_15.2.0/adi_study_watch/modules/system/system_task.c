@@ -61,6 +61,9 @@
 #include "ble_task.h"
 #include "dcb_general_block.h"
 #include "lt_app_lcfg_block.h"
+#ifdef USER0_CONFIG_APP
+#include "dcb_user0_block.h"
+#endif
 #include "fds_drv.h"
 #include "file_system_utils.h"
 #include "mw_ppg.h"
@@ -102,6 +105,12 @@ extern bool ecg_get_dcb_present_flag(void);
 extern bool eda_get_dcb_present_flag(void);
 extern void delete_low_touch_config_file();
 extern void load_default_low_touch_config();
+#ifdef USER0_CONFIG_APP
+extern void start_eda_app_timer();
+extern void start_adxl_app_timer();
+extern void start_temp_app_timer();
+extern void start_adpd_app_timer();
+#endif
 /* For system FreeRTOS Task Creation */
 /* Create the stack for task */
 uint8_t ga_system_task_stack[APP_OS_CFG_PM_TASK_STK_SIZE];
@@ -128,6 +137,9 @@ m2m2_pm_sys_info_t g_system_info = {
     0x00,                                 // batch_id
     0x00000000};                          // date
 
+/*Battery-full charge level  */
+#define BATTERY_FULL_CHARGE_LEVEL 99U
+
 /*default value for battery-low level alert  */
 #define DEFAULT_BATTERY_LEVEL_LOW 5U
 
@@ -141,6 +153,7 @@ struct battery_level_alerts_ {
   uint8_t critical_level_flag; /*Battery critical level flag*/
   M2M2_ADDR_ENUM_t
       tool_addr; /*Destination address for battery notifications alerts*/
+  CHARGE_STATUS_ENUM_t charge_alert_status;
 } battery_level_alerts;
 
 static uint32_t BattInfoChecksum = 0;
@@ -254,7 +267,9 @@ static void SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_ENUM_t nAlertMsg) {
   m2m2_hdr_t *response_mail = NULL;
   ADI_OSAL_STATUS err;
 
+#ifndef CUST4_SM
   if (battery_level_alerts.tool_addr != M2M2_ADDR_UNDEFINED) {
+#endif
     response_mail =
         post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_pm_sys_cmd_t));
     if (response_mail != NULL) {
@@ -263,7 +278,11 @@ static void SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_ENUM_t nAlertMsg) {
 
       /* send response packet */
       response_mail->src = M2M2_ADDR_SYS_PM;
+#ifdef CUST4_SM
+      response_mail->dest = M2M2_ADDR_GLOBAL;
+#else
       response_mail->dest = (M2M2_ADDR_ENUM_t)battery_level_alerts.tool_addr;
+#endif
       response_mail->length = 10;
       response_mail->checksum = 0x0000;
       battery_level_alert_msg->command =
@@ -272,7 +291,9 @@ static void SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_ENUM_t nAlertMsg) {
       battery_level_alert_msg->status = nAlertMsg;
       post_office_send(response_mail, &err);
     }
+#ifndef CUST4_SM
   }
+#endif
 }
 #ifdef LOW_TOUCH_FEATURE
 #define MAX_CMD_RETRY_CNT 5
@@ -692,7 +713,7 @@ uint8_t gs_in_prgrs_cnt = 0;
  * @param    src - The application address used to differentiate FS application
  * @param    nCommand-last command RESP received
  * @param    nStatus-status of last REQ cmd run
- * @retval   STATUS_VALID or STATUS_INVALID based on nStatus 
+ * @retval   STATUS_VALID or STATUS_INVALID based on nStatus
  ******************************************************************************/
 static uint8_t ValidateStatus(M2M2_ADDR_ENUM_t  src, uint8_t nCommand, uint8_t nStatus) {
   uint8_t nStatusValid = STATUS_INVALID;
@@ -752,6 +773,7 @@ static uint8_t ValidateStatus(M2M2_ADDR_ENUM_t  src, uint8_t nCommand, uint8_t n
               ? STATUS_VALID
               : STATUS_INVALID;
     break;
+  case M2M2_FILE_SYS_CMD_APPEND_FILE_REQ:
   case M2M2_FILE_SYS_CMD_START_LOGGING_REQ:
     if(M2M2_ADDR_SYS_FS == src)
     {
@@ -1110,6 +1132,21 @@ void update_ble_system_info() {
   for (i = 0; i < BLE_GAP_ADDR_LEN; i++)
     g_system_info.mac_addr[i] = ble_addr_t.addr[BLE_GAP_ADDR_LEN-1-i];
 }
+
+#ifdef USER0_CONFIG_APP
+/*!
+ ****************************************************************************
+ * @brief  Update the g_system_info structure with hardware id
+ *
+ * @param hw_id: hardware id to be updated the g_system_info structure contents
+                 with
+ * @return None
+ ******************************************************************************/
+void update_hw_id_in_system_info(uint16_t hw_id) {
+  g_system_info.hw_id = hw_id;
+}
+#endif
+
 /*!
  ****************************************************************************
  * @brief System task init function.
@@ -1147,6 +1184,8 @@ void system_task_init(void) {
   battery_level_alerts.tool_addr = M2M2_ADDR_UNDEFINED;
   battery_level_alerts.level_low = DEFAULT_BATTERY_LEVEL_LOW;
   battery_level_alerts.level_critical = DEFAULT_BATTERY_LEVEL_CRITICAL;
+  battery_level_alerts.charge_alert_status = E_NORMAL_LEVEL;
+  battery_level_alerts.critical_level_flag = 0;
   ping_timer_init();
 }
 
@@ -1185,7 +1224,6 @@ uint32_t pdata_mem[10];
 static void system_task(void *pArgument) {
   m2m2_hdr_t *pkt = NULL;
   _m2m2_app_common_cmd_t *ctrl_cmd = NULL;
-  m2m2_hdr_t *response_mail = NULL;
   ADI_OSAL_STATUS err;
 
   /* Create a mailbox for Battery info stream */
@@ -1213,6 +1251,7 @@ static void system_task(void *pArgument) {
 #endif
 #endif
   while (1) {
+    m2m2_hdr_t *response_mail = NULL;
 #ifdef USE_FS
 #ifdef FS_TEST_BLOCK_READ_DEBUG
     if(fs_task_read_tmp_blk_flag)
@@ -1295,6 +1334,10 @@ static void system_task(void *pArgument) {
           /* Set battery critical and low levels */
           battery_level_alerts.level_low = bat_thr_req->bat_level_low;
           battery_level_alerts.level_critical = bat_thr_req->bat_level_critical;
+          //Reset other fields in the structure
+          //battery_level_alerts.tool_addr = M2M2_ADDR_UNDEFINED;
+          battery_level_alerts.charge_alert_status = E_NORMAL_LEVEL;
+          //battery_level_alerts.critical_level_flag = 0;
 
           /* send response packet */
           response_mail->src = pkt->dest;
@@ -1538,7 +1581,9 @@ static void system_task(void *pArgument) {
         }
         post_office_consume_msg(pkt);
         break;
-
+      case M2M2_PM_SYS_BATTERY_LEVEL_ALERT:
+        post_office_consume_msg(pkt);
+        break;
       case M2M2_PM_SYS_COMMAND_GET_BAT_INFO_REQ: {
         response_mail = post_office_create_msg(
             M2M2_HEADER_SZ + sizeof(m2m2_pm_sys_bat_info_resp_t));
@@ -2673,6 +2718,10 @@ static void system_task(void *pArgument) {
 #endif
           resp->dcb_blk_array[ADI_DCB_AD7156_BLOCK_IDX] =
               ad7156_get_dcb_present_flag();
+#ifdef USER0_CONFIG_APP
+          resp->dcb_blk_array[ADI_DCB_USER0_BLOCK_IDX] =
+              user0_blk_get_dcb_present_flag();
+#endif
 
           /*Send the response*/
           response_mail->dest = pkt->src;
@@ -2688,7 +2737,6 @@ static void system_task(void *pArgument) {
       }
 #ifdef LOW_TOUCH_FEATURE
       case M2M2_DCB_COMMAND_READ_CONFIG_REQ: {
-
         response_mail = lt_app_lcfg_dcb_command_read_config(pkt);
         if (response_mail != NULL) {
           post_office_send(response_mail, &err);
@@ -2716,12 +2764,11 @@ static void system_task(void *pArgument) {
       }
 #endif//LOW_TOUCH_FEATURE
 #endif
-      
-      case M2M2_FILE_SYS_CMD_STOP_LOGGING_RESP: {
 
+      case M2M2_FILE_SYS_CMD_STOP_LOGGING_RESP: {
         /* check if memory full event has occured */
          m2m2_file_sys_stop_log_cmd_t *stop_log_resp = (m2m2_file_sys_stop_log_cmd_t *)&pkt->data[0];
-         if(stop_log_resp->status == (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_ERR_MEMORY_FULL) {  
+         if(stop_log_resp->status == (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_ERR_MEMORY_FULL) {
           /*low touch log stopped due to mem-full; stop the sensors and inform
           * the tool*/
           MaxFileErr(); /*Memory is full ; give indication on Display*/
@@ -2730,6 +2777,7 @@ static void system_task(void *pArgument) {
         //break;//intentionally commented out to let the default case for
         // LT execute
       }
+
       /* Insert new cases to be handled above this comment line */
 
       case M2M2_APP_COMMON_CMD_STREAM_STOP_RESP: {
@@ -2763,7 +2811,7 @@ static void system_task(void *pArgument) {
          M2M2_APP_COMMON_CMD_STREAM_STOP_RESP */
       default: {
 #ifdef LOW_TOUCH_FEATURE
-        // if(0x28 != ctrl_cmd->command)
+        //if(0x28 != ctrl_cmd->command)
         //  NRF_LOG_INFO("Received cmd:%x",ctrl_cmd->command);
         if (ctrl_cmd->command == (gsConfigCtrl->command + 1)) {
           gsSendNextConfigCmd = ValidateStatus(pkt->src, gsConfigCtrl->command,
@@ -2821,7 +2869,7 @@ static void system_task(void *pArgument) {
             } else
               SendLowTouchErrResp(M2M2_PM_SYS_STATUS_DCB_CONFIG_LOG_ENABLED);
 #endif
-              if(!get_low_touch_trigger_mode2_status())
+              if(!get_low_touch_trigger_mode2_status() && !get_low_touch_trigger_mode3_status())
               {
                 //Check if OFFWrist event had come in b/w start cmd seq execution
                 if(eCurDetection_State == OFF_WRIST)
@@ -2831,12 +2879,39 @@ static void system_task(void *pArgument) {
                   gLowTouchRunning = 0;
                 }
               }
+#ifdef USER0_CONFIG_APP
+              else if(get_low_touch_trigger_mode3_status())
+              {
+                //Send app timer start cmd to start LT logging
+                start_eda_app_timer();
+                start_adxl_app_timer();
+                start_temp_app_timer();
+                start_adpd_app_timer();
+              }
+#endif
           } else if ((gsStopCmdsRunning) &&
                      (gsCfgFileSummaryPkt->stop_cmd_cnt == gsNumOfCommands)) {
             gsStopCmdsRunning = 0;
             SetCfgCopyAvailableFlag(
                 true); /*update the config file copy availability flag*/
             gLowTouchRunning = 0; // Low Touch loggging has stopped
+#ifdef CUST4_SM
+            //Low touch logging stopped
+            USER0_CONFIG_APP_STATE_t read_user0_config_app_state = get_user0_config_app_state();
+            if(read_user0_config_app_state ==
+               STATE_INTERMITTENT_MONITORING_STOP_LOG)
+            {
+              set_user0_config_app_state(STATE_INTERMITTENT_MONITORING);
+            }
+            if(read_user0_config_app_state ==
+               STATE_INTERMITTENT_MONITORING_STOP_LOG ||
+               read_user0_config_app_state ==
+               STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING)
+            {
+              //Turn on BLE
+              turn_on_BLE();
+            }
+#endif
 #ifdef DCB
             if (!gbDCBCfgFoundFlag) {
 #endif
@@ -2880,7 +2955,7 @@ void StreamBatt_Info(void) {
   // adi_gpio_GetData(ADI_GPIO_PORT1, ADI_GPIO_PIN_1, &nGpioVal);
   /* Read Battery Info */
   ret = Adp5360_get_battery_details(&bat_status);
-  pwr_err = (!ret) ? PWR_CTRL_ERROR : PWR_CTRL_SUCCESS;
+  pwr_err = (ret != ADP5360_SUCCESS) ? PWR_CTRL_ERROR : PWR_CTRL_SUCCESS;
   if (pwr_err != PWR_CTRL_ERROR /* && nGpioVal != 0*/) {
     /* Set the battery voltage, temperature and status */
     switch (bat_status.chrg_status) {
@@ -2888,7 +2963,17 @@ void StreamBatt_Info(void) {
       enBatstatus = M2M2_PM_SYS_BAT_STATE_NOT_AVAIL;
       break;
     }
-    case BATTERY_CHARGING:
+    case BATTERY_CHARGING: {
+      enBatstatus = M2M2_PM_SYS_BAT_STATE_CHARGING;
+      if (bat_status.level >= BATTERY_FULL_CHARGE_LEVEL) {
+        if(battery_level_alerts.charge_alert_status != E_FULL_LEVEL)
+        {
+          battery_level_alerts.charge_alert_status = E_FULL_LEVEL;
+          SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_BATTERY_LEVEL_FULL);
+        }
+      }
+      break;
+    }
     case BATTERY_CHARGER_LDO_MODE:
     case BATTERY_CHARGER_TIMER_EXPIRED: {
       enBatstatus = M2M2_PM_SYS_BAT_STATE_CHARGING;
@@ -2922,11 +3007,31 @@ void StreamBatt_Info(void) {
 #endif
       if (bat_status.level <= battery_level_alerts.level_critical) {
         // TODO: Insert display code handling
-        SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_BATTERY_LEVEL_CRITICAL);
+        if(battery_level_alerts.charge_alert_status != E_CRITICAL_LEVEL)
+        {
+          battery_level_alerts.charge_alert_status = E_CRITICAL_LEVEL;
+          SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_BATTERY_LEVEL_CRITICAL);
+        }
 
       } else if (bat_status.level <= battery_level_alerts.level_low) {
         // TODO: Insert display code handling
-        SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_BATTERY_LEVEL_LOW);
+       if(battery_level_alerts.charge_alert_status != E_LOW_LEVEL)
+        {
+          battery_level_alerts.charge_alert_status = E_LOW_LEVEL;
+          SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_BATTERY_LEVEL_LOW);
+        }
+      } else if (bat_status.level < BATTERY_FULL_CHARGE_LEVEL) {
+        if(battery_level_alerts.charge_alert_status != E_NORMAL_LEVEL)
+        {
+          battery_level_alerts.charge_alert_status = E_NORMAL_LEVEL;
+        }
+      } else if (bat_status.level >= BATTERY_FULL_CHARGE_LEVEL) {
+        // TODO: Insert display code handling
+        if(battery_level_alerts.charge_alert_status != E_FULL_LEVEL)
+        {
+          battery_level_alerts.charge_alert_status = E_FULL_LEVEL;
+          SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_BATTERY_LEVEL_FULL);
+        }
       } else {
         // No need to handle
       }
@@ -2985,7 +3090,6 @@ void StreamBatt_Info(void) {
   else
     ble_bas_timer_cnt = 0;
 }
-
 /////////////////////////////////////////////////////////////////////////
 #define PING_DATA_TX_INTERVAL                                                  \
   20 /**< Ping Data transmitted interval 20 (ms).  \ \                                                                             \

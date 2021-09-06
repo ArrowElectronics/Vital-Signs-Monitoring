@@ -118,6 +118,9 @@ extern const PAGE_HANDLE page_ecg_measure_guide;
 extern const PAGE_HANDLE page_skin_temp_title;
 extern const PAGE_HANDLE page_skin_temp;
 
+#ifdef CUST4_SM
+extern const PAGE_HANDLE page_watch_id;
+#endif
 extern const PAGE_HANDLE page_menu;
 extern const PAGE_HANDLE page_task_info;
 extern const PAGE_HANDLE page_LT_mode2_log_enable;

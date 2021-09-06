@@ -18,6 +18,7 @@
 #endif  // defined __CC_ARM || defined __IAR_SYSTEMS_ICC__ || __clang__ || defined _MSC_VER || defined __GNUC__
 #pragma pack(1)
 
+
 enum M2M2_SENSOR_ADXL_COMMAND_ENUM_t:uint8_t {
   _M2M2_SENSOR_ADXL_COMMAND_LOWEST = 64,
   M2M2_SENSOR_ADXL_COMMAND_LOAD_CFG_REQ = 66,

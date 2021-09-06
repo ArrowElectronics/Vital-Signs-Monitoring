@@ -4,9 +4,10 @@ from common_application_interface_def import *
 
 from common_sensor_interface_def import *
 
+from dcb_interface_def import *
+
 from m2m2_core_def import *
 
-from dcb_interface_def import *
 
 class M2M2_PPG_APP_CMD_ENUM_t(c_ubyte):
     _M2M2_PPG_APP_CMD_LOWEST = 0x40
@@ -43,11 +44,11 @@ class M2M2_SENSOR_PPG_SYNC_DATA_TYPES_ENUM_t(c_ubyte):
     M2M2_SENSOR_PPG_SYNC_DATA_TYPES_SW_SYNC = 0x4
 
 class M2M2_SENSOR_PPG_LCFG_ID_ENUM_t(c_ubyte):
-    M2M2_SENSOR_PPG_LCFG_ID_ADPD107 = 0x6B
-    M2M2_SENSOR_PPG_LCFG_ID_ADPD185 = 0xB9
-    M2M2_SENSOR_PPG_LCFG_ID_ADPD108 = 0x6C
-    M2M2_SENSOR_PPG_LCFG_ID_ADPD188 = 0xBC
     M2M2_SENSOR_PPG_LCFG_ID_ADPD4000 = 0x28
+    M2M2_SENSOR_PPG_LCFG_ID_ADPD107 = 0x6B
+    M2M2_SENSOR_PPG_LCFG_ID_ADPD108 = 0x6C
+    M2M2_SENSOR_PPG_LCFG_ID_ADPD185 = 0xB9
+    M2M2_SENSOR_PPG_LCFG_ID_ADPD188 = 0xBC
 
 class ppg_app_lib_state_t(Structure):
     _pack_ = 1
@@ -177,5 +178,6 @@ class m2m2_ppg_lcfg_data_t(Structure):
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("size", c_ubyte),
-              ("lcfgdata", c_int32 * MAXPPGDCBSIZE),
+              ("lcfgdata", c_long * 56),
               ]
+

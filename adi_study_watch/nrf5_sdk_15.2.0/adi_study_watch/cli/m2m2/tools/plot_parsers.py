@@ -291,7 +291,7 @@ class adpd1_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size = True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -299,7 +299,7 @@ class adpd1_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -353,7 +353,7 @@ class adpd1_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -467,7 +467,7 @@ class adpd2_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size = True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -475,7 +475,7 @@ class adpd2_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -529,7 +529,7 @@ class adpd2_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -640,7 +640,7 @@ class adpd3_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size = True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -648,7 +648,7 @@ class adpd3_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -702,7 +702,7 @@ class adpd3_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -814,7 +814,7 @@ class adpd4_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size=True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -822,7 +822,7 @@ class adpd4_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -876,7 +876,7 @@ class adpd4_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -988,7 +988,7 @@ class adpd5_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size=True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -996,7 +996,7 @@ class adpd5_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -1050,7 +1050,7 @@ class adpd5_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -1162,7 +1162,7 @@ class adpd6_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size=True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -1170,7 +1170,7 @@ class adpd6_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
 
                 sampleSize = dataSize
@@ -1224,7 +1224,7 @@ class adpd6_plot(plot):
                             self.ts_ch2 = []
                     
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -1336,7 +1336,7 @@ class adpd7_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size=True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -1344,7 +1344,7 @@ class adpd7_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -1398,7 +1398,7 @@ class adpd7_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -1511,7 +1511,7 @@ class adpd8_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size=True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -1519,7 +1519,7 @@ class adpd8_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -1573,7 +1573,7 @@ class adpd8_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -1686,7 +1686,7 @@ class adpd9_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size=True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -1694,7 +1694,7 @@ class adpd9_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -1748,7 +1748,7 @@ class adpd9_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -1862,7 +1862,7 @@ class adpd10_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size=True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -1870,7 +1870,7 @@ class adpd10_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -1924,7 +1924,7 @@ class adpd10_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -2038,7 +2038,7 @@ class adpd11_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size=True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -2046,7 +2046,7 @@ class adpd11_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -2100,7 +2100,7 @@ class adpd11_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)
@@ -2214,7 +2214,7 @@ class adpd12_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            hdr = m2m2_packet(0, adpdCl_data_header_t())
+            hdr = m2m2_packet(0, adpd4000_data_header_t())
             hdr.unpack(data, override_size=True)
             if(hdr.payload.data_format & 0x100 == 0):
                 # Decide which subplot to send this packet to
@@ -2222,7 +2222,7 @@ class adpd12_plot(plot):
                 darkSize = (hdr.payload.data_format & 0xF0) >> 4
                 dataSize = signalSize + darkSize
                 # Unpack all of the data into the correct packet structure
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_data_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_data_stream_t())
                 pkt.unpack(data)
     
                 sampleSize = dataSize
@@ -2276,7 +2276,7 @@ class adpd12_plot(plot):
                             self.ts_ch2 = []
 
             else:
-                pkt = m2m2_packet(0, m2m2_sensor_adpdCl_impulse_stream_t())
+                pkt = m2m2_packet(0, m2m2_sensor_adpd4000_impulse_stream_t())
                 pkt.unpack(data)
                 two_channels = pkt.payload.channel_num
                 signalSize = (hdr.payload.data_format & 0xff)

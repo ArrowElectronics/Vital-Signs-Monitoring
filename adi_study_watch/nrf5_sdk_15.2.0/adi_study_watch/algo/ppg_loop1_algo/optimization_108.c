@@ -211,7 +211,7 @@ static void Op_FindPulseNum_108(void) {
   double temp_d;
   uint16_t ledCur, coarseReg, fineReg;
   
-  uint16_t temp_16;
+  uint16_t temp_16 = 0;
   uint8_t retVal;
   uint16_t div_factor;
   uint32_t dc_level;
@@ -255,7 +255,9 @@ static void Op_FindPulseNum_108(void) {
 #if 0
   // adjust by the expected percentage
   temp_16 = ((gAdpd400x_lcfg->postLoop1PulseAdjust + 100) * (*gsPulseNum)) / 100;
-#endif  
+#else
+  temp_16 =   *gsPulseNum; 
+#endif
   // adjust temp_16 for the sampling rate
   div_factor = sampleRate/50;           // above array tuned for 50HZ  
   if(div_factor != 0){

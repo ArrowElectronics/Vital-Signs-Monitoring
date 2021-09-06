@@ -26,7 +26,12 @@ typedef enum {
   LT_APP_CAPSENSE_TUNED_TRIGGER = 0,   //!< Tuning required, Capacitance sensing will trigger LT app
   LT_APP_CAPSENSE_DISPLAY_TRIGGER = 1, //!< Tuning not required, LT app triggered from Watch display/m2m2 command, LT App still based on Capacitance sensing
   LT_APP_BUTTON_TRIGGER = 2,           //!< LT app triggered from button press, not based on Capacitance sensing
+#ifdef CUST4_SM
+  LT_APP_INTERMITTENT_TRIGGER = 3,     //!< LT app triggered after wakeup from intermittent sleep
+  LT_APP_TRIGGER_INVALID = 4,          //!< Invalid State
+#else
   LT_APP_TRIGGER_INVALID = 3,          //!< Invalid State
+#endif
 } LT_APP_LCFG_TRIGGER_METHOD_t;
 
 typedef struct
@@ -59,4 +64,7 @@ void resume_key_and_lt_task(void);
 bool check_lt_app_capsense_tuned_trigger_status();
 bool get_low_touch_trigger_mode2_status(void);
 LT_APP_LCFG_TRIGGER_METHOD_t get_lt_app_trigger_method();
+#ifdef USER0_CONFIG_APP
+bool get_low_touch_trigger_mode3_status(void);
+#endif
 #endif  // __LOW_TOUCH_TASK_H

@@ -6,63 +6,24 @@ import m2m2_core
 
 import common_application_interface
 
-import common_sensor_interface
+import common_sensor_interface #not needed?
 
-M2M2_SENSOR_AD7156_COMMAND_ENUM_t = {
-    "type":c_uint8,
-    "enum_values":
-    [
-        ("_M2M2_SENSOR_AD7156_COMMAND_LOWEST",                0x40),
-        ("M2M2_SENSOR_AD7156_COMMAND_LOAD_CFG_REQ",           0x42),
-        ("M2M2_SENSOR_AD7156_COMMAND_LOAD_CFG_RESP",          0x43),
-    ]
-}
+class M2M2_SENSOR_AD7156_COMMAND_ENUM_t(c_uint8):
+    _M2M2_SENSOR_AD7156_COMMAND_LOWEST = 0x40
+    M2M2_SENSOR_AD7156_COMMAND_LOAD_CFG_REQ = 0x42
+    M2M2_SENSOR_AD7156_COMMAND_LOAD_CFG_RESP = 0x43
 
-m2m2_sensor_ad7156_resp_t = {
-    "struct_fields":
-    [
-        {"name":"command",
-        "type":c_ubyte},
-        {"name":"status",
-        "type":c_ubyte},
-    ]
-}
+class m2m2_sensor_ad7156_resp_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_common_cmd_t),
+              ]
 
-m2m2_sensor_ad7156_data_t = {
-    "struct_fields":
-    [
-        {"name":"command",
-        "type":c_ubyte},
-        {"name":"status",
-        "type":c_ubyte},
-        {"name":"sequence_num",
-        "type":c_ushort},
-        {"name": "timestamp",
-        "type":c_ulong},
-        {"name":"touch_position",
-        "type":c_ubyte},
-        {"name":"touch_value",
-        "type":c_ubyte},
-    ]
-}
-
-pedometer_app_stream_t = {
-    "struct_fields":
-    [
-        {"name":"command",
-        "type":c_ubyte},
-        {"name":"status",
-        "type":c_ushort},
-        {"name":"sequence_num",
-        "type":c_ushort},
-        {"name":"uNumSteps",
-        "type":c_long},
-        {"name":"nAlgoStatus",
-        "type":c_ushort},
-        {"name":"nTimeStamp",
-        "type":c_ulong},
-        {"name":"nReserved",
-        "type":c_byte},
-    ]
-}
+class m2m2_sensor_ad7156_data_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_common_cmd_t),
+              ("sequence_num", c_uint16),
+              ("timestamp", c_uint32),
+              ("touch_position", c_uint8),
+              ("touch_value", c_uint8),
+              ]
 

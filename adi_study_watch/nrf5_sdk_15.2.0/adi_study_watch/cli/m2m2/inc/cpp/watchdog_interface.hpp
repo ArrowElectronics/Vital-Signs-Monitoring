@@ -18,6 +18,7 @@
 #endif  // defined __CC_ARM || defined __IAR_SYSTEMS_ICC__ || __clang__ || defined _MSC_VER || defined __GNUC__
 #pragma pack(1)
 
+
 enum M2M2_WDT_CMD_ENUM_t:uint8_t {
   M2M2_WDT_WDT_CMD_LOWEST = 192,
   M2M2_WDT_WDT_TASK_BROADCAST_CMD = 193,
@@ -33,8 +34,8 @@ enum M2M2_WDT_STATUS_ENUM_t:uint8_t {
 static_assert(sizeof(M2M2_WDT_STATUS_ENUM_t) == 1, "Enum 'M2M2_WDT_STATUS_ENUM_t' has an incorrect size!");
 
 struct m2m2_wdt_cmd_t {
-  M2M2_WDT_CMD_ENUM_t  command; 
-  M2M2_WDT_STATUS_ENUM_t  status; 
+  uint8_t  command; 
+  uint8_t  status; 
 };
 
 // Reset struct packing outside of this file

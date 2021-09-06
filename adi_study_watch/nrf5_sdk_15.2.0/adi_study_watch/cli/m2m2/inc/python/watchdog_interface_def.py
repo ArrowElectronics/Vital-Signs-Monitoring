@@ -4,6 +4,7 @@ from common_application_interface_def import *
 
 from m2m2_core_def import *
 
+
 class M2M2_WDT_CMD_ENUM_t(c_ubyte):
     M2M2_WDT_WDT_CMD_LOWEST = 0xC0
     M2M2_WDT_WDT_TASK_BROADCAST_CMD = 0xC1

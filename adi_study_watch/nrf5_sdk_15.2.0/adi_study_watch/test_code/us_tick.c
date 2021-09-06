@@ -142,28 +142,28 @@ extern uint8_t eda_start_req;
 
 /*!
                               ADPD ODR: Index to Frequency(Hz) to Timer Ticks(16Mhz clk ticks) Mapping Table
-  --------------------------------------------------------------------------------------------------------------
-  | Index     |   0      |   1    |   2   |    3     |   4     |   5     |   6     |   7    |   8     |   9    |
-  --------------------------------------------------------------------------------------------------------------
-  | Freq(Hz)  |   12.5   |   25   |   50  |    100   |   200   |   250   |   300   |  400   |   500   |  1000  |
-  --------------------------------------------------------------------------------------------------------------
-  --------------------------------------------------------------------------------------------------------------
-  | Period(ms)|    80    |   40   |   20  |    10    |    5    |    4    |   3.33  |   2.5  |    2    |    1   |
-  --------------------------------------------------------------------------------------------------------------
-  | Pulse     |    40    |   20   |   10  |    5     |   2.5   |    2    |  1.66   |  1.25  |    1    |   0.5  |
-  | width(ms) |          |        |       |          |         |         |         |        |         |        |
-  --------------------------------------------------------------------------------------------------------------
+  -------------------------------------------------------------------------------------------------------------------------------
+  | Index     |   0      |   1    |   2   |    3     |   4     |   5     |   6     |   7    |   8     |   9    |   10   |   11   |
+  -------------------------------------------------------------------------------------------------------------------------------
+  | Freq(Hz)  |   12.5   |   25   |   50  |    100   |   200   |   250   |   300   |  400   |   500   |  600   |   800  |   1000 |
+  -------------------------------------------------------------------------------------------------------------------------------
+  -------------------------------------------------------------------------------------------------------------------------------
+  | Period(ms)|    80    |   40   |   20  |    10    |    5    |    4    |   3.33  |   2.5  |    2   |  1.66  |  1.25  |    1    |
+  -------------------------------------------------------------------------------------------------------------------------------
+  | Pulse     |    40    |   20   |   10  |    5     |   2.5   |    2    |  1.66   |  1.25  |    1   |  0.83  | 0.625  |   0.5   |
+  | width(ms) |          |        |       |          |         |         |         |        |        |        |        |         | 
+  --------------------------------------------------------------------------------------------------------------------------------
 
             Frequency to Ticks Conversion assuming 16Mhz clk and Prescaler value of 0.
                   # Ticks = Pulse Width (ms)  * 16000(ticks per ms)
 */
 
-#define TRIGGER_FREQ_STEPS  10u
-uint16_t gaAdpdTriggerFreq[TRIGGER_FREQ_STEPS]={12,25,50,100,200,250,300,400,500,1000};
+#define TRIGGER_FREQ_STEPS  12u
+uint16_t gaAdpdTriggerFreq[TRIGGER_FREQ_STEPS]={12,25,50,100,200,250,300,400,500,600,800,1000};
 uint8_t gAdpdFreqIndex = 2, gAdpdDecFactor = 1;
 uint8_t gAdxlFreqIndex = 2, gAdxlDecFactor = 1;
 
-uint32_t gaExtTriggerTicks[TRIGGER_FREQ_STEPS] = {640000,320000,160000,80000,40000,32000,26667,20000,16000,8000};
+uint32_t gaExtTriggerTicks[TRIGGER_FREQ_STEPS] = {640000,320000,160000,80000,40000,32000,26667,20000,16000,13333,10000,8000};
 uint8_t gExtTriggerFreqIndex = 2;
 
 #ifdef ENABLE_ECG_APP
@@ -514,18 +514,20 @@ void enable_adpd_ext_trigger(uint16_t nOdr)
 void ppg_adjust_adpd_ext_trigger(uint16_t nOdr)
 {
     uint8_t nOdrIndex;
-    nOdrIndex = map_adpd_freq_to_index(nOdr);
-    gAdpdFreqIndex = nOdrIndex;
-    if(nOdrIndex > gExtTriggerFreqIndex)
-    {
-      //restart timer; adjust the dec factors
-      restart_trigger_timer(nOdrIndex);
-    }
-    else
-    {
-      gAdpdDecFactor = gaAdpdTriggerFreq[gExtTriggerFreqIndex]/gaAdpdTriggerFreq[nOdrIndex];
-      gAdxlDecFactor = gaAdpdTriggerFreq[gExtTriggerFreqIndex]/gaAdpdTriggerFreq[gAdxlFreqIndex];  
-    }
+   if(gAdpdRunning) {
+      nOdrIndex = map_adpd_freq_to_index(nOdr);
+      gAdpdFreqIndex = nOdrIndex;
+      if(nOdrIndex > gExtTriggerFreqIndex)
+      {
+        //restart timer; adjust the dec factors
+        restart_trigger_timer(nOdrIndex);
+      }
+      else
+      {
+        gAdpdDecFactor = gaAdpdTriggerFreq[gExtTriggerFreqIndex]/gaAdpdTriggerFreq[nOdrIndex];
+        gAdxlDecFactor = gaAdpdTriggerFreq[gExtTriggerFreqIndex]/gaAdpdTriggerFreq[gAdxlFreqIndex];  
+      }
+   }
 }
 
 void disable_adpd_ext_trigger(uint16_t nOdr)

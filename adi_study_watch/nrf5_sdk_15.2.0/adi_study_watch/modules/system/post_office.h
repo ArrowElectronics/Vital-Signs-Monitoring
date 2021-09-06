@@ -63,6 +63,7 @@ typedef enum task_queue_index_t
   APP_OS_CFG_TOUCH_TASK_INDEX                  =  20,
   APP_OS_CFG_SQI_TASK_INDEX                    =  21,
   APP_OS_CFG_BLE_SERVICES_SENSOR_TASK_INDEX    =  22,
+  APP_OS_CFG_USER0_CONFIG_TASK_INDEX           =  23,
   APP_OS_CFG_MAX_TASKS,
 }task_queue_index_t;
 void update_task_queue_list (task_queue_index_t task_index, ADI_OSAL_QUEUE_HANDLE task_queue_handle);

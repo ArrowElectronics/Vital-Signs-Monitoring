@@ -51,4 +51,10 @@ void ble_disable_softdevice(void);
 
 *****************************************************************************/
 void ble_disconnect_and_unbond(void);
+
+#ifdef CUST4_SM
+void turn_on_BLE();
+void turn_off_BLE();
+void change_ble_adv_duration(uint32_t new_adv_duration);
+#endif
 #endif  // __BLE_TASK_H

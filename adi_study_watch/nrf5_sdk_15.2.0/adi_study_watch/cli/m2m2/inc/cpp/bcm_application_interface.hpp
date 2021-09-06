@@ -18,6 +18,7 @@
 #endif  // defined __CC_ARM || defined __IAR_SYSTEMS_ICC__ || __clang__ || defined _MSC_VER || defined __GNUC__
 #pragma pack(1)
 
+
 enum M2M2_BCM_APP_CMD_ENUM_t:uint8_t {
   _M2M2_BCM_APP_CMD_LOWEST = 64,
   M2M2_BCM_APP_CMD_SWEEP_FREQ_ENABLE_REQ = 66,
@@ -46,12 +47,12 @@ enum M2M2_SENSOR_BCM_RAW_DATA_TYPES_ENUM_t:uint8_t {
 static_assert(sizeof(M2M2_SENSOR_BCM_RAW_DATA_TYPES_ENUM_t) == 1, "Enum 'M2M2_SENSOR_BCM_RAW_DATA_TYPES_ENUM_t' has an incorrect size!");
 
 enum M2M2_SENSOR_BCM_SWEEP_FREQ_INDEX_ENUM_t:uint8_t {
-  M2M2_SENSOR_BCM_FREQ_50KHZ = 255,
   M2M2_SENSOR_BCM_FREQ_1000HZ = 0,
   M2M2_SENSOR_BCM_FREQ_3760HZ = 1,
   M2M2_SENSOR_BCM_FREQ_14140HZ = 2,
   M2M2_SENSOR_BCM_FREQ_53180HZ = 3,
   M2M2_SENSOR_BCM_FREQ_200KHZ = 4,
+  M2M2_SENSOR_BCM_FREQ_50KHZ = 255,
 };
 static_assert(sizeof(M2M2_SENSOR_BCM_SWEEP_FREQ_INDEX_ENUM_t) == 1, "Enum 'M2M2_SENSOR_BCM_SWEEP_FREQ_INDEX_ENUM_t' has an incorrect size!");
 
@@ -72,6 +73,11 @@ struct bcm_app_lcfg_op_t {
   uint32_t  value; 
 };
 
+struct bcm_app_dcb_lcfg_t {
+  uint8_t  command; 
+  uint8_t  status; 
+};
+
 struct bcm_app_lcfg_op_hdr_t {
   uint8_t  command; 
   uint8_t  status; 
@@ -84,14 +90,14 @@ struct bcm_data_set_t {
   uint32_t  timestamp; 
   int32_t  real; 
   int32_t  img; 
-  M2M2_SENSOR_BCM_SWEEP_FREQ_INDEX_ENUM_t  freq_index; 
+  uint8_t  freq_index; 
 };
 
 struct bcm_app_stream_t {
   uint8_t  command; 
   uint8_t  status; 
   uint16_t  sequence_num; 
-  M2M2_SENSOR_BCM_RAW_DATA_TYPES_ENUM_t  datatype; 
+  uint8_t  datatype; 
   bcm_data_set_t  bcm_data[4]; 
 };
 

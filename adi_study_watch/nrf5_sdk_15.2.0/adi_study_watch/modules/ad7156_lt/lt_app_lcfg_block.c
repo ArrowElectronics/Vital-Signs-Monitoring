@@ -84,17 +84,11 @@ LT_APP_LCFG_DCB_STATUS_t load_lt_app_lcfg_dcb() {
  * @retval   None
  */
 void copy_lt_lcfg_from_lt_app_lcfg_dcb(lt_app_cfg_type *p_lt_app_cfg) {
-  uint16_t lcfg_data[LT_APP_LCFG_MAX];
-  uint16_t i;
-
-  for (i=0; i<LT_APP_LCFG_MAX; i++) {
-    lcfg_data[i] = (uint16_t)(g_current_wr_det_dcb[i]);
-  }
-  p_lt_app_cfg->onWristTimeThreshold  = lcfg_data[LT_APP_LCFG_ONWR_TIME];
-  p_lt_app_cfg->offWristTimeThreshold = lcfg_data[LT_APP_LCFG_OFFWR_TIME];
-  p_lt_app_cfg->airCapVal             = lcfg_data[LT_APP_LCFG_AIR_CAP_VAL];
-  p_lt_app_cfg->skinCapVal            = lcfg_data[LT_APP_LCFG_SKIN_CAP_VAL];
-  p_lt_app_cfg->ltAppTrigMethd        = lcfg_data[LT_APP_LCFG_TRIGGER_METHOD];
+  p_lt_app_cfg->onWristTimeThreshold  = (uint16_t)g_current_wr_det_dcb[LT_APP_LCFG_ONWR_TIME];
+  p_lt_app_cfg->offWristTimeThreshold = (uint16_t)g_current_wr_det_dcb[LT_APP_LCFG_OFFWR_TIME];
+  p_lt_app_cfg->airCapVal             = (uint16_t)g_current_wr_det_dcb[LT_APP_LCFG_AIR_CAP_VAL];
+  p_lt_app_cfg->skinCapVal            = (uint16_t)g_current_wr_det_dcb[LT_APP_LCFG_SKIN_CAP_VAL];
+  p_lt_app_cfg->ltAppTrigMethd        = (uint16_t)g_current_wr_det_dcb[LT_APP_LCFG_TRIGGER_METHOD];
 }
 
 /**

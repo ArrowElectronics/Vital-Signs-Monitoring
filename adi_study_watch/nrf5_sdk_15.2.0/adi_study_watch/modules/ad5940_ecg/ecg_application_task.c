@@ -84,7 +84,7 @@ ECG_ERROR_CODE_t delete_ecg_dcb(void);
 /////////////////////////////////////////
 g_state_ecg_t g_state_ecg;
 
-#ifdef EXTERNAL_TRIGGER_EDA	
+#ifdef EXTERNAL_TRIGGER_EDA
 uint8_t ecg_start_req=0;
 #endif
 
@@ -121,7 +121,6 @@ static m2m2_hdr_t *ecg_dcb_command_delete_config(m2m2_hdr_t *p_pkt);
 static void fetch_ecg_data(void);
 static void sensor_ecg_task(void *pArgument);
 int32_t EcgInit(void);
-static uint16_t gnEcgSequenceCount = 0;
 extern void EcgFifoCallBack(void);
 void Enable_ephyz_power(void);
 static void InitCfg();
@@ -237,10 +236,11 @@ extern uint32_t gnAd5940TimeCurVal;
 extern uint8_t gnAd5940TimeIrqSet, gnAd5940TimeIrqSet1;
 extern volatile uint8_t gnAd5940DataReady;
 static void sensor_ecg_task(void *pArgument) {
-  m2m2_hdr_t *p_in_pkt = NULL;
-  m2m2_hdr_t *p_out_pkt = NULL;
   ADI_OSAL_STATUS err;
   post_office_add_mailbox(M2M2_ADDR_MED_ECG, M2M2_ADDR_MED_ECG_STREAM);
+
+  /*Wait for FDS init to complete*/
+  adi_osal_SemPend(ecg_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
 
 #ifdef ECG_POLLING
   adp5360_enable_ldo(ECG_LDO,true);
@@ -249,6 +249,8 @@ static void sensor_ecg_task(void *pArgument) {
 #endif
 
   while (1) {
+    m2m2_hdr_t *p_in_pkt = NULL;
+    m2m2_hdr_t *p_out_pkt = NULL;
     adi_osal_SemPend(ecg_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
     p_in_pkt =  post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_ECG_TASK_INDEX);
     if (p_in_pkt == NULL) {
@@ -381,7 +383,7 @@ static void fetch_ecg_data(void) {
           g_state_ecg.leads_on_samplecount = MAX_SAMPLES_LEADS_ON;// For No Leadson/off case ,send packet always.
           send_packets = 1;
         }
-        if(((send_packets == 1) && (g_state_ecg.leads_on_samplecount >= MAX_SAMPLES_LEADS_ON)) 
+        if(((send_packets == 1) && (g_state_ecg.leads_on_samplecount >= MAX_SAMPLES_LEADS_ON))
             || ((g_state_ecg.leads_off_samplecount <= MAX_SAMPLES_LEADS_OFF) && (send_packets == 0))) {
           packetize_ecg_raw_data((int16_t *)&ecgData, &pkt, ecgTS);
           if (g_state_ecg.ecg_pktizer.packet_nsamples >
@@ -407,7 +409,7 @@ static void fetch_ecg_data(void) {
           g_state_ecg.ecg_pktizer.p_pkt->dest = M2M2_ADDR_MED_ECG_STREAM;
 #ifdef BLE_CUSTOM_PROFILE1
           memcpy(p_payload_ptr_ble, &pkt_ble, sizeof(ecg_raw_sample_char_data_t));
-          p_payload_ptr_ble->seq_number = gnEcgSequenceCount++;
+          p_payload_ptr_ble->seq_number = g_state_ecg.data_pkt_seq_num++;
 
           //Extract address from the PO pkt, to copy the ECG HR
           uint16_t *ptr = &(p_payload_ptr_ble->ecg_samp_data[ECG_SAMPLE_COUNT]);
@@ -427,7 +429,7 @@ static void fetch_ecg_data(void) {
           /* Dummy HR , Need to include ECG ALGO */
           p_payload_ptr->HR = 0;
 #endif //ECG_HR_ALGO
-          p_payload_ptr->sequence_num = gnEcgSequenceCount++;
+          p_payload_ptr->sequence_num = g_state_ecg.data_pkt_seq_num++;
 
 #endif//BLE_CUSTOM_PROFILE1
 
@@ -655,7 +657,7 @@ static m2m2_hdr_t *ecg_app_stream_config(m2m2_hdr_t *p_pkt) {
 #ifdef ECG_HR_ALGO
         QRSdetectorInit();
 #endif
-#ifdef EXTERNAL_TRIGGER_EDA	
+#ifdef EXTERNAL_TRIGGER_EDA
         /* flag is used to indicate ecg start req has been recieved */
         ecg_start_req=1;
 #endif
@@ -681,7 +683,7 @@ static m2m2_hdr_t *ecg_app_stream_config(m2m2_hdr_t *p_pkt) {
       if (g_state_ecg.num_starts == 0) {
         status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
       } else if (g_state_ecg.num_starts == 1) {
-#ifdef EXTERNAL_TRIGGER_EDA	
+#ifdef EXTERNAL_TRIGGER_EDA
         /* flag is used to indicate ecg stop req has been recieved */
          ecg_start_req=0;
 #endif
@@ -708,6 +710,11 @@ static m2m2_hdr_t *ecg_app_stream_config(m2m2_hdr_t *p_pkt) {
       break;
     case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
       g_state_ecg.num_subs++;
+      if(g_state_ecg.num_subs == 1)
+      {
+         /* reset pkt sequence no. only during 1st sub request */
+         g_state_ecg.data_pkt_seq_num = 0;
+      }
       post_office_setup_subscriber(
           M2M2_ADDR_MED_ECG, M2M2_ADDR_MED_ECG_STREAM, p_pkt->src, true);
       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;

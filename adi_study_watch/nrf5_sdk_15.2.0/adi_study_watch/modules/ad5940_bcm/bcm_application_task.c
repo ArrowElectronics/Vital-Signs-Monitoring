@@ -105,7 +105,6 @@ static m2m2_hdr_t *adi_dcb_fds_stat(m2m2_hdr_t *p_pkt);
 #endif
 static void fetch_bcm_data(void);
 static void sensor_bcm_task(void *pArgument);
-static uint16_t gnBcmSequenceCount = 0;
 void Enable_ephyz_power(void);
 static void InitCfg();
 uint32_t ad5940_port_Init(void);
@@ -320,12 +319,15 @@ void send_message_ad5940_bcm_task(m2m2_hdr_t *p_pkt) {
   *@return     None
 ******************************************************************************/
 static void sensor_bcm_task(void *pArgument) {
-  m2m2_hdr_t *p_in_pkt = NULL;
-  m2m2_hdr_t *p_out_pkt = NULL;
   ADI_OSAL_STATUS         err;
+
+  /*Wait for FDS init to complete*/
+  adi_osal_SemPend(bcm_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
 
   post_office_add_mailbox(M2M2_ADDR_MED_BCM, M2M2_ADDR_MED_BCM_STREAM);
   while (1) {
+    m2m2_hdr_t *p_in_pkt = NULL;
+    m2m2_hdr_t *p_out_pkt = NULL;
     adi_osal_SemPend(bcm_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
     p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_BCM_TASK_INDEX);
     if (p_in_pkt == NULL) {
@@ -393,7 +395,7 @@ static void fetch_bcm_data(void){
         p_payload_ptr->datatype = M2M2_SENSOR_BCM_DATA;
         g_state_bcm.bcm_pktizer.p_pkt->src = M2M2_ADDR_MED_BCM;
         g_state_bcm.bcm_pktizer.p_pkt->dest = M2M2_ADDR_MED_BCM_STREAM;
-        p_payload_ptr->sequence_num = gnBcmSequenceCount++;
+        p_payload_ptr->sequence_num = g_state_bcm.data_pkt_seq_num++;
 #ifdef DEBUG_PKT
         post_office_msg_cnt(g_state_bcm.bcm_pktizer.p_pkt);
 #endif
@@ -668,6 +670,11 @@ static m2m2_hdr_t *bcm_app_stream_config(m2m2_hdr_t *p_pkt) {
     break;
   case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
     g_state_bcm.num_subs++;
+    if(g_state_bcm.num_subs == 1)
+    {
+       /* reset pkt sequence no. only during 1st sub request */
+       g_state_bcm.data_pkt_seq_num = 0;
+    }
     post_office_setup_subscriber(M2M2_ADDR_MED_BCM, M2M2_ADDR_MED_BCM_STREAM, p_pkt->src, true);
     status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
     command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;

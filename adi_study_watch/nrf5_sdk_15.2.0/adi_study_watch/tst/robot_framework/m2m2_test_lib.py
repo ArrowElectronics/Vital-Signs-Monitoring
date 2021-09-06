@@ -29,7 +29,7 @@ class m2m2_test_lib():
                 connect_command = "connect_usb {}".format(serial_port)
             self._runCommand(connect_command)
             self._check_dvt_version()
-            get_default_config = ["delete_dcb_config adxl", "delete_dcb_config adpd4000", "delete_dcb_config ecg", "delete_dcb_config ppg", "delete_dcb_config eda", "delete_dcb_config bcm","delete_dcb_config ad7156", "delete_dcb_config low_touch", "delete_config_file", "delete_dcb_config wrist_detect"]
+            get_default_config = ["delete_dcb_config adxl", "delete_dcb_config adpd4000", "delete_dcb_config ecg", "delete_dcb_config ppg", "delete_dcb_config eda", "delete_dcb_config bcm","delete_dcb_config ad7156", "delete_dcb_config low_touch", "delete_config_file", "delete_dcb_config lt_app_lcfg", "delete_dcb_config user0_config"]
             for i in range(len(get_default_config)):
                 self._runCommand(get_default_config[i])
                 self._runCommand("delay 2")

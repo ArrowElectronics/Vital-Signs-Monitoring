@@ -4,6 +4,9 @@ from common_application_interface_def import *
 
 from common_sensor_interface_def import *
 
+from m2m2_core_def import *
+
+
 class M2M2_SENSOR_AD7156_COMMAND_ENUM_t(c_ubyte):
     _M2M2_SENSOR_AD7156_COMMAND_LOWEST = 0x40
     M2M2_SENSOR_AD7156_COMMAND_LOAD_CFG_REQ = 0x42
@@ -26,3 +29,4 @@ class m2m2_sensor_ad7156_data_t(Structure):
               ("touch_position", c_ubyte),
               ("touch_value", c_ubyte),
               ]
+

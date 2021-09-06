@@ -2,6 +2,7 @@ from ctypes import *
 
 from m2m2_core_def import *
 
+
 class POST_OFFICE_CFG_CMD_ENUM_t(c_ubyte):
     POST_OFFICE_CFG_CMD_ADD_MAILBOX = 0x1
     POST_OFFICE_CFG_CMD_REMOVE_MAILBOX = 0x2

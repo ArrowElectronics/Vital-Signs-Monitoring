@@ -1796,10 +1796,12 @@
 #define BITP_TS_CTRL_A_INPUT_R_SELECT_A         	10			/*Input resistor select*/
 #define BITP_TS_CTRL_A_SAMPLE_TYPE_A            	12			/*Timeslot Sampling Type*/
 #define BITP_TS_CTRL_A_CH2_EN_A                 	14			/*Channel 2 enable*/
+#define BITP_TS_CTRL_A_SUBSAMPLE_EN_A               15			/*SubSample enable*/
 #define BITM_TS_CTRL_A_TIMESLOT_OFFSET_A        	0x03ff		/*Timeslot A Offset in 64* lfosc1m or 2*lfosc32k cycles.*/
 #define BITM_TS_CTRL_A_INPUT_R_SELECT_A         	0x0c00		/*Input resistor select*/
 #define BITM_TS_CTRL_A_SAMPLE_TYPE_A            	0x3000		/*Timeslot Sampling Type*/
 #define BITM_TS_CTRL_A_CH2_EN_A                 	0x4000		/*Channel 2 enable*/
+#define BITM_TS_CTRL_A_SUBSAMPLE_EN_A               0x8000		/*SubSample enable*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
 				REG_TS_PATH_A						Pos/Masks						Description
@@ -1853,7 +1855,7 @@
 #define BITM_AFE_TRIM_A_VREF_PULSE_VAL_A        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_A_AFE_TRIM_VREF_A         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_A_VREF_PULSE_A            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_A_TIA_CEIL_DETECT_EN_A            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_A_TIA_CEIL_DETECT_EN_A        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_A_AFE_TRIM_INT_A          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -2098,7 +2100,7 @@
 #define BITM_AFE_TRIM_B_VREF_PULSE_VAL_B        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_B_AFE_TRIM_VREF_B         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_B_VREF_PULSE_B            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_B_TIA_CEIL_DETECT_EN_B            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_B_TIA_CEIL_DETECT_EN_B        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_B_AFE_TRIM_INT_B          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -2343,7 +2345,7 @@
 #define BITM_AFE_TRIM_C_VREF_PULSE_VAL_C        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_C_AFE_TRIM_VREF_C         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_C_VREF_PULSE_C            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_C_TIA_CEIL_DETECT_EN_C            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_C_TIA_CEIL_DETECT_EN_C        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_C_AFE_TRIM_INT_C          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -2588,7 +2590,7 @@
 #define BITM_AFE_TRIM_D_VREF_PULSE_VAL_D        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_D_AFE_TRIM_VREF_D         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_D_VREF_PULSE_D            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_D_TIA_CEIL_DETECT_EN_D            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_D_TIA_CEIL_DETECT_EN_D        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_D_AFE_TRIM_INT_D          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -2833,7 +2835,7 @@
 #define BITM_AFE_TRIM_E_VREF_PULSE_VAL_E        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_E_AFE_TRIM_VREF_E         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_E_VREF_PULSE_E            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_E_TIA_CEIL_DETECT_EN_E            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_E_TIA_CEIL_DETECT_EN_E        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_E_AFE_TRIM_INT_E          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -3078,7 +3080,7 @@
 #define BITM_AFE_TRIM_F_VREF_PULSE_VAL_F        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_F_AFE_TRIM_VREF_F         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_F_VREF_PULSE_F            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_F_TIA_CEIL_DETECT_EN_F            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_F_TIA_CEIL_DETECT_EN_F        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_F_AFE_TRIM_INT_F          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -3323,7 +3325,7 @@
 #define BITM_AFE_TRIM_G_VREF_PULSE_VAL_G        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_G_AFE_TRIM_VREF_G         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_G_VREF_PULSE_G            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_G_TIA_CEIL_DETECT_EN_G            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_G_TIA_CEIL_DETECT_EN_G        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_G_AFE_TRIM_INT_G          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -3568,7 +3570,7 @@
 #define BITM_AFE_TRIM_H_VREF_PULSE_VAL_H        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_H_AFE_TRIM_VREF_H         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_H_VREF_PULSE_H            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_H_TIA_CEIL_DETECT_EN_H            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_H_TIA_CEIL_DETECT_EN_H        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_H_AFE_TRIM_INT_H          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -3813,7 +3815,7 @@
 #define BITM_AFE_TRIM_I_VREF_PULSE_VAL_I        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_I_AFE_TRIM_VREF_I         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_I_VREF_PULSE_I            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_I_TIA_CEIL_DETECT_EN_I            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_I_TIA_CEIL_DETECT_EN_I        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_I_AFE_TRIM_INT_I          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -4058,7 +4060,7 @@
 #define BITM_AFE_TRIM_J_VREF_PULSE_VAL_J        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_J_AFE_TRIM_VREF_J         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_J_VREF_PULSE_J            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_J_TIA_CEIL_DETECT_EN_J            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_J_TIA_CEIL_DETECT_EN_J        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_J_AFE_TRIM_INT_J          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -4303,7 +4305,7 @@
 #define BITM_AFE_TRIM_K_VREF_PULSE_VAL_K        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_K_AFE_TRIM_VREF_K         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_K_VREF_PULSE_K            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_K_TIA_CEIL_DETECT_EN_K            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_K_TIA_CEIL_DETECT_EN_K        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_K_AFE_TRIM_INT_K          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------
@@ -4548,7 +4550,7 @@
 #define BITM_AFE_TRIM_L_VREF_PULSE_VAL_L        	0x00c0		/*Vref pulse alternate value*/
 #define BITM_AFE_TRIM_L_AFE_TRIM_VREF_L         	0x0300		/*Voltage trim for ref buffer*/
 #define BITM_AFE_TRIM_L_VREF_PULSE_L            	0x0400		/*Vref pulse control*/
-#define BITM_AFE_TRIM_L_TIA_CEIL_DETECT_EN_L            0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
+#define BITM_AFE_TRIM_L_TIA_CEIL_DETECT_EN_L        0x8000		/*enable TIA ceiling detection circuitry. Enables Channel&2 TIA ceiling detection circuitry */
 #define BITM_AFE_TRIM_L_AFE_TRIM_INT_L          	0xf800		/*Integrator resistor and capacitor select*/
 
 /* -------------------------------------------------------------------------------------------------------------------------

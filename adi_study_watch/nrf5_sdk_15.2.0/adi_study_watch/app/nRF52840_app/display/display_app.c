@@ -214,7 +214,11 @@ void display_page_init(void)
     turn_on_backlight();
     //fds_rtc_init();
     adi_osal_ThreadSleep(3000);//display 3s log page.
+#ifdef CUST4_SM
+    Current_page = &page_watch_id;
+#else
     Current_page = &page_menu;
+#endif
     Current_page->display_func();
     //Change the SD task prio, after display init is completed
     change_sd_task_prio();
@@ -231,7 +235,6 @@ static void display_thread(void * arg)
 //    ret_code_t ret;
     ADI_OSAL_STATUS                       err;
     display_signal_t *display_signal;
-    m2m2_hdr_t              *pkt;
     UNUSED_PARAMETER(arg);
 
     lcd_port_init();
@@ -246,6 +249,7 @@ static void display_thread(void * arg)
     // Enter main loop.
     for (;;)
     {
+        m2m2_hdr_t  *pkt = NULL;
         pkt = post_office_get(ADI_OSAL_TIMEOUT_FOREVER, APP_OS_CFG_DISPLAY_TASK_INDEX);
         if((pkt == NULL)||(pkt->data == NULL))
         {

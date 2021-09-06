@@ -1,0 +1,95 @@
+#UseCase2 DCB with Customer4 Edit - ADPD@500Hz w ch1, ADXL@50Hz, EDA@8Hz, Temp@1Hz
+
+# ADPD DCB - Includes ADPD & Temp
+##  Clock and Timestamp Setup and Control
+0009  0097  # OSC32M [7:0]32MHz trim(0x97), value source:MV_UC2_dcb.dcfg
+#000B  02F6  # OSC1M [10]Cal clock disable(0), [9:0]1MHz trim(0x2F6), value source:MV_UC2_dcb.dcfg
+000B  06E2  # OSC1M [10]Cal clock Enable(1), [9:0]1MHz trim(0x2E2), value source:AWT Default
+000C  0012  # OSC32K [15]Timestamp capture disable(0), [5:0]32kHz trim default frequency(0x12)
+
+##  Interrupt Status and Control
+0007  8FFF  # INT_ACLEAR [15]FIFO Threshold Interrupt auto clear enable(1), [11:0]Timeslot A-L Interrupt auto clear enable(1)
+0014  8000  # INT_ENABLE_XD [15]FIFO Threshold Interrupt X Enable(1)
+0015  6000  # INT_ENABLE_YD [14]INT_FIFO_UFLOW Interrupt Enable(1), [13]INT_FIFO_OFLOW Interrupt Enable(1) value source:AWT Default
+
+##  GLOBAL Configuration
+000D  07D0  # TS_FREQ [15:0]Lower 16 bits of Sampling rate, Fs=1MHz/this (0x2710 for 100Hz, 0x07D0 for 500Hz,  0x03E8 for 1kHz)
+000E  0000  # TS_FREQH [6:0]Upper 7 bits of Sampling rate
+000F  0006  # SYS_CTL [2]select 1MHz osc(1), [1]1MHz osc enable(1), [0]32kHz osc disable(0)
+0010  0500  # OPMODE [11:8]Timeslot enable control ABCDEF(0101)
+0020  2222  # INPUT_SLEEP [15:12][11:8][7:4][3:0]inputs 78/56/34/12 connected to VC1 during sleep(0x2)
+0021  0000  # INPUT_CFG [5:4]VC1 set to AVDD during sleep(0), [3:0]input pairs 78/56/34/12 are configured as single-ended(0000)
+
+##  GPIO Setup and Control
+0022  0003  # GPIO_CFG [11:9]gpio3 disable(000), [8:6]gpio2 disable(000), [5:3]gpio1 disable(000), [2:0]gpio0 enable output-inverted(011)
+0023  0302  # GPIO01 [14:8]gpio1 output signal=Interrupt Y(Unused?), [6:0]gpio0 output signal=interrupt X
+#0024  0001  # GPIO23 # [14:8]gpio3 output signal=logic 0, [6:0]gpio2 output signal=logic 1
+0024  0000  # GPIO23 # [14:8]gpio3 output signal=logic 0, [6:0]gpio2 output signal=logic 0 value source:AWT Default
+
+#Set the signal and dark sample data size of the slots from A to C to zero
+##  TimeSlot Configuration - A
+0110  0000  # DATA1_A [15:11]Dark shift 0bit [10:8]Dark size 0Byte [7:3]Signal shift 0bit [2:0] Signal size 0Byte
+
+##  TimeSlot Configuration - B
+0130  0000  # DATA1_B [15:11]Dark shift 0bit [10:8]Dark size 0Byte [7:3]Signal shift 0bit [2:0] Signal size 0Byte
+
+##  TimeSlot Configuration - C
+0150  0000  # DATA1_C [15:11]Dark shift 0bit [10:8]Dark size 0Byte [7:3]Signal shift 0bit [2:0] Signal size 0Byte
+
+#Slot D Temperature Thermistor
+##  TimeSlot Configuration - D
+0160  0000  # TS_CTRL_D [15]Sub-sambling disable(0), [14]CH2 disable(0), [13:12]standard sampling mode(00), [11:10]Rs=500ohm(0), [9:0]Timeslot offset 0cycle
+0161  40DA  # TS_PATH_D [15:12]Preconditioning duration 0x4(=8us), [9]Timeslot specific gpio value 0x0, [8:0]TIA-BPF-INT-ADC 0x0DA
+0162  0010  # INPUTS_D [15:12]IN78 discon(0000), [11:8]IN56 discon(0000), [7:4]IN3 to ch1, IN4 discon(0001), [3:0]IN12 discon(0000)
+0163  5A40  # CATHODE_D [14:12]Anode precondition to TIA_VREF(101), [11:10]VC2 Alternate Pulse Output(10), [9:8]Alternate TIA_VREF+215mV(10), [7:6]Active TIA_VREF(01)
+0164  E281  # AFE_TRIM_D [15]TIA saturation detection enable(1), [14:13]CH2 INT resistor 100k gain(11), [12:11]CH1 INT resistor 400k gain(00), [10]TIA_VREF Pulse Enable(1), [9:8]TIA_VREF=0.8855V(10), [7:6]TIA_VREF Alternate=0.8855V(10), [5:3]CH2 TIA resistor 200k gain(000), [2:0]CH1 TIA resistor 100k gain(001)
+0165  0000  # LED_POW12_D [15]drive LED2A(0), [14:8]LED2x current=1.6*0mA(0x00), [7]drive LED1A(0), [6:0]LED1x current=1.6*0mA(0x00)
+0166  0000  # LED_POW34_D [15]drive LED4A(0), [14:8]LED4x current=1.6*0mA(0x00), [7]drive LED3A(0), [6:0]LED3x current=1.6*0mA(0x00)
+0167  0101  # COUNTS_D [15:8]NUM of integ cycles per AD for digital intergration and impluse mode 1(0x1), [7:0]NUM_REPEAT 1(0x01)(use even number of pulses when in chop mode)
+0168  0000  # PERIOD_D [13:12]Modulation Connection type Continuous(0x00), [9:0]Minimum Period for pulse repetition 0x0
+0169  0210  # LED_PULSE_D [15:8]LED pulse width 2us(0x02), [7:0]LED pulse offset 16us(0x10) value source:AWT Default
+016A  0003  # INTEG_WIDTH_D [11]Int(0), [7:6]AD count per pulse+1(00), [4:0]INT pulse width 3us
+016B  01F3  # INTEG_OFFSET_D [12:5]INTEG coarse OFFSET 1*15us(00001111), [4:0]INTEG fine OFFSET 31.25*19ns(10011)->15.59375us
+016C  0210  # MOD_PULSE_D [15:8]Modulation Pulse Witdh 2us(0x02), [7:0]Modulation Pulse Offset 16us(0x10)
+016E  0000  # ADC_OFF1_D [13:0]CH1 ADC offset = 0
+016F  0000  # ADC_OFF2_D [13:0]CH2 ADC offset = 0
+0170  0004  # DATA1_D [15:11]Dark shift 0bit [10:8]Dark size 0Byte [7:3]Signal shift 0bit [2:0] Signal size 4Byte
+
+#Slot E Temp. calibration resistor
+##  TimeSlot Configuration - E
+0180  0000  # TS_CTRL_E [15]Sub-sambling disable(0), [14]CH2 disable(0), [13:12]standard sampling mode(00), [11:10]Rs=500ohm(0), [9:0]Timeslot offset 0cycle
+0181  40DA  # TS_PATH_E [15:12]Preconditioning duration 0x4(=8us), [9]Timeslot specific gpio value 0x0, [8:0]TIA-BPF-INT-ADC 0x0DA
+0182  0030  # INPUTS_E [15:12]IN78 discon(0000), [11:8]IN56 discon(0000), [7:4]IN4 to ch1, IN3 discon(0011), [3:0]IN12 discon(0000)
+0183  5A40  # CATHODE_E [14:12]Anode precondition to TIA_VREF(101), [11:10]VC2 Alternate Pulse Output(10), [9:8]Alternate TIA_VREF+215mV(10), [7:6]Active TIA_VREF(01)
+0184  E281  # AFE_TRIM_E [15]TIA saturation detection enable(1), [14:13]CH2 INT resistor 100k gain(11), [12:11]CH1 INT resistor 400k gain(00), [10]TIA_VREF Pulse Enable(1), [9:8]TIA_VREF=0.8855V(10), [7:6]TIA_VREF Alternate=0.8855V(10), [5:3]CH2 TIA resistor 200k gain(000), [2:0]CH1 TIA resistor 100k gain(001)
+0185  0000  # LED_POW12_E [15]drive LED2A(0), [14:8]LED2x current=1.6*0mA(0x00), [7]drive LED1A(0), [6:0]LED1x current=1.6*0mA(0x00)
+0186  0000  # LED_POW34_E [15]drive LED4A(0), [14:8]LED4x current=1.6*0mA(0x00), [7]drive LED3A(0), [6:0]LED3x current=1.6*0mA(0x00)
+0187  0101  # COUNTS_E [15:8]NUM of integ cycles per AD for digital intergration and impluse mode 1(0x1), [7:0]NUM_REPEAT 1(0x01)(use even number of pulses when in chop mode)
+0188  0000  # PERIOD_E [13:12]Modulation Connection type Continuous(0x00), [9:0]Minimum Period for pulse repetition 0x0
+0189  0210  # LED_PULSE_E [15:8]LED pulse width 2us(0x02), [7:0]LED pulse offset 16us(0x10) value source:AWT Default
+018A  0003  # INTEG_WIDTH_E [11]Int(0), [7:6]AD count per pulse+1(00), [4:0]INT pulse width 3us
+018B  01F3  # INTEG_OFFSET_E [12:5]INTEG coarse OFFSET 1*15us(00001111), [4:0]INTEG fine OFFSET 31.25*19ns(10011)->15.59375us
+018C  0210  # MOD_PULSE_E [15:8]Modulation Pulse Witdh 2us(0x02), [7:0]Modulation Pulse Offset 16us(0x10)
+018E  0000  # ADC_OFF1_E [13:0]CH1 ADC offset = 0
+018F  0000  # ADC_OFF2_E [13:0]CH2 ADC offset = 0
+0190  0004  # DATA1_E [15:11]Dark shift 0bit [10:8]Dark size 0Byte [7:3]Signal shift 0bit [2:0] Signal size 4Byte
+
+#SlotF with 1A Green Led
+##  TimeSlot Configuration - F
+01A0  0000  # TS_CTRL_F [15]Sub-sambling disable(0), [14]CH2 disable(0), [13:12]standard sampling mode(00), [11:10]Rs=500ohm(0), [9:0]Timeslot offset 0cycle
+01A1  40DA  # TS_PATH_F [15:12]Preconditioning duration 0x4(=8us), [9]Timeslot specific gpio value 0x0, [8:0]TIA-BPF-INT-ADC 0x0DA
+01A2  0007  # INPUTS_F [15:12]IN78 discon(0000), [11:8]IN56 discon(0000), [7:4]IN34 discon(0000), [3:0]IN1 and IN2 to ch1(0111)
+01A3  5002  # CATHODE_F [14:12]Anode precondition to TIA_VREF(101), [1:0]VC1(Cathode)=TIA_VREF+250mV(10,=PD reverse bias 250mV)
+01A4  E3D0  # AFE_TRIM_F [15]TIA saturation detection enable(1), [14:13]CH2 INT resistor 100k gain(10), [12:11]CH1 INT resistor 400k gain(00), [10]TIA_VREF Pulse Disable(0), [9:8]TIA_VREF=1.265V(11), [7:6]TIA_VREF Alternate=1.265V(11), [5:3]CH2 TIA resistor 50k gain(010), [2:0]CH1 TIA resistor 200k gain(000)
+01A5  0005  # LED_POW12_F [15]drive LED2A(0), [14:8]LED2x current=1.6*0mA(0x00), [7]drive LED1A(0), [6:0]LED1x current=1.6*5mA(0x05)
+01A6  0000  # LED_POW34_F [15]drive LED4A(0), [14:8]LED4x current=1.6*0mA(0x00), [7]drive LED3A(0), [6:0]LED3x current=1.6*0mA(0x00)
+01A7  0120  # COUNTS_F [15:8]NUM of integ cycles per AD for digital intergration and impluse mode 1(0x1), [7:0]NUM_REPEAT 32(0x20)(use even number of pulses when in chop mode)
+01A8  0000  # PERIOD_F [13:12]Modulation Connection type Continuous(0x00), [9:0]Minimum Period for pulse repetition 0x0
+01A9  0210  # LED_PULSE_F [15:8]LED pulse width 2us(0x02), [7:0]LED pulse offset 16us(0x10)
+01AA  0003  # INTEG_WIDTH_F [11]Int(0), [7:6]AD count per pulse+1(00), [4:0]INT pulse width 3us
+01AB  0225  # INTEG_OFFSET_F [12:5]INTEG coarse OFFSET 1*17us(00010001), [4:0]INTEG fine OFFSET 31.25*5ns(00101)->17.15625us source from experiment no7
+01AC  0100  # MOD_PULSE_F [15:8]Modulation Pulse Witdh 1us(0x01), [7:0]Modulation Pulse Offset 0us(0x00)
+01AD  0099  # PATTERN_F [7:4]four-pulse subtract pattern:chop -++-(1001=0x9), [3:0]four-pulse integration reverse pattern -++-(1001=0x9) LSB first
+01AE  0000  # ADC_OFF1_F [13:0]CH1 ADC offset = 0, use chop mode
+01AF  0000  # ADC_OFF2_F [13:0]CH2 ADC offset = 0, use chop mode
+01B0  0004  # DATA1_F [15:11]Dark shift 0bit [10:8]Dark size 0Byte [7:3]Signal shift 0bit [2:0] Signal size 4Byte

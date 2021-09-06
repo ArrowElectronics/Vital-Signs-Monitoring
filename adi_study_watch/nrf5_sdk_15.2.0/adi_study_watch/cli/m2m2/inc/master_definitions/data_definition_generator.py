@@ -2,49 +2,38 @@
 
 
 import os, importlib.util, inspect, ctypes, sys
-from types import ModuleType
+from operator import itemgetter
+from numbers import Integral
 
-from pprint import pprint
 file_write = True
-
-import ast
-
-class get_variables(ast.NodeVisitor):
-    def __init__(self):
-        self.definitions = []
-    def visit_Name(self, node):
-        if isinstance(node.ctx, ast.Store):
-            self.definitions.append((node.lineno, node.id))
-
-    def get_line_nums(self, module):
-        self.visit(module)
-        return sorted(self.definitions, key=lambda x: x[0])
-
 
 class data_obj():
     def __init__(self, name):
         self.name = name
         self.structs = []
         self.enums = []
+        self.defines = []
         self.dependencies = []
 
 class data_definition_generator():
     supported_languages = [ "c",
                             "c++",
                             "python"]
-    tmp_module_name = "THIS_IS_A_VERY_VERBOSE_USER_MODULE_NAME_TO_AVOID_CONFLICTS"
-    int_type_map = {
+    data_type_map = {
                     ctypes.c_uint8:     "uint8_t",
                     ctypes.c_uint16:    "uint16_t",
                     ctypes.c_uint32:    "uint32_t",
                     ctypes.c_int8:      "int8_t",
                     ctypes.c_int16:     "int16_t",
-                    ctypes.c_int32:     "int32_t"
+                    ctypes.c_int32:     "int32_t",
+                    ctypes.c_float:     "float"
                     }
+
+    define_exclusion_list = ["DEFAULT_MODE", "RTLD_GLOBAL", "RTLD_LOCAL"]
 
     def __init__(self, output_dir = None):
         if not isinstance(output_dir, str):
-            raise valueError("'output_dir' must be a string!")
+            raise ValueError("'output_dir' must be a string!")
         self.base_output_dir = os.path.abspath(output_dir)
 
     def read_files(self, input_filenames = None,):
@@ -57,209 +46,174 @@ class data_definition_generator():
             sys.path.append(os.path.dirname(filename))
             m = self._open_module(filename)
             d = self._extract_data_objs(m)
-            for name, obj in inspect.getmembers(m):
-                if isinstance(obj, ModuleType) and name != m.__name__:
+            for name, obj in inspect.getmembers(m, inspect.ismodule):
+                if name != m.__name__:
                     # Check and see if we're already going to parse this dependency. If not, add it to the list of files to parse
                     dep_full_name = os.path.join(os.path.dirname(filename), name + ".py")
                     if dep_full_name not in input_filenames:
                         print("Found a dependency '{}' that isn't explicitly being converted! Adding it to the conversion list...".format(name))
-                        input_filenames.append(dep_full_name)
-                    # Find all the data items inside the dependency
+                        # Find all the data items inside the dependency
                     dep_m = self._open_module(dep_full_name)
                     dep_d = self._extract_data_objs(dep_m)
                     d.dependencies.append(dep_d)
             self.input_defs.append(d)
 
     def _open_module(self, module_fname):
-        spec = importlib.util.spec_from_file_location(self.tmp_module_name, module_fname)
+        spec = importlib.util.spec_from_file_location(module_fname, module_fname)
         m = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(m)
+        importlib.invalidate_caches()
         return m
 
     def _extract_data_objs(self, module):
-        filename = module.__file__
-        d = data_obj(os.path.splitext(filename)[0])
-
-        # Use the AST module to find all of the variables defined in the module and their line numbers
-        with open(module.__file__, "r") as f:
-            m = ast.parse(f.read())
-
-        # returns a list of tuples of all variable names in m sorted by their line number
-        defs = get_variables().get_line_nums(m)
-
-        for line_num, item in defs:
-            # Instantiate the identifier
-            if hasattr(module, item):
-                i = getattr(module, item)
-                # Make sure it's a non-Python-internal dictionary
-                if isinstance(i, dict) and not item.startswith("__") and not item.endswith("__"):
-                    # Store the variable's name in the dictionary so it's easy to access later
-                    i["name"] = item
-                    if "struct_fields" in i:
-                        for field in i["struct_fields"]:
-                            if "name" in field and field["name"] == None:
-                                if "length" in field:
-                                    print("WARNING::{}::{} Detected a field in struct '{}' with 'name' == None and a 'length'. The length will be ignored.".format(os.path.split(filename)[-1], line_num, i["name"]))
-                                    del field["length"]
-                        d.structs.append(i)
-                    elif "enum_values" in i:
-                        implicit_enum_value = 0
-                        for index, pair in enumerate(i["enum_values"]):
-                            # If an enum entry is declared with just a name, turn it into a tuple for processing
-                            if isinstance(pair, str):
-                                # We can't modify pair directly, so replace it, and then re-set it
-                                i["enum_values"][index] = (pair,)
-                                pair = i["enum_values"][index]
-
-                            # If an enum entry is declared as a 1-tuple with only a name
-                            if isinstance(pair, tuple) and len(pair) == 1:
-                                print("INFO::{}::{} Detected an enum member '{}::{}' without an explicit value. Extrapolating from previous values...".format(os.path.split(filename)[-1], line_num, i["name"], pair[0]))
-                                i["enum_values"][index] = (pair[0], implicit_enum_value)
-                                implicit_enum_value += 1
-                            # A fully-specified enum entry
-                            elif len(pair) == 2:
-                                implicit_enum_value = pair[1] + 1
-                            else:
-                                print("FATAL ERROR::{}::{} Incorrect enum value declaration: '{}::{}'".format(os.path.split(filename)[-1], line_num, i["name"], pair[0]))
-                                sys.exit(-1)
-                        d.enums.append(i)
+        d = data_obj(os.path.splitext(module.__file__)[0])
+        structs = []
+        enums = []
+        for name, c in inspect.getmembers(module):
+            if inspect.isclass(c):
+                if c.__module__ == module.__file__:
+                    tmp_name = os.path.splitext(os.path.split(module.__file__)[-1])[0] #module.__file__.split("/")[-1][:-3]
+                    mod = __import__(tmp_name, fromlist=[c.__name__])
+                    klass = getattr(mod, c.__name__)
+                    lineno = inspect.getsourcelines(klass)[1]
+                    attrs = {k: v for k, v in vars(c).items() if not k.startswith("__")}
+                    #handle structs
+                    if "fields" in attrs:
+                        parent_cls = inspect.getmro(c)[1]
+                        struct = {"name": name, "parent_cls": parent_cls, "values": attrs["fields"]}
+                        structs.append((struct, lineno))
+                    #handle enums
                     else:
-                        raise ValueError("Found an object that doesn't look like either a struct or an enum!\n"
-                                        "object name:{}".format(item))
-        if len(d.structs) == 0 and len(d.enums) == 0:
+                        parent_cls = inspect.getmro(c)[1]
+                        enum = {"name": name, "parent_cls": parent_cls,
+                            "values": list(sorted(attrs.items(), key=lambda item: item[1]))}
+                        enums.append((enum, lineno))
+            #handle defines
+            else:
+                if isinstance(c, Integral) and name not in self.define_exclusion_list:
+                    define = {"name": name, "values": c}
+                    d.defines.append(define)
+
+        #order structs and enums by lineno
+        d.structs = [s for s, l in sorted(structs, key=itemgetter(1))]
+        d.enums = [e for e, l in sorted(enums, key=itemgetter(1))]
+        
+        if len(d.structs) == 0 and len(d.enums) == 0 and len(d.defines) == 0:
             raise ValueError("Looks like no structs or enums were found to parse!")
+        
         return d
 
-    def _w(self, msg):
-        if file_write:
-            sys.__stdout__.write(msg)
+    def _resolve_enum_name(self, d_obj, enum_obj, resolve_ctypes=True):
+        if not resolve_ctypes:
+            new_enum = self._find_enum(d_obj, enum_obj)
+            if new_enum is not None:
+                for t, s in self.data_type_map.items():
+                    if issubclass(new_enum['parent_cls'], t):
+                        return t.__name__
+            else:
+                return enum_obj.__name__
+        enum_obj_name = enum_obj.__name__
+        enum_names = [enum["name"] for enum in d_obj.enums]
+        if enum_obj_name in enum_names:
+            return enum_obj_name
+        # See if it's defined in a dependency
+        for dep in d_obj.dependencies:
+            enum_dep_names = [enum["name"] for enum in dep.enums]
+            if enum_obj_name in enum_dep_names:
+                return enum_obj_name
+        return None
 
     def _resolve_type_name(self, d_obj, type_obj, resolve_ctypes=True):
         name = self._resolve_enum_name(d_obj, type_obj, resolve_ctypes)
         if name != None:
             return name
+        type_obj_name = type_obj.__name__
+        struct_names = [struct["name"] for struct in d_obj.structs]
+        if type_obj_name in struct_names:
+            return type_obj_name
         # Handle the case where a type is defined in another module
-        if isinstance(type_obj, dict) and "type" in type_obj:
-            return self._resolve_type_name(d_obj, type_obj["type"], resolve_ctypes)
-
-        if not resolve_ctypes and not isinstance(type_obj, dict):
-            return type_obj.__name__
-        else:
-            # Take a "type" and turn it into a C compatible string representation
-            for t, s in self.int_type_map.items():
-                if isinstance(type_obj, dict):
-                    if not "name" in type_obj:
-                    # if type_obj["name"] == "":
-                        return type_obj["type"]
-                    else:
-                        return type_obj["name"]
-                if isinstance(type_obj(), t):
-                    return s
+        for dep in d_obj.dependencies:
+            struct_dep_names = [struct["name"] for struct in dep.structs]
+            if type_obj_name in struct_dep_names:
+                return type_obj_name
+        # Take a "type" and turn it into a C compatible string representation
+        for t, s in self.data_type_map.items():
+            if isinstance(type_obj(), t):
+                return s
         return None
 
     def _parse_struct(self, d_obj, struct, resolve_ctypes=True):
-        '''
-        Takes a struct dictionary that might have other structs as fields, and
-        returns a list of fields in that struct, with all nested fields of struct
-        type resolved to their basic types.
-        if resolve_ctypes is set, ctypes types will be converted to C/C++ stdint strings
-        i.e.:
-        ###########################################################
-        my_struct_1 = {
-            "struct_fields": [ {
-                          "name": "base_field",
-                          "type": c_uint8,
-                        }
-                        ]
-        }
-        my_struct_t = {
-          "struct_fields": [{
-                                "type": my_struct_1,
-                            },
-                            ]
-        }
-        ###########################################################
-        becomes
-        ###########################################################
-        my_struct_1 = {
-            "struct_fields": [ {
-                          "name": "base_field",
-                          "type": c_uint8,
-                        }
-                        ]
-        }
-        my_struct_t = {
-          "struct_fields": [{
-                                "name": "base_field",
-                                "type": c_uint8,
-                            }
-                            ]
-        }
-
-        '''
         struct_fields = []
-        for field in struct["struct_fields"]:
+        for field in struct["values"]:
             resolved_field = {}
-            if "length" in field and field["length"] != None:
-                # This field is an array, so we need its length
-                resolved_field["length"] = field["length"]
-            if "type" in field and self._is_struct(field["type"]):
-                # This field has a user-defined struct type
-                if "length" in field and field["length"] != None:
-                    # A regular array of structs; just plug it in
-                    resolved_field["name"] = field["name"]
-                    resolved_field["type"] = self._resolve_type_name(d_obj, field["type"], resolve_ctypes)
-                if not "name" in field:
-                    # The field needs a name entry.
-                    raise Exception("Error! A field in struct '{}' does not have a name!".format(struct["name"]))
-                elif field["name"] == None:
-                    # This is an anonymous struct; resolve its members (plug the definition of its type into the parent struct)
-                    struct_fields.extend(self._parse_struct(d_obj, field["type"], resolve_ctypes))
-                elif not "length" in field:
-                    # Avoid double-counting regular array structs
-                    struct_fields.extend([{"name":field["name"],
-                                            "type":field["type"]["name"]}])
+            # This field is an array, so we need its length
+            if issubclass(field[1], ctypes.Array):
+                resolved_field["length"] = field[1]._length_
+                #Store the class type in tmp_type
+                tmp_type = field[1]._type_
+            else:
+                tmp_type = field[1]
+            #This field has a user-defined struct type
+            if not self._is_ctypes_primitive(tmp_type):
+                # This is an anonymous struct; resolve its members (plug the definition of its type into the parent struct)
+                if field[0] == None:
+                    new_struct = self._find_struct(d_obj, tmp_type)
+                    struct_fields.extend(self._parse_struct(d_obj, new_struct, resolve_ctypes))
+                else:
+                    if "length" in resolved_field:
+                        resolved_field["name"] = field[0]
+                        resolved_field["type"] = self._resolve_type_name(d_obj, tmp_type, resolve_ctypes)
+                    else:
+                        # Avoid double-counting regular array structs
+                        struct_fields.extend([{"name":field[0],
+                                                "type":self._resolve_type_name(d_obj, tmp_type, resolve_ctypes)}])
             else:
                 # The type of this field isn't a struct
-                resolved_field["name"] = field["name"]
-                resolved_field["type"] = self._resolve_type_name(d_obj, field["type"], resolve_ctypes)
+                resolved_field["name"] = field[0]
+                resolved_field["type"] = self._resolve_type_name(d_obj, tmp_type, resolve_ctypes)
 
             if len(resolved_field) != 0:
                 struct_fields.append(resolved_field)
         return struct_fields
 
 
-    def _resolve_enum_name(self, d_obj, enum_obj, resolve_ctypes = True):
-        if not resolve_ctypes:
-            for t in self.int_type_map:
-                if isinstance(enum_obj, dict) and "type" in enum_obj:
-                    return enum_obj["type"].__name__
-                if isinstance(enum_obj, t):
-                    return enum_obj.__name__
-        if enum_obj in d_obj.enums:
-            return enum_obj["name"]
-        # See if there's a type defined in a dependency
+    def _sizeof(self, obj):
+        if obj in self.data_type_map:
+            return ctypes.sizeof(obj)
+
+    def _is_ctypes_primitive(self, obj):
+        return issubclass(obj, tuple(self.data_type_map.keys()))
+
+    def _find_struct(self, d_obj, type_obj):
+        type_obj_name = type_obj.__name__
+        struct_pairs = [(struct["name"], struct) for struct in d_obj.structs]
+        for name, s in struct_pairs:
+            if type_obj_name == name:
+                return s
+        #Handle the case where a struct is defined in another module
         for dep in d_obj.dependencies:
-            for enum in dep.enums:
-                # Slightly hacky check to see if this enum object is defined in a dependency
-                # Ideally this would be done using names (although checking that all the enums are identical is probably better, actually...)
-                if isinstance(enum_obj, dict) and "enum_values" in enum_obj and enum["enum_values"] == enum_obj["enum_values"]:
-                    return enum["name"]
+            struct_dep_pairs = [(struct["name"], struct) for struct in dep.structs]
+            for name, s in struct_dep_pairs:
+                if type_obj_name == name:
+                    return s
         return None
 
-
-    def _sizeof(self, obj):
-        if obj in self.int_type_map:
-            return ctypes.sizeof(obj)
+    def _find_enum(self, d_obj, enum_obj):
+        enum_obj_name = enum_obj.__name__
+        enum_pairs = [(enum["name"], enum) for enum in d_obj.enums]
+        for name, e in enum_pairs:
+            if enum_obj_name == name:
+                return e
+        #Handle the case where an enum is defined in another module
+        for dep in d_obj.dependencies:
+            enum_dep_pairs = [(enum["name"], enum) for enum in dep.enums]
+            for name, e in enum_dep_pairs:
+                if enum_obj_name == name:
+                    return e
+        return None
 
     def _parse_cpp(self):
         self._parse_c_cpp(True)
-
-    def _is_enum(self, obj):
-        return (isinstance(obj, dict) and "enum_values" in obj)
-
-    def _is_struct(self, obj):
-        return (isinstance(obj, dict) and "struct_fields" in obj)
 
     def _parse_c_cpp(self, cpp=False):
         for d in self.input_defs:
@@ -305,16 +259,20 @@ class data_definition_generator():
                     f_o.write("#ifndef STATIC_ASSERT_PROJ\n")
                     f_o.write("#define STATIC_ASSERT_PROJ(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]\n")
                     f_o.write("#endif // STATIC_ASSERT_PROJ\n")
+                    f_o.write("\n")
+                for define in d.defines:
+                    f_o.write("#define {}\t{}\n".format(define["name"], define["values"]))
+                f_o.write("\n")
                 for enum in d.enums:
                     implicit_enum_value = 0
                     if cpp:
                         # Enums are strongly typed in C++
-                        f_o.write("enum {}:{} {{\n".format(enum["name"], self.int_type_map[enum["type"]]))
+                        f_o.write("enum {}:{} {{\n".format(enum["name"], self.data_type_map[enum["parent_cls"]]))
                     else:
                         # Typedef so we get some type checking in C
                         f_o.write("typedef enum {} {{\n".format(enum["name"]))
 
-                    for pair in enum["enum_values"]:
+                    for pair in enum["values"]:
                         f_o.write("  {} = {},\n".format(pair[0], pair[1]))
 
                     if cpp:
@@ -323,9 +281,9 @@ class data_definition_generator():
                         f_o.write("}} {};\n".format(enum["name"]))
 
                     if cpp:
-                        f_o.write('static_assert(sizeof({0}) == {1}, "Enum \'{0}\' has an incorrect size!");\n'.format(enum["name"], self._sizeof(enum["type"])))
+                        f_o.write('static_assert(sizeof({0}) == {1}, "Enum \'{0}\' has an incorrect size!");\n'.format(enum["name"], self._sizeof(enum["parent_cls"])))
                     else:
-                        f_o.write("STATIC_ASSERT_PROJ(sizeof({0}) == {1}, INCORRECT_SIZE_{0});\n".format(enum["name"], self._sizeof(enum["type"])))
+                        f_o.write("STATIC_ASSERT_PROJ(sizeof({0}) == {1}, INCORRECT_SIZE_{0});\n".format(enum["name"], self._sizeof(enum["parent_cls"])))
                     f_o.write("\n")
 
                 for struct in d.structs:
@@ -333,7 +291,7 @@ class data_definition_generator():
                     # pprint(struct)
                     struct_text_lines = []
                     struct_indentation = 2
-                    if "big_endian" in struct and struct["big_endian"] == True:
+                    if issubclass(struct['parent_cls'], ctypes.BigEndianStructure):
                         f_o.write("// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n")
                         f_o.write("// @@  NOTE: THE FIELDS IN THIS STRUCTURE ARE BIG ENDIAN!  @@\n")
                         f_o.write("// @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n")
@@ -348,7 +306,7 @@ class data_definition_generator():
                         arr_str = ""
                         arr_comment = ""
                         # pprint(field)
-                        if "length" in field and field["length"] != None:
+                        if "length" in field:
                             if cpp and (field["length"] == 0):
                                 arr_comment = "// NOTE: THIS FIELD IS INTENDED TO BE OF VARIABLE LENGTH! \n        // NOTE: Use offsetof({0}, {1}) instead of sizeof({0})".format(struct["name"], field["name"])
                                 arr_str = "[1]"
@@ -384,9 +342,14 @@ class data_definition_generator():
                 f_o.write("from ctypes import *\n\n")
                 for dep in d.dependencies:
                     f_o.write("from {}_def import *\n\n".format(os.path.split(dep.name)[-1]))
+                
+                for define in d.defines:
+                    f_o.write("{} = ({})\n".format(define["name"], define["values"]))
+                f_o.write("\n")
+
                 for enum in d.enums:
-                    f_o.write("class {}({}):\n".format(enum["name"], enum["type"]().__class__.__name__))
-                    for pair in enum["enum_values"]:
+                    f_o.write("class {}({}):\n".format(enum["name"], enum["parent_cls"]().__class__.__name__))
+                    for pair in enum["values"]:
                         f_o.write("    {} = 0x{:X}\n".format(pair[0], pair[1]))
                     f_o.write("\n")
 
@@ -394,7 +357,7 @@ class data_definition_generator():
                     parsed_structs = self._parse_struct(d, struct, False)
                     variable_len_struct = False
                     # Look ahead to see if we need to define this as a class factory instead of a plain class
-                    if "big_endian" in struct and struct["big_endian"] == True:
+                    if issubclass(struct["parent_cls"], ctypes.BigEndianStructure):
                         py_struct_base_class = "BigEndianStructure"
                     else:
                         py_struct_base_class = "Structure"
@@ -420,7 +383,10 @@ class data_definition_generator():
                         struct_text_lines.append((field["name"], field["type"], arr_str))
 
                     for line in struct_text_lines:
-                        f_o.write("              (\"{}\", {}),\n".format(line[0], line[1] + line[2]))
+                        try:
+                            f_o.write("              (\"{}\", {}),\n".format(line[0], line[1] + line[2]))
+                        except:
+                            print(line)
                     f_o.write("              ]\n")
                     if variable_len_struct:
                         f_o.write("  return {}_internal()\n".format(struct["name"]))

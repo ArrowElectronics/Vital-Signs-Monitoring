@@ -20,6 +20,8 @@
 #ifndef STATIC_ASSERT_PROJ
 #define STATIC_ASSERT_PROJ(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 #endif // STATIC_ASSERT_PROJ
+
+
 typedef struct _m2m2_debug_data_t {
   uint8_t  str[127]; 
 } m2m2_debug_data_t;

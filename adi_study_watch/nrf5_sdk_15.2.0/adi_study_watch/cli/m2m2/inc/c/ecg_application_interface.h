@@ -22,6 +22,8 @@
 #ifndef STATIC_ASSERT_PROJ
 #define STATIC_ASSERT_PROJ(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 #endif // STATIC_ASSERT_PROJ
+
+
 typedef enum M2M2_ECG_APP_CMD_ENUM_t {
   _M2M2_ECG_APP_CMD_LOWEST = 93,
   M2M2_ECG_APP_CMD_GET_ALGO_VENDOR_VERSION_REQ = 94,

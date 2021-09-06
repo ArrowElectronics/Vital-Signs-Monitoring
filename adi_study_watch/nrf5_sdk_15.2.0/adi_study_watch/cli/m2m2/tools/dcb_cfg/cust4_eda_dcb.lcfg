@@ -1,0 +1,5 @@
+#UseCase2 DCB with Customer4 Edit - ADPD@500Hz w ch1, ADXL@50Hz, EDA@8Hz, Temp@1Hz
+
+#EDA_DCB
+#EDA_DCB_LCFG
+00 0008	# EDA ODR = 8Hz

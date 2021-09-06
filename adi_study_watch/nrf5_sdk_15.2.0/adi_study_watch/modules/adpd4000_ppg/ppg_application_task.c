@@ -109,10 +109,10 @@ typedef struct _SyncAppBuff {
 uint32_t Ppg_Slot = 0;
 /* flag to check if agc ON for PPG or UC HR */
 uint8_t gPpg_agc_en = 0;
-/* 
+/*
 following flag is set in two cases for PPG or UC HR
     - AGC is ON and AGC calibration done
-    - AGC is OFF and Setting Default Curr/Gain from LCFG done 
+    - AGC is OFF and Setting Default Curr/Gain from LCFG done
 */
 uint8_t gPpg_agc_done = 0;
 /* Flag to differentiate first Static AGC settings and AGC recalibration settings */
@@ -160,7 +160,7 @@ static ADI_OSAL_STATIC_THREAD_ATTR ppg_application_task_attributes;
 static StaticTask_t ppgTaskTcb;
 
 /* Create semaphores */
-static ADI_OSAL_SEM_HANDLE   ppg_application_task_evt_sem;
+ADI_OSAL_SEM_HANDLE   ppg_application_task_evt_sem;
 
 /* Create Queue Handler for task */
 static ADI_OSAL_QUEUE_HANDLE  ppg_task_msg_queue = NULL;
@@ -414,7 +414,7 @@ void ppg_application_task_init(void) {
   g_state_syncapp.decimation_nsamples = 0;
   g_state_syncapp.data_pkt_seq_num = 0;
   reset_syncapp_packetization();
-  
+
   /*! Initialize app state */
   g_state_ppg_agc.num_subs = 0;
   g_state_ppg_agc.skip_samples = 0;
@@ -426,7 +426,7 @@ void ppg_application_task_init(void) {
   g_state_ppg_hrv.data_pkt_seq_num = 0;
   reset_hrv_packetization();
   /*! Initialize the PPG LCFG */
-  MwPpg_LoadppgLCFG(M2M2_SENSOR_PPG_LCFG_ID_ADPD4000);
+  //MwPpg_LoadppgLCFG(M2M2_SENSOR_PPG_LCFG_ID_ADPD4000);
 
   ADI_OSAL_STATUS eOsStatus = ADI_OSAL_SUCCESS;
   ppg_application_task_attributes.pThreadFunc = ppg_application_task;
@@ -564,8 +564,6 @@ static void packetize_ppg_sync_data(uint32_t *pPpgData, uint16_t *pAdxlData, uin
 * @return None
 */
 static void ppg_application_task(void *pArgument) {
-  m2m2_hdr_t *p_in_pkt = NULL;
-  m2m2_hdr_t *p_out_pkt = NULL;
   ADI_OSAL_STATUS         err;
   TimeStamps_t timeStamp;
 
@@ -574,8 +572,17 @@ static void ppg_application_task(void *pArgument) {
   post_office_add_mailbox(M2M2_ADDR_MED_PPG, M2M2_ADDR_SYS_AGC_STREAM);
   post_office_add_mailbox(M2M2_ADDR_MED_PPG, M2M2_ADDR_SYS_HRV_STREAM);
   ppg_timer_init();
+
+  /*Wait for FDS init to complete*/
+  adi_osal_SemPend(ppg_application_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+
+  /*! Initialize the PPG LCFG */
+  MwPpg_LoadppgLCFG(M2M2_SENSOR_PPG_LCFG_ID_ADPD4000);
+
   PpgInit();
   while (1) {
+    m2m2_hdr_t *p_in_pkt = NULL;
+    m2m2_hdr_t *p_out_pkt = NULL;
     adi_osal_SemPend(ppg_application_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
     p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_PPG_TASK_INDEX);
     if (p_in_pkt == NULL) {
@@ -767,9 +774,9 @@ void packetize_ppg_HR_debug_data(LibResultX_t lib_result, ADPDLIB_ERROR_CODE_t r
     p_payload_ptr->adpdlibstate = (uint16_t) g_state_ppgapp.CurLibState;
     for (uint8_t i = 0; i < DEBUG_INFO_SIZE; i++){
       p_payload_ptr->debugInfo[i] = debugInfo[i];
-    }    
+    }
     if(retcode == ADPDLIB_ERR_AFE_SATURATION){
-      p_payload_ptr->debugInfo[DEBUG_INFO_SIZE-1] = abs(retcode);// capture the library return code 
+      p_payload_ptr->debugInfo[DEBUG_INFO_SIZE-1] = abs(retcode);// capture the library return code
     }
     g_state_ppgapp.ppgapp_pktizer.p_pkt->src = M2M2_ADDR_MED_PPG;
     g_state_ppgapp.ppgapp_pktizer.p_pkt->dest = M2M2_ADDR_MED_PPG_STREAM;
@@ -783,7 +790,7 @@ void packetize_ppg_HR_debug_data(LibResultX_t lib_result, ADPDLIB_ERROR_CODE_t r
   adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
 }
 
-/** 
+/**
 * @brief Packetize and send AGC data
 *
 * @return None
@@ -829,7 +836,7 @@ void packetize_ppg_agc_data() {
   }
 }
 
-/** 
+/**
 * @brief Packetize and send HRV data
 *
 * @return None
@@ -838,7 +845,7 @@ void packetize_ppg_agc_data() {
 void packetize_ppg_hrv_data(uint32_t timestamp) {
   ADI_OSAL_STATUS err;
   static ppg_app_hrv_info_t hrv_pkt;
-  
+
   if(g_state_ppg_hrv.num_subs > 0)
   {
    if(g_state_ppg_hrv.hrv_pktizer.packet_nsamples == 0)
@@ -866,7 +873,7 @@ void packetize_ppg_hrv_data(uint32_t timestamp) {
     hrv_pkt.hrv_data[g_state_ppg_hrv.hrv_pktizer.packet_nsamples -1].rmssd = lib_result.RMSSD;
     g_state_ppg_hrv.hrv_pktizer.nPrevTS = timestamp;
    }
-  
+
    if(++g_state_ppg_hrv.hrv_pktizer.packet_nsamples >= M2M2_SENSOR_HRV_NSAMPLES) /* M2M2_SENSOR_HRV_NSAMPLES = 4 */
    {
     g_state_ppg_hrv.hrv_pktizer.packet_nsamples = 0;
@@ -1224,20 +1231,36 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
     if(p_in_payload->stream == M2M2_ADDR_SYS_HRV_STREAM)
     {
       g_state_ppg_hrv.num_subs++;
+      if(g_state_ppg_hrv.num_subs = 1)
+      {
+        /* reset pkt sequence no. only during 1st sub request */
+        g_state_ppg_hrv.data_pkt_seq_num = 0;
+      }
       post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_SYS_HRV_STREAM, p_pkt->src, true);
     }
     else if(p_in_payload->stream == M2M2_ADDR_SYS_AGC_STREAM)
     {
       g_state_ppg_agc.num_subs++;
+      if(g_state_ppg_agc.num_subs = 1)
+      {
+        /* reset pkt sequence no. only during 1st sub request */
+        g_state_ppg_agc.data_pkt_seq_num = 0;
+      }
       post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_SYS_AGC_STREAM, p_pkt->src, true);
     }
     else
     {
       g_state_ppgapp.num_subs++;
       g_state_syncapp.num_subs++;
+      if(g_state_ppgapp.num_subs == 1)
+      {
+        /* reset pkt sequence no. only during 1st sub request */
+        g_state_ppgapp.data_pkt_seq_num = 0;
+        g_state_syncapp.data_pkt_seq_num = 0;
+      }
       post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_PPG_STREAM, p_pkt->src, true);
       post_office_setup_subscriber(M2M2_ADDR_MED_PPG, M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM, p_pkt->src, true);
-    }  
+    }
     status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
     command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;
     break;
@@ -1279,7 +1302,7 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
        reset_ppgapp_packetization();
        reset_syncapp_packetization();
        status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
-      } 
+      }
       else{
        g_state_ppgapp.num_subs--;
        g_state_syncapp.num_subs--;
@@ -1580,14 +1603,17 @@ void SyncAppDataSend(uint32_t *p_data,uint32_t adpdtimestamp,int16_t *pAdxlData,
   SyncErrorStatus SyncRet = SYNC_ERROR;
   if (g_state_syncapp.num_subs > 0 ) {
     if (p_data != NULL) {
-      if((gAdpd400xLibCfg.targetChs & 0xF) == TARGET_CH2){
+      if((gAdpd400xLibCfg.targetChs & BITM_TARGET_CH) == TARGET_CH2){
         g_SyncAppBuff.gFifoDataB[0] = p_data[1]; // ch2 data will be used by the HRM library
         g_SyncAppBuff.gFifoDataB[1] = p_data[0]; // ch1 required to check saturation
-      }else if(((gAdpd400xLibCfg.targetChs & 0xF) == TARGET_CH4)){
-        g_SyncAppBuff.gFifoDataB[0] = (p_data[0] >> ((gAdpd400xLibCfg.targetChs & 0xF0) >> 4)) + \
-                                      (p_data[1] >> ((gAdpd400xLibCfg.targetChs & 0xF0) >> 4));
+      }else if(((gAdpd400xLibCfg.targetChs & BITM_TARGET_CH) == TARGET_CH4)){
+        g_SyncAppBuff.gFifoDataB[0] = (p_data[0] >> ((gAdpd400xLibCfg.targetChs & BITM_CHANNEL_SHIFT_FACTOR) >> 4)) + \
+                                      (p_data[1] >> ((gAdpd400xLibCfg.targetChs & BITM_CHANNEL_SHIFT_FACTOR) >> 4));
         g_SyncAppBuff.gFifoDataB[1] = p_data[1]; // ch2 required to check saturation
-      }else{//TARGET_CH1 and TARGET_CH3
+      }else if(((gAdpd400xLibCfg.targetChs & BITM_TARGET_CH) == TARGET_CH3)){
+        g_SyncAppBuff.gFifoDataB[0] = (p_data[0] >> ((gAdpd400xLibCfg.targetChs & BITM_CHANNEL_SHIFT_FACTOR) >> 4));
+        g_SyncAppBuff.gFifoDataB[1] = p_data[1]; // ch2 data will be zero here as PD1+PD2 connected to ch1
+      }else{//TARGET_CH1
         g_SyncAppBuff.gFifoDataB[0] = p_data[0]; // ch1 data will be used by the HRM library
         g_SyncAppBuff.gFifoDataB[1] = p_data[1]; // ch2 required to check saturation
       }

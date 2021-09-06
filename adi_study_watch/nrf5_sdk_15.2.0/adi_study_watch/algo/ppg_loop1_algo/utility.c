@@ -333,7 +333,10 @@ void Adpd400xSetChannelFilter(uint16_t slotNum, int16_t usedChValue) {
 void Adpd400xStoreInitSetting(uint16_t slotNum)  {
   uint8_t i;
   AdpdClConfig_t *pConFig;
-
+  if (gAdpd400xPPGLibStatus.AFE_OpMode == ADPD400xLIB_AFE_OPMODE_FLOAT)
+    pConFig = gAdpd400xFloatModeCfg;
+  else
+    pConFig = gAdpd400xNormalModeCfg;
   if (slotNum < 1)
     return;
   for (i = 0; i < CFG_REG_NUM; i++)  {
@@ -350,8 +353,12 @@ void Adpd400xStoreInitSetting(uint16_t slotNum)  {
 void Adpd400xApplyInitSetting(uint16_t slotNum)  {
   uint8_t i;
   AdpdClConfig_t *pConFig;
+  if (gAdpd400xPPGLibStatus.AFE_OpMode == ADPD400xLIB_AFE_OPMODE_FLOAT)
+    pConFig = gAdpd400xFloatModeCfg;
+  else
+    pConFig = gAdpd400xNormalModeCfg;
 
-  for (i=0; i<CFG_REG_NUM; i++)  {
+  for (i=0; i < CFG_REG_NUM; i++)  {
     pConFig[i].addr = gAdpd400xOpModeUsedReg[i] + log2(slotNum) * SLOT_REG_OFFSET;
     AdpdDrvRegWrite(pConFig[i].addr, pConFig[i].value);
   }
@@ -393,7 +400,7 @@ void Adpd400xApplyOpModeSetting(void)  {
     gAdpd400xOptmVal.SelectedLoop =1;
   }
 
-  for (i=0; i<CFG_REG_NUM; i++)  {
+  for (i=0; i < CFG_REG_NUM; i++)  {
     pConFig[i].addr = gAdpd400xOpModeUsedReg[i];
     AdpdDrvRegWrite(g_reg_base + gAdpd400xOpModeUsedReg[i], pConFig[i].value);
   }
@@ -589,8 +596,8 @@ uint16_t Adpd400xUtilGetPulseNum(uint8_t slotNum)   {
   * @retval uint16_t number of pulses
   */
 INT_ERROR_CODE_t Adpd400xUtilSetPulseNum(uint8_t slotNum, uint16_t pulseNum, uint8_t res)   {
-  uint8_t repeatNum, integrateNum;
-  uint16_t addr;
+  uint8_t repeatNum = 0, integrateNum = 0;
+  uint16_t addr = 0;
 
   addr = PpgGetRegAddr(slotNum,ADPD400x_REG_COUNTS_A)
   if (pulseNum <= 0xFF)  {
@@ -745,7 +752,7 @@ uint8_t ADPDLibPostPulseDecreaseAdjust(uint16_t *npulse,uint8_t *oripulse,
 {
   uint16_t in_pulse = *oripulse;
   uint32_t NewSignalLevel;
-  if(*nsamplerate > gAdpd400x_lcfg->hrmInputRate) {
+  if((*nsamplerate > gAdpd400xOptmVal.sampleRate) && (gDVT2)) {
        gUserDcLevelPerPulse = (*dc_level/(*oripulse)); 
        NewSignalLevel = (*oripulse * 2) * (gUserDcLevelPerPulse * 1.1);
 
@@ -851,14 +858,16 @@ uint8_t ADPDLibPostPulseIncreaseAdjust(uint16_t *newpulse,
                                        uint16_t *nsamplerate, 
                                        uint16_t *ndecimation,
                                        uint32_t *dc_level){
-uint32_t NewSignalLevel;  
+uint32_t NewSignalLevel; 
+uint16_t NewSampleRate; 
     // calculate pulse contribution from original pulse and dc signal
    gUserDcLevelPerPulse = (*dc_level/(*oripulse));
    NewSignalLevel = *newpulse * (((gUserDcLevelPerPulse * 1.1) * gAdpd400x_lcfg->targetDcPercent)/100);  //gUserDcLevelPerPulse + 10% Margin
    
    if (NewSignalLevel > MAX_SIGNAL_LEVEL_FOR_PULSE_ADJ){
-    if (*nsamplerate < gAdpd400x_lcfg->maxSamplingRate) {// sampleRate >= max
-      *nsamplerate *= 2;         // double sampling rate
+       NewSampleRate = *nsamplerate * 2;
+    if ((NewSampleRate <= gAdpd400x_lcfg->maxSamplingRate) && (gDVT2)) {// sampleRate >= max
+      *nsamplerate  = NewSampleRate;         // double sampling rate
       *ndecimation *= 2;         // double decimation
       *newpulse = *oripulse/2;        // halve pulses   
 #ifdef TEST_AGC_PULSE
@@ -972,5 +981,6 @@ void Adpd400xUpdateAGCInfoSettings(void)   {
   gAdpd400xAGCStatInfo.setting[3] = gAdpd400xOptmVal.ledB_Pulse2;
   gAdpd400xAGCStatInfo.setting[4] = gAdpd400xOptmVal.tiaB_Gain2;
   gAdpd400xAGCStatInfo.setting[5] = gAdpd400xOptmVal.sampleRate2;
+  gAdpd400xAGCStatInfo.setting[9] = 0x0000;
   gAdpd400xOptmVal.SelectedLoop = 2;
 }

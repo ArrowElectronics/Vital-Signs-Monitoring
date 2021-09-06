@@ -171,6 +171,17 @@ app_routing_table_entry_t temperature_app_routing_table[] = {
   {M2M2_SENSOR_COMMON_CMD_GET_DCFG_REQ, adpd_app_get_dcfg}
 };
 
+#ifdef USER0_CONFIG_APP
+#include "user0_config_app_task.h"
+#include "app_timer.h"
+#include "low_touch_task.h"
+APP_TIMER_DEF(m_temp_timer_id);     /**< Handler for repeated timer for temp. */
+static void temp_timer_start(void);
+static void temp_timer_stop(void);
+static void temp_timeout_handler(void * p_context);
+void start_temp_app_timer();
+static user0_config_app_timing_params_t temp_app_timings = {0};
+#endif
 /*!****************************************************************************
  * \brief Get ADPD4k DCFG
  *
@@ -184,7 +195,7 @@ static m2m2_hdr_t *adpd_app_get_dcfg(m2m2_hdr_t *p_pkt) {
     uint32_t  dcfgdata[MAXADPD4000DCBSIZE*MAX_ADPD4000_DCB_PKTS];
     ADI_OSAL_STATUS  err;
     M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
-   
+
   /* Declare and malloc a response packet */
   PKT_MALLOC(p_resp_pkt, m2m2_sensor_dcfg_data_t, 0);
 
@@ -281,6 +292,9 @@ static m2m2_hdr_t *temperature_app_status(m2m2_hdr_t *p_pkt) {
 static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
   M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
   M2M2_APP_COMMON_CMD_ENUM_t    command;
+  /*Keeping nRetCode as success by default, to handle else part
+    of if(!temp_app_timings.delayed_start) */
+  int16_t nRetCode = ADPD400xDrv_SUCCESS;
 
   /* Declare a pointer to access the input packet payload */
   PYLD_CST(p_pkt, m2m2_app_common_sub_op_t, p_in_payload);
@@ -317,7 +331,29 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       enable_adpd_ext_trigger(g_adpd_odr);
 
       gsOneTimeValueWhenReadAdpdData = 0;
-      if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE))
+#ifdef USER0_CONFIG_APP
+      get_temp_app_timings_from_user0_config_app_lcfg(&temp_app_timings.start_time,\
+                                      &temp_app_timings.on_time, &temp_app_timings.off_time);
+      if(temp_app_timings.start_time > 0)
+      {
+        temp_app_timings.delayed_start = true;
+      }
+      //Temp app not in continuous mode & its interval operation mode
+      if(!is_temp_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+      {
+        start_temp_app_timer();
+      }
+
+      if(!temp_app_timings.delayed_start)
+      {
+        nRetCode = Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);
+        temp_app_timings.app_mode_on = true;
+      }
+      if(ADPD400xDrv_SUCCESS == nRetCode)
+#else
+      if(ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE))
+#endif// USER0_CONFIG_APP
+
       {
         g_state.num_starts = 1;
         gb_adpd_raw_start_temp = 0;
@@ -329,6 +365,7 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       {
         status = M2M2_APP_COMMON_STATUS_STREAM_NOT_STARTED;
       }
+
     } else {
       g_state.num_starts++;
       gb_adpd_raw_start_temp = 0;
@@ -337,6 +374,26 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       {
       gsTempSampleCount = 0;
       status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
+#ifdef USER0_CONFIG_APP
+      get_temp_app_timings_from_user0_config_app_lcfg(&temp_app_timings.start_time,\
+                                      &temp_app_timings.on_time, &temp_app_timings.off_time);
+      if(temp_app_timings.start_time > 0)
+      {
+        temp_app_timings.delayed_start = true;
+      }
+
+      //Temp app not in continuous mode & its interval operation mode
+      if(!is_temp_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+      {
+        start_temp_app_timer();
+      }
+
+      if(!temp_app_timings.delayed_start)
+      {
+        temp_app_timings.app_mode_on = true;
+        ;//TODO: Check and handle ADPD sample mode/idle mode switching
+      }
+#endif// USER0_CONFIG_APP
       }
       else
       {
@@ -361,6 +418,16 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
         gsTempSampleCount = 0;
         status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
         /* reset_adpd_packetization();*/
+#ifdef USER0_CONFIG_APP
+        if(temp_app_timings.check_timer_started)
+        {
+          temp_timer_stop();
+          temp_app_timings.on_time_count = 0;
+          temp_app_timings.off_time_count = 0;
+          temp_app_timings.start_time_count = 0;
+          temp_app_timings.delayed_start =  false;
+        }
+#endif//USER0_CONFIG_APP
       } else {
         g_state.num_starts = 1;
         gb_adpd_raw_start_temp = 1;
@@ -393,6 +460,11 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
     break;
   case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
     gsTemperatureSubscribers++;
+    if(gsTemperatureSubscribers == 1)
+    {
+      /* reset pkt sequence no. only during 1st sub request */
+      gsTemperatureSeqNum = 0;
+    }
 #ifdef SLOT_SELECT
     if(check_temp_slot_set == false)
     {
@@ -434,6 +506,148 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
   }//if(NULL != p_resp_pkt)
   return p_resp_pkt;
 }
+
+#ifdef USER0_CONFIG_APP
+/**@brief Function for the Timer initialization.
+*
+* @details Initializes the timer module. This creates and starts application timers.
+*
+* @param[in]  None
+*
+* @return     None
+*/
+static void temp_timer_init(void)
+{
+    ret_code_t err_code;
+
+    /*! Create timers */
+    err_code =  app_timer_create(&m_temp_timer_id, APP_TIMER_MODE_REPEATED, temp_timeout_handler);
+
+    APP_ERROR_CHECK(err_code);
+}
+
+/**@brief   Function for starting application timers.
+* @details Timers are run after the scheduler has started.
+*
+* @param[in]  None
+*
+* @return     None
+*/
+static void temp_timer_start(void)
+{
+    /*! Start repeated timer */
+    ret_code_t err_code = app_timer_start(m_temp_timer_id, APP_TIMER_TICKS(TIMER_ONE_SEC_INTERVAL), NULL);
+    APP_ERROR_CHECK(err_code);
+
+    temp_app_timings.check_timer_started = true;
+}
+
+/**@brief   Function for stopping the application timers.
+*
+* @param[in]  None
+*
+* @return     None
+*/
+static void temp_timer_stop(void)
+{
+    /*! Stop the repeated timer */
+    ret_code_t err_code = app_timer_stop(m_temp_timer_id);
+    APP_ERROR_CHECK(err_code);
+
+    temp_app_timings.check_timer_started = false;
+}
+
+/**@brief   Callback Function for application timer events
+*
+* @param[in]  p_context: pointer to the callback function arguments
+*
+* @return     None
+*/
+static void temp_timeout_handler(void * p_context)
+{
+    if(temp_app_timings.delayed_start && temp_app_timings.start_time>0)
+    {
+      temp_app_timings.start_time_count++; /*! Increment counter every sec., till it is equal to start_time Value in seconds. */
+      if(temp_app_timings.start_time_count == temp_app_timings.start_time)
+      {
+#ifndef SLOT_SELECT
+        //Check if ADPD is also started, if so turn LED off
+        if (g_state.num_starts >= 1) {
+          for(uint8_t i=0 ; i<SLOT_NUM ; i++)
+          {
+            g_reg_base = i * 0x20;
+            if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &led_reg.reg_val[i].reg_pow12) == ADPD400xDrv_SUCCESS)
+            {
+              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, 0x0);
+            }/* disable led for slot-A - I */
+
+             if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &led_reg.reg_val[i].reg_pow34) == ADPD400xDrv_SUCCESS)
+             {
+              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, 0x0);
+             }/* disable led for slot-> A - I */
+          }
+        }
+#endif
+
+        //TODO: Disable other slots except Slot D, E
+        //delayed start time expired-turn ON ADPD
+        if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE))
+        {
+        }
+        temp_app_timings.delayed_start = false;
+        temp_app_timings.start_time_count = 0;
+        temp_app_timings.app_mode_on = true;
+      }
+      return;
+    }
+
+    if(temp_app_timings.app_mode_on && temp_app_timings.on_time>0)
+    {
+        temp_app_timings.on_time_count++; /*! Increment counter every sec. incase of ADPD ON, till it is equal to Ton Value in seconds. */
+        if(temp_app_timings.on_time_count == temp_app_timings.on_time)
+        {
+          //on timer expired - turn off ADPD
+          if (g_state.num_starts >= 1) {
+              if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE)) {
+              }
+              //TODO: Enable other slots except Slot D, E, disable Slot D,E
+          }
+          temp_app_timings.app_mode_on = false;
+          temp_app_timings.on_time_count = 0;
+        }
+    }
+    else if(!temp_app_timings.app_mode_on && temp_app_timings.off_time>0)
+    {
+      temp_app_timings.off_time_count++; /*! Increment counter every sec. incase of ADPD OFF, till it is equal to Toff Value in seconds.*/
+      if(temp_app_timings.off_time_count == temp_app_timings.off_time)
+        {
+           //off timer expired - turn on ADPD
+           if (g_state.num_starts >= 1) {
+               if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE))
+               {
+               }
+           }
+           temp_app_timings.app_mode_on = true;
+           temp_app_timings.off_time_count = 0;
+        }
+    }
+}
+
+/**@brief   Function to start Temp app timer
+* @details  This is used in either interval based/intermittent LT mode3
+*
+* @param[in]  None
+*
+* @return     None
+*/
+void start_temp_app_timer()
+{
+  if(temp_app_timings.on_time > 0)
+  {
+    temp_timer_start();
+  }
+}
+#endif//USER0_CONFIG_APP
 
 /*!****************************************************************************
 * \brief  Posts the message packet received into the Temperature task queue
@@ -500,12 +714,15 @@ void temperature_app_task_init(void) {
 * \return None
 */
 static void temperature_app_task(void *pArgument) {
-  m2m2_hdr_t *p_in_pkt = NULL;
-  m2m2_hdr_t *p_out_pkt = NULL;
   ADI_OSAL_STATUS         err;
 
+#ifdef USER0_CONFIG_APP
+  temp_timer_init();
+#endif
   while (1)
   {
+      m2m2_hdr_t *p_in_pkt = NULL;
+      m2m2_hdr_t *p_out_pkt = NULL;
       adi_osal_SemPend(temperature_app_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
       p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_TEMPERATURE_TASK_INDEX);
       if (p_in_pkt == NULL) {
@@ -616,6 +833,10 @@ void fetch_temperature_data()
   ADI_OSAL_STATUS         err;
   temperature_app_stream_t resp_temperature;
 
+#ifdef USER0_CONFIG_APP
+  if(temp_app_timings.app_mode_on)
+  {
+#endif //USER0_CONFIG_APP
   if(gsTemperatureSubscribers > 0)
   {
     resp_temperature.command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
@@ -643,6 +864,9 @@ void fetch_temperature_data()
     }
     adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
   }
+#ifdef USER0_CONFIG_APP
+  }
+#endif//USER0_CONFIG_APP
 }
 
 /*!****************************************************************************

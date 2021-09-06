@@ -7,7 +7,9 @@ try:
     from cobs import cobs
     from m2m2_common import *
     import colorama as cr
+    import array as arr
     import tqdm
+    import re
     from cli_utils import *
 except ImportError as e:
     print "Oops, looks like you're missing a Python module!"
@@ -46,6 +48,8 @@ class verboser():
 
     def __init__(self, console_level=2):
         self.console_level = console_level
+        self.dvt_ver = None
+        self.clk_calib_val = None
 
     def __del__(self):
         self.stop_console()
@@ -132,55 +136,47 @@ class m2m2_shell(cmd.Cmd):
 
     # A dictionary of useful/common command sequences to be executed. The 'commands' key contains a list of CLI commands to be run for the sequence.
     quickstarts = {
-#    "adpd4000": {   "commands":["clockCalibration 6", "setSlot 1 1 1 0x04", "sub radpd1 add", "sensor adpd4000 start"],
+#    "adpd4000": {   "commands":["clockCalibration", "setSlot 1 1 1 0x04", "sub radpd1 add", "sensor adpd4000 start"],
 #                "help":"Setup the ADPD in 32 bit summation mode with the default DCFG."},
-    "adpd4000": {   "commands":[ "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add"],
+    "adpd4000": {   "commands":[ "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green LED."},
-    "ecg4000": {   "commands":[ "controlECGElectrodeSwitch 4k_sw 1", "loadAdpdCfg 40","SetEcg4kLcfg 0:300", "clockCalibration 6", "sensor adpd4000 start", "sub radpd1 add"],
+    "ecg4000": {   "commands":[ "controlECGElectrodeSwitch 4k_sw 1", "loadAdpdCfg 40","SetEcg4kLcfg 0:300", "clockCalibration", "sensor adpd4000 start", "sub radpd1 add"],
                 "help":"Setup the ADPD for measuring ecg in slot A."},
-    "adpd4000_g_DVT2": {   "commands":["loadAdpdCfg 40", "clockCalibration 2","adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add"],
+    "adpd4000_g": {   "commands":["loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green LED."},
-    "adpd4000_r_DVT2": {   "commands":["loadAdpdCfg 41", "clockCalibration 2", "adpdAGCControl 2:1", "sensor adpd4000 start", "sub radpd7 add"],
+    "adpd4000_r": {   "commands":["loadAdpdCfg 41", "clockCalibration", "adpdAGCControl 2:1", "sensor adpd4000 start", "sub radpd7 add"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for Red LED."},
-    "adpd4000_ir_DVT2": {   "commands":["loadAdpdCfg 42", "clockCalibration 2", "adpdAGCControl 3:1", "sensor adpd4000 start", "sub radpd8 add"],
+    "adpd4000_ir": {   "commands":["loadAdpdCfg 42", "clockCalibration", "adpdAGCControl 3:1", "sensor adpd4000 start", "sub radpd8 add"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for IR LED."},
-    "adpd4000_b_DVT2": {   "commands":["loadAdpdCfg 43", "clockCalibration 2", "adpdAGCControl 4:1", "sensor adpd4000 start", "sub radpd9 add"],
+    "adpd4000_b": {   "commands":["loadAdpdCfg 43", "clockCalibration", "adpdAGCControl 4:1", "sensor adpd4000 start", "sub radpd9 add"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for Blue LED."},
-    "adpd4000_g": {   "commands":["loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add"],
-                "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green LED."},
-    "adpd4000_r": {   "commands":["loadAdpdCfg 41", "clockCalibration 6", "adpdAGCControl 2:1", "sensor adpd4000 start", "sub radpd7 add"],
-                "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for Red LED."},
-    "adpd4000_ir": {   "commands":["loadAdpdCfg 42", "clockCalibration 6", "adpdAGCControl 3:1", "sensor adpd4000 start", "sub radpd8 add"],
-                "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for IR LED."},
-    "adpd4000_b": {   "commands":["loadAdpdCfg 43", "clockCalibration 6", "adpdAGCControl 4:1", "sensor adpd4000 start", "sub radpd9 add"],
-                "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for Blue LED."},
-    "adpd4000_g_agc_off": {   "commands":["loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:0", "sensor adpd4000 start", "sub radpd6 add", "plot radpd6"],
+    "adpd4000_g_agc_off": {   "commands":["loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:0", "sensor adpd4000 start", "sub radpd6 add", "plot radpd6"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for Green LED."},
-    "adpd4000_r_agc_off": {   "commands":["loadAdpdCfg 41", "clockCalibration 6", "adpdAGCControl 2:0", "sensor adpd4000 start", "sub radpd7 add", "plot radpd7"],
+    "adpd4000_r_agc_off": {   "commands":["loadAdpdCfg 41", "clockCalibration", "adpdAGCControl 2:0", "sensor adpd4000 start", "sub radpd7 add", "plot radpd7"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for Red LED."},
-    "adpd4000_ir_agc_off": {   "commands":["loadAdpdCfg 42", "clockCalibration 6", "adpdAGCControl 3:0", "sensor adpd4000 start", "sub radpd8 add", "plot radpd8"],
+    "adpd4000_ir_agc_off": {   "commands":["loadAdpdCfg 42", "clockCalibration", "adpdAGCControl 3:0", "sensor adpd4000 start", "sub radpd8 add", "plot radpd8"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for IR LED."},
-    "adpd4000_b_agc_off": {   "commands":["loadAdpdCfg 43", "clockCalibration 6", "adpdAGCControl 4:0", "sensor adpd4000 start", "sub radpd9 add", "plot radpd9"],
+    "adpd4000_b_agc_off": {   "commands":["loadAdpdCfg 43", "clockCalibration", "adpdAGCControl 4:0", "sensor adpd4000 start", "sub radpd9 add", "plot radpd9"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for Blue LED."},
-    "adpd4000_g_r": {   "commands":["create_adpd4k_dcfg 6:4 7:5", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1 2:1", "sensor adpd4000 start", "sub radpd6 add","sub radpd7 add", "plot radpd6", "plot radpd7"],
+    "adpd4000_g_r": {   "commands":["create_adpd4k_dcfg 6:4 7:5", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1 2:1", "sensor adpd4000 start", "sub radpd6 add","sub radpd7 add", "plot radpd6", "plot radpd7"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green + red LED."},
-    "adpd4000_g_ir": {   "commands":["create_adpd4k_dcfg 6:4 8:6", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1 3:1", "sensor adpd4000 start", "sub radpd6 add","sub radpd8 add", "plot radpd6", "plot radpd8"],
+    "adpd4000_g_ir": {   "commands":["create_adpd4k_dcfg 6:4 8:6", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1 3:1", "sensor adpd4000 start", "sub radpd6 add","sub radpd8 add", "plot radpd6", "plot radpd8"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green + ir LED."},
-    "adpd4000_r_ir": {   "commands":["create_adpd4k_dcfg 7:5 8:6", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 2:1 3:1", "sensor adpd4000 start", "sub radpd7 add","sub radpd8 add", "plot radpd7", "plot radpd8"],
+    "adpd4000_r_ir": {   "commands":["create_adpd4k_dcfg 7:5 8:6", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 2:1 3:1", "sensor adpd4000 start", "sub radpd7 add","sub radpd8 add", "plot radpd7", "plot radpd8"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for red+ir LED."},
-    "adpd4000_g_b": {   "commands":["create_adpd4k_dcfg 6:4 9:7", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1 4:1", "sensor adpd4000 start", "sub radpd6 add","sub radpd9 add", "plot radpd6", "plot radpd9"],
+    "adpd4000_g_b": {   "commands":["create_adpd4k_dcfg 6:4 9:7", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1 4:1", "sensor adpd4000 start", "sub radpd6 add","sub radpd9 add", "plot radpd6", "plot radpd9"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green+blue LED."},
-    "adpd4000_r_b": {   "commands":["create_adpd4k_dcfg 7:5 9:7", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 2:1 4:1", "sensor adpd4000 start", "sub radpd7 add","sub radpd9 add", "plot radpd7", "plot radpd9"],
+    "adpd4000_r_b": {   "commands":["create_adpd4k_dcfg 7:5 9:7", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 2:1 4:1", "sensor adpd4000 start", "sub radpd7 add","sub radpd9 add", "plot radpd7", "plot radpd9"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for red+blue LED."},
-    "adpd4000_ir_b": {   "commands":["create_adpd4k_dcfg 8:6 9:7", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 3:1 4:1", "sensor adpd4000 start", "sub radpd8 add","sub radpd9 add", "plot radpd8", "plot radpd9"],
+    "adpd4000_ir_b": {   "commands":["create_adpd4k_dcfg 8:6 9:7", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 3:1 4:1", "sensor adpd4000 start", "sub radpd8 add","sub radpd9 add", "plot radpd8", "plot radpd9"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for ir+blue LED."},
-    "adpd4000_g_r_ir": {   "commands":["create_adpd4k_dcfg 6:4 7:5 8:6", "loadAdpdCfg 40", "adpdAGCControl 1:1 2:1 3:1", "clockCalibration 6", "sensor adpd4000 start", "sub radpd6 add", "sub radpd7 add", "sub radpd8 add", "plot radpd6", "plot radpd7", "plot radpd8"],
+    "adpd4000_g_r_ir": {   "commands":["create_adpd4k_dcfg 6:4 7:5 8:6", "loadAdpdCfg 40", "adpdAGCControl 1:1 2:1 3:1", "clockCalibration", "sensor adpd4000 start", "sub radpd6 add", "sub radpd7 add", "sub radpd8 add", "plot radpd6", "plot radpd7", "plot radpd8"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green+red+ir LED."},
-    "adpd4000_r_ir_b": {   "commands":["create_adpd4k_dcfg 7:5 8:6 9:7", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 2:1 3:1 4:1", "sensor adpd4000 start", "sub radpd7 add","sub radpd8 add","sub radpd9 add", "plot radpd7", "plot radpd8", "plot radpd9"],
+    "adpd4000_r_ir_b": {   "commands":["create_adpd4k_dcfg 7:5 8:6 9:7", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 2:1 3:1 4:1", "sensor adpd4000 start", "sub radpd7 add","sub radpd8 add","sub radpd9 add", "plot radpd7", "plot radpd8", "plot radpd9"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for red+ir+blue LED."},
-    "adpd4000_g_r_b": {   "commands":["create_adpd4k_dcfg 6:4 7:5 9:7", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1 2:1 4:1", "sensor adpd4000 start", "sub radpd6 add", "sub radpd7 add","sub radpd9 add", "plot radpd6", "plot radpd7", "plot radpd9"],
+    "adpd4000_g_r_b": {   "commands":["create_adpd4k_dcfg 6:4 7:5 9:7", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1 2:1 4:1", "sensor adpd4000 start", "sub radpd6 add", "sub radpd7 add","sub radpd9 add", "plot radpd6", "plot radpd7", "plot radpd9"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green+red+blue LED."},
-    "adpd4000_g_ir_b": {   "commands":["create_adpd4k_dcfg 6:4 8:6 9:7", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1 3:1 4:1", "sensor adpd4000 start", "sub radpd6 add", "sub radpd8 add","sub radpd9 add", "plot radpd6", "plot radpd8", "plot radpd9"],
+    "adpd4000_g_ir_b": {   "commands":["create_adpd4k_dcfg 6:4 8:6 9:7", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1 3:1 4:1", "sensor adpd4000 start", "sub radpd6 add", "sub radpd8 add","sub radpd9 add", "plot radpd6", "plot radpd8", "plot radpd9"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green+ir+blue LED."},
     "ctr": {   "commands":["loadAdpdCfg 6", "clockCalibration", "setSlot 0x00:0x14", "getCtrValue"],
                 "help":"Get ctr value."},
@@ -204,35 +200,35 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts the Pedometer."},
     "sqi_ext":{   "commands":["plot rsqi", "SQISetSlot 6", "set_adpd_ext_datastream_odr 100", "sensor sqi start","sub rsqi add","send_ext_adpd_datastream 11173863_ADPDAppStream_SlotFChannel1.csv 6 2", "sub rsqi remove", "sensor sqi stop"],
                 "help":"send external sqi data stream"},
-    "sqi_green": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40", "reg w adpd4000 0x0D:0x2710", "clockCalibration 6","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add"],
+    "sqi_green": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40", "reg w adpd4000 0x0D:0x2710", "clockCalibration","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add"],
                 "help":"Starts the SQI with Green LED on slot F of ADPD4000 at 100Hz"},
-    "sqi_green_50": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration 6","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add"],
+    "sqi_green_50": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add"],
                 "help":"Starts the SQI with Green LED on slot F of ADPD4000 at 50Hz"},
-    "sqi_green_25": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40", "reg w adpd4000 0x0D:0x9C40", "clockCalibration 6","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add"],
+    "sqi_green_25": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40", "reg w adpd4000 0x0D:0x9C40", "clockCalibration","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add"],
                 "help":"Starts the SQI with Green LED on slot F of ADPD4000 at 25Hz"},
-    "sqi_ppg":{   "commands":["plot rsyncppg","plot rppg", "plot rsqi", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "SQISetSlot 6","sensor sqi start", "sub rsqi add", "sensor ppg start","sub rppg add"],
+    "sqi_ppg":{   "commands":["plot rsyncppg","plot rppg", "plot rsqi", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "SQISetSlot 6","sensor sqi start", "sub rsqi add", "sensor ppg start","sub rppg add"],
                 "help":"starts SQI along with PPG stream"},
-    "start_log_sqi_green": {   "commands":["loadAdpdCfg 40","reg w adpd4000 0x0D:0x2710", "clockCalibration 6", "SQISetSlot 6", "fs_sub rsqi add", "fs_sub radpd6 add","sensor sqi start", "sensor adpd4000 start", "fs_log start"],
+    "start_log_sqi_green": {   "commands":["loadAdpdCfg 40","reg w adpd4000 0x0D:0x2710", "clockCalibration", "SQISetSlot 6", "fs_sub rsqi add", "fs_sub radpd6 add","sensor sqi start", "sensor adpd4000 start", "fs_log start"],
                 "help":"log the SQI data with Green LED on slot F of ADPD4000 at 100Hz"},
-    "sqi_agc_off_green": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40","reg w adpd4000 0x0D:0x2710","clockCalibration 6","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:0","sensor adpd4000 start","sub radpd6 add"],
+    "sqi_agc_off_green": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40","reg w adpd4000 0x0D:0x2710","clockCalibration","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:0","sensor adpd4000 start","sub radpd6 add"],
                 "help":"Starts the SQI with Green LED on slot F of ADPD4000 at 100Hz"},
-    "sqi_red": {   "commands":["plot radpd7","plot rsqi","loadAdpdCfg 41","reg w adpd4000 0x0D:0x2710","clockCalibration 6","SQISetSlot 7","sensor sqi start","sub rsqi add","adpdAGCControl 2:1","sensor adpd4000 start","sub radpd7 add"],
+    "sqi_red": {   "commands":["plot radpd7","plot rsqi","loadAdpdCfg 41","reg w adpd4000 0x0D:0x2710","clockCalibration","SQISetSlot 7","sensor sqi start","sub rsqi add","adpdAGCControl 2:1","sensor adpd4000 start","sub radpd7 add"],
                 "help":"Starts the SQI with Red LED on slot G of ADPD4000 at 100Hz"},
-    "start_log_sqi_red": {   "commands":["loadAdpdCfg 41","reg w adpd4000 0x0D:0x2710", "clockCalibration 6", "SQISetSlot 7", "fs_sub rsqi add", "fs_sub radpd7 add","sensor sqi start", "sensor adpd4000 start", "fs_log start"],
+    "start_log_sqi_red": {   "commands":["loadAdpdCfg 41","reg w adpd4000 0x0D:0x2710", "clockCalibration", "SQISetSlot 7", "fs_sub rsqi add", "fs_sub radpd7 add","sensor sqi start", "sensor adpd4000 start", "fs_log start"],
                 "help":"log the SQI data with Red LED on slot G of ADPD4000 at 100Hz"},
-    "sqi_agc_off_red": {   "commands":["plot radpd7","plot rsqi","loadAdpdCfg 41","reg w adpd4000 0x0D:0x2710","clockCalibration 6","SQISetSlot 7","sensor sqi start","sub rsqi add","adpdAGCControl 2:0","sensor adpd4000 start","sub radpd7 add"],
+    "sqi_agc_off_red": {   "commands":["plot radpd7","plot rsqi","loadAdpdCfg 41","reg w adpd4000 0x0D:0x2710","clockCalibration","SQISetSlot 7","sensor sqi start","sub rsqi add","adpdAGCControl 2:0","sensor adpd4000 start","sub radpd7 add"],
                 "help":"Starts the SQI with Red LED on slot G of ADPD4000 at 100Hz"},
-    "sqi_ir": {   "commands":["plot radpd8","plot rsqi","loadAdpdCfg 42","reg w adpd4000 0x0D:0x2710","clockCalibration 6","SQISetSlot 8","sensor sqi start","sub rsqi add","adpdAGCControl 3:1","sensor adpd4000 start","sub radpd8 add"],
+    "sqi_ir": {   "commands":["plot radpd8","plot rsqi","loadAdpdCfg 42","reg w adpd4000 0x0D:0x2710","clockCalibration","SQISetSlot 8","sensor sqi start","sub rsqi add","adpdAGCControl 3:1","sensor adpd4000 start","sub radpd8 add"],
                 "help":"Starts the SQI with IR LED on slot H of ADPD4000 at 100Hz"},
-    "start_log_sqi_ir": {   "commands":["loadAdpdCfg 42","reg w adpd4000 0x0D:0x2710", "clockCalibration 6", "SQISetSlot 8", "fs_sub rsqi add", "fs_sub radpd8 add","sensor sqi start", "sensor adpd4000 start", "fs_log start"],
+    "start_log_sqi_ir": {   "commands":["loadAdpdCfg 42","reg w adpd4000 0x0D:0x2710", "clockCalibration", "SQISetSlot 8", "fs_sub rsqi add", "fs_sub radpd8 add","sensor sqi start", "sensor adpd4000 start", "fs_log start"],
                 "help":"log the SQI data with IR LED on slot H of ADPD4000 at 100Hz"},
-    "sqi_agc_off_ir": {   "commands":["plot radpd8","plot rsqi","loadAdpdCfg 42","reg w adpd4000 0x0D:0x2710","clockCalibration 6","SQISetSlot 8","sensor sqi start","sub rsqi add","adpdAGCControl 3:0","sensor adpd4000 start","sub radpd8 add"],
+    "sqi_agc_off_ir": {   "commands":["plot radpd8","plot rsqi","loadAdpdCfg 42","reg w adpd4000 0x0D:0x2710","clockCalibration","SQISetSlot 8","sensor sqi start","sub rsqi add","adpdAGCControl 3:0","sensor adpd4000 start","sub radpd8 add"],
                 "help":"Starts the SQI with IR LED on slot H of ADPD4000 at 100Hz"},
-    "sqi_blue": {   "commands":["plot radpd9","plot rsqi","loadAdpdCfg 43","reg w adpd4000 0x0D:0x2710","clockCalibration 6","SQISetSlot 9","sensor sqi start","sub rsqi add","adpdAGCControl 4:1","sensor adpd4000 start","sub radpd9 add"],
+    "sqi_blue": {   "commands":["plot radpd9","plot rsqi","loadAdpdCfg 43","reg w adpd4000 0x0D:0x2710","clockCalibration","SQISetSlot 9","sensor sqi start","sub rsqi add","adpdAGCControl 4:1","sensor adpd4000 start","sub radpd9 add"],
                 "help":"Starts the SQI with Blue LED on slot I of ADPD4000 at 100Hz"},
-    "start_log_sqi_blue": {   "commands":["loadAdpdCfg 43","reg w adpd4000 0x0D:0x2710", "clockCalibration 6", "SQISetSlot 9", "fs_sub rsqi add", "fs_sub radpd9 add","sensor sqi start", "sensor adpd4000 start", "fs_log start"],
+    "start_log_sqi_blue": {   "commands":["loadAdpdCfg 43","reg w adpd4000 0x0D:0x2710", "clockCalibration", "SQISetSlot 9", "fs_sub rsqi add", "fs_sub radpd9 add","sensor sqi start", "sensor adpd4000 start", "fs_log start"],
                 "help":"log the SQI data with Blue LED on slot I of ADPD4000 at 100Hz"},
-    "sqi_agc_off_blue": {   "commands":["plot radpd9","plot rsqi","loadAdpdCfg 43","reg w adpd4000 0x0D:0x2710","clockCalibration 6","SQISetSlot 9","sensor sqi start","sub rsqi add","adpdAGCControl 4:0","sensor adpd4000 start","sub radpd9 add"],
+    "sqi_agc_off_blue": {   "commands":["plot radpd9","plot rsqi","loadAdpdCfg 43","reg w adpd4000 0x0D:0x2710","clockCalibration","SQISetSlot 9","sensor sqi start","sub rsqi add","adpdAGCControl 4:0","sensor adpd4000 start","sub radpd9 add"],
                 "help":"Starts the SQI with Blue LED on slot I of ADPD4000 at 100Hz"},
     "start_log_adp": {   "commands":["fs_sub radp add", "fs_log start"],
                 "help":"Starts logging the Battery info."},
@@ -270,19 +266,19 @@ class m2m2_shell(cmd.Cmd):
                             "sensor adxl start","reg w adxl 0x2C:0x9E","delay 60", "sensor adxl stop",
                             "fs_sub radxl remove", "fs_log stop"],
                 "help":"Starts logging the ADXL."},                
-    "start_log_adpd4000_g": {   "commands":["loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1", "fs_sub radpd6 add","sensor adpd4000 start","fs_log start"],
+    "start_log_adpd4000_g": {   "commands":["loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1", "fs_sub radpd6 add","sensor adpd4000 start","fs_log start"],
                 "help":"Starts logging the ADPD4000."},
-    "start_log_adpd4000_r": {   "commands":["loadAdpdCfg 41", "clockCalibration 6",  "adpdAGCControl 2:1", "fs_sub radpd7 add","sensor adpd4000 start","fs_log start"],
+    "start_log_adpd4000_r": {   "commands":["loadAdpdCfg 41", "clockCalibration",  "adpdAGCControl 2:1", "fs_sub radpd7 add","sensor adpd4000 start","fs_log start"],
                 "help":"Starts logging the ADPD4000."},
-    "start_log_adpd4000_ir": {   "commands":["loadAdpdCfg 42", "clockCalibration 6",  "adpdAGCControl 3:1", "fs_sub radpd8 add","sensor adpd4000 start","fs_log start"],
+    "start_log_adpd4000_ir": {   "commands":["loadAdpdCfg 42", "clockCalibration",  "adpdAGCControl 3:1", "fs_sub radpd8 add","sensor adpd4000 start","fs_log start"],
                 "help":"Starts logging the ADPD4000."},
-    "start_log_adpd4000_b": {   "commands":["loadAdpdCfg 43", "clockCalibration 6",  "adpdAGCControl 4:1", "fs_sub radpd9 add","sensor adpd4000 start","fs_log start"],
+    "start_log_adpd4000_b": {   "commands":["loadAdpdCfg 43", "clockCalibration",  "adpdAGCControl 4:1", "fs_sub radpd9 add","sensor adpd4000 start","fs_log start"],
                 "help":"Starts logging the ADPD4000."},
-    "start_log_ppg": {   "commands":["loadAdpdCfg 40", "clockCalibration 6","setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1210", "fs_sub rppg add", "sensor ppg start", "fs_log start"],
+    "start_log_ppg": {   "commands":["loadAdpdCfg 40", "clockCalibration","setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1210", "fs_sub rppg add", "sensor ppg start", "fs_log start"],
                 "help":"Starts logging the PPG with Static AGC enabled"},
-    "start_log_ppg_dynamic_agc": {   "commands":["loadAdpdCfg 40", "clockCalibration 6","setPpgLcfg 40", "fs_sub rppg add", "fs_sub ragc add", "sensor ppg start", "fs_log start"],
+    "start_log_ppg_dynamic_agc": {   "commands":["loadAdpdCfg 40", "clockCalibration","setPpgLcfg 40", "fs_sub rppg add", "fs_sub ragc add", "sensor ppg start", "fs_log start"],
                 "help":"Starts logging the PPG with Static+Dynamic AGC enabled"},
-    "start_log_hrv": {   "commands":["loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "fs_sub rppg add", "fs_sub ragc add", "fs_sub rhrv add", "sensor ppg start","fs_log start"],
+    "start_log_hrv": {   "commands":["loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "fs_sub rppg add", "fs_sub ragc add", "fs_sub rhrv add", "sensor ppg start","fs_log start"],
                 "help":"Starts logging the PPG+HRV Stream"},
     "start_log_temperature": {   "commands":["create_adpd4k_dcfg 4:2 5:3", "loadAdpdCfg 40", "fs_sub rtemperature add", "sensor temperature start","fs_log start"],
                 "help":"Start Temperature"},
@@ -290,26 +286,30 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Start ecg"},
     "start_log_ped": {"commands":["fs_sub rped add","sensor adxl start", "sensor ped start","fs_log start"],
                 "help":"Starts the Pedometer. logging"},
-    "start_log_adpd4000_r_adxl": {"commands":["loadAdpdCfg 41", "clockCalibration 6","fs_sub radpd7 add","fs_sub radxl add","fs_log start","sensor adpd4000 start","sensor adxl start"],
+    "start_log_adpd4000_r_adxl": {"commands":["loadAdpdCfg 41", "clockCalibration","fs_sub radpd7 add","fs_sub radxl add","fs_log start","sensor adpd4000 start","sensor adxl start"],
                     "help":"Starts the ADPD4000_r, ADXL logging"},
-    #"start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1 dvt1", "clockCalibration 6","fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
-    "start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 1", "clockCalibration 6", "setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+    #"start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1", "clockCalibration","fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1","setPpgLcfg 40", "loadPpgUCLcfg 1", "clockCalibration", "setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC1 - Adpd@500Hz, Adxl, HR, Temperature"},
-    "start_log_mv_uc2": {   "commands":["loadAdpdUCDcfg 2 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 2", "clockCalibration 6","setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","fs_sub rtemperature add","lcfgEdaWrite 0:30","sensor eda start","sensor adxl start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc2": {   "commands":["loadAdpdUCDcfg 2","setPpgLcfg 40", "loadPpgUCLcfg 2", "clockCalibration","setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","fs_sub rtemperature add","lcfgEdaWrite 0:30","sensor eda start","sensor adxl start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC2 - Eda@30Hz, Adxl, SQI, Adpd@100Hz, HR, Temperature"},
-    "start_log_mv_uc3": {   "commands":["loadAdpdUCDcfg 3 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 3", "clockCalibration 6","setUCHREnab 1 6","fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radxl add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:250","sensor ecg start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc3": {   "commands":["loadAdpdUCDcfg 3","setPpgLcfg 40", "loadPpgUCLcfg 3", "clockCalibration","setUCHREnab 1 6","fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radxl add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:250","sensor ecg start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC3 - Ecg@250Hz, SQI, Adpd@100Hz, HR, Adxl, Temperature"},
-    "start_log_mv_uc4": {   "commands":["loadAdpdUCDcfg 4 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 4", "clockCalibration 6","fs_sub rppg add","fs_sub ragc add", "fs_sub rsqi add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:1000","sensor ecg start","SQISetSlot 6","sensor sqi start","sensor ppg start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc4": {   "commands":["loadAdpdUCDcfg 4","setPpgLcfg 40", "loadPpgUCLcfg 4", "clockCalibration","fs_sub rppg add","fs_sub ragc add", "fs_sub rsqi add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:1000","sensor ecg start","SQISetSlot 6","sensor sqi start","sensor ppg start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC4 - Ecg@1000Hz, SQI, ppg, Temperature"},
-    "start_log_mv_uc5": {   "commands":["loadAdpdUCDcfg 5 dvt1","setPpgLcfg 40", "loadPpgUCLcfg 5","clockCalibration 6","setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
+    "start_log_mv_uc5": {   "commands":["loadAdpdUCDcfg 5","setPpgLcfg 40", "loadPpgUCLcfg 5","clockCalibration","setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
                 "help":"Starts logging for MV UC5 - 4 LED Slots at 100Hz, SQI, HR, Adxl"},
-    "ppg": {    "commands":["loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1210", "sensor ppg start", "sub rppg add"],
+    "start_log_nk_uc": {   "commands":["loadAdpdCfg 40","clockCalibration","fs_sub rtemperature add","fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","adpdAGCControl 1:1","sensor temperature start","set_eda_dcb_lcfg","sensor eda start","sensor adxl start","sensor adpd4000 start","fs_log_append"],
+                "help":"Starts logging for NK UC - Eda@8Hz, Adxl, Adpd@500Hz, Temperature"},
+    "start_log_nk_uc_set_bat_thresh": {   "commands":["loadAdpdCfg 40","clockCalibration","fs_sub rtemperature add","fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","adpdAGCControl 1:1","sensor temperature start","set_eda_dcb_lcfg","sensor eda start","sensor adxl start","sensor adpd4000 start","fs_log_append","setBatteryThreshold 87 88"],
+                "help":"Starts logging for NK UC - Eda@8Hz, Adxl, Adpd@500Hz, Temperature after setting Battery threshold"},
+    "ppg": {    "commands":["loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1210", "sensor ppg start", "sub rppg add"],
                "help":"Starts the PPG application with Static AGC enabled"},
-    "ppg_dynamic_agc": {    "commands":["loadAdpdCfg 40", "clockCalibration 6","setPpgLcfg 40", "sensor ppg start", "sub rppg add", "sub ragc add"],
+    "ppg_dynamic_agc": {    "commands":["loadAdpdCfg 40", "clockCalibration","setPpgLcfg 40", "sensor ppg start", "sub rppg add", "sub ragc add"],
                "help":"Starts the PPG application with Static+Dynamic AGC enabled"},
-    "hrv":{   "commands":["loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start","sub rppg add", "sub ragc add", "sub rhrv add"],
+    "hrv":{   "commands":["loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "sensor ppg start","sub rppg add", "sub ragc add", "sub rhrv add"],
                 "help":"starts PPG+HRV stream with Static+Dynamic AGC enabled"},
-    "periodic_ppg": {    "commands":["loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","lcfgPpgWrite 6 0x000F001E", "sensor ppg start", "sub rppg add"],
+    "periodic_ppg": {    "commands":["loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","lcfgPpgWrite 6 0x000F001E", "sensor ppg start", "sub rppg add"],
                "help":"Starts Duty cycle based periodic PPG, Ton=15sec,Toff=30sec"},
     "ecg": {"commands": ["lcfgEcgWrite 0:100", "sensor ecg start", "sub recg add"],
                  "help": "Start ECG"},
@@ -351,17 +351,17 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Start - stop tests addp4k "},                
     "start_stop_230": {"commands":["quickstart adxl","quickstart adpd4000","quickstart eda", "sensor temperature start","sub  rtemperature add","quickstop adxl","quickstop adpd4000","quickstop eda", "sub  rtemperature remove","sensor temperature stop"],
                 "help":"Start - stop tests addp4k "},
-    "mv_uc1_streaming_start": {"commands":["loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration 6","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add", "delay 1", "sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
+    "mv_uc1_streaming_start": {"commands":["loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add", "delay 1", "sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
                 "help":"Start MV UC1 streaming "},
-    "adpd500Hz_stream_start_stop": {"commands":["loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration 6","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add", "delay 2", "quickstop adpd4000"],
+    "adpd500Hz_stream_start_stop": {"commands":["loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add", "delay 2", "quickstop adpd4000"],
                 "help":"Start adpd at 500Hz streaming "},
-    "mv_uc1_245_issue": {"commands":["write_dcb_config adpd4000 UseCase1.dcfg","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop","delete_dcb_config adpd4000","sensor adpd4000 start","sensor adpd4000 stop","loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration 6","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop"],
+    "mv_uc1_245_issue": {"commands":["write_dcb_config adpd4000 UseCase1.dcfg","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop","delete_dcb_config adpd4000","sensor adpd4000 start","sensor adpd4000 stop","loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop"],
                 "help":"Start MV UC1 245 issue commands"},
-    "mv_uc1_245_issue_200Hz": {"commands":["write_dcb_config adpd4000 UseCase1_200Hz.dcfg","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop","delete_dcb_config adpd4000","sensor adpd4000 start","sensor adpd4000 stop","loadAdpdCfg 40","reg w adpd4000 0x0D:0x1388","clockCalibration 6","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop"],
+    "mv_uc1_245_issue_200Hz": {"commands":["write_dcb_config adpd4000 UseCase1_200Hz.dcfg","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop","delete_dcb_config adpd4000","sensor adpd4000 start","sensor adpd4000 stop","loadAdpdCfg 40","reg w adpd4000 0x0D:0x1388","clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop"],
                 "help":"Start MV UC1 245 issue commands"},
-    "mv_uc1_245_issue_300Hz": {"commands":["write_dcb_config adpd4000 UseCase1_300Hz.dcfg","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop","delete_dcb_config adpd4000","sensor adpd4000 start","sensor adpd4000 stop","loadAdpdCfg 40","reg w adpd4000 0x0D:0x0D05","clockCalibration 6","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop"],
+    "mv_uc1_245_issue_300Hz": {"commands":["write_dcb_config adpd4000 UseCase1_300Hz.dcfg","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop","delete_dcb_config adpd4000","sensor adpd4000 start","sensor adpd4000 stop","loadAdpdCfg 40","reg w adpd4000 0x0D:0x0D05","clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop"],
                 "help":"Start MV UC1 245 issue commands"},
-    "mv_uc1_245_issue_wo_dcb": {"commands":["loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration 6","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop","loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration 6","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop"],
+    "mv_uc1_245_issue_wo_dcb": {"commands":["loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop","loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop"],
                 "help":"Start MV UC1 245 issue commands"},
 	 "adpd_dcb_test": {"commands":["write_dcb_config adpd4000 adpd4000_dcb_test1.dcfg","delay 4","read_dcb_config adpd4000","delay 4","compare_cfg_files adpd4000_dcb_test1.dcfg adpd4000_dcb_get.dcfg","delete_dcb_config adpd4000","delay 4"],
                 "help":"Starts the adpd dcb test."},
@@ -383,8 +383,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts the temp write dcb test."},    
     "temp_dcb_test": {"commands": ["quickstart temp_delete_dcb_test","quickstart temp_write_dcb_test","quickstart temp_delete_dcb_test"],  
                 "help":"Starts the temp robot dcb test."},        
-    "combined_dcb_write_adpd_test": {"commands": ["delete_dcb_config adpd4000","delay 2","loadAdpdCfg 40","clockCalibration 6","sub radpd6 add","delay 5","sub radpd6 remove","sensor adpd4000 stop","reg r adpd4000 0x01B0",
-                                            "write_dcb_config adpd4000 adpd4000_dcb_test1.dcfg","delay 2","loadAdpdCfg 40","clockCalibration 6","sensor adpd4000 start","sub radpd6 add","delay 5","reg r adpd4000 0x01B0",
+    "combined_dcb_write_adpd_test": {"commands": ["delete_dcb_config adpd4000","delay 2","loadAdpdCfg 40","clockCalibration","sub radpd6 add","delay 5","sub radpd6 remove","sensor adpd4000 stop","reg r adpd4000 0x01B0",
+                                            "write_dcb_config adpd4000 adpd4000_dcb_test1.dcfg","delay 2","loadAdpdCfg 40","clockCalibration","sensor adpd4000 start","sub radpd6 add","delay 5","reg r adpd4000 0x01B0",
                                             "delay 2","sub radpd6 remove","sensor adpd4000 stop"],
                 "help":"Starts the adpd robot combined test."}, 
     "combined_dcb_write_adxl_test": {"commands": ["delete_dcb_config adxl","delay 2","sensor adxl start","sub radxl add","delay 5","delay 4","reg r adxl 0x020 0x2C 0x2E","sub radxl remove","sensor adxl stop",
@@ -399,8 +399,8 @@ class m2m2_shell(cmd.Cmd):
 	                                        "write_dcb_config eda eda_dcb.lcfg","delay 2","set_eda_dcb_lcfg","sensor eda start","sub reda add","delay 10",
                                             "sub reda remove","sensor eda stop","lcfgEdaRead 0","lcfgEdaRead 2"],
                 "help":"Starts the eda robot combined test."},  
-    "combined_dcb_write_ppg_test": {"commands": ["delete_dcb_config ppg","loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","sensor ppg start","sub rppg add","sub rppg remove","sensor ppg stop","lcfgPpgCheck 40 ppg_dcb.lcfg",
-	                                        "write_dcb_config ppg ppg_dcb.lcfg","delay 5","loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","sensor ppg start","sub rppg add",
+    "combined_dcb_write_ppg_test": {"commands": ["delete_dcb_config ppg","loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","sensor ppg start","sub rppg add","sub rppg remove","sensor ppg stop","lcfgPpgCheck 40 ppg_dcb.lcfg",
+	                                        "write_dcb_config ppg ppg_dcb.lcfg","delay 5","loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","sensor ppg start","sub rppg add",
                                             "sub rppg remove","sensor ppg stop","lcfgPpgCheck 40 ppg_dcb.lcfg"],
                 "help":"Starts the ppg robot combined test."},    
     "combined_dcb_test": {"commands": ["quickstart combined_dcb_adpd_test","quickstart combined_dcb_adxl_test","quickstart combined_dcb_ecg_test","quickstart combined_dcb_eda_test","quickstart combined_dcb_ppg_test"],
@@ -409,13 +409,13 @@ class m2m2_shell(cmd.Cmd):
 	                                        "write_dcb_config ad7156 ad7156_dcb_test.dcfg","delay 2","loadAd7156Cfg","reg r ad7156 0xA 0xB",
                                             "delete_dcb_config ad7156","delay 2","loadAd7156Cfg","reg r ad7156 0xA 0xB"],
                 "help":"Starts the ad7156 robot combined test."},
-    "combined_del_adpd_dcb_test": {"commands": ["delete_dcb_config adpd4000	","delay 2","loadAdpdCfg 40","clockCalibration 6","sensor adpd4000 start",
+    "combined_del_adpd_dcb_test": {"commands": ["delete_dcb_config adpd4000	","delay 2","loadAdpdCfg 40","clockCalibration","sensor adpd4000 start",
                                                 "sub radpd6 add","delay 5","sub radpd6 remove","sensor adpd4000 stop","reg r adpd4000 0x01B0"],  
                     "help":"Starts the deletion adpd dcb robot combined test."},    
     "combined_del_adxl_dcb_test": {"commands": ["delete_dcb_config adxl","delay 2","sensor adxl start","sub radxl add","delay 5","reg r adxl 0x020 0x2C 0x2E",
                                             "sub radxl remove","sensor adxl stop"],  
                     "help":"Starts the deletion adxl dcb robot combined test."},                 
-    "combined_del_ppg_dcb_test": {"commands": ["delete_dcb_config ppg","loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40",
+    "combined_del_ppg_dcb_test": {"commands": ["delete_dcb_config ppg","loadAdpdCfg 40","clockCalibration","setPpgLcfg 40",
 	                                        "sensor ppg start","sub rppg add","delay 5","sub rppg remove",
                                             "sensor ppg stop","lcfgPpgCheck 40 ppg_dcb.lcfg"],  
                     "help":"Starts the deletion ppg dcb robot combined test."},   
@@ -471,6 +471,10 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts creation of MV UC4 log commands, as user config file into DCFG sectors of LFS"},
     "nand_config_file_create_mv_uc5": {   "commands":[ "fs_config_log start","quickstart start_log_mv_uc5", "quickstop stop_log_mv_uc5","fs_config_log_file write","fs_config_log stop"],
                 "help":"Starts creation of MV UC5 log commands, as user config file into DCFG sectors of LFS"},
+    "nand_config_file_create_nk_uc": {   "commands":[ "fs_config_log start","quickstart start_log_nk_uc", "quickstop stop_log_nk_uc","fs_config_log_file write","fs_config_log stop"],
+                "help":"Starts creation of MV UC2 log commands, as user config file into DCFG sectors of LFS"},
+    "nand_config_file_create_nk_uc_set_bat_thresh": {   "commands":[ "fs_config_log start","quickstart start_log_nk_uc_set_bat_thresh", "quickstop stop_log_nk_uc","fs_config_log_file write","fs_config_log stop"],
+                "help":"Starts creation of MV UC2 log commands, as user config file into DCFG sectors of LFS"},
     "eda_freq_seq_test": {"commands":["quickstart eda_4","delay 7","quickstop eda","quickstart eda_8","delay 7","quickstop eda", "quickstart eda_4","delay 7","quickstop eda","quickstart eda_16","delay 7","quickstop eda", "quickstart eda_8","delay 7","quickstop eda", "quickstart eda_4","delay 7","quickstop eda", "quickstart eda_16","delay 7","quickstop eda"],
                 "help":"Start EDA frquency change test: 4->8->4->16->8->4->16"},
     "gen_blk_dcb_file_create_test1": {   "commands":[ "create_gen_blk_dcb start", "quickstart start_log_adpd4000_r_adxl", "quickstop stop_log_adpd4000_r_adxl", "gen_blk_dcb_file_create write", "create_gen_blk_dcb stop"],
@@ -495,80 +499,80 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Generate DCB file, write DCB, Start Low touch with DCB configurations"},
     "ppg_dark_test": {"commands":["delete_dcb_config adpd4000","write_dcb_config adpd4000 ppg_dark_test.dcfg","toggleSaveCSV","quickstart adpd4000","plot radpd6","delay 5","quickstop adpd4000","toggleSaveCSV","delete_dcb_config adpd4000"],
                 "help":"Quickstarts the PPG dark test for 5 secs and saves the PPG data as CSV file"},
-    "ppg_static_agc_dis_50Hz_test": {"commands":["loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010 0x7 0x32", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg", "delay 120", "quickstop ppg"],
+    "ppg_static_agc_dis_50Hz_test": {"commands":["loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010 0x7 0x32", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg", "delay 120", "quickstop ppg"],
                 "help":"Quickstarts the PPG with changes in lcfg to disable STATIC AGC, run ADPD at 50Hz "},
-    "ppg_static_agc_en_50Hz_test": {"commands": ["loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210 0x7 0x32", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 120", "quickstop ppg"],
+    "ppg_static_agc_en_50Hz_test": {"commands": ["loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210 0x7 0x32", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 120", "quickstop ppg"],
                 "help":"Quickstarts the PPG with changes in lcfg to enable STATIC AGC, run ADPD at 50Hz "},
-    "ppg_static_agc_en_100Hz_test": {"commands": ["loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210 0x7 0x64", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 120", "quickstop ppg"],
+    "ppg_static_agc_en_100Hz_test": {"commands": ["loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210 0x7 0x64", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 120", "quickstop ppg"],
                 "help":"Quickstarts the PPG with changes in lcfg to enable STATIC AGC, run ADPD at 100Hz "},
-    "ppg_static_agc_en_500Hz_test": {"commands": ["loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210 0x7 0x1F4", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 120", "quickstop ppg"],
+    "ppg_static_agc_en_500Hz_test": {"commands": ["loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210 0x7 0x1F4", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 120", "quickstop ppg"],
                 "help":"Quickstarts the PPG with changes in lcfg to enable STATIC AGC, run ADPD at 500Hz "},
-    "ppg_static_agc_dis_100Hz_test": {"commands": ["loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010 0x7 0x64", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 120", "quickstop ppg"],
+    "ppg_static_agc_dis_100Hz_test": {"commands": ["loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010 0x7 0x64", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 120", "quickstop ppg"],
                 "help":"Quickstarts the PPG with changes in lcfg to disable STATIC AGC, run ADPD at 100Hz "},
-    "ppg_static_agc_dis_500Hz_test": {"commands": ["loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010 0x7 0x1F4", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 120", "quickstop ppg"],
+    "ppg_static_agc_dis_500Hz_test": {"commands": ["loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010 0x7 0x1F4", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 120", "quickstop ppg"],
                 "help":"Quickstarts the PPG with changes in lcfg to disable STATIC AGC, run ADPD at 500Hz "},
-    "ppg_static_agc_en_50Hz_recalibrate_test": {"commands": ["loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210 0x7 0x32", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 5", "sensor ppg stop", "sensor ppg start", "delay 15", "quickstop ppg"],
+    "ppg_static_agc_en_50Hz_recalibrate_test": {"commands": ["loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210 0x7 0x32", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 5", "sensor ppg stop", "sensor ppg start", "delay 15", "quickstop ppg"],
                 "help":"Quickstarts the PPG with changes in lcfg to enable STATIC AGC, run ADPD at 50Hz, run for 5secs, Do AGC recalibrate, run for 15 sec"},
     "ppg_static_agc_on": {"commands": ["setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210", "sensor ppg start", "sub rppg add", "plot rsyncppg","plot rppg"],
                 "help":"Turns PPG static AGC ON in ppg lcfg- ppg app start to follow, after this command"},
     "ppg_static_agc_off": {"commands": ["setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add", "plot rsyncppg","plot rppg"],
                 "help":"Turns PPG static AGC OFF in ppg lcfg- ppg app start to follow, after this command"},
-    "ppg_static_agc_on_off_test": {"commands": ["loadAdpdCfg 40","clockCalibration 6","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 10","sub rppg remove","sensor ppg stop","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010","sub rppg add","sensor ppg start","delay 20","quickstop ppg"],
+    "ppg_static_agc_on_off_test": {"commands": ["loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1210", "sensor ppg start", "sub rppg add", "plot rppg", "plot rsyncppg","delay 10","sub rppg remove","sensor ppg stop","setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010","sub rppg add","sensor ppg start","delay 20","quickstop ppg"],
                 "help":"Turns PPG static AGC ON, starts ppg app, stops ppg app, Turns PPG static AGC OFF, starts ppg app, stops ppg app"},
-    "mwl_view": {"commands": ["loadAdpdCfg 44","clockCalibration 6", "adpdAGCControl 0:1", "sensor adpd4000 start", "sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add", "plot radpd6", "plot radpd7","plot radpd8","plot radpd9"],
+    "mwl_view": {"commands": ["loadAdpdCfg 44","clockCalibration", "adpdAGCControl 0:1", "sensor adpd4000 start", "sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add", "plot radpd6", "plot radpd7","plot radpd8","plot radpd9"],
                 "help":"Opens MWL view with Green, Red, IR, Blue LED from Slot F, G, H, I of ADPD4000"},
-    "mwl_view_agc_off": {"commands": ["loadAdpdCfg 44","clockCalibration 6","adpdAGCControl 0:0", "sensor adpd4000 start", "sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add","plot radpd6", "plot radpd7","plot radpd8","plot radpd9"],
+    "mwl_view_agc_off": {"commands": ["loadAdpdCfg 44","clockCalibration","adpdAGCControl 0:0", "sensor adpd4000 start", "sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add","plot radpd6", "plot radpd7","plot radpd8","plot radpd9"],
                 "help":"Opens MWL view with Green, Red, IR, Blue LED from Slot F, G, H, I of ADPD4000, with static AGC OFF"},
 ###################################################################################################################
 #### Commands for Slot Switching, to be used only when Watch is loaded with FW built with "SLOT_SELECT" macro ####
 #################################################################################################################
-    "adpd4000_g_A": {   "commands":["create_adpd4k_dcfg 1:4", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration 6","adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd1 add"],
+    "adpd4000_g_A": {   "commands":["create_adpd4k_dcfg 1:4", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration","adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd1 add"],
                 "help":"starts adpd4k with the DCFG for green LED in slot-A, with Static AGC ON"},
-    "adpd4000_g_B": {   "commands":["create_adpd4k_dcfg 2:4", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd2 add"],
+    "adpd4000_g_B": {   "commands":["create_adpd4k_dcfg 2:4", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd2 add"],
                 "help":"starts adpd4k with the DCFG for green LED in slot-B, with Static AGC ON"},
-    "adpd4000_r_A": {   "commands":["create_adpd4k_dcfg 1:5", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration 6", "adpdAGCControl 2:1", "sensor adpd4000 start", "sub radpd1 add"],
+    "adpd4000_r_A": {   "commands":["create_adpd4k_dcfg 1:5", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration", "adpdAGCControl 2:1", "sensor adpd4000 start", "sub radpd1 add"],
                 "help":"starts adpd4k with the DCFG for red LED in slot-A, with Static AGC ON"},
-    "adpd4000_r_B": {   "commands":["create_adpd4k_dcfg 2:5", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration 6", "adpdAGCControl 2:1", "sensor adpd4000 start", "sub radpd2 add"],
+    "adpd4000_r_B": {   "commands":["create_adpd4k_dcfg 2:5", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration", "adpdAGCControl 2:1", "sensor adpd4000 start", "sub radpd2 add"],
                 "help":"starts adpd4k with the DCFG for red LED in slot-B, with Static AGC ON"},
-    "adpd4000_ir_A": {   "commands":["create_adpd4k_dcfg 1:6", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration 6", "adpdAGCControl 3:1", "sensor adpd4000 start", "sub radpd1 add"],
+    "adpd4000_ir_A": {   "commands":["create_adpd4k_dcfg 1:6", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration", "adpdAGCControl 3:1", "sensor adpd4000 start", "sub radpd1 add"],
                 "help":"starts adpd4k with the DCFG for ir LED in slot-A, with Static AGC ON"},
-    "adpd4000_ir_B": {   "commands":["create_adpd4k_dcfg 2:6", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration 6", "adpdAGCControl 3:1", "sensor adpd4000 start", "sub radpd2 add"],
+    "adpd4000_ir_B": {   "commands":["create_adpd4k_dcfg 2:6", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration", "adpdAGCControl 3:1", "sensor adpd4000 start", "sub radpd2 add"],
                 "help":"starts adpd4k with the DCFG for ir LED in slot-B, with Static AGC ON"},
-    "adpd4000_b_A": {   "commands":["create_adpd4k_dcfg 1:7", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration 6", "adpdAGCControl 4:1", "sensor adpd4000 start", "sub radpd1 add"],
+    "adpd4000_b_A": {   "commands":["create_adpd4k_dcfg 1:7", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration", "adpdAGCControl 4:1", "sensor adpd4000 start", "sub radpd1 add"],
                 "help":"starts adpd4k with the DCFG for blue LED in slot-A, with Static AGC ON"},
-    "adpd4000_b_B": {   "commands":["create_adpd4k_dcfg 2:7", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration 6", "adpdAGCControl 4:1", "sensor adpd4000 start", "sub radpd2 add"],
+    "adpd4000_b_B": {   "commands":["create_adpd4k_dcfg 2:7", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration", "adpdAGCControl 4:1", "sensor adpd4000 start", "sub radpd2 add"],
                 "help":"starts adpd4k with the DCFG for blue LED in slot-B, with Static AGC ON"},
-    "adpd4000_g_A_agc_off": {   "commands":["create_adpd4k_dcfg 1:4", "loadAdpdCfg 40", "clockCalibration 6", "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd1 add"],
+    "adpd4000_g_A_agc_off": {   "commands":["create_adpd4k_dcfg 1:4", "loadAdpdCfg 40", "clockCalibration", "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd1 add"],
                 "help":"starts adpd4k with the DCFG for green LED in slot-A, with Static AGC OFF"},
-    "adpd4000_g_B_agc_off": {   "commands":["create_adpd4k_dcfg 2:4", "loadAdpdCfg 40", "clockCalibration 6", "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd2 add"],
+    "adpd4000_g_B_agc_off": {   "commands":["create_adpd4k_dcfg 2:4", "loadAdpdCfg 40", "clockCalibration", "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd2 add"],
                 "help":"starts adpd4k with the DCFG for green LED in slot-B, with Static AGC OFF"},
-    "adpd4000_r_A_agc_off": {   "commands":["create_adpd4k_dcfg 1:5", "loadAdpdCfg 40", "clockCalibration 6", "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd1 add"],
+    "adpd4000_r_A_agc_off": {   "commands":["create_adpd4k_dcfg 1:5", "loadAdpdCfg 40", "clockCalibration", "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd1 add"],
                 "help":"starts adpd4k with the DCFG for red LED in slot-A, with Static AGC OFF"},
-    "adpd4000_r_B_agc_off": {   "commands":["create_adpd4k_dcfg 2:5", "loadAdpdCfg 40", "clockCalibration 6",  "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd2 add"],
+    "adpd4000_r_B_agc_off": {   "commands":["create_adpd4k_dcfg 2:5", "loadAdpdCfg 40", "clockCalibration",  "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd2 add"],
                 "help":"starts adpd4k with the DCFG for red LED in slot-B, with Static AGC OFF"},
-    "adpd4000_ir_A_agc_off": {   "commands":["create_adpd4k_dcfg 1:6", "loadAdpdCfg 40", "clockCalibration 6", "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd1 add"],
+    "adpd4000_ir_A_agc_off": {   "commands":["create_adpd4k_dcfg 1:6", "loadAdpdCfg 40", "clockCalibration", "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd1 add"],
                 "help":"starts adpd4k with the DCFG for ir LED in slot-A, with Static AGC OFF"},
-    "adpd4000_ir_B_agc_off": {   "commands":["create_adpd4k_dcfg 2:6", "loadAdpdCfg 40", "clockCalibration 6","reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd2 add"],
+    "adpd4000_ir_B_agc_off": {   "commands":["create_adpd4k_dcfg 2:6", "loadAdpdCfg 40", "clockCalibration","reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd2 add"],
                 "help":"starts adpd4k with the DCFG for ir LED in slot-B, with Static AGC OFF"},
-    "adpd4000_b_A_agc_off": {   "commands":["create_adpd4k_dcfg 1:7", "loadAdpdCfg 40", "clockCalibration 6","reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd1 add"],
+    "adpd4000_b_A_agc_off": {   "commands":["create_adpd4k_dcfg 1:7", "loadAdpdCfg 40", "clockCalibration","reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd1 add"],
                 "help":"starts adpd4k with the DCFG for blue LED in slot-A, with Static AGC OFF"},
-    "adpd4000_b_B_agc_off": {   "commands":["create_adpd4k_dcfg 2:7", "loadAdpdCfg 40", "clockCalibration 6","reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd2 add"],
+    "adpd4000_b_B_agc_off": {   "commands":["create_adpd4k_dcfg 2:7", "loadAdpdCfg 40", "clockCalibration","reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start", "sub radpd2 add"],
                 "help":"starts adpd4k with the DCFG for blue LED in slot-B, with Static AGC OFF"},
-    "ppg_A": {"commands":["create_adpd4k_dcfg 1:1", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start", "sub rppg add"],
+    "ppg_A": {"commands":["create_adpd4k_dcfg 1:1", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "sensor ppg start", "sub rppg add"],
                 "help": "starts ppg in slot A, with Static AGC ON"},
-    "ppg_B": {"commands":["create_adpd4k_dcfg 2:1", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start", "sub rppg add"],
+    "ppg_B": {"commands":["create_adpd4k_dcfg 2:1", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "sensor ppg start", "sub rppg add"],
                 "help": "starts ppg in slot B, with Static AGC ON"},
-    "ppg_C": {"commands":["create_adpd4k_dcfg 3:1", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start", "sub rppg add"],
+    "ppg_C": {"commands":["create_adpd4k_dcfg 3:1", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "sensor ppg start", "sub rppg add"],
                 "help": "starts ppg in slot C, with Static AGC ON"},
-    "ppg_F": {"commands":["create_adpd4k_dcfg 6:1", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start", "sub rppg add"],
+    "ppg_F": {"commands":["create_adpd4k_dcfg 6:1", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "sensor ppg start", "sub rppg add"],
                 "help": "starts ppg in slot F, with Static AGC ON"},
-    "ppg_A_agc_off": {"commands":["create_adpd4k_dcfg 1:1", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add"],
+    "ppg_A_agc_off": {"commands":["create_adpd4k_dcfg 1:1", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add"],
                 "help": "starts ppg in slot A"},
-    "ppg_B_agc_off": {"commands":["create_adpd4k_dcfg 2:1", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add"],
+    "ppg_B_agc_off": {"commands":["create_adpd4k_dcfg 2:1", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add"],
                 "help": "starts ppg in slot B"},
-    "ppg_C_agc_off": {"commands":["create_adpd4k_dcfg 3:1", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add"],
+    "ppg_C_agc_off": {"commands":["create_adpd4k_dcfg 3:1", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add"],
                 "help": "starts ppg in slot C"},
-    "ppg_F_agc_off": {"commands":["create_adpd4k_dcfg 6:1", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add"],
+    "ppg_F_agc_off": {"commands":["create_adpd4k_dcfg 6:1", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add"],
                 "help": "starts ppg in slot F"},
     "temp_AB": {   "commands":["create_adpd4k_dcfg 1:2 2:3", "loadAdpdCfg 40", "sensor temperature start", "sub rtemperature add"],
                 "help":"Start Temperature in slot A&B"},
@@ -576,68 +580,80 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Start Temperature in slot B&C"},
     "temp_DE": {   "commands":["create_adpd4k_dcfg 4:2 5:3", "loadAdpdCfg 40", "sensor temperature start", "sub rtemperature add"],
                 "help":"Start Temperature in slot D&E"},
-    "ecg4k_A": {   "commands":[ "controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0", "loadAdpdCfg 40","SetEcg4kLcfg 0:300", "clockCalibration 6", "sensor adpd4000 start", "sub radpd1 add"],
+    "ecg4k_A": {   "commands":[ "controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0", "loadAdpdCfg 40","SetEcg4kLcfg 0:300", "clockCalibration", "sensor adpd4000 start", "sub radpd1 add"],
                 "help":"Setup the ADPD for measuring ecg in slot A."},
-    "ppg_temp_ABC_agc_off": {"commands":["create_adpd4k_dcfg 1:1 2:2 3:3", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add", "sensor temperature start", "sub rtemperature add"],
+    "ppg_temp_ABC_agc_off": {"commands":["create_adpd4k_dcfg 1:1 2:2 3:3", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add", "sensor temperature start", "sub rtemperature add"],
             "help": "starts ppg in Slot-A and temp using slot B and C"},
-    "temp_ppg_ABC_agc_off": {"commands":["create_adpd4k_dcfg 1:2 2:3 3:1", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010",  "sensor ppg start", "sub rppg add", "sensor temperature start", "sub rtemperature add"],
+    "temp_ppg_ABC_agc_off": {"commands":["create_adpd4k_dcfg 1:2 2:3 3:1", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010",  "sensor ppg start", "sub rppg add", "sensor temperature start", "sub rtemperature add"],
             "help": "starts ppg in Slot-C and temp using slot A and B"},
-    "ecg4k_ppg_temp_agc_off": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:1 3:2 4:3", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration 6", "setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add", "delay 1","sensor adpd4000 start", "sub radpd1 add", "delay 1",  "sensor temperature start", "sub rtemperature add"],
+    "ecg4k_ppg_temp_agc_off": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:1 3:2 4:3", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration", "setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add", "delay 1","sensor adpd4000 start", "sub radpd1 add", "delay 1",  "sensor temperature start", "sub rtemperature add"],
             "help": "starts ecg in Slot A, ppg in Slot-B and temp using slot C and D"},
-    "ecg4k_temp_ppg_agc_off": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:2 3:3 4:1", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration 6", "setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add", "delay 1","sensor adpd4000 start", "sub radpd1 add", "delay 1",  "sensor temperature start", "sub rtemperature add"],
+    "ecg4k_temp_ppg_agc_off": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:2 3:3 4:1", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration", "setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add", "delay 1","sensor adpd4000 start", "sub radpd1 add", "delay 1",  "sensor temperature start", "sub rtemperature add"],
             "help": "starts ecg in Slot A, ppg in Slot-D and temp using slot B and C"},
-    "ecg4k_temp": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:2 3:3", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration 6", "sensor adpd4000 start", "sub radpd1 add", "sensor temperature start", "sub rtemperature add"],
+    "ecg4k_temp": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:2 3:3", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration", "sensor adpd4000 start", "sub radpd1 add", "sensor temperature start", "sub rtemperature add"],
             "help": "starts ecg in Slot A, and temp using slot B and C"},
-    "ecg4k_ppg_agc_off": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:1", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration 6", "setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add", "sensor adpd4000 start", "sub radpd1 add"],
+    "ecg4k_ppg_agc_off": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:1", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration", "setPpgLcfg 40","lcfgPpgWrite 0x4 0x1010", "sensor ppg start", "sub rppg add", "sensor adpd4000 start", "sub radpd1 add"],
             "help": "starts ecg in Slot A and ppg in Slot-B"},
-    "ppg_temp_ABC": {"commands":["create_adpd4k_dcfg 1:1 2:2 3:3", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start", "sub rppg add", "sensor temperature start", "sub rtemperature add"],
+    "ppg_temp_ABC": {"commands":["create_adpd4k_dcfg 1:1 2:2 3:3", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "sensor ppg start", "sub rppg add", "sensor temperature start", "sub rtemperature add"],
             "help": "starts ppg in Slot-A and temp using slot B and C"},
-    "temp_ppg_ABC": {"commands":["create_adpd4k_dcfg 1:2 2:3 3:1", "loadAdpdCfg 40", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start", "sub rppg add", "sensor temperature start", "sub rtemperature add"],
+    "temp_ppg_ABC": {"commands":["create_adpd4k_dcfg 1:2 2:3 3:1", "loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "sensor ppg start", "sub rppg add", "sensor temperature start", "sub rtemperature add"],
             "help": "starts ppg in Slot-C and temp using slot A and B"},
-    "ecg4k_ppg_temp": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:1 3:2 4:3", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start", "sub rppg add", "delay 1","sensor adpd4000 start", "sub radpd1 add", "delay 1",  "sensor temperature start", "sub rtemperature add"],
+    "ecg4k_ppg_temp": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:1 3:2 4:3", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration", "setPpgLcfg 40", "sensor ppg start", "sub rppg add", "delay 1","sensor adpd4000 start", "sub radpd1 add", "delay 1",  "sensor temperature start", "sub rtemperature add"],
             "help": "starts ecg in Slot A, ppg in Slot-B and temp using slot C and D"},
-    "ecg4k_temp_ppg": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:2 3:3 4:1", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start", "sub rppg add", "delay 1","sensor adpd4000 start", "sub radpd1 add", "delay 1",  "sensor temperature start", "sub rtemperature add"],
+    "ecg4k_temp_ppg": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 1:0 2:2 3:3 4:1", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration", "setPpgLcfg 40", "sensor ppg start", "sub rppg add", "delay 1","sensor adpd4000 start", "sub radpd1 add", "delay 1",  "sensor temperature start", "sub rtemperature add"],
             "help": "starts ecg in Slot A, ppg in Slot-D and temp using slot B and C"},
-    "ecg4k_ppg": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 0:0 1:1", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration 6", "setPpgLcfg 40", "sensor ppg start", "sub rppg add", "sensor adpd4000 start", "sub radpd1 add"],
+    "ecg4k_ppg": {"commands":["controlECGElectrodeSwitch 4k_sw 1", "create_adpd4k_dcfg 0:0 1:1", "loadAdpdCfg 40", "SetEcg4kLcfg 0:300", "clockCalibration", "setPpgLcfg 40", "sensor ppg start", "sub rppg add", "sensor adpd4000 start", "sub radpd1 add"],
             "help": "starts ecg in Slot A and ppg in Slot-B"},
-    "mwl_view_ABCD": {"commands": ["create_adpd4k_dcfg 1:4 2:5 3:6 4:7", "loadAdpdCfg 40", "clockCalibration 6", "reg w adpd4000 0x0D:0x4E20","sensor adpd4000 start", "sub radpd1 add","sub radpd2 add","sub radpd3 add","sub radpd4 add", "plot radpd1", "plot radpd2","plot radpd3","plot radpd4"],
+    "mwl_view_ABCD": {"commands": ["create_adpd4k_dcfg 1:4 2:5 3:6 4:7", "loadAdpdCfg 40", "clockCalibration", "reg w adpd4000 0x0D:0x4E20","sensor adpd4000 start", "sub radpd1 add","sub radpd2 add","sub radpd3 add","sub radpd4 add", "plot radpd1", "plot radpd2","plot radpd3","plot radpd4"],
                 "help":"Opens MWL view with Green, Red, IR, Blue LED from Slot A, B, C, D of ADPD4000"},
-    "mwl_view_ABCD_agc_off": {"commands": ["create_adpd4k_dcfg 1:4 2:5 3:6 4:7", "loadAdpdCfg 40", "clockCalibration 6", "reg w adpd4000 0x0D:0x4E20", "adpdAGCControl 0:0", "sensor adpd4000 start","sub radpd1 add","sub radpd2 add","sub radpd3 add","sub radpd4 add", "plot radpd1", "plot radpd2","plot radpd3","plot radpd4"],
+    "mwl_view_ABCD_agc_off": {"commands": ["create_adpd4k_dcfg 1:4 2:5 3:6 4:7", "loadAdpdCfg 40", "clockCalibration", "reg w adpd4000 0x0D:0x4E20", "adpdAGCControl 0:0", "sensor adpd4000 start","sub radpd1 add","sub radpd2 add","sub radpd3 add","sub radpd4 add", "plot radpd1", "plot radpd2","plot radpd3","plot radpd4"],
                 "help":"Opens MWL view with Green, Red, IR, Blue LED from Slot A, B, C, D of ADPD4000"},
-    "mwl_view_FGHI": {"commands": ["create_adpd4k_dcfg 6:4 7:5 8:6 9:7", "loadAdpdCfg 40", "clockCalibration 6", "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start","sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add", "plot radpd6", "plot radpd7","plot radpd8","plot radpd9"],
+    "mwl_view_FGHI": {"commands": ["create_adpd4k_dcfg 6:4 7:5 8:6 9:7", "loadAdpdCfg 40", "clockCalibration", "reg w adpd4000 0x0D:0x4E20", "sensor adpd4000 start","sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add", "plot radpd6", "plot radpd7","plot radpd8","plot radpd9"],
                 "help":"Opens MWL view with Green, Red, IR, Blue LED from Slot F, G, H, I of ADPD4000"},
-    "mwl_view_FGHI_agc_off": {"commands": ["create_adpd4k_dcfg 6:4 7:5 8:6 9:7", "loadAdpdCfg 40", "clockCalibration 6", "reg w adpd4000 0x0D:0x4E20", "adpdAGCControl 0:0", "sensor adpd4000 start","sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add", "plot radpd6", "plot radpd7","plot radpd8","plot radpd9"],
+    "mwl_view_FGHI_agc_off": {"commands": ["create_adpd4k_dcfg 6:4 7:5 8:6 9:7", "loadAdpdCfg 40", "clockCalibration", "reg w adpd4000 0x0D:0x4E20", "adpdAGCControl 0:0", "sensor adpd4000 start","sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add", "plot radpd6", "plot radpd7","plot radpd8","plot radpd9"],
                 "help":"Opens MWL view with Green, Red, IR, Blue LED from Slot F, G, H, I of ADPD4000"},
-    "uc_hr_enab_adpd50_adxl50": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "sensor adxl start","sub radxl add"],
+    "uc_hr_enab_adpd50_adxl50": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "sensor adxl start","sub radxl add"],
                 "help":"Starts UC HR enable test"},
-    "uc_hr_enab_adpd50": {"commands": ["sub rppg add", "setUCHREnab 1 6",  "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add"],
+    "uc_hr_enab_adpd50": {"commands": ["sub rppg add", "setUCHREnab 1 6",  "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add"],
                 "help":"Starts UC HR enable test only with ADPD"}, 
-    "start_log_uc_hr_enab_adpd50": {"commands": ["fs_sub rppg add", "setUCHREnab 1 6",  "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "fs_sub radpd6 add","fs_log start"],
+    "start_log_uc_hr_enab_adpd50": {"commands": ["fs_sub rppg add", "setUCHREnab 1 6",  "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "fs_sub radpd6 add","fs_log start"],
                 "help":"Starts UC HR enable test only with ADPD"},              
-    "uc_hr_enab_adpd100_adxl50": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x2710", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl"],
+    "uc_hr_enab_adpd100_adxl50": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x2710", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl"],
                 "help":"Starts UC HR enable test"},
-    "uc_hr_enab_adpd500_adxl50": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x07D0", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl"],
+    "uc_hr_enab_adpd500_adxl50": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x07D0", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl"],
                 "help":"Starts UC HR enable test"},
-    "uc_hr_enab_adpd50_adxl100": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl","reg w adxl 0x2C:0x9B"],
+    "uc_hr_enab_adpd50_adxl100": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl","reg w adxl 0x2C:0x9B"],
                 "help":"Starts UC HR enable test"},
-    "uc_hr_enab_adpd500_adxl100": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x07D0", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl","reg w adxl 0x2C:0x9B"],
+    "uc_hr_enab_adpd500_adxl100": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x07D0", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl","reg w adxl 0x2C:0x9B"],
                 "help":"Starts UC HR enable test"},
-    "uc_hr_enab_adpd100_adxl100": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x02710", "clockCalibration 6", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl","reg w adxl 0x2C:0x9B"],
+    "uc_hr_enab_adpd100_adxl100": {"commands": ["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6", "plot rppg", "plot radpd6", "plot radxl", "loadAdpdCfg 40", "reg w adpd4000 0x0D:0x02710", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add", "quickstart adxl","reg w adxl 0x2C:0x9B"],
                 "help":"Starts UC HR enable test"},
-    "start_stream_mv_uc1_1": {   "commands":["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","loadAdpdUCDcfg 1 dvt1", "clockCalibration 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
+    "start_stream_mv_uc1_1": {   "commands":["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","loadAdpdUCDcfg 1", "clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
                 "help":"Starts streaming for MV UC1 - UC HR, Adpd@500Hz, Adxl@50Hz, Temperature"}, 
-    "start_stream_mv_uc2_1": {   "commands":["loadAdpdUCDcfg 2 dvt1","clockCalibration 6","lcfgEdaWrite 0:30","sensor eda start","sub reda add","sensor adxl start","sub radxl add","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor temperature start","sub rtemperature add"],
+    "start_stream_mv_uc2_1": {   "commands":["loadAdpdUCDcfg 2","clockCalibration","lcfgEdaWrite 0:30","sensor eda start","sub reda add","sensor adxl start","sub radxl add","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor temperature start","sub rtemperature add"],
                 "help":"Starts streaming for MV UC2 - Eda@30Hz, Adxl, UC HR, SQI, Adpd@100Hz, Temperature"},
-    "start_stream_mv_uc2_2": {   "commands":["loadAdpdUCDcfg 2 dvt1","clockCalibration 6","lcfgEdaWrite 0:30","sensor eda start","sub reda add","sensor adxl start","sub radxl add","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start"],
+    "start_stream_mv_uc2_2": {   "commands":["loadAdpdUCDcfg 2","clockCalibration","lcfgEdaWrite 0:30","sensor eda start","sub reda add","sensor adxl start","sub radxl add","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start"],
                 "help":"Starts streaming for MV UC2(modified for testing) - Eda@30Hz, Adxl, UC HR, SQI, Adpd@100Hz, Temperature"},
-    "start_stream_mv_uc3_1": {   "commands":["lcfgEcgWrite 0:250","sensor ecg start","sub recg add","loadAdpdUCDcfg 3 dvt1", "clockCalibration 6","reg w adpd4000 0x0D:0x2710","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
+    "start_stream_mv_uc3_1": {   "commands":["lcfgEcgWrite 0:250","sensor ecg start","sub recg add","loadAdpdUCDcfg 3", "clockCalibration","reg w adpd4000 0x0D:0x2710","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
                 "help":"Starts streaming for MV UC3 - Ecg@250Hz, UC HR, SQI, Adpd@100Hz, Adxl, Temperature"},
-    "start_stream_mv_uc4_1": {   "commands":["lcfgEcgWrite 0:1000","sensor ecg start","sub recg add","loadAdpdUCDcfg 4 dvt1", "clockCalibration 6","setPpgLcfg 40","SQISetSlot 6","sensor sqi start", "sub rsqi add","sensor ppg start","sub rppg add","sensor temperature start","sub rtemperature add"],
+    "start_stream_mv_uc4_1": {   "commands":["lcfgEcgWrite 0:1000","sensor ecg start","sub recg add","loadAdpdUCDcfg 4", "clockCalibration","setPpgLcfg 40","SQISetSlot 6","sensor sqi start", "sub rsqi add","sensor ppg start","sub rppg add","sensor temperature start","sub rtemperature add"],
                 "help":"Starts streaming for MV UC4 - Ecg@1000Hz, SQI, ppg, Temperature"},
-    "start_stream_mv_uc5_1": {   "commands":["loadAdpdUCDcfg 5 dvt1","reg w adpd4000 0x0D:0x2710","clockCalibration 6","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 0:1","sensor adpd4000 start","sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add","sensor adxl start","sub radxl add",],
+    "start_stream_mv_uc5_1": {   "commands":["loadAdpdUCDcfg 5","reg w adpd4000 0x0D:0x2710","clockCalibration","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 0:1","sensor adpd4000 start","sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add","sensor adxl start","sub radxl add",],
                 "help":"Starts streaming for MV UC5 - 4 LED Slots at 100Hz, SQI, UC HR, Adxl"},
     "start_log_mv_uc4_1": {   "commands":["fs_log start","fs_sub rppg add","fs_sub recg add","fs_sub rtemperature add"],
-                "help":"Start MV UC4 start log cmd sequence, in b/w streaming"},}
+                "help":"Start MV UC4 start log cmd sequence, in b/w streaming"},
+    "start_nk_uc_log_dcb": {   "commands":["delete_config_file","fs_format","setDateTime","LTAppTuning dcb 3","write_dcb_config adpd4000 cust4_dvt2_adpd_dcb.dcfg","write_dcb_config adxl cust4_adxl_dcb.dcfg","write_dcb_config eda cust4_eda_dcb.lcfg","quickstart nand_config_file_create_nk_uc","write_dcb_config user0_config user0_blk_dcb.lcfg"],
+                "help":"Start NK UC log with user0 config app DCB"},
+    "start_nk_uc_log_dcb_set_bat_thresh": {   "commands":["delete_config_file","fs_format","setDateTime","LTAppTuning dcb 3","write_dcb_config adpd4000 cust4_dvt2_adpd_dcb.dcfg","write_dcb_config adxl cust4_adxl_dcb.dcfg","write_dcb_config eda cust4_eda_dcb.lcfg","quickstart nand_config_file_create_nk_uc_set_bat_thresh","write_dcb_config user0_config user0_blk_dcb.lcfg"],
+                "help":"Start NK UC log with user0 config app DCB after setting batter thresholds"},
+    "start_adxl_interval_logging": {   "commands":["lcfgLTAppWrite 0x4 4","lcfgUser0ConfigAppWrite 0x5 0xA","lcfgUser0ConfigAppWrite 0x6 0xA","lcfgUser0ConfigAppWrite 0x7 0xA","quickstart start_log_adxl","delay 60","quickstop stop_log_adxl"],
+                "help":"Start adxl app interval based logging"},
+    "start_temp_interval_logging": {   "commands":["lcfgLTAppWrite 0x4 4","lcfgUser0ConfigAppWrite 0x8 0xA","lcfgUser0ConfigAppWrite 0x9 0xA","lcfgUser0ConfigAppWrite 0xA 0xA","quickstart start_log_temperature","delay 60","quickstop stop_log_temperature"],
+                "help":"Start temp app interval based logging"},
+    "start_adpd_interval_logging": {   "commands":["lcfgLTAppWrite 0x4 4","lcfgUser0ConfigAppWrite 0xB 0xA","lcfgUser0ConfigAppWrite 0xC 0xA","lcfgUser0ConfigAppWrite 0xD 0xA","quickstart start_log_adpd4000_g","delay 60","quickstop stop_log_adpd4000_g"],
+                "help":"Start adpd app interval based logging"},
+    "start_eda_interval_logging": {   "commands":["lcfgLTAppWrite 0x4 4","lcfgUser0ConfigAppWrite 0xE 0x0","lcfgUser0ConfigAppWrite 0xF 0x14","lcfgUser0ConfigAppWrite 0x10 0x5","quickstart start_log_eda","delay 60","quickstop stop_log_eda"],
+                "help":"Start eda app interval based logging"},}
 
     # A dictionary of useful/common command sequences to be executed for stopping applications/sensors. The 'commands' key contains a list of CLI commands to be run for the sequence.
     quickstops = {
@@ -778,6 +794,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Stops logging for MV UC4 - Ecg, ppg, SQI,Temperature"},
     "stop_log_mv_uc5": {   "commands":["sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove", "fs_sub ragc remove", "fs_sub rsqi remove","fs_sub radpd7 remove","fs_sub radpd8 remove","fs_sub radpd9 remove","fs_sub radxl remove","fs_log stop"],
                 "help":"Stops logging for MV UC5- 4 LED Slots at 100Hz, HR, SQI, ADXL"},
+    "stop_log_nk_uc": {   "commands":["sensor temperature stop","sensor adpd4000 stop","sensor adxl stop","sensor eda stop","fs_sub radpd6 remove","fs_sub radxl remove","fs_sub reda remove","fs_sub rtemperature remove","fs_log stop"],
+                "help":"Stops logging for NK UC - Eda, Adxl, Adpd, Temperature"},
     "bcm": {"commands": ["sub rbcm remove", "sensor bcm stop"],
                  "help": "Stop BCM"},
     "mwl_view": {"commands": ["sub radpd6 remove","sub radpd7 remove","sub radpd8 remove","sub radpd9 remove","sensor adpd4000 stop"],
@@ -896,7 +914,11 @@ class m2m2_shell(cmd.Cmd):
     "stop_stream_mv_uc5_1": {   "commands":["sub rppg remove","sensor adxl stop","sensor adpd4000 stop","sub radpd6 remove","sub radpd7 remove","sub radpd8 remove","sub radpd9 remove","sub radxl remove", "setUCHREnab 0 6","sub rsqi remove","sensor sqi stop"],
                 "help":"Stops streaming for MV UC5- 4 LED Slots at 100Hz, SQI, UC HR, Adxl"},
     "stop_log_mv_uc4_1": {   "commands":["fs_sub rppg remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
-                "help":"Give the MV UC4 stop stream cmd sequence"},}
+                "help":"Give the MV UC4 stop stream cmd sequence"},
+    "stop_nk_uc_log_fw": {   "commands":["delete_config_file"],
+                "help":"Stop NK UC log"},
+    "stop_nk_uc_log_dcb": {   "commands":["delete_config_file", "delete_dcb_config lt_app_lcfg", "delete_dcb_config user0_config"],
+                "help":"Stop NK UC log"},}
 
     def precmd(self, line):
         """
@@ -969,6 +991,7 @@ Provide a serial device identifier appropriate for your platform (COMX for Windo
             return
         set_cli_addr(M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_CLI)
         self.onecmd("getVersion")
+        self._check_dvt_version()
 
     def do_connect_dongle(self, arg):
         """
@@ -997,6 +1020,19 @@ Provide a serial device identifier appropriate for your platform (COMX for Windo
             return
         set_cli_addr(M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_CLI_BLE)
         self.onecmd("getVersion")
+        self._check_dvt_version()
+
+    def _check_dvt_version(self):
+        global clk_calib_val
+        err_stat, chip_id = self.do_getChipID('2')
+        if chip_id == 0xc0:
+            print("DVT1 Watch Connected")
+            self.dvt_ver = "dvt1"
+            self.clk_calib_val = 6
+        else:
+            print("DVT2 Watch Connected")
+            self.dvt_ver = "dvt2"
+            self.clk_calib_val = 2
 
     def help_connect(self):
         print "Connect to a serial device."
@@ -1385,12 +1421,12 @@ Get the Adpd device slots. Return slot num, its data format.
         else:
             i_start = int(args[0])
             i_stop = int(args[0]) + 1
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpdCl_slot_resp_t())
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpd4000_slot_resp_t())
         msg.payload.command = M2M2_SENSOR_ADPD_COMMAND_ENUM_t.M2M2_SENSOR_ADPD_COMMAND_GET_SLOT_REQ
         for i in range(i_start, i_stop):
             msg.payload.slot_num = i
             self._send_packet(msg)
-            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpdCl_slot_resp_t(), 20)
+            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpd4000_slot_resp_t(), 20)
             if reply_msg != None:
                 slotNum = reply_msg.payload.slot_num
                 slotActive = reply_msg.payload.slot_enable
@@ -1412,14 +1448,14 @@ Set the Adpd device slot. Slot settings are:
         if args == None:
             self.vrb.err("No slot settings supplied")
             return
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpdCl_slot_resp_t())
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpd4000_slot_resp_t())
         msg.payload.command = M2M2_SENSOR_ADPD_COMMAND_ENUM_t.M2M2_SENSOR_ADPD_COMMAND_SET_SLOT_REQ
         msg.payload.slot_num = int(args[0])
         msg.payload.slot_enable = int(args[1])
         msg.payload.channel_num = int(args[2])
         msg.payload.slot_format = int(args[3], 16)
         self._send_packet(msg)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpdCl_slot_resp_t(), 30)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpd4000_slot_resp_t(), 30)
         if reply_msg != None:
             status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
             slotNum = reply_msg.payload.slot_num
@@ -1490,12 +1526,12 @@ Get the Adpd slots active state.
         else:
             i_start = int(args[0])
             i_stop = int(args[0]) + 1
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpdCl_slot_active_resp_t())
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpd4000_slot_active_resp_t())
         msg.payload.command = M2M2_SENSOR_ADPD_COMMAND_ENUM_t.M2M2_SENSOR_ADPD_COMMAND_GET_SLOT_ACTIVE_REQ
         for i in range(i_start, i_stop):
             msg.payload.slot_num = i
             self._send_packet(msg)
-            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpdCl_slot_active_resp_t(), 20)
+            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpd4000_slot_active_resp_t(), 20)
             if reply_msg != None:
                 slotNum = reply_msg.payload.slot_num
                 slotActive = reply_msg.payload.slot_active
@@ -1514,12 +1550,12 @@ Set the Adpd slot active.
         if args == None:
             self.vrb.err("No slot settings supplied")
             return
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpdCl_slot_active_resp_t())
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpd4000_slot_active_resp_t())
         msg.payload.command = M2M2_SENSOR_ADPD_COMMAND_ENUM_t.M2M2_SENSOR_ADPD_COMMAND_SET_SLOT_ACTIVE_REQ
         msg.payload.slot_num = int(args[0])
         msg.payload.slot_active = int(args[1])
         self._send_packet(msg)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpdCl_slot_active_resp_t(), 30)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpd4000_slot_active_resp_t(), 30)
         if reply_msg != None:
             status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
             slotNum = reply_msg.payload.slot_num
@@ -1615,12 +1651,12 @@ Set device to pause or unpause
         else:
             pauseEnable = 1
 
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpdCl_resp_t())
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpd4000_resp_t())
         msg.payload.command = M2M2_SENSOR_ADPD_COMMAND_ENUM_t.M2M2_SENSOR_ADPD_COMMAND_SET_PAUSE_REQ
         msg.payload.retdata[0] = pauseEnable
         self._send_packet(msg)
 
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpdCl_resp_t(), 10)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_adpd4000_resp_t(), 10)
         if reply_msg != None:
             status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
             self.vrb.write("Set pause device: {}".format(status))
@@ -1769,13 +1805,13 @@ Usage:
     #>clockCalibration [clockcalid]
     #>clockCalibration 6
         """
-        args = self._parse_args(arg, 1)
-        if args == None:
+        args = arg.split()
+        if len(args) == 0:
             self.vrb.write("No clockcalid specified", 2)
         msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, m2m2_sensor_clockcal_resp_t())
         msg.payload.command = M2M2_SENSOR_ADPD_COMMAND_ENUM_t.M2M2_SENSOR_ADPD_COMMAND_CLOCK_CAL_REQ
-        if args == None:
-            msg.payload.clockcalid = 0
+        if len(args) == 0:
+            msg.payload.clockcalid = self.clk_calib_val
         else:
             msg.payload.clockcalid = int(args[0])
         self._send_packet(msg)
@@ -2824,7 +2860,7 @@ Set the LT application LCFG. The argument is the LT app LCFG addresses or the LC
         """
 Steps for LT App Tuning and how to use LT App:
 1. Do the tuning of LT App lcfg paramters to change either fw lcfg or add DCB lcfg
-2. Choose the Trigger method: 0000 -> LT_APP_CAPSENSE_TUNED_TRIGGER, 0001 -> LT_APP_CAPSENSE_DISPLAY_TRIGGER, 0002 -> LT_APP_BUTTON_TRIGGER
+2. Choose the Trigger method: 0000 -> LT_APP_CAPSENSE_TUNED_TRIGGER, 0001 -> LT_APP_CAPSENSE_DISPLAY_TRIGGER, 0002 -> LT_APP_BUTTON_TRIGGER, 0003->LT_APP_INTERMITTENT_TRIGGER
 3. Write the LT Configuration NAND/DCB after doing the LTAppTuning
    #>quickstart nand_config_file_create_mv_uc1 (or any other UC..)
      OR
@@ -2845,6 +2881,9 @@ Steps for LT App Tuning and how to use LT App:
         2 -> LT_APP_BUTTON_TRIGGER:
         Wear the watch on the wrist. From Watch display, Home page, press Select button for 3 secs, to enter into "LOG EN" sub-page, press select button to enable and turn On LT logging
         Remove the Watch and connect it to USB cable to turn off LT logging.
+   For [trig_method]
+        3 -> LT_APP_INTERMITTENT_TRIGGER:
+        Wear the watch, by intermittent operation logs are started and stopped
 
 ------------------------------------------------------------------------------------------------
 For the LT application LCFG, Note that the range of addr varies from 0x0 to 0x4 as given below:
@@ -2863,6 +2902,7 @@ Usage:
         0 -> LT_APP_CAPSENSE_TUNED_TRIGGER
         1 -> LT_APP_CAPSENSE_DISPLAY_TRIGGER
         2 -> LT_APP_BUTTON_TRIGGER
+        3 -> LT_APP_INTERMITTENT_TRIGGER
     [airCap]
         Value in uF as observed from Display page which reads Ch2 Cap, when Watch is placed in Air, without touching bottom touch electrodes
         Try to keep a min value of the lot, observed in about 10 trials
@@ -2878,6 +2918,8 @@ Usage:
       Eg: = LTAppTuning dcb  1
       Eg: = LTAppTuning fw  2
       Eg: = LTAppTuning dcb 2
+      Eg: = LTAppTuning fw  3
+      Eg: = LTAppTuning dcb 3
         """
 
         args = self._parse_args(arg, None)
@@ -2893,7 +2935,7 @@ Usage:
                 return
             minCap_air = args[2]
             maxCap_skin = args[3]
-        elif trig_method == "1" or trig_method == "2":
+        elif trig_method == "1" or trig_method == "2" or trig_method == "3":
             minCap_air =  "1380"
             maxCap_skin = "1340"
         else:
@@ -2913,6 +2955,9 @@ Usage:
         elif option == "fw" and trig_method == "2" :
             cmd = "lcfgLTAppWrite 0x4 " + trig_method
             self.onecmd(cmd)
+        elif option == "fw" and trig_method == "3" :
+            cmd = "lcfgLTAppWrite 0x4 " + trig_method
+            self.onecmd(cmd)
         elif option == "dcb" :
             #Write to lt_app_lcfg_dcb.lcfg file
             str1 = "#lt_app_lcfg_dcb.lcfg"
@@ -2927,7 +2972,7 @@ Usage:
             str5 = "03 " + skinCap + " #SKIN_CAP_VAL hex value in uF;"
 
             trig_method = "000"+trig_method
-            str6 = "04 " + trig_method + " #LT_APP_LCFG_TRIGGER_METHOD hex value; 0000 -> LT_APP_CAPSENSE_TUNED_TRIGGER, 0001 -> LT_APP_CAPSENSE_DISPLAY_TRIGGER, 0002 -> LT_APP_BUTTON_TRIGGER"
+            str6 = "04 " + trig_method + " #LT_APP_LCFG_TRIGGER_METHOD hex value; 0000 -> LT_APP_CAPSENSE_TUNED_TRIGGER, 0001 -> LT_APP_CAPSENSE_DISPLAY_TRIGGER, 0002 -> LT_APP_BUTTON_TRIGGER,  0003->LT_APP_INTERMITTENT_TRIGGER"
 
             f = open('dcb_cfg/lt_app_dcb.lcfg','w')
             f.write(str1)
@@ -2951,6 +2996,287 @@ Usage:
             self.vrb.write("Wrong option given, check help & retry")
         #self.vrb.write("Activating LT app")
         #self.do_pm_activate_touch_sensor("0")
+
+    def do_get_user0_config_app_state(self, arg):
+        """
+    This is a command, to get the current user0 config app state in the Watch Fw. 
+    It is based on this value that current operation happens in user0 config app. Its either one of the enum value:
+       STATE_ADMIT_STANDBY = 0,
+       STATE_START_MONITORING = 1,
+       STATE_SLEEP = 2,
+       STATE_INTERMITTENT_MONITORING = 3,
+       STATE_INTERMITTENT_MONITORING_START_LOG = 4,
+       STATE_INTERMITTENT_MONITORING_STOP_LOG = 5,
+       STATE_END_MONITORING = 6,
+       STATE_CHARGING_BATTERY = 7,
+       STATE_OUT_OF_BATTERY_STATE_BEFORE_START_MONITORING = 8,
+       STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING = 9,
+    #>get_user0_config_app_state
+        """
+        address = M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP
+        msg = m2m2_packet(address, user0_config_app_set_state_t())
+        msg.payload.command = M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t.M2M2_USER0_CONFIG_APP_COMMAND_GET_STATE_REQ
+        msg.payload.status = M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, user0_config_app_set_state_t(), 20)
+        if reply_msg != None:
+            if (reply_msg.payload.status == M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK):
+                print("user0 config app state in the Watch Fw : {} ").format(reply_msg.payload.state)
+            else:
+                self.vrb.err("Error occured while reading state")
+        else:
+            self.vrb.err("The device did not respond!")
+
+    def do_set_user0_config_app_state(self, arg):
+        """
+    This is a command, to set the current user0 config app state in the Watch Fw. 
+    It is based on this value that current operation happens in user0 config app. Its either one of the enum value:
+       STATE_ADMIT_STANDBY = 0,
+       STATE_START_MONITORING = 1,
+       STATE_SLEEP = 2,
+       STATE_INTERMITTENT_MONITORING = 3,
+       STATE_INTERMITTENT_MONITORING_START_LOG = 4,
+       STATE_INTERMITTENT_MONITORING_STOP_LOG = 5,
+       STATE_END_MONITORING = 6,
+       STATE_CHARGING_BATTERY = 7,
+       STATE_OUT_OF_BATTERY_STATE_BEFORE_START_MONITORING = 8,
+       STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING = 9,
+    #>set_max_tx_pkt_comb_cnt 0
+        """
+        args = self._parse_args(arg, 1)
+        if args == None:
+            return
+        address = M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP
+        msg = m2m2_packet(address, user0_config_app_set_state_t())
+        msg.payload.command = M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t.M2M2_USER0_CONFIG_APP_COMMAND_SET_STATE_REQ
+        msg.payload.status = M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK
+        msg.payload.state = int(args[0])
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, user0_config_app_set_state_t(), 20)
+        if reply_msg != None:
+            if (reply_msg.payload.status == M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK):
+                print("state changed in Watch Fw to : {} ").format(reply_msg.payload.state)
+            else:
+                self.vrb.err("Error occured while writing state")
+        else:
+            self.vrb.err("The device did not respond!")
+
+    def do_hw_id(self, arg):
+        """
+    This is a command, to read/write/delete hw_id in the Watch Fw. 
+    Usage:
+    hw_id [option] [hw_id]
+    [option]
+        read   --> To read the hw_id
+        write  --> To write the hw_id
+        delete --> To delete the hw_id
+    [hw_id]
+        value from 1- 99 range to be set the hw_id as. Pass this only for the write option.
+
+    Eg:
+    #>hw_id read
+    #>hw_id write 99
+    #>hw_id delete
+        """
+        args = self._parse_args(arg, None)
+        if len(args) == 0:
+            self._p_err("No arguments supplied!")
+            return
+        address = M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP
+        msg = m2m2_packet(address, user0_config_app_id_t())
+        msg.payload.command = M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t.M2M2_USER0_CONFIG_APP_COMMAND_ID_OP_REQ
+        if args[0] == "read":
+          msg.payload.id_sel = ID_SELECTION_ENUM_t.ID_HW_ID
+          msg.payload.id_op = ID_OPERATION_MODE_ENUM_t.ID_OPERATION_MODE_READ
+        elif args[0] == "write" and args[1]:
+          msg.payload.id_sel = ID_SELECTION_ENUM_t.ID_HW_ID
+          msg.payload.id_op = ID_OPERATION_MODE_ENUM_t.ID_OPERATION_MODE_WRITE
+          msg.payload.id_num = int(args[1])
+        elif args[0] == "delete":
+          msg.payload.id_sel = ID_SELECTION_ENUM_t.ID_HW_ID
+          msg.payload.id_op = ID_OPERATION_MODE_ENUM_t.ID_OPERATION_MODE_DELETE
+        else:
+          print("Wrong arguments chosen, please check help and retry")
+          return
+        msg.payload.status = M2M2_USER0_CONFIG_APP_STATUS_ENUM_t.M2M2_USER0_CONFIG_APP_STATUS_OK
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, user0_config_app_id_t(), 20)
+        if reply_msg != None:
+            if (reply_msg.payload.status == M2M2_USER0_CONFIG_APP_STATUS_ENUM_t.M2M2_USER0_CONFIG_APP_STATUS_OK):
+                if args[0] == "read":
+                  print("HW ID Read back: {} ").format(reply_msg.payload.id_num)
+                elif args[0] == "write":
+                  print("HW ID write successful")
+                elif args[0] == "delete":
+                  print("HW ID delete successful")
+            else:
+                self.vrb.err("Error occured while doing hw_id request")
+        else:
+            self.vrb.err("The device did not respond!")
+
+    def do_exp_id(self, arg):
+        """
+    This is a command, to read/write/delete exp_id in the Watch Fw. 
+    Usage:
+    exp_id [option] [exp_id]
+    [option]
+        read   --> To read the exp_id
+        write  --> To write the exp_id
+        delete --> To delete the exp_id
+    [exp_id]
+        value from 1-9999 to be set the exp_id as. Pass this only for the write option.
+
+    Eg:
+    #>exp_id read
+    #>exp_id write 1122
+    #>exp_id delete
+        """
+        args = self._parse_args(arg, None)
+        if len(args) == 0:
+            self._p_err("No arguments supplied!")
+            return
+        address = M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP
+        msg = m2m2_packet(address, user0_config_app_id_t())
+        msg.payload.command = M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t.M2M2_USER0_CONFIG_APP_COMMAND_ID_OP_REQ
+        if args[0] == "read":
+          msg.payload.id_sel = ID_SELECTION_ENUM_t.ID_EXP_ID
+          msg.payload.id_op = ID_OPERATION_MODE_ENUM_t.ID_OPERATION_MODE_READ
+        elif args[0] == "write" and args[1]:
+          msg.payload.id_sel = ID_SELECTION_ENUM_t.ID_EXP_ID
+          msg.payload.id_op = ID_OPERATION_MODE_ENUM_t.ID_OPERATION_MODE_WRITE
+          msg.payload.id_num = int(args[1])
+        elif args[0] == "delete":
+          msg.payload.id_sel = ID_SELECTION_ENUM_t.ID_EXP_ID
+          msg.payload.id_op = ID_OPERATION_MODE_ENUM_t.ID_OPERATION_MODE_DELETE
+        else:
+          print("Wrong arguments chosen, please check help and retry")
+          return
+        msg.payload.status = M2M2_USER0_CONFIG_APP_STATUS_ENUM_t.M2M2_USER0_CONFIG_APP_STATUS_OK
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, user0_config_app_id_t(), 20)
+        if reply_msg != None:
+            if (reply_msg.payload.status == M2M2_USER0_CONFIG_APP_STATUS_ENUM_t.M2M2_USER0_CONFIG_APP_STATUS_OK):
+                if args[0] == "read":
+                  print("Exp ID Read back: {} ").format(reply_msg.payload.id_num)
+                elif args[0] == "write":
+                  print("Exp ID write successful")
+                elif args[0] == "delete":
+                  print("Exp ID delete successful")
+            else:
+                self.vrb.err("Error occured while doing exp_id request")
+        else:
+            self.vrb.err("The device did not respond!")
+
+    def do_lcfgUser0ConfigAppRead(self, arg):
+        """
+Read the User0 Config application LCFG used in the Watch. The argument are the user0_config_app LCFG addresses:
+    Note that the the range of addr varies from 0x0 to 0x8, as given below:
+    USER0_CONFIG_LCFG_AGC_UP_TH = 0x0             //!< Upper limit of LED light intensity for Static AGC - 1byte, Setting range: 1-127, Increment: 1, Unit: LSB
+    USER0_CONFIG_LCFG_AGC_LOW_TH = 0x1            //!< Lower limit of LED light intensity for Static AGC - 1byte, Setting range: 1-127, Increment: 1, Unit: LSB
+    USER0_CONFIG_LCFG_ADV_TIMEOUT_MONITOR = 0x2   /* Elapsed time from the start of advertising after finishing PPG,
+                                                   *  EDA, body temperature, and acceleration measurement during
+                                                   *  intermittent operation to the time out - 2byte, Setting range: 10-300, Increment: 10, Unit: second */
+    USER0_CONFIG_LCFG_HW_ID = 0x3                //!< Unique identification number assigned to each wristband - 2byte, Setting range: 00-99, Increment: 1, Unit: NA
+    USER0_CONFIG_LCFG_EXP_ID = 0x4               //!< Patient-specific identification number assigned to each case - 2byte, Setting range: 0000-9999, Increment: 1, Unit: NA
+    USER0_CONFIG_LCFG_TEMP_MEAS_SEC = 0x5        //!< Time to measure body temperature - 2byte, Setting range: 1-60, Increment: 1, Unit: second
+    USER0_CONFIG_LCFG_PPG_MEAS_SEC = 0x6         //! Time to measure PPG, EDA, acceleration - 2byte, Setting range: 1-180, Increment: 1, Unit: second
+    USER0_CONFIG_LCFG_SLEEP_MIN = 0x7            //!< Sleep time of intermittent operation - 2byte, Setting range: 1-180, Increment: 1, Unit: minute
+    USER0_CONFIG_LCFG_SIGNAL_THRESHOLD = 0x8     //!< AD threshold for determining light intensity and TIA gain with static AGC - 4byte, Setting range: 1-(2^(14-1)*127), Increment: 1, Unit: LSB
+
+      Eg: = lcfgUser0ConfigAppRead addr1 addr2 ...
+        """
+        args = self._parse_args(arg, None)
+        if len(args) == 0:
+            self._p_err("No arguments supplied!")
+            return
+
+        num_ops = len(args)
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, user0_config_app_lcfg_op_hdr_t(num_ops))
+        msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_READ_LCFG_REQ
+        msg.payload.num_ops = num_ops
+        for i in range(num_ops):
+            tempVal = args[i]
+            if ("0x") in tempVal:
+                reg_addr = int(tempVal, 16)
+            elif ("0X") in tempVal:
+                reg_addr = int(tempVal, 16)
+            else:
+                reg_addr = int(tempVal)
+            msg.payload.ops[i].field = reg_addr
+
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, user0_config_app_lcfg_op_hdr_t(num_ops), 20)
+        if reply_msg != None:
+            status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
+        if reply_msg == None:
+            print "Reading user0 config App LCFG failed!"
+	    return
+        self._print_user0_config_app_lcfg_result(reply_msg)
+
+    def do_lcfgUser0ConfigAppWrite(self, arg):
+        """
+Set the User0 Config App application LCFG. The argument is the User0 Config App LCFG addresses or the LCFG ID, then VALUE to modify the User0 Config App lcfg value:
+    Note that the the range of addr varies from 0x0 to 0x8 as given below:
+    USER0_CONFIG_LCFG_AGC_UP_TH = 0x0             //!< Upper limit of LED light intensity for Static AGC - 1byte, Setting range: 1-127, Increment: 1, Unit: LSB
+    USER0_CONFIG_LCFG_AGC_LOW_TH = 0x1            //!< Lower limit of LED light intensity for Static AGC - 1byte, Setting range: 1-127, Increment: 1, Unit: LSB
+    USER0_CONFIG_LCFG_ADV_TIMEOUT_MONITOR = 0x2   /* Elapsed time from the start of advertising after finishing PPG,
+                                                   *  EDA, body temperature, and acceleration measurement during
+                                                   *  intermittent operation to the time out - 2byte, Setting range: 10-300, Increment: 10, Unit: second */
+    USER0_CONFIG_LCFG_HW_ID = 0x3                //!< Unique identification number assigned to each wristband - 2byte, Setting range: 00-99, Increment: 1, Unit: NA
+    USER0_CONFIG_LCFG_EXP_ID = 0x4               //!< Patient-specific identification number assigned to each case - 2byte, Setting range: 0000-9999, Increment: 1, Unit: NA
+    USER0_CONFIG_LCFG_TEMP_MEAS_SEC = 0x5        //!< Time to measure body temperature - 2byte, Setting range: 1-60, Increment: 1, Unit: second
+    USER0_CONFIG_LCFG_PPG_MEAS_SEC = 0x6         //! Time to measure PPG, EDA, acceleration - 2byte, Setting range: 1-180, Increment: 1, Unit: second
+    USER0_CONFIG_LCFG_SLEEP_MIN = 0x7            //!< Sleep time of intermittent operation - 2byte, Setting range: 1-180, Increment: 1, Unit: minute
+    USER0_CONFIG_LCFG_SIGNAL_THRESHOLD = 0x8     //!< AD threshold for determining light intensity and TIA gain with static AGC - 4byte, Setting range: 1-(2^(14-1)*127), Increment: 1, Unit: LSB
+
+    Choose value to the addr according to range mentioned.
+      Eg: = lcfgUser0ConfigAppWrite addr1 value1 addr2 value2 ...
+        """
+
+        args = self._parse_args(arg, None)
+        if len(args) == 0:
+            self._p_err("No arguments supplied!")
+            return
+
+        num_ops = len(args)
+        num_ops >>= 1
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, user0_config_app_lcfg_op_hdr_t(num_ops))
+        msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_WRITE_LCFG_REQ
+        msg.payload.num_ops = num_ops
+        for i in range(num_ops):
+            tempVal = args[i*2]
+            if ("0x") in tempVal:
+                reg_addr = int(tempVal, 16)
+            elif ("0X") in tempVal:
+                reg_addr = int(tempVal, 16)
+            else:
+                reg_addr = int(tempVal)
+            tempVal = args[i*2+1]
+            if ("0x") in tempVal:
+                reg_val = int(tempVal, 16)
+            elif ("0X") in tempVal:
+                reg_val = int(tempVal, 16)
+            else:
+                reg_val = int(tempVal)
+            msg.payload.ops[i].field = reg_addr
+            msg.payload.ops[i].value = reg_val
+
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, user0_config_app_lcfg_op_hdr_t(num_ops), 60)
+        if reply_msg == None:
+            status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
+            print "Writing user0 config App LCFG failed!"
+	    return
+        self._print_user0_config_app_lcfg_result(reply_msg)
+
+    def _print_user0_config_app_lcfg_result(self, packet):
+        self._print_packet_status(packet)
+        self.vrb.write("  Num of registers: '{}'".format(int(packet.payload.num_ops)))
+
+        t = table(["Field", "Value"])
+        for i in range(packet.payload.num_ops):
+            t.add_row([hex(packet.payload.ops[i].field), packet.payload.ops[i].value])
+        t.display()
 
     def _print_ppg_lcfg_result(self, packet):
         self._print_packet_status(packet)
@@ -3006,7 +3332,8 @@ Usage:
             if(print_en):
                 self.vrb.write("  Next Writeable Page: {}".format(packet.payload.next_page))
                 self.vrb.write("  Is Page Occupied: '{}'".format(packet.payload.occupied))
-                self.vrb.write("  Number of bytes to read: '{}'".format(packet.payload.num_bytes))
+                self.vrb.write("  Number of bytes written in current page: '{}'".format(packet.payload.num_bytes_written))
+                self.vrb.write("  Number of bytes read: '{}'".format(packet.payload.num_bytes))
                 print(" Samples of Data read : ")
                 cnt = 0
                 for item in packet.payload.sample_data[:packet.payload.num_bytes]:
@@ -3520,21 +3847,20 @@ Load ADPD device with UC dcfg using "reg w add:val" command. Argument to be pass
         2 --> UC2
         ...
         5 --> UC5
- [dvt_revision]:
-        dvt1 --> To take UC dcfg for DVT1 board from mv_uc_dcfg folder
-        dvt2 --> To take UC dcfg for DVT2 board from mv_uc_dcfg folder
+The Watch dvt version specific register set is loaded
 -----------------------------------------------
 Usage:
-        #>loadAdpdUCDcfg [uc] [dvt_revision]
-        #>loadAdpdUCDcfg 2 dvt1
-        #>loadAdpdUCDcfg 5 dvt2
+        #>loadAdpdUCDcfg [uc]
+        #>loadAdpdUCDcfg 2
+        #>loadAdpdUCDcfg 5
         """
         args = self._parse_args(arg, None)
-        if len(args) == 0 or len(args) != 2:
+        if len(args) == 0 or len(args) != 1:
             self._p_err("Wrong arguments supplied!")
             return
         uc = int(args[0])
-        dvt_revision = args[1]
+        dvt_revision = self.dvt_ver
+        self.vrb.write("Loading Cfg for Watch version: {}".format(dvt_revision))
         curr_dir = os.getcwd()
         dcb_cfg_dir = os.path.join(curr_dir, 'mv_uc_dcfg')
         if uc == 1 and dvt_revision == "dvt1":
@@ -3653,7 +3979,7 @@ Usage:
         """
 Send a command to Read the DCB Configurations of the specific sensor of the Board, 
 which is then saved into a file with name [sensor_name]_dcb_get.dcfg (ex. - adxl_dcb_get.dcfg), which will be present in 'tools/dcb_dcfg/' directory.
-Currently dcb configurations can be read for adpd4000, adxl, ppg, ecg, eda, lt_dcb_config, ad7156, lt_app_lcfg.
+Currently dcb configurations can be read for adpd4000, adxl, ppg, ecg, eda, lt_dcb_config, ad7156, lt_app_lcfg, user0_config.
 ex. read_dcb_config [sensor_name]
     #>read_dcb_config adpd4000
         """
@@ -3688,6 +4014,8 @@ ex. read_dcb_config [sensor_name]
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP):
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         else:
              print "The requested config dcb is not supported"
              return
@@ -3714,6 +4042,8 @@ ex. read_dcb_config [sensor_name]
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_ad7156_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t(), 20)
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP):
+            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_user0_blk_data_t(), 20)
         else:
             pass
         if reply_msg == None:
@@ -3846,10 +4176,17 @@ ex. read_dcb_config [sensor_name]
                 f.write('\n')
                 ECnt+=1
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
-            f = open('dcb_cfg/lt_app_lcfg_dcb_get.dcfg','w')      
+            f = open('dcb_cfg/lt_app_lcfg_dcb_get.lcfg','w')      
             while ECnt < Array_Element_Count_r:
                 self.vrb.write("Read Settings : 0x{:04X} {}".format(int(reply_msg.payload.dcbdata[ECnt]),ECnt))
                 f.write('{:02X} {:02X}'.format((reply_msg.payload.dcbdata[ECnt]>>8),(reply_msg.payload.dcbdata[ECnt] & 0xff)))
+                f.write('\n')
+                ECnt+=1
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP):
+            f = open('dcb_cfg/user0_blk_dcb_get.lcfg','w')
+            while ECnt < Array_Element_Count_r:
+                self.vrb.write("Read Settings : 0x{:08X} {}".format(int(reply_msg.payload.dcbdata[ECnt]),ECnt))
+                f.write('{:08X}'.format((reply_msg.payload.dcbdata[ECnt])))
                 f.write('\n')
                 ECnt+=1
         else:
@@ -3867,7 +4204,7 @@ ex. read_dcb_config [sensor_name]
         """
 Send a command to Write the DCB Configurations of the specific sensor of the Board from its dcfg file.
 Currently the dcb configuration to be written is read from a dcfg file, stored in 'tools/dcb_dcfg/' directory.
-The dcb configurations can be written for adpd4000, adxl, ppg, ecg eda, lt_dcb_config, ad7156, lt_app_lcfg.
+The dcb configurations can be written for adpd4000, adxl, ppg, ecg eda, lt_dcb_config, ad7156, lt_app_lcfg, user0_config.
 ex. write_dcb_config [sensor_name] [file_name]
     #>write_dcb_config adxl adxl_dcb.dcfg
         """
@@ -4128,6 +4465,23 @@ ex. write_dcb_config [sensor_name] [file_name]
             f.close()
             msg = m2m2_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t())
             Array_Element = lt_app_lcfg_dcb_cfg
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP):
+            user0_config_app_dcb_cfg = arr.array('I',[])
+            try:
+                f = open(filename)
+            except:
+                self.vrb.err("Invalid File Name")
+                return 1
+            for line in f.readlines():
+                if(line[0] == '#' or line[0]=='\n' or line[0]==' ' or line[0]=='\t'):
+                    continue
+                else:
+                    str = line.split('#')
+                    dcb = str[0].replace(' ','').replace('\t','').replace('\n','')
+                    user0_config_app_dcb_cfg.append(int(dcb,16))
+            f.close()
+            msg = m2m2_packet(Sensor_Address, m2m2_dcb_user0_blk_data_t())
+            Array_Element = user0_config_app_dcb_cfg
         else:
             Array_Element = NULL
             print "Wrong blk name selected"
@@ -4182,6 +4536,9 @@ ex. write_dcb_config [sensor_name] [file_name]
                 msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
                 self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
             elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
+                msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
+                self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
+            elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP):
                 msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
                 self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
             else:
@@ -4239,6 +4596,8 @@ ex. write_dcb_config [sensor_name] [file_name]
            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_ad7156_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t(), 20)
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP):
+           reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_user0_blk_data_t(), 20)
         else:
             pass
         if reply_msg == None:
@@ -4312,7 +4671,7 @@ ex. write_dcb_config [sensor_name] [file_name]
     def do_delete_dcb_config(self,arg):
         """
 Send a command to Delete the DCB Configurations of the specific sensor of the Board.
-Currently dcb configurations is supported for adpd4000, adxl, ppg, ecg, eda, lt_dcb_config, ad7156, lt_app_lcfg.
+Currently dcb configurations is supported for adpd4000, adxl, ppg, ecg, eda, lt_dcb_config, ad7156, lt_app_lcfg, user0_config.
 ex. delete_dcb_config [sensor_name]
     #>delete_dcb_config adpd4000
         """
@@ -4347,6 +4706,8 @@ ex. delete_dcb_config [sensor_name]
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP):
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         else:
             Array_Element = NULL
         msg.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_ERASE_CONFIG_REQ
@@ -4370,6 +4731,8 @@ ex. delete_dcb_config [sensor_name]
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_ad7156_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_lt_app_lcfg_data_t(), 20)
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP):
+            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_user0_blk_data_t(), 20)
         else:
             pass
         if reply_msg == None:
@@ -4387,7 +4750,7 @@ ex. delete_dcb_config [sensor_name]
     def do_query_dcb_blk_status(self,arg):
         """
 Send a command to Query the Status of DCB Block index within the Watch - whether DCB is present / absent.
-Currently dcb configurations is supported for adpd4000, adxl, ppg, ecg, eda, lt_dcb_config, ad7156, lt_app_lcfg.
+Currently dcb configurations is supported for adpd4000, adxl, ppg, ecg, eda, lt_dcb_config, ad7156, lt_app_lcfg, user0_config.
 All supported DCB Blocks are queried and presented here
 ex. query_dcb_blk_status
     #>query_dcb_blk_status
@@ -4437,6 +4800,10 @@ ex. query_dcb_blk_status
             self.vrb.write("ADI_DCB_LT_APP_LCFG_BLOCK_IDX Present")
         else:
             self.vrb.write("ADI_DCB_LT_APP_LCFG_BLOCK_IDX Absent")
+        if reply_msg.payload.dcb_blk_array[M2M2_DCB_CONFIG_BLOCK_INDEX_t.ADI_DCB_USER0_BLOCK_IDX]:
+            self.vrb.write("ADI_DCB_USER0_BLOCK_IDX Present")
+        else:
+            self.vrb.write("ADI_DCB_USER0_BLOCK_IDX Absent")
         self.vrb.write("-------------------------------------")
 
     def do_getTimeOffset(self, arg):
@@ -5376,10 +5743,10 @@ format file system. Command to format file system.
         args = self._parse_args(arg, 0)
         if args == None:
             return
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_impt_debug_info_req_t())
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_debug_impt_info_req_t())
         msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_GET_IMPT_DEBUG_INFO_REQ
         self._send_packet(msg)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_impt_debug_info_resp_t(), 30)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_debug_impt_info_resp_t(), 30)
         if reply_msg != None:
             self.vrb.write("  CIRCULAR BUFFER HEAD POINTER: {} page no".format(int(reply_msg.payload.head_pointer)))
             self.vrb.write("  CIRCULAR BUFFER TAIL POINTER : {} block no".format(int(reply_msg.payload.tail_pointer)))
@@ -5494,6 +5861,24 @@ mount file system. Command help to check if file system is available with proper
             self._print_file_system_status(reply_msg)
         else:
             self.vrb.err("The device did not respond!")
+            
+    def do_fs_log_append(self, arg):
+        address = M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS
+        args = self._parse_args(arg, 0)
+        if args == None:
+            return
+        msg = m2m2_packet(address, m2m2_file_sys_cmd_t())
+        msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_APPEND_FILE_REQ
+        msg.payload.status = M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_STATUS_OK
+        self._send_packet(msg)
+        #pase reply message
+        reply_msg = self._get_packet(address, m2m2_file_sys_cmd_t(), 50)
+        if reply_msg ==None:
+           self.vrb.err("Device did not respond!")
+           return
+        if reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_NO_FILE_TO_APPEND:
+            self.vrb.err("No files to append!")
+        self._print_file_system_status(reply_msg)
 
     def do_fs_sub(self, arg):
         fs_address = M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS
@@ -5696,6 +6081,7 @@ read contents of file. Command is used to read file by getting data from file st
     page_read_fail_cnt = 0
     def do_page_read_test(self, arg):
         """
+    ###!!! Under test !!!###
     This is a test command, used for testing by reading the given page
     It is used for debugging any issues while reading any page from the NAND flash
     #>checks if there are any errors during reading of a given page
@@ -5709,7 +6095,7 @@ read contents of file. Command is used to read file by getting data from file st
         if args == None:
             return
         address = M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS
-        msg = m2m2_packet(address, m2m2_file_sys_page_test_req_pkt_t())
+        msg = m2m2_packet(address, m2m2_file_sys_page_read_test_req_pkt_t())
         msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_PAGE_READ_TEST_REQ
         msg.payload.status = M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK
         msg.payload.page_num = int(args[0])
@@ -5717,7 +6103,7 @@ read contents of file. Command is used to read file by getting data from file st
         if(args[1] != None):
             print_en = int(args[1])
         self._send_packet(msg)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_page_test_resp_pkt_t(), 120)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_page_read_test_resp_pkt_t(), 120)
         if reply_msg != None:
             if (reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_STATUS_OK):
                 self._print_page_read_test_status(reply_msg,print_en)
@@ -5781,11 +6167,15 @@ read contents of file. Command is used to read file by getting data from file st
                 end_page = reply_msg.payload.end_page
                 page_read_fail_cnt = 0
                 #print("\n Testing  by reading the each pages of File \n")
-                for page_index in range(start_page,end_page+1,1):
-                    print("\n reading page: {}".format(page_index))
-                    arg_str = str(page_index) + " 1" + " 50"
-                    print(arg_str)
-                    self.do_page_read_test(arg_str) 
+                #for page_index in range(start_page,end_page+1,1):
+                #    print("\n reading page: {}".format(page_index))
+                #    arg_str = str(page_index) + " 1" + " 5"
+                #    print(arg_str)
+                #    self.do_page_read_test(arg_str)
+                arg_str = str(reply_msg.payload.start_page) + str(reply_msg.payload.end_page)
+                print(arg_str)
+                self.do_read_file_sample_data(arg_str)
+
                 print("completed reading all the pages of given file index")
                 print("Total No. of pages read = {}".format((end_page-start_page+1)))
                 print("No. of pages reported read failures = {}".format(page_read_fail_cnt))
@@ -5794,7 +6184,42 @@ read contents of file. Command is used to read file by getting data from file st
         else:
             self.vrb.err("The device did not respond!")
 
-            
+    def do_read_file_sample_data(self, arg):
+        """
+    ###!!! Under test !!!###
+    read file sample bytes from every page
+    #>read_file_sample_data start_page_end end_page_end
+    eg 1: read_file_sample_data 256 270 ( linear scale)
+        """
+        args = self._parse_args(arg, 2)
+        if args == None:
+            self.vrb.write("please provide valid argument")
+            return
+        else:    
+            msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS,m2m2_file_sys_sample_data_file_read_req_t() )
+            msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_FILE_READ_TEST_REQ
+            msg.payload.status = M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK
+            msg.payload.start_page_ind = int(args[0])
+            msg.payload.end_page_ind = int(args[1])
+            self._send_packet(msg)
+            cnt = msg.payload.start_page_ind
+            loop_ind=0
+            loop_num = (abs(msg.payload.end_page_ind - msg.payload.start_page_ind)+1)/2
+            while loop_ind < loop_num:
+                # loop body here
+                reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_sample_data_file_read_resp_t(), 10)
+                if reply_msg != None:
+                    pages_sample_data  = re.findall(r'[^\,]+', reply_msg.payload.sample_data)
+                    for page_value in pages_sample_data:
+                        print "Page index = {}".format(cnt)  
+                        print page_value
+                        cnt = cnt + 1
+                    loop_ind = loop_ind + 1
+                else:
+                    self.vrb.err("File information not received, time out !!")
+                    return
+            print("All pages read !!")
+                
     def do_pattern_write(self, arg):
         """
     multiple pattern write with prescribed file size, scale

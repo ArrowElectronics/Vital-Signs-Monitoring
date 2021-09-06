@@ -62,6 +62,7 @@ extern uint8_t  nFifoStatusByte;              //!< Number of FIFO status bytes s
 extern uint16_t decimation_info[SLOT_NUM];    //!< Buffer storing decimation of slots
 extern uint32_t gnLcmValue;                   //!< Hold LCM value
 extern adpd400xDrv_slot_t gsSlot[SLOT_NUM];   //!< Slot information
+extern uint8_t gnAdpdFifoWaterMark;
 /*------------------------- Public Function Prototypes -----------------------*/
 
 /*------------------------- Private Variables --------------------------------*/
@@ -210,8 +211,7 @@ uint8_t adpd4000_read_data_to_buffer(uint16_t *p_slot_sz, uint16_t *p_max_slot, 
 #ifdef ADPD_SEM_CORRUPTION_DEBUG
   gnBytes_in_fifo = nbytes_in_fifo;
 #endif
-  nsamples_in_fifo = (uint16_t)(nbytes_in_fifo / (sWriteBufferPattern.sample_size + nFifoStatusByte));
-  if(nsamples_in_fifo ==0)
+  if(gnAdpdFifoWaterMark == 0)
     return 0;
 
   if (prev_ADPD_ts != 0) {
@@ -223,13 +223,13 @@ uint8_t adpd4000_read_data_to_buffer(uint16_t *p_slot_sz, uint16_t *p_max_slot, 
       else
         gnSamples_in_fifo = nbytes_in_fifo;
 #endif
-      sample_interval = (uint16_t)((gADPD4000_dready_ts - prev_ADPD_ts) / nsamples_in_fifo);
+      sample_interval = (uint16_t)((gADPD4000_dready_ts - prev_ADPD_ts) / gnAdpdFifoWaterMark);
     }
     else // handle day roll-over after 24hrs
     {
       /* MAX_RTC_TICKS_FOR_24_HOUR:- Max RTC Count value returned by get_sensor_timestamp() after 24hrs.
         Adding that value to have sample interval value during day roll-over */
-      sample_interval = (uint16_t)((MAX_RTC_TICKS_FOR_24_HOUR + gADPD4000_dready_ts- prev_ADPD_ts) / nsamples_in_fifo);
+      sample_interval = (uint16_t)((MAX_RTC_TICKS_FOR_24_HOUR + gADPD4000_dready_ts- prev_ADPD_ts) / gnAdpdFifoWaterMark);
     }
   } else {
     sample_interval = (uint16_t) (ODR * RTC_TICKS_PER_MILLI_SEC);

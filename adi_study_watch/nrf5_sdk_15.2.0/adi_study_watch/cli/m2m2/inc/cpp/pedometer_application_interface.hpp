@@ -19,6 +19,7 @@
 #endif  // defined __CC_ARM || defined __IAR_SYSTEMS_ICC__ || __clang__ || defined _MSC_VER || defined __GNUC__
 #pragma pack(1)
 
+
 enum M2M2_PED_APP_CMD_ENUM_t:uint8_t {
   _M2M2_PED_APP_CMD_LOWEST = 90,
   M2M2_PED_APP_CMD_GET_ALGO_VENDOR_VERSION_REQ = 92,

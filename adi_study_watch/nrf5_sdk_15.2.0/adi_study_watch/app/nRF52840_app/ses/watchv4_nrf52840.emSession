@@ -1,7 +1,7 @@
 <!DOCTYPE CrossStudio_Session_File>
 <session>
  <Bookmarks/>
- <Breakpoints groups="" active_group="Breakpoints"/>
+ <Breakpoints groups="Breakpoints" active_group="Breakpoints"/>
  <ExecutionProfileWindow/>
  <FrameBufferWindow>
   <FrameBufferWindow bufferHeight="-1" addressSpace="" addressText="" bufferWidth="-1"/>
@@ -13,7 +13,6 @@
  <Project>
   <ProjectSessionItem path="Solution ?watchv4_nrf52840"/>
   <ProjectSessionItem path="Solution ?watchv4_nrf52840;watchv4_nrf52840"/>
-  <SourceCodeControlLogin password="F9BB6682F5D56822" user="Arpan Patel &lt;arpan.patel@einfochips.com>"/>
  </Project>
  <Register1/>
  <Register2/>
