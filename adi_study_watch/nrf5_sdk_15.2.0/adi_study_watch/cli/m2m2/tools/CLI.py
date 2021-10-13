@@ -182,6 +182,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Get ctr value."},
     "adxl": {   "commands":["sensor adxl start","sub radxl add"],
                 "help":"Start ADXL"},
+    "ad7156": {    "commands":["sensor ad7156 start","sub rad7156 add"],
+                   "help":"Start AD7156"},
     "plot-adpd4000": {"commands":["quickstart adpd4000", "plot radpd6"],
                 "help":"Quickstarts the ADPD and starts a plot of the raw ADPD SlotF."},
     "plot-ecg4000": {"commands":["quickstart ecg4000", "plot radpd1"],
@@ -274,6 +276,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts logging the ADPD4000."},
     "start_log_adpd4000_b": {   "commands":["loadAdpdCfg 43", "clockCalibration",  "adpdAGCControl 4:1", "fs_sub radpd9 add","sensor adpd4000 start","fs_log start"],
                 "help":"Starts logging the ADPD4000."},
+    "start_log_adpd4000_g_append": {   "commands":["loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1", "fs_sub radpd6 add","sensor adpd4000 start","fs_log_append"],
+                "help":"Starts logging the ADPD4000."},
     "start_log_ppg": {   "commands":["loadAdpdCfg 40", "clockCalibration","setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1210", "fs_sub rppg add", "sensor ppg start", "fs_log start"],
                 "help":"Starts logging the PPG with Static AGC enabled"},
     "start_log_ppg_dynamic_agc": {   "commands":["loadAdpdCfg 40", "clockCalibration","setPpgLcfg 40", "fs_sub rppg add", "fs_sub ragc add", "sensor ppg start", "fs_log start"],
@@ -299,6 +303,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts logging for MV UC4 - Ecg@1000Hz, SQI, ppg, Temperature"},
     "start_log_mv_uc5": {   "commands":["loadAdpdUCDcfg 5","setPpgLcfg 40", "loadPpgUCLcfg 5","clockCalibration","setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
                 "help":"Starts logging for MV UC5 - 4 LED Slots at 100Hz, SQI, HR, Adxl"},
+    "start_log_mv_uc6": {   "commands":["loadAdpdUCDcfg 6","setPpgLcfg 40", "loadPpgUCLcfg 3", "clockCalibration","setUCHREnab 1 6","fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radxl add","fs_sub rbia add","fs_sub rtemperature add","lcfgBiaWrite 0:20","sensor bia start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+                "help":"Starts logging for MV UC6 - 4 LED Slots at 100Hz, SQI, HR, Adxl, Bia at 20 Hz"},            
     "start_log_nk_uc": {   "commands":["loadAdpdCfg 40","clockCalibration","fs_sub rtemperature add","fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","adpdAGCControl 1:1","sensor temperature start","set_eda_dcb_lcfg","sensor eda start","sensor adxl start","sensor adpd4000 start","fs_log_append"],
                 "help":"Starts logging for NK UC - Eda@8Hz, Adxl, Adpd@500Hz, Temperature"},
     "start_log_nk_uc_set_bat_thresh": {   "commands":["loadAdpdCfg 40","clockCalibration","fs_sub rtemperature add","fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","adpdAGCControl 1:1","sensor temperature start","set_eda_dcb_lcfg","sensor eda start","sensor adxl start","sensor adpd4000 start","fs_log_append","setBatteryThreshold 87 88"],
@@ -339,14 +345,18 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Quickstarts the EDA and starts a plot of the EDA data."},
     "start_log_eda": {"commands":["fs_sub reda add","sensor eda start","delay 5","fs_log start"],
                 "help":"Start eda"},
-    "bcm": {"commands": ["lcfgBcmWrite 0:4","sensor bcm start","sub rbcm add"],
-                "help":"Starts BCM."},
-    "plot-bcm": {    "commands":["quickstart bcm", "plot rbcm"],
-                "help":"Quickstarts the BCM and starts a plot of the BCM data."},
+    "bia": {"commands": ["sensor bia start","sub rbia add"], 
+                "help":"Starts BIA."},
+    "bcm": {"commands": ["lcfgBiaWrite 5:1","sensor bia start","sub rbia add"],
+                "help":"Starts BIA and BCM."},
+    "plot-bia": {    "commands":["quickstart bia", "plot rbia"],
+                "help":"Quickstarts the BIA and starts a plot of the Bia data."},
     "plot-ped": {    "commands":["quickstart ped", "plot rped"],
                 "help":"Quickstarts the Pedometer and starts a plot of the Ped count data."},            
-    "start_log_bcm": {"commands":["fs_sub rbcm add","sensor bcm start","fs_log start"],
-                "help":"Start bcm"},
+    "start_log_bia": {"commands":["fs_sub rbia add","sensor bia start","fs_log start"],
+                "help":"Start bia logging"},
+    "start_log_bcm": {"commands":["lcfgBiaWrite 5:1","fs_sub rbia add","sensor bia start","fs_log start"],
+                "help":"Start bia and bcm logging"},
     "start_stop_adpd4k": {"commands":["quickstart adpd4000","quickstop adpd4000"],
                 "help":"Start - stop tests addp4k "},                
     "start_stop_230": {"commands":["quickstart adxl","quickstart adpd4000","quickstart eda", "sensor temperature start","sub  rtemperature add","quickstop adxl","quickstop adpd4000","quickstop eda", "sub  rtemperature remove","sensor temperature stop"],
@@ -471,6 +481,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts creation of MV UC4 log commands, as user config file into DCFG sectors of LFS"},
     "nand_config_file_create_mv_uc5": {   "commands":[ "fs_config_log start","quickstart start_log_mv_uc5", "quickstop stop_log_mv_uc5","fs_config_log_file write","fs_config_log stop"],
                 "help":"Starts creation of MV UC5 log commands, as user config file into DCFG sectors of LFS"},
+    "nand_config_file_create_mv_uc6": {   "commands":[ "fs_config_log start","quickstart start_log_mv_uc6", "quickstop stop_log_mv_uc6","fs_config_log_file write","fs_config_log stop"],
+                "help":"Starts creation of MV UC6 log commands, as user config file into DCFG sectors of LFS"},            
     "nand_config_file_create_nk_uc": {   "commands":[ "fs_config_log start","quickstart start_log_nk_uc", "quickstop stop_log_nk_uc","fs_config_log_file write","fs_config_log stop"],
                 "help":"Starts creation of MV UC2 log commands, as user config file into DCFG sectors of LFS"},
     "nand_config_file_create_nk_uc_set_bat_thresh": {   "commands":[ "fs_config_log start","quickstart start_log_nk_uc_set_bat_thresh", "quickstop stop_log_nk_uc","fs_config_log_file write","fs_config_log stop"],
@@ -640,6 +652,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts streaming for MV UC4 - Ecg@1000Hz, SQI, ppg, Temperature"},
     "start_stream_mv_uc5_1": {   "commands":["loadAdpdUCDcfg 5","reg w adpd4000 0x0D:0x2710","clockCalibration","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 0:1","sensor adpd4000 start","sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add","sensor adxl start","sub radxl add",],
                 "help":"Starts streaming for MV UC5 - 4 LED Slots at 100Hz, SQI, UC HR, Adxl"},
+    "start_stream_mv_uc6_1": {   "commands":["lcfgBiaWrite 0:20","sensor bia start","sub rbia add","loadAdpdUCDcfg 6", "clockCalibration","reg w adpd4000 0x0D:0x2710","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
+                "help":"Starts streaming for MV UC6 - Bia@20Hz, UC HR, SQI, Adpd@100Hz, Adxl, Temperature"},            
     "start_log_mv_uc4_1": {   "commands":["fs_log start","fs_sub rppg add","fs_sub recg add","fs_sub rtemperature add"],
                 "help":"Start MV UC4 start log cmd sequence, in b/w streaming"},
     "start_nk_uc_log_dcb": {   "commands":["delete_config_file","fs_format","setDateTime","LTAppTuning dcb 3","write_dcb_config adpd4000 cust4_dvt2_adpd_dcb.dcfg","write_dcb_config adxl cust4_adxl_dcb.dcfg","write_dcb_config eda cust4_eda_dcb.lcfg","quickstart nand_config_file_create_nk_uc","write_dcb_config user0_config user0_blk_dcb.lcfg"],
@@ -699,6 +713,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Stops the ADPD application and unsubscribes it."},
     "adxl": {"commands":["sub radxl remove", "sensor adxl stop"],
                 "help":"Stop ADXL"},
+    "ad7156": {"commands":["sub rad7156 remove", "sensor ad7156 stop"],
+                 "help": "Stop AD7156"},
     "use_case_2": {"commands":["quickstop stop_log_eda","quickstop stop_log_adxl","quickstop stop_log_temperature","quickstop stop_log_adpd4000_g",],
                 "help":"Stops the use case 2."},
     "mv_uc1_streaming_stop": {"commands":["sub rtemperature remove","sensor temperature stop","sub radxl remove","sensor adxl stop","sub radpd6 remove","sensor adpd4000 stop"],
@@ -777,8 +793,10 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Stops the EDA application and unsubscribes it."},
     "stop_log_eda": {"commands":["sensor eda stop","fs_sub reda remove","fs_log stop"],
                 "help":"Start eda"},
-    "stop_log_bcm": {"commands":["sensor bcm stop","fs_sub rbcm remove","fs_log stop"],
-                "help":"Start eda"},
+    "stop_log_bia": {"commands":["sensor bia stop","fs_sub rbia remove","fs_log stop"],
+                "help":"Stop BIA logging"},
+    "stop_log_bcm": {"commands":["lcfgBiaWrite 5:0","sensor bia stop","fs_sub rbia remove","fs_log stop"],
+                "help":"Stops BIA and BCM logging"},
     "stop_log_ped":{"commands":["sensor ped stop", "sensor adxl stop","fs_sub rped remove","fs_log stop"],
                 "help":"Stops the Pedometer application, unsubscribes it and disables the ADXL sensor."}, 
     "stop_log_adpd4000_r_adxl": {"commands":["fs_sub radpd7 remove","fs_sub radxl remove","fs_log stop","sensor adpd4000 stop","sensor adxl stop"],
@@ -794,10 +812,14 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Stops logging for MV UC4 - Ecg, ppg, SQI,Temperature"},
     "stop_log_mv_uc5": {   "commands":["sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove", "fs_sub ragc remove", "fs_sub rsqi remove","fs_sub radpd7 remove","fs_sub radpd8 remove","fs_sub radpd9 remove","fs_sub radxl remove","fs_log stop"],
                 "help":"Stops logging for MV UC5- 4 LED Slots at 100Hz, HR, SQI, ADXL"},
+    "stop_log_mv_uc6": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","sensor bia stop","setUCHREnab 0 6", "fs_sub ragc remove", "fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub rbia remove","fs_sub rtemperature remove","fs_log stop"],
+                "help":"Stops logging for MV UC6 - Bia, SQI, Adpd, HR, Adxl, Temperature"},
     "stop_log_nk_uc": {   "commands":["sensor temperature stop","sensor adpd4000 stop","sensor adxl stop","sensor eda stop","fs_sub radpd6 remove","fs_sub radxl remove","fs_sub reda remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stops logging for NK UC - Eda, Adxl, Adpd, Temperature"},
-    "bcm": {"commands": ["sub rbcm remove", "sensor bcm stop"],
-                 "help": "Stop BCM"},
+    "bia": {"commands": ["sub rbia remove", "sensor bia stop"],
+                 "help": "Stop BIA"},
+    "bcm": {"commands": ["lcfgBiaWrite 5:0","sub rbia remove", "sensor bia stop"],
+                 "help": "Stop BIA and BCM"},
     "mwl_view": {"commands": ["sub radpd6 remove","sub radpd7 remove","sub radpd8 remove","sub radpd9 remove","sensor adpd4000 stop"],
                 "help":"Opens MWL view with Green, Red IR, Blue LED from Slot F, G, H, I of ADPD4000"},
     "mwl_view_agc_off": {"commands": ["sub radpd6 remove","sub radpd7 remove","sub radpd8 remove","sub radpd9 remove","sensor adpd4000 stop"],
@@ -913,6 +935,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Stops streaming for MV UC4 - Ecg@1000Hz, SQI, ppg, Temperature"},
     "stop_stream_mv_uc5_1": {   "commands":["sub rppg remove","sensor adxl stop","sensor adpd4000 stop","sub radpd6 remove","sub radpd7 remove","sub radpd8 remove","sub radpd9 remove","sub radxl remove", "setUCHREnab 0 6","sub rsqi remove","sensor sqi stop"],
                 "help":"Stops streaming for MV UC5- 4 LED Slots at 100Hz, SQI, UC HR, Adxl"},
+    "stop_stream_mv_uc6_1": {   "commands":["sub rppg remove","sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor bia stop","sub radpd6 remove","sub radxl remove","sub rbia remove","sub rtemperature remove", "setUCHREnab 0 6","sub rsqi remove","sensor sqi stop"],
+                "help":"Stops streaming for MV UC6 - Bia@20Hz, UC HR, SQI, Adpd@100Hz, Adxl, Temperature"},
     "stop_log_mv_uc4_1": {   "commands":["fs_sub rppg remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Give the MV UC4 stop stream cmd sequence"},
     "stop_nk_uc_log_fw": {   "commands":["delete_config_file"],
@@ -3914,6 +3938,7 @@ Usage:
         #>loadPpgUCLcfg [uc]
         #>loadPpgUCLcfg 2
         #>loadPpgUCLcfg 5
+        #>loadPpgUCLcfg 6
         """
         args = self._parse_args(arg, None)
         if len(args) == 0 or len(args) != 1:
@@ -3932,6 +3957,8 @@ Usage:
             lcfg_file = os.path.join(dcb_cfg_dir, 'ppg_case4.lcfg')
         elif uc == 5:
             lcfg_file = os.path.join(dcb_cfg_dir, 'ppg_case5.lcfg')
+        elif uc == 6:
+            lcfg_file = os.path.join(dcb_cfg_dir, 'ppg_case6.lcfg')    
         else:
             self.vrb.write("Wrong UC selected. Check help & retry")
             return
@@ -4006,7 +4033,7 @@ ex. read_dcb_config [sensor_name]
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
-        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())    
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
@@ -4034,8 +4061,8 @@ ex. read_dcb_config [sensor_name]
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_ecg_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_eda_data_t(), 20)
-        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
-            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_bcm_data_t(), 20)    
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA):
+            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_bia_data_t(), 20)    
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
@@ -4121,13 +4148,13 @@ ex. read_dcb_config [sensor_name]
                 f.write('{:02X} {:04X}'.format(((reply_msg.payload.dcbdata[ECnt]>>16) & 0xff),(reply_msg.payload.dcbdata[ECnt] & 0xffff)))
                 f.write('\n')
                 ECnt+=1
-        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
-            f = open('dcb_cfg/bcm_dcb_get.lcfg','w')
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA):
+            f = open('dcb_cfg/bia_dcb_get.lcfg','w')
             while ECnt < Array_Element_Count_r:
-                self.vrb.write("Read Settings : 0x{:08X} {}".format(int(reply_msg.payload.dcbdata[ECnt]),ECnt))
-                f.write('{:02X} {:04X}'.format(((reply_msg.payload.dcbdata[ECnt]>>16) & 0xff),(reply_msg.payload.dcbdata[ECnt] & 0xffff)))
+                self.vrb.write("Read Settings : 0x{:010X} {}".format(int(reply_msg.payload.dcbdata[ECnt]),ECnt))
+                f.write('{:02X} {:08X}'.format(ECnt,(reply_msg.payload.dcbdata[ECnt] & 0xffffffff)))
                 f.write('\n')
-                ECnt+=1        
+                ECnt+=1      
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
             num_of_pkts = int(reply_msg.payload.num_of_pkts)
             reply_msg_list = []
@@ -4320,7 +4347,7 @@ ex. write_dcb_config [sensor_name] [file_name]
                     str = line.split('#')
                     str = str[0].split('/')
                     str = str[0].split(' ')
-                    str =str[1].replace(' ','').replace('\t','').replace('\n','')
+                    str = str[1].replace(' ','').replace('\t','').replace('\n','')
                     ppg_dcb_lcfg.append(int(str,16))
             f.close()
             msg = m2m2_packet(Sensor_Address, m2m2_dcb_ppg_data_t())
@@ -4365,8 +4392,8 @@ ex. write_dcb_config [sensor_name] [file_name]
             f.close()
             msg = m2m2_packet(Sensor_Address, m2m2_dcb_eda_data_t())
             Array_Element = eda_dcb_cfg
-        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
-            bcm_dcb_cfg = arr.array('I',[])
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA):
+            bia_dcb_cfg = []
             try:
                 f = open(filename)
             except:
@@ -4377,14 +4404,13 @@ ex. write_dcb_config [sensor_name] [file_name]
                     continue
                 else:
                     str = line.split('#')
+                    str = str[0].split('/')
                     str = str[0].split(' ')
-                    val1 = str[0]
-                    val2 = str[1].replace(' ','').replace('\t','').replace('\n','')
-                    val = (int(val1,16) << 16) | (int(val2,16))
-                    bcm_dcb_cfg.append(val)
+                    str = str[1].replace(' ','').replace('\t','').replace('\n','')
+                    bia_dcb_cfg.append(int(str,16))
             f.close()
-            msg = m2m2_packet(Sensor_Address, m2m2_dcb_bcm_data_t())
-            Array_Element = bcm_dcb_cfg    
+            msg = m2m2_packet(Sensor_Address, m2m2_dcb_bia_data_t())
+            Array_Element = bia_dcb_cfg    
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
             gen_blk_dcb_cfg = arr.array('I',[])
             try:
@@ -4520,7 +4546,7 @@ ex. write_dcb_config [sensor_name] [file_name]
             elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA):
                 msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
                 self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
-            elif (Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
+            elif (Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA):
                 msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
                 self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
             elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
@@ -4588,8 +4614,8 @@ ex. write_dcb_config [sensor_name] [file_name]
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_ecg_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_eda_data_t(), 20)
-        elif (Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
-            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_bcm_data_t(), 20)
+        elif (Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA):
+            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_bia_data_t(), 20)
         #elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
         #   reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
@@ -4698,7 +4724,7 @@ ex. delete_dcb_config [sensor_name]
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
-        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())    
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
@@ -4723,8 +4749,8 @@ ex. delete_dcb_config [sensor_name]
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_ecg_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_eda_data_t(), 20)
-        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM):
-            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_bcm_data_t(), 20)
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA):
+            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_bia_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_LT_APP):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_gen_blk_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156):
@@ -5983,9 +6009,17 @@ read contents of file. Command is used to read file by getting data from file st
             # loop body here
             reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS_STREAM, m2m2_file_sys_download_log_stream_t(), 1000)
             if reply_msg != None:
-                file_size += reply_msg.payload.len_stream
-                data_length = reply_msg.payload.len_stream + 12
+                if reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_STATUS_ERROR:
+                    self._print_file_system_status(reply_msg)
+                    break
+                file_size += reply_msg.payload.page_chunk_size
+                data_length = reply_msg.payload.page_chunk_size + 15
                 #print"Length received t1 = {}".format(data_length)
+                #print "page_number = {}".format(reply_msg.payload.page_number)
+                #print "page_chunk_number = {}".format(reply_msg.payload.page_chunk_number)
+                #print "page_chunk_size = {}".format(reply_msg.payload.page_chunk_size)
+                
+                #self._print_file_system_status(reply_msg)
                 crc16_data_array =  buffer(reply_msg.header)[:] + buffer(reply_msg.payload)[:]
                 for index in range(0,8,2):
                     crc16_data_array = swap(crc16_data_array,index, index + 1)
@@ -6005,7 +6039,7 @@ read contents of file. Command is used to read file by getting data from file st
                     #print"received crc16 = {}".format(format_hex(crc16_data_array))
                     #print"received crc16 = {}".format((crc16_data_array))
             	    #print"Length received t1 = {}".format(data_length)
-            	    #print"CRC mismatch cnt = {}".format(nCRCMisMatchCnt)
+            	    print"CRC mismatch cnt = {}".format(nCRCMisMatchCnt)
                 if(nSequenceNumber != reply_msg.header.checksum):
                     nSeqMisMatchCnt += 1
                 # Restraining refernce sequence number to 16bit wide
@@ -6013,11 +6047,11 @@ read contents of file. Command is used to read file by getting data from file st
                    nSequenceNumber = 0
 	        else:
                    nSequenceNumber += 1
-                bar.update(reply_msg.payload.len_stream)
-                if (reply_msg.payload.len_stream != len(reply_msg.payload.byte_stream)):
-                    fobj.write(bytearray(reply_msg.payload.byte_stream[0:int(reply_msg.payload.len_stream)]))
+                bar.update(reply_msg.payload.page_chunk_size)
+                if (reply_msg.payload.page_chunk_size != len(reply_msg.payload.page_chunk_bytes)):
+                    fobj.write(bytearray(reply_msg.payload.page_chunk_bytes[0:int(reply_msg.payload.page_chunk_size)]))
                 else :
-                    fobj.write(reply_msg.payload.byte_stream)
+                    fobj.write(reply_msg.payload.page_chunk_bytes)
             else:
                 bar.close()
                 self.vrb.err("No response from device.Stream file operation failed.")
@@ -6563,8 +6597,8 @@ read contents of file. Command is used to read file by getting data from file st
             print i
             #self.onecmd("quickstart tst_issue_330_1")
             #self.onecmd("quickstart tst_issue_330_2")
-            #self.onecmd("quickstart start_log_bcm")
-            #self.onecmd("quickstop stop_log_bcm")
+            #self.onecmd("quickstart start_log_bia")
+            #self.onecmd("quickstop stop_log_bia")
             self.onecmd("quickstart start_mv_uc1")
             self.onecmd("quickstop stop_mv_uc1")
         print "test #330 done"
@@ -6979,40 +7013,63 @@ Get the PPG LCFG, used from Watch. The argument is the LCFG ID, which is 40 for 
                 self._print_file_system_status(reply_msg)
             else:
                 self.vrb.err("No response from device.Injecting keyvaluePair failed")
-    def do_fs_stream_chunk(self, arg):
+    def do_fs_stream_page_chunk(self, arg):
             """
-    Get the particular chunk of data from file by specifying the chunk number.
+    Get the particular chunk of page from file by specifying the page chunk number.
     -----------------------------------------------
     Usage:
-        #>fs_stream_chunk rollover chunknumber filename
-        #>fs_stream_chunk 0 20 05113CAC.LOG
+        #>fs_stream_chunk RETRANSMIT_TYPE page_rollover page_number page_chunk_number filename
+        #>fs_stream_chunk 0 0 268 3 05113CAC.LOG
 
+        RETRANSMIT_TYPE:
+          0 - CHUNK CRC ERROR (Get page current chunk)
+          1 - CHUNK LOST (Get page next chunk)
+
+        page_rollover:
+          pagenumber maximum is 0-65535.
+          if we request the pagenumber after 65535 ,page_rollover value should be set to 1
+          
+        page_number:
+          pagenumber maximum is 0-65535.
+          Pagenumber recieved on download log stream
+          
+        page_chunk_number:
+          page_chunk_number maximum is 0-7.
+          page_chunk_number recieved on download log stream
+          
             """
-            args = self._parse_args(arg, 3)
+            args = self._parse_args(arg, 5)
             if args == None:
                 return
-            Roll_over = int(args[0])
-            chunk_number  = int(args[1])
-            filename,ext =  args[2].split('.')
-            temp_array = list(bytearray(args[2]))
-            msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_pkt_retransmit_req_t(len(args[2])))
+            Retransmit_type = int(args[0])
+            Page_Roll_over = int(args[1])
+            Page_number = int(args[2])
+            Page_chunk_number  = int(args[3])
+            filename,ext =  args[4].split('.')
+            temp_array = list(bytearray(args[4]))
+            msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_page_chunk_retransmit_req_t(len(args[4])))
             msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_CHUNK_RETRANSMIT_REQ
-            msg.payload.Roll_over = Roll_over
-            msg.payload.chunk_number = chunk_number
-            for index in range(len(args[2])):
+            msg.payload.retransmit_type = Retransmit_type
+            msg.payload.page_roll_over = Page_Roll_over
+            msg.payload.page_number = Page_number
+            msg.payload.page_chunk_number = Page_chunk_number
+            for index in range(len(args[4])):
                 msg.payload.file_name[index] = temp_array[index]
             self._send_packet(msg)
             nComputedCRC = int(0x0FFFF)
             nCRCPolynomial = int(0x1021)
             nCRCMisMatchCnt = 0
             # loop body here
-            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_get_resp_t(), 1000)
+            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_download_log_stream_t(), 1000)
             if reply_msg != None:
-                print"Status:{}".format(reply_msg.payload.status)
+                #print"Status:{}".format(reply_msg.payload.status)
+                print "page_number = {}".format(reply_msg.payload.page_number)
+                print "page_chunk_number = {}".format(reply_msg.payload.page_chunk_number)
+                print "page_chunk_size = {}".format(reply_msg.payload.page_chunk_size)
                 if ((reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_STATUS_OK) or (
                     reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_END_OF_FILE)):
                     fobj = open(filename + '_chunk.LOG', "wb")
-                    data_length = reply_msg.payload.len_stream + 12
+                    data_length = reply_msg.payload.page_chunk_size + 15
                     # print"Length received t1 = {}".format(data_length)
                     crc16_data_array = buffer(reply_msg.header)[:] + buffer(reply_msg.payload)[:]
                     for index in range(0, 8, 2):
@@ -7036,11 +7093,12 @@ Get the PPG LCFG, used from Watch. The argument is the LCFG ID, which is 40 for 
                         # print"Length received t1 = {}".format(data_length)
                         print"CRC mismatch cnt = {}".format(nCRCMisMatchCnt)
                         # Restraining refernce sequence number to 16bit wide
-                    if (reply_msg.payload.len_stream != len(reply_msg.payload.byte_stream)):
-                            fobj.write(bytearray(reply_msg.payload.byte_stream[0:int(reply_msg.payload.len_stream)]))
+                    if (reply_msg.payload.page_chunk_size != len(reply_msg.payload.page_chunk_bytes)):
+                            fobj.write(bytearray(reply_msg.payload.page_chunk_bytes[0:int(reply_msg.payload.page_chunk_size)]))
                     else:
-                            fobj.write(reply_msg.payload.byte_stream)
+                            fobj.write(reply_msg.payload.page_chunk_bytes)
                     print "chunk stream obtained successfully"
+                    self._print_file_system_status(reply_msg)
                     fobj.close()
                 else:
                     self._print_file_system_status(reply_msg)
@@ -7464,10 +7522,10 @@ Reads Important DCB Information
             self.vrb.err("Invalid No. arguments supplied!")
             return
         
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, m2m2_dcb_fds_status_info_req_t())
-        msg.payload.command = M2M2_BCM_APP_CMD_ENUM_t.M2M2_APP_COMMON_CMD_DCB_TIMING_INFO_REQ
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, m2m2_dcb_fds_status_info_req_t())
+        msg.payload.command = M2M2_BIA_APP_CMD_ENUM_t.M2M2_APP_COMMON_CMD_DCB_TIMING_INFO_REQ
         self._send_packet(msg)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, m2m2_dcb_fds_timing_info_resp_t(), 10)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, m2m2_dcb_fds_timing_info_resp_t(), 10)
         if reply_msg != None:
             status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
         if reply_msg != None:
@@ -7524,9 +7582,9 @@ Read the EDA LCFG. The argument is the LCFG ID to choose from the eda configurat
                 reg_result_list.append((reg_addr, hex(int(reply_msg.payload.ops[i].value))))
         return err_stat, reg_result_list
 
-    def do_lcfgBcmRead(self, arg):
+    def do_lcfgBiaRead(self, arg):
         """
-        Read the BCM LCFG. The argument is the LCFG ID to choose from the bcm configuration structure:
+        Read the BIA LCFG. The argument is the LCFG ID to choose from the BIA configuration structure:
     -----------------------------
     |Config Element    |  Index |
     -----------------------------
@@ -7534,11 +7592,11 @@ Read the EDA LCFG. The argument is the LCFG ID to choose from the eda configurat
     |  ADC_PGA_GAIN    |    1   |
     |     POWER  MOD   |    2   |
     |  SIN FREQ        |    3   |
-    |     BCM DFT
+    |     BIA DFT
         number         |    4   |
     -----------------------------
 
-      Eg: = lcfgBcmRead addr1 addr2 ......
+      Eg: = lcfgBiaRead addr1 addr2 ......
         """
 
         args = self._parse_args(arg, None)
@@ -7547,7 +7605,7 @@ Read the EDA LCFG. The argument is the LCFG ID to choose from the eda configurat
             return
 
         num_ops = len(args)
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, bcm_app_lcfg_op_hdr_t(num_ops))
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_lcfg_op_hdr_t(num_ops))
         msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_READ_LCFG_REQ
         msg.payload.num_ops = num_ops
         for i in range(num_ops):
@@ -7561,40 +7619,39 @@ Read the EDA LCFG. The argument is the LCFG ID to choose from the eda configurat
             msg.payload.ops[i].field = reg_addr
 
         self._send_packet(msg)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, bcm_app_lcfg_op_hdr_t(num_ops), 10)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_lcfg_op_hdr_t(num_ops), 10)
         reg_result_list = []
         if reply_msg == None:
             err_stat = 1
-            self.vrb.err("Reading BCM LCFG failed!")
+            self.vrb.err("Reading BIA LCFG failed!")
         else:
-            self._print_bcm_lcfg_result(reply_msg)
+            self._print_bia_lcfg_result(reply_msg)
             err_stat = 0
             for i in range(reply_msg.payload.num_ops):
                 reg_result_list.append((reg_addr, hex(int(reply_msg.payload.ops[i].value))))
         return err_stat, reg_result_list
 
-    def do_set_bcm_dcb_lcfg(self, arg):
+    def do_set_bia_dcb_lcfg(self, arg):
         """
-        Writes the BCM LCFG values from DCB if present,otherwise it will write default value. There is no argument.
-        Eg: = set_bcm_dcb_lcfg
+        Writes the BIA LCFG values from DCB if present,otherwise it will write default value. There is no argument.
+        Eg: = set_bia_dcb_lcfg
         """
         args = self._parse_args(arg, None)
         if len(args) != 0:
             self.vrb.err("Invalid No. arguments supplied!")
             return
 
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, bcm_app_dcb_lcfg_t())
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_dcb_lcfg_t())
         msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_SET_LCFG_REQ
         self._send_packet(msg)
         time.sleep(3)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, bcm_app_dcb_lcfg_t(), 10)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_dcb_lcfg_t(), 10)
         if reply_msg != None:
             status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
         if reply_msg != None:
             self.vrb.write("  Status: '{}'".format(status))
         else:
-            self.vrb.err("Setting BCM Library configuration failed!")
-
+            self.vrb.err("Setting BIA Library configuration failed!")
 
     def do_lcfgEcgWrite(self, arg):
         """
@@ -7798,9 +7855,9 @@ Set the EDA LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the eda l
             return
         self._print_eda_lcfg_result(reply_msg)
 
-    def do_lcfgBcmWrite(self, arg):
+    def do_lcfgBiaWrite(self, arg):
         """
-    Set the BCM LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the bcm lcfg value
+    Set the BIA LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the bia lcfg value
 
        FS             address -->0
         Values
@@ -7818,7 +7875,7 @@ Set the EDA LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the eda l
         3     /**< ADC PGA Gain of 4 */
         4     /**< ADC PGA Gain of 9 */
 
-      Eg: = lcfgBcmWrite addr1:value1 addr2:value2 ...
+      Eg: = lcfgBiaWrite addr1:value1 addr2:value2 ...
         """
 
         args = self._parse_args(arg, None)
@@ -7827,29 +7884,29 @@ Set the EDA LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the eda l
             return
 
         num_ops = len(args)
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, bcm_app_lcfg_op_hdr_t(num_ops))
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_lcfg_op_hdr_t(num_ops))
         msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_WRITE_LCFG_REQ
         msg.payload.num_ops = num_ops
         for i in range(num_ops):
             tempVal = args[i]
             if ("0x") in tempVal:
                 reg_addr = int(tempVal.split(':')[0], 16)
-                reg_val = int(tempVal.split(':')[1], 16)
+                reg_val = tempVal.split(':')[1]
             elif ("0X") in tempVal:
                 reg_addr = int(tempVal.split(':')[0], 16)
-                reg_val = int(tempVal.split(':')[1], 16)
+                reg_val = tempVal.split(':')[1]
             else:
                 reg_addr = int(tempVal.split(':')[0])
-                reg_val = int(tempVal.split(':')[1])
+                reg_val = tempVal.split(':')[1]
             msg.payload.ops[i].field = reg_addr
-            msg.payload.ops[i].value = reg_val
+            msg.payload.ops[i].value = float(reg_val)
 
         self._send_packet(msg)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, bcm_app_lcfg_op_hdr_t(num_ops), 10)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_lcfg_op_hdr_t(num_ops), 10)
         if reply_msg == None:
-            print "Writing BCM LCFG failed!"
+            print "Writing BIA LCFG failed!"
             return
-        self._print_bcm_lcfg_result(reply_msg)    
+        self._print_bia_lcfg_result(reply_msg)    
 
     def _print_rtia_cal_result(self, packet):
         self._print_packet_status(packet)
@@ -7881,12 +7938,12 @@ Set the EDA LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the eda l
         self._send_packet(msg)
         return self._get_packet(address, m2m2_app_common_version_t())    
 
-    def _print_bcm_lcfg_result(self, packet):
+    def _print_bia_lcfg_result(self, packet):
         self._print_packet_status(packet)
         self.vrb.write("  Num of registers: '{}'".format(int(packet.payload.num_ops)))
         t = table(["Field", "Value"])
         for i in range(packet.payload.num_ops):
-            t.add_row([hex(packet.payload.ops[i].field), hex(packet.payload.ops[i].value)])
+            t.add_row([hex(packet.payload.ops[i].field), float(packet.payload.ops[i].value)])
         t.display()
 
     def do_flash_reset(self, arg):
@@ -7915,10 +7972,10 @@ get fs dcb status
         args = self._parse_args(arg, 0)
         if args == None:
             return
-        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, m2m2_file_sys_cmd_t())
-        msg.payload.command = M2M2_BCM_APP_CMD_ENUM_t.M2M2_DCB_COMMAND_FDS_STATUS_REQ
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, m2m2_file_sys_cmd_t())
+        msg.payload.command = M2M2_BIA_APP_CMD_ENUM_t.M2M2_DCB_COMMAND_FDS_STATUS_REQ
         self._send_packet(msg)
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, m2m2_dcb_fds_status_info_resp_t(), 10)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, m2m2_dcb_fds_status_info_resp_t(), 10)
         if reply_msg != None:
             self.vrb.write("  Dirty records: {}".format(int(reply_msg.payload.dirty_records)))
             self.vrb.write("  Open records : {}".format(int(reply_msg.payload.open_records)))
@@ -8035,9 +8092,9 @@ Usage:
         self._print_rtia_cal_result(reply_msg)   
         self.vrb.write("RTIA Calibration success!!")
                 
-    def do_SetBCMDFTnum(self, arg):
+    def do_SetBIADFTnum(self, arg):
             """
-    Set the BCM app DFT number..
+    Set the BIA app DFT number..
         '0' for 4
         '1' for 8
         '2' for 16
@@ -8053,27 +8110,27 @@ Usage:
         '12' for 16384
         -----------------------------------------------
     Usage:
-        #>SetBCMDFTnum [value]
-        #>SetBCMDFTnum 11
+        #>SetBIADFTnum [value]
+        #>SetBIADFTnum 11
             """
             args = self._parse_args(arg, 1)
             if args == None:
                 self.vrb.write("please provide valid argument")
-            msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, bcm_app_set_dft_num_t())
-            msg.payload.command = M2M2_BCM_APP_CMD_ENUM_t.M2M2_BCM_APP_CMD_SET_DFT_NUM_REQ
+            msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_set_dft_num_t())
+            msg.payload.command = M2M2_BIA_APP_CMD_ENUM_t.M2M2_BIA_APP_CMD_SET_DFT_NUM_REQ
             if args == None:
                 msg.payload.dftnum = 11
             else:
                 msg.payload.dftnum = int(args[0])
             self._send_packet(msg)
-            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM,
-                                         bcm_app_set_dft_num_t(), 10)
+            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA,
+                                         bia_app_set_dft_num_t(), 10)
             if reply_msg != None:
                 status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
                 self.vrb.write("  Status: '{}'".format(status))
                 self.vrb.write("  Value: '{}'".format(int(reply_msg.payload.dftnum)))
             else:
-                self.vrb.err("Setting BCM DFT number failed!")
+                self.vrb.err("Setting BIA DFT number failed!")
 
     def do_SetEdaDFTnum(self, arg):
             """
@@ -8106,9 +8163,70 @@ Usage:
             else:
                 self.vrb.err("Setting EDA DFT number failed!")
 
+    def do_SetEdaBaselineImp(self, arg):
+            """
+    Set the EDA app Baseline resistor used for measurement and measured impedance.
+        -----------------------------------------------
+    Usage:
+        #>SetEdaBaselineImp [imp_real_dft16] [imp_img_dft16] [imp_real_dft8] [imp_img_dft8] [resistor_baseline]
+        #>SetEdaBaselineImp 25000.5 25000.5 25000.5 25000.5 19900
+            """
+            args = self._parse_args(arg, 5)
+            if args == None:
+                self.vrb.write("please provide valid argument")
+            msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, eda_app_set_baseline_imp_t())
+            msg.payload.command = M2M2_EDA_APP_CMD_ENUM_t.M2M2_EDA_APP_CMD_BASELINE_IMP_SET_REQ
+            msg.payload.imp_real_dft16 = float(args[0])
+            msg.payload.imp_img_dft16 = float(args[1])
+            msg.payload.imp_real_dft8 = float(args[2])
+            msg.payload.imp_img_dft8 = float(args[3])
+            msg.payload.resistor_baseline = int(args[4])
+            self._send_packet(msg)
+            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA,
+                                         eda_app_set_baseline_imp_t(), 10)
+            if reply_msg != None:
+                status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
+                self.vrb.write("  Status: '{}'".format(status))
+                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_real_dft16)))
+                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_img_dft16)))
+                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_real_dft8)))
+                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_img_dft8)))
+                self.vrb.write("  Value: '{}'".format(int(reply_msg.payload.resistor_baseline)))
+            else:
+                self.vrb.err("Setting EDA Baseline Impedance failed!")
+
+    def do_ResetEdaBaselineImp(self, arg):
+            """
+    Reset the EDA app Baseline resistor used for measurement and measured impedance.
+        -----------------------------------------------
+    Usage:
+        #>ResetEdaBaselineImp
+            """
+            msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, eda_app_set_baseline_imp_t())
+            msg.payload.command = M2M2_EDA_APP_CMD_ENUM_t.M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_REQ
+            msg.payload.imp_real_dft16 = 0
+            msg.payload.imp_img_dft16 = 0
+            msg.payload.imp_real_dft8 = 0
+            msg.payload.imp_img_dft8 = 0
+            msg.payload.resistor_baseline = 0
+            self._send_packet(msg)
+            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA,
+                                         eda_app_set_baseline_imp_t(), 10)
+            if reply_msg != None:
+                status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
+                self.vrb.write("  Status: '{}'".format(status))
+                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_real_dft16)))
+                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_img_dft16)))
+                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_real_dft8)))
+                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_img_dft8)))
+                self.vrb.write("  Value: '{}'".format(int(reply_msg.payload.resistor_baseline)))
+            else:
+                self.vrb.err("Resetting EDA Baseline Impedance failed!")
+
+
     def do_SetHSRTIACal(self, arg):
             """
-    Set the BCM app HSRTIA cal..
+    Set the BIA app HSRTIA cal..
             HSRTIACAL[0-200,1-1k,2-5k]
         -----------------------------------------------
     Usage:
@@ -8118,21 +8236,21 @@ Usage:
             args = self._parse_args(arg, 1)
             if args == None:
                 self.vrb.write("please provide valid argument")
-            msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, bcm_app_hs_rtia_sel_t())
-            msg.payload.command = M2M2_BCM_APP_CMD_ENUM_t.M2M2_BCM_APP_CMD_SET_HS_RTIA_CAL_REQ
+            msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_hs_rtia_sel_t())
+            msg.payload.command = M2M2_BIA_APP_CMD_ENUM_t.M2M2_BCM_APP_CMD_SET_HS_RTIA_CAL_REQ
             if args == None:
                 msg.payload.hsritasel = 1
             else:
                 msg.payload.hsritasel = int(args[0])
             self._send_packet(msg)
-            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM,
-                                        bcm_app_hs_rtia_sel_t(), 10)
+            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA,
+                                        bia_app_hs_rtia_sel_t(), 10)
             if reply_msg != None:
                 status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
                 self.vrb.write("  Status: '{}'".format(status))
                 self.vrb.write("  Value: '{}'".format(int(reply_msg.payload.hsritasel)))
             else:
-                self.vrb.err("Setting BCM HSRTIACAL failed!")
+                self.vrb.err("Setting BIA HSRTIACAL failed!")
 
     def do_getEcgVersion(self, arg):
         """

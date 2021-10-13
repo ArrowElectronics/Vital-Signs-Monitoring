@@ -121,13 +121,14 @@ Output/watchv4_nrf52840\ Debug/Obj/system_task.o: \
  ..\..\..\drivers\adpd4000/adpd4000_buffering.h \
  ..\..\..\utilities\circular_buffer/circular_buffer.h \
  ..\..\..\drivers\adpd4000/adpd4000_dcfg.h \
- ..\..\..\modules\ad5940_bcm/bcm_application_task.h \
- ..\..\..\cli\m2m2\inc\c/bcm_application_interface.h \
+ ..\..\..\modules\ad5940_bia/bia_application_task.h \
+ ..\..\..\cli\m2m2\inc\c/bia_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \
  ..\..\..\drivers\ad5940/sensor_ad5940.h \
- ..\..\..\modules\ad5940_bcm/app_bcm.h \
+ ..\..\..\modules\ad5940_bia/app_bia.h \
  ..\..\..\modules\adpd4000_ppg/sensor_internal.h \
- ..\..\..\drivers\adxl362/adxl_dcfg.h \
+ ..\..\..\modules\ad5940_bia/adi_bcm_algo.h \
+ ..\..\..\algo\bcm/adi_vsm_bcm.h ..\..\..\drivers\adxl362/adxl_dcfg.h \
  ..\..\..\..\components\libraries\timer/app_timer.h \
  ..\..\..\..\components\libraries\util/app_error.h \
  ..\..\..\..\components\softdevice\s140\headers/ble_gap.h \

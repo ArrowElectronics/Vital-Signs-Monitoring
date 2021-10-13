@@ -82,7 +82,11 @@ static void key_handle(uint8_t key_value)
         break;
         case KEY_NAVIGATION_SHORT:
         {
+#ifdef USE_FS
             dis_page_jump(&page_memory_usage);
+#else
+            dis_page_jump(&page_power_off);
+#endif
         }
         break;
         case KEY_SELECT_LONG_VALUE:

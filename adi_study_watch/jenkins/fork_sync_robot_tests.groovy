@@ -21,8 +21,8 @@ def call(String test_tags, String build_mode) {
               ).trim()
             }
             echo bin_image
-            bat label: 'EnterBootloader', script: '''call conda activate ${env.py3_fork_sync_env}
-            python jenkins/enter_bootloader.py'''
+            bat label: 'EnterBootloader', script: """call conda activate ${env.py3_fork_sync_env}
+            python jenkins/enter_bootloader.py"""
             sleep 1
             sh "cp ${bin_image} ADI_project.hex"
             bat label: 'FwDownload', script:"""call conda activate py27

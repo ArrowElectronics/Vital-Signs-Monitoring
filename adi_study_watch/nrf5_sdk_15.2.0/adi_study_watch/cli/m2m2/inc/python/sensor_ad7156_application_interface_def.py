@@ -26,7 +26,7 @@ class m2m2_sensor_ad7156_data_t(Structure):
               ("status", c_ubyte),
               ("sequence_num", c_ushort),
               ("timestamp", c_ulong),
-              ("touch_position", c_ubyte),
-              ("touch_value", c_ubyte),
+              ("ch1_cap", c_ushort),
+              ("ch2_cap", c_ushort),
               ]
 

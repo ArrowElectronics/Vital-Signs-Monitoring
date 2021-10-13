@@ -41,8 +41,8 @@
 #ifdef ENABLE_EDA_APP
 #include <eda_application_task.h>
 #endif
-#ifdef ENABLE_BCM_APP
-#include <bcm_application_task.h>
+#ifdef ENABLE_BIA_APP
+#include <bia_application_task.h>
 #endif
 #ifdef ENABLE_TEMPERATURE_APP
 #include <temperature_task.h>
@@ -123,12 +123,12 @@ post_office_routing_table_entry_t m2m2_routing_table[] = {
   {M2M2_ADDR_SYS_FS,               send_message_file_system_task},//10
 #endif
 #ifdef ENABLE_WATCH_DISPLAY
-  {M2M2_ADDR_DISPLAY,              send_message_display_task},//11
+  {M2M2_ADDR_DISPLAY,               send_message_display_task},//11
 #endif
 #ifdef LOW_TOUCH_FEATURE
   {M2M2_ADDR_APP_LT_APP,            send_message_lt_task},//12
 #endif
-  {M2M2_ADDR_SYS_PM,              send_message_system_task},//13
+  {M2M2_ADDR_SYS_PM,                send_message_system_task},//13
 #ifdef ENABLE_PPG_APP
   {M2M2_ADDR_MED_PPG,               send_message_ppg_application_task},//14
 #endif
@@ -141,8 +141,8 @@ post_office_routing_table_entry_t m2m2_routing_table[] = {
 #ifdef ENABLE_TEMPERATURE_APP
   {M2M2_ADDR_MED_TEMPERATURE,       send_message_temperature_app_task},//17
 #endif
-#ifdef ENABLE_BCM_APP
-  {M2M2_ADDR_MED_BCM,               send_message_ad5940_bcm_task},
+#ifdef ENABLE_BIA_APP
+  {M2M2_ADDR_MED_BIA,               send_message_ad5940_bia_task},
 #endif
 #ifdef ENABLE_PEDO_APP
   {M2M2_ADDR_MED_PED,               send_message_pedometer_app_task},
@@ -150,10 +150,10 @@ post_office_routing_table_entry_t m2m2_routing_table[] = {
   {M2M2_ADDR_SENSOR_ADXL,           send_message_adxl_task},//20
   {M2M2_ADDR_SENSOR_ADPD4000,       send_message_adpd4000_task},//21
 #ifdef ENABLE_SQI_APP
-  {M2M2_ADDR_MED_SQI,      send_message_sqi_app_task},//22
+  {M2M2_ADDR_MED_SQI,               send_message_sqi_app_task},//22
 #endif
 #ifdef USER0_CONFIG_APP
-  {M2M2_ADDR_USER0_CONFIG_APP,    send_message_user0_config_app},//23
+  {M2M2_ADDR_USER0_CONFIG_APP,      send_message_user0_config_app},//23
 #endif
 //  //  M2M2_ADDR_HIGHEST
 //  //  M2M2_ADDR_GLOBAL
@@ -481,7 +481,7 @@ void post_office_msg_cnt(m2m2_hdr_t *p_msg)
       {
       po_apps[EDA_APP].cnt_created++;
       }
-      else if(p_msg->length == (sizeof(bcm_app_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_BCM)
+      else if(p_msg->length == (sizeof(bcm_app_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_BIA)
       {
       po_apps[BCM_APP].cnt_created++;
       }
@@ -531,7 +531,7 @@ void post_office_consume_msg(m2m2_hdr_t *p_msg) {
       {
       po_apps[EDA_APP].cnt_consumed++;
       }
-      else if(p_msg->length == (sizeof(bcm_app_stream_t) + M2M2_HEADER_SZ) && p_msg->src == (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_MED_BCM_STREAM))
+      else if(p_msg->length == (sizeof(bcm_app_stream_t) + M2M2_HEADER_SZ) && p_msg->src == (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_MED_BIA_STREAM))
       {
       po_apps[BCM_APP].cnt_consumed++;
       }

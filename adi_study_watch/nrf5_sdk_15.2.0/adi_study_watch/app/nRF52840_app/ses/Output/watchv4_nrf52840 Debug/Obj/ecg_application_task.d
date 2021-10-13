@@ -93,14 +93,14 @@ Output/watchv4_nrf52840\ Debug/Obj/ecg_application_task.o: \
  ..\..\..\modules\system/post_office.h \
  ..\..\..\cli\m2m2\inc\c/post_office_interface.h \
  ..\..\..\cli\m2m2\inc\c/led_interface.h \
- ..\..\..\modules\ad5940_ecg/ecg_task.h \
+ D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_ecg\adi_ecg.h \
+ ..\..\..\drivers\ad5940/ad5940.h ..\..\..\modules\ad5940_ecg/ecg_task.h \
  ..\..\..\cli\m2m2\inc\c/ecg_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \
- ..\..\..\drivers\ad5940/ad5940.h ..\..\..\drivers\ad5940/sensor_ad5940.h \
+ ..\..\..\drivers\ad5940/sensor_ad5940.h \
  ..\..\..\modules\ad5940_ecg/app_ecg.h \
  ..\..\..\drivers\adpd4000/adpd4000_dcfg.h \
  ..\..\..\utilities\power_manager/power_manager.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_ecg\adi_ecg.h \
  ..\..\..\configurations/watch_board_pcba_pin_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_gpiote.h \
  ..\..\..\..\modules\nrfx\drivers\include/nrfx_gpiote.h \

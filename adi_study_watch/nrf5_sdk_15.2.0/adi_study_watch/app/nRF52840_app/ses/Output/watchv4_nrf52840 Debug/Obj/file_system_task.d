@@ -123,6 +123,7 @@ Output/watchv4_nrf52840\ Debug/Obj/file_system_task.o: \
  ..\..\..\cli\m2m2\inc\c/sensor_adpd_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \
  ..\..\..\cli\m2m2\inc\c/sensor_adxl_application_interface.h \
+ ..\..\..\cli\m2m2\inc\c/sensor_ad7156_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/ppg_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/ecg_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/eda_application_interface.h \

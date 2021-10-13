@@ -80,6 +80,9 @@
 #ifdef USER0_CONFIG_APP
 #include "dcb_user0_block.h"
 #endif
+#ifdef CUST4_SM
+#include "adp5360.h"
+#endif
 #include "mw_ppg.h"
 #include "semphr.h"
 #include "task.h"
@@ -100,8 +103,12 @@ uint8_t get_file_download_chunk_count();
 #ifdef ENABLE_ECG_APP
 extern bool ecg_update_dcb_present_flag(void);
 #endif
+#ifdef ENABLE_EDA_APP
 extern bool eda_update_dcb_present_flag(void);
-
+#endif
+#ifdef ENABLE_BIA_APP
+extern bool bia_update_dcb_present_flag(void);
+#endif
 /* enum to hold possible PHY for wired communication */
 typedef enum {
   M2M2_PHY_INVALID,
@@ -210,17 +217,30 @@ M2M2_ADDR_ENUM_t usb_pkt_src = M2M2_ADDR_UNDEFINED;
 volatile bool g_usb_power_detected_flag = false;
 
 extern volatile uint32_t  g_lt_task_timeout;
+#ifdef LOW_TOUCH_FEATURE
 extern ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
-extern ADI_OSAL_THREAD_HANDLE gh_lt_task_handler;
 extern uint8_t gLowTouchRunning;
+#endif
+#ifdef USER0_CONFIG_APP
 extern ADI_OSAL_SEM_HANDLE   user0_config_app_evt_sem;
+#endif
 extern ADI_OSAL_SEM_HANDLE   adpd4000_task_evt_sem;
 extern ADI_OSAL_SEM_HANDLE   adxl_task_evt_sem;
-extern ADI_OSAL_SEM_HANDLE   bcm_task_evt_sem;
+#ifdef ENABLE_BIA_APP
+extern ADI_OSAL_SEM_HANDLE   bia_task_evt_sem;
+#endif
+#ifdef ENABLE_ECG_APP
 extern ADI_OSAL_SEM_HANDLE   ecg_task_evt_sem;
+#endif
+#ifdef ENABLE_EDA_APP
 extern ADI_OSAL_SEM_HANDLE   eda_task_evt_sem;
+#endif
+#ifdef ENABLE_PPG_APP
 extern ADI_OSAL_SEM_HANDLE   ppg_application_task_evt_sem;
+#endif
+#ifdef USE_FS
 extern ADI_OSAL_SEM_HANDLE   fs_task_evt_sem;
+#endif
 /*!
  ****************************************************************************
  * @brief  Function to do FDS init adn RTC init
@@ -409,6 +429,9 @@ void dcb_block_status_update() {
 #ifdef ENABLE_EDA_APP
   eda_update_dcb_present_flag();
 #endif
+#ifdef ENABLE_BIA_APP
+  bia_update_dcb_present_flag();
+#endif
   ad7156_update_dcb_present_flag();
 #ifdef USER0_CONFIG_APP
   user0_blk_update_dcb_present_flag();
@@ -421,14 +444,21 @@ void dcb_block_status_update() {
  ****************************************************************************
  * @brief  Get status of watch:whether disconnected or connected to the Cradle
  * @param  None
- * @return true-> watch disconnected from cradle false->watch connected to cradle
+ * @return USB_DISCONNECTED -> watch disconnected from cradle
+ *         USB_CONNECTED    -> watch connected to cradle
  ******************************************************************************/
-bool usbd_get_cradle_disconnection_status()
+USBD_CONN_STATUS_t usbd_get_cradle_disconnection_status()
 {
-  if(gb_usb_status == USB_DISCONNECTED)
-    return true;
+  /*if(gb_usb_status == USB_DISCONNECTED)
+    return USBD_DISCONNECTED;
   else
-    return false;
+    return USBD_CONNECTED;*/
+  if(0 == Adp5360_pgood_pin_status_get())
+  {
+      return USBD_CONNECTED;
+  }
+  else
+    return USBD_DISCONNECTED;
 }
 #endif
 
@@ -480,22 +510,38 @@ static void usbd_tx_task(void *pArgument) {
   /* Doing FDS init and All DCB Block status update from FreeRTOS task context
    Doing it from USB Tx task, since it has highest priority */
   fds_rtc_init();
+#ifdef DCB
   dcb_block_status_update();
+#endif
 
   /*
    FDS garbage collection has a delay, hence all tasks need
    to wait for it to complete, before FDS can be accessed.
    Intimate all tasks to continue with SemPend
   */
+#ifdef LOW_TOUCH_FEATURE
   adi_osal_SemPost(lt_task_evt_sem);
+#endif
+#ifdef USER0_CONFIG_APP
   adi_osal_SemPost(user0_config_app_evt_sem);
+#endif
   adi_osal_SemPost(adpd4000_task_evt_sem);
   adi_osal_SemPost(adxl_task_evt_sem);
-  adi_osal_SemPost(bcm_task_evt_sem);
+#ifdef ENABLE_BIA_APP
+  adi_osal_SemPost(bia_task_evt_sem);
+#endif
+#ifdef ENABLE_ECG_APP
   adi_osal_SemPost(ecg_task_evt_sem);
+#endif
+#ifdef ENABLE_EDA_APP
   adi_osal_SemPost(eda_task_evt_sem);
+#endif
+#ifdef ENABLE_PPG_APP
   adi_osal_SemPost(ppg_application_task_evt_sem);
+#endif
+#ifdef USE_FS
   adi_osal_SemPost(fs_task_evt_sem);
+#endif
 
   while (1) {
     adi_osal_SemPend(g_usbd_tx_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
@@ -989,6 +1035,7 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
       app_usbd_enable();
     }
     gb_usb_status = USB_CONNECTED;
+#ifdef LOW_TOUCH_FEATURE
 #ifdef ENABLE_WATCH_DISPLAY
     /* Added gLowTouchRunning flag checking, in the below condition, to check
        when to give the StopLog sequence.
@@ -1003,6 +1050,7 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
         adi_osal_SemPost(lt_task_evt_sem);
     }
 #endif
+#endif//LOW_TOUCH_FEATURE
   } break;
 
   case APP_USBD_EVT_POWER_REMOVED: {

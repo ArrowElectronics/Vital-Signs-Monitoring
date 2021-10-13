@@ -101,4 +101,20 @@ void UARTClearFifo();
 uint8_t get_usbd_tx_pending_status (void);
 void Adpd400xISR();
 int low_touch_init();
+
+void invert_adxl_trigger_signal();
+void enable_adxl_trigger_pin();
+void disable_adxl_trigger_pin();
+
+void invert_adpd_trigger_signal();
+void enable_adpd_trigger_pin();
+void disable_adpd_trigger_pin();
+void reset_trigger_pulses();
+void reset_adxl_trigger_signal(bool n_state);
+void reset_adpd_trigger_signal(bool n_state);
+
+void invert_ad5940_trigger_signal();
+void disable_ad5940_trigger_pin();
+void reset_ad5940_trigger_signal(bool n_state);
+void enable_ad5940_trigger_pin();
 #endif /* __IFCONFIG_H */

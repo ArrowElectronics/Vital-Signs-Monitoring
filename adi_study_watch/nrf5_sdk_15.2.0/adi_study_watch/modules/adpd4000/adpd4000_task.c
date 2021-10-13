@@ -41,9 +41,10 @@
 #include "adpd400x_lib.h"
 #include "agc.h"
 #include "app_common.h"
-#ifdef ENABLE_BCM_APP
-#include "bcm_application_task.h"
+#ifdef ENABLE_BIA_APP
+#include "bia_application_task.h"
 #endif
+
 #ifdef ENABLE_EDA_APP
 #include "eda_application_task.h"
 #endif
@@ -66,7 +67,7 @@
 #include "us_tick.h"
 #include "app_sync.h"
 #include "low_touch_task.h"
-
+#include "ppg_application_interface.h"
 /* System Task Module Log settings */
 #include "nrf_log.h"
 /*---------------------------- Defines --------------------------------------*/
@@ -179,8 +180,8 @@ extern uint32_t gnTemperature_Slot;
 extern uint16_t gsTemperatureStarts;
 #endif
 extern agc_data_t agc_data[SLOT_NUM];
-#ifdef ENABLE_BCM_APP
-extern g_state_bcm_t g_state_bcm;
+#ifdef ENABLE_BIA_APP
+extern g_state_bia_t g_state_bia;
 #endif
 #ifdef ENABLE_ECG_APP
 extern g_state_ecg_t g_state_ecg;
@@ -483,6 +484,7 @@ static void adpd_timeout_handler(void * p_context)
         /* if Temperarture stream was previously running,
         then set the correct LED current because it was set to 0
         during temperature stream start */
+#ifdef ENABLE_TEMPERATURE_APP
         if ((gsTemperatureStarts > 0)) {
 #ifndef SLOT_SELECT
           for (uint8_t i = 0; i < SLOT_NUM; i++) {
@@ -494,6 +496,7 @@ static void adpd_timeout_handler(void * p_context)
           }
 #endif
         }
+#endif
         //delayed start time expired-turn ON ADPD
         if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE))
         {
@@ -1780,6 +1783,7 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
 
     switch (p_in_payload->command) {
     case M2M2_APP_COMMON_CMD_STREAM_START_REQ:
+/*
       if (
 #ifdef ENABLE_ECG_APP
       g_state_ecg.num_starts == 0 &&
@@ -1787,19 +1791,19 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
 #ifdef ENABLE_EDA_APP
       1 && g_state_eda.num_starts == 0 &&
 #endif
-#ifdef ENABLE_BCM_APP
-      1 && g_state_bcm.num_starts == 0 &&
+#ifdef ENABLE_BIA_APP
+      1 && g_state_bia.num_starts == 0 &&
 #endif
       1 ) {
-        /* switch on ECG ldo */
+        // switch on ECG ldo 
         adp5360_enable_ldo(ECG_LDO, true);
-#ifdef ENABLE_BCM_APP
+#ifdef ENABLE_BIA_APP
         DG2502_SW_control_AD5940(false);
 #endif
 #ifdef ENABLE_ECG_APP
         DG2502_SW_control_AD8233(false);
 #endif
-        /* de init power */
+        // de init power 
         adp5360_enable_ldo(ECG_LDO, false);
       } else if (
 #ifdef ENABLE_ECG_APP
@@ -1810,8 +1814,8 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
 #ifdef ENABLE_EDA_APP
       g_state_eda.num_starts > 0 ||
 #endif
-#ifdef ENABLE_BCM_APP
-      g_state_bcm.num_starts > 0 ||
+#ifdef ENABLE_BIA_APP
+      g_state_bia.num_starts > 0 ||
 #endif
       0 )) {
 #ifndef CUST4_SM
@@ -1823,9 +1827,18 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
 #endif
 #endif
       }
+*/
       gsOneTimeValueWhenReadAdpdData = 0;
       if (g_state.num_starts == 0) {
 #ifdef ENABLE_PPG_APP
+
+        /*! Initialize the PPG LCFG so that ADPD application works with PPG
+            DCB contents, if PPG DCB is present */
+        if(ppg_get_dcb_present_flag() == true)
+        {
+          MwPpg_LoadppgLCFG(M2M2_SENSOR_PPG_LCFG_ID_ADPD4000);
+        }
+
         if(gn_uc_hr_enable)
         {
           uint32_t temp_val;
@@ -1853,6 +1866,7 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
              *external_load_dcfg -> if this flag is true, which happens if
                loadAdpdDcfg cmd is issued explicityly, no need to do code block
         */
+#ifdef DCB
         if ((adpd4000_get_dcb_present_flag() || check_dcb_erase == true) &&
             (external_load_dcfg == false)) {
           if (load_adpd4000_cfg(M2M2_SENSOR_ADPD4000_DEVICE_4000_G) !=
@@ -1894,6 +1908,7 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
             g_state.sl_pktizer2[i].p_pkt = NULL;
           }
         }
+#endif
         g_adpd_odr = get_adpd_odr();
 //        Adpd400xDrvRegWrite(ADPD400x_REG_GPIO01,0x0302);
         enable_ext_syncmode();
@@ -1905,8 +1920,14 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
         {
           adpd_app_timings.delayed_start = true;
         }
+#ifdef LOW_TOUCH_FEATURE
         //ADPD app not in continuous mode & its interval operation mode
         if(!is_adpd_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+#else
+        //ADPD app not in continuous mode
+        if(!is_adpd_app_mode_continuous())
+#endif
+
         {
           start_adpd_app_timer();
         }
@@ -1953,8 +1974,13 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
           adpd_app_timings.delayed_start = true;
         }
 
+#ifdef LOW_TOUCH_FEATURE
         //ADPD app not in continuous mode & its interval operation mode
         if(!is_adpd_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+#else
+        //ADPD app not in continuous mode
+        if(!is_adpd_app_mode_continuous())
+#endif
         {
           start_adpd_app_timer();
         }

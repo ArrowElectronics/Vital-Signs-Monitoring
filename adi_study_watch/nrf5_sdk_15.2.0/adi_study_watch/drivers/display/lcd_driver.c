@@ -355,7 +355,9 @@ void lcd_port_init(void)
 #else
     nrf_gpio_cfg_output(LCD_BL_EN_PIN);
 #endif
+#ifndef CUST4_SM
     lcd_backlight_set(LCD_BACKLIGHT_OFF);
+#endif
 }
 
 void lcd_extcomin_status_set(lcd_reverse_frequency status)

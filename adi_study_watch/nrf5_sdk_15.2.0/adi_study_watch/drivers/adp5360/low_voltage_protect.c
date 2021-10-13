@@ -46,7 +46,16 @@
 #include "adp5360.h"
 #include "display_app.h"
 
+#ifdef VSM_MBOARD
+#ifdef RJD2450
+#define ONE_PERCENT_LEVEL (3150)//mV
+#else
 #define ONE_PERCENT_LEVEL (3300)//mV
+#endif
+#else
+#define ONE_PERCENT_LEVEL (3300)//mV
+#endif
+
 void battery_low_voltage_detect_func(uint8_t value,ADP5360_INTERRUPT status)
 {
     if((0 == value)&&(status.int1.batpro_int == 1))//when detect the battery protect, enter to shipment mode.
@@ -78,7 +87,3 @@ void battery_low_voltage_protect_init(void)
     }
     Register_int_detect_func(battery_low_voltage_detect_func);
 }
-
-
-
-

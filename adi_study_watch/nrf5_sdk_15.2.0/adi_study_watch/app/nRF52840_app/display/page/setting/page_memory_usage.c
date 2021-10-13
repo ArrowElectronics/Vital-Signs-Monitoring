@@ -45,6 +45,7 @@
 * POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
 #ifdef ENABLE_WATCH_DISPLAY
+#ifdef USE_FS
 #include "display_app.h"
 #include "lcd_driver.h"
 #include "key_detect.h"
@@ -102,4 +103,5 @@ const PAGE_HANDLE page_memory_usage = {
 .key_handle = &key_handle,
 .page_type = DIS_STATIC_PAGE,
 };
+#endif//USE_FS
 #endif

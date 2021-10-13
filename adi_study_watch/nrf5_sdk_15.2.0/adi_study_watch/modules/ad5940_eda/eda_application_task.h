@@ -12,7 +12,7 @@ Copyright (c) 2017-2019 Analog Devices, Inc. All Rights Reserved.
 This software is proprietary to Analog Devices, Inc. and its licensors.
 By using this software you agree to the terms of the associated
 Analog Devices Software License Agreement.
- 
+
 *****************************************************************************/
 #ifndef _EDA_H_
 #define _EDA_H_
@@ -61,7 +61,7 @@ typedef struct
   {
     PATCHTYPE_VOLT = 0,         /**< Generate patch for measuring voltage */
     PATCHTYPE_CURR,             /**< Generate patch for measuring current of body */
-  }Type;                          
+  }Type;
   uint32_t RtiaSel;             /**< LPTIA RTIA selection */
   const uint32_t *pSeqCmd;      /**< The sequence to measure voltage and current is similar. The difference is stored in a command patch. */
   uint32_t SeqLen;              /**< Length of patch sequence  */
@@ -70,8 +70,8 @@ typedef struct
   uint32_t BuffLen;       /**< The buffer length of Buffer */
 }SeqPatchInfo_Type;
 
-/* 
-  Note: this example will use SEQID_0 as measurment sequence, and use SEQID_1 as init sequence. 
+/*
+  Note: this example will use SEQID_0 as measurment sequence, and use SEQID_1 as init sequence.
   SEQID_3 is used for calibration if there is need.
 */
 typedef struct
@@ -82,26 +82,26 @@ typedef struct
   uint32_t MaxSeqLen;           /**< Limit the maximum sequence.   */
   uint32_t SeqStartAddrCal;     /**< Measurment sequence start address in SRAM of AD5940 */
   uint32_t MaxSeqLenCal;
-/* Application related parameters */ 
+/* Application related parameters */
   BoolFlag bBioElecBoard;       /**< Select between AD5941Sens1 board and BioElec board */
   BoolFlag ReDoRtiaCal;         /**< Set this flag to bTRUE when there is need to do calibration. */
   float SysClkFreq;             /**< The real frequency of system clock */
   float LfoscClkFreq;           /**< The clock frequency of Wakeup Timer in Hz. Typically it's 32kHz. Leave it here in case we calibrate clock in software method */
   float AdcClkFreq;             /**< The real frequency of ADC clock */
-  uint32_t FifoThresh;          /**< FIFO threshold. Should be N*4 */   
+  uint32_t FifoThresh;          /**< FIFO threshold. Should be N*4 */
   float EDAODR;                 /**< in Hz. ODR decides the period of WakeupTimer who will trigger sequencer periodically. DFT number and sample frequency decides the maxim ODR. */
   int32_t NumOfData;            /**< By default it's '-1'. If you want the engine stops after get NumofData, then set the value here. Otherwise, set it to '-1' which means never stop. */
   uint32_t VoltCalPoints;       /**< Use how many points to calculate average excitation voltage */
   float RcalVal;                /**< Rcal value in Ohm */
   float SinFreq;                /**< Frequency of excitation signal */
-  float SampleFreq;             /**< Sample Frequency in Hz. Clock source is 32kHz.*/  
+  float SampleFreq;             /**< Sample Frequency in Hz. Clock source is 32kHz.*/
   float SinAmplitude;           /**< Signal in amplitude in mV unit. Range: 0Vp to 1100mVp (0Vpp to 2.2Vpp) */
   uint32_t DacUpdateRate;       /**< DAC update rate is SystemCLoock/Divider. The available value is 7 to 255. */
   uint32_t LptiaRtiaSel;        /**< Use internal RTIA, Select from LPTIARTIA_OPEN, LPTIARTIA_200R, ... , LPTIARTIA_512K */
-  
+
   uint32_t DftNum;              /**< DFT number */
   BoolFlag HanWinEn;            /**< Enable Hanning window */
-  
+
   BoolFlag RtiaAutoScaleEnable; /**< Automatically change RTIA value according to measurement results. 0: Set RTIA with RTIA_SEL. 1: Automatically choose RTIA in software */
   uint32_t RtiaAutoScaleMax;    /**< Limit the maximum RTIA value that auto scale function can use. Select from LPTIARTIA_OPEN, LPTIARTIA_200R, ... , LPTIARTIA_512K */
   uint32_t RtiaAutoScaleMin;    /**< Limit the minimum RTIA value that auto scale function can use. Select from LPTIARTIA_OPEN, LPTIARTIA_200R, ... , LPTIARTIA_512K */
@@ -111,11 +111,11 @@ typedef struct
   fImpCar_Type  RtiaCalTable[LPTIARTIA_512K+1];   /**< Calibrated Rtia Value table */
   fImpCar_Type  ImpEDABase;      /**< Impedance of EDA base line */
   fImpCar_Type  ImpSum;          /**< Sum of all measured results. Used to calculate base line of EDA */
-  uint32_t      ImpSumCount;     /**< Count of data added to 'ImpSum' */ 
+  uint32_t      ImpSumCount;     /**< Count of data added to 'ImpSum' */
   uint32_t      RtiaIndexCurr;   /**< Index value 0 to 26 means Open, 200Ohm, to 512kOhm */
   uint32_t      RtiaIndexNext;
   BoolFlag      bChangeRtia;     /**< Auto scaling method says we need to change RTIA */
-  
+
   SeqPatchInfo_Type SeqPatchInfo; /**< The sequence patch for different RTIA and both voltage/current measurement */
   fImpCar_Type ExcitVolt;       /**< Measured excitation voltage result */
   BoolFlag bDataIsVolt;         /**< Current DFT result is voltage */
@@ -157,6 +157,11 @@ typedef struct
 #define EDAERR_ERROR            AD5940ERR_APPERROR    /**< General error */
 #define EDAERR_VOLTMEASURE      AD5940ERR_APPERROR-1  /**< Excitation voltage measurment error. Points not match */
 
+#define REAL_INDEX 0
+#define IMAG_INDEX 1
+
+#define RL_IM_PAIR 2
+
 void InitCfg();
 AD5940Err AppEDAGetCfg(void *pCfg);
 AD5940Err AppEDAInit(uint32_t *pBuffer, uint32_t BufferSize);
@@ -166,7 +171,7 @@ AD5940Err AppEDARtiaCal(void);
 void AD5940EDAStructInit(void);
 void ad5940_eda_task_init(void);
 void send_message_ad5940_eda_task(m2m2_hdr_t *p_pkt);
-AD5940Err EDACalculateImpedance(void *pData, uint32_t DataCount);
+AD5940Err EDACalculateImpedance(void *pData);
 AD5940Err AppEDARegModify(int32_t * const pData, uint32_t *pDataCount);
 AD5940Err AppEDADataProcess(int32_t * const pData, uint32_t *pDataCount);
 void ad5940_eda_start(void);

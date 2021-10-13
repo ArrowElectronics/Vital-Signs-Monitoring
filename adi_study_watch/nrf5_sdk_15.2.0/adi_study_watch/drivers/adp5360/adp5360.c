@@ -587,6 +587,19 @@ ret_code_t Adp5360_bat_soc_init(void)
     ADP5360_BAT_CAP bat_cap_param;
 
 #ifdef VSM_MBOARD
+#ifdef RJD2450
+    bat_cap_param.v_soc_0 = ADP5360_mV_TO_VSOC(3000);
+    bat_cap_param.v_soc_5 = ADP5360_mV_TO_VSOC(3390);
+    bat_cap_param.v_soc_11 = ADP5360_mV_TO_VSOC(3480);
+    bat_cap_param.v_soc_19 = ADP5360_mV_TO_VSOC(3550);
+    bat_cap_param.v_soc_28 = ADP5360_mV_TO_VSOC(3610);
+    bat_cap_param.v_soc_41 = ADP5360_mV_TO_VSOC(3690);
+    bat_cap_param.v_soc_55 = ADP5360_mV_TO_VSOC(3760);
+    bat_cap_param.v_soc_69 = ADP5360_mV_TO_VSOC(3850);
+    bat_cap_param.v_soc_84 = ADP5360_mV_TO_VSOC(3990);
+    bat_cap_param.v_soc_100 = ADP5360_mV_TO_VSOC(4200);
+    bat_cap_param.bat_cap = 200/2;//200mAh,the battery parameter.
+#else
     bat_cap_param.v_soc_0 = ADP5360_mV_TO_VSOC(2750);
     bat_cap_param.v_soc_5 = ADP5360_mV_TO_VSOC(3000);
     bat_cap_param.v_soc_11 = ADP5360_mV_TO_VSOC(3250);
@@ -598,6 +611,7 @@ ret_code_t Adp5360_bat_soc_init(void)
     bat_cap_param.v_soc_84 = ADP5360_mV_TO_VSOC(3800);
     bat_cap_param.v_soc_100 = ADP5360_mV_TO_VSOC(4200);
     bat_cap_param.bat_cap = 120/2;//120mA,the battery parameter.
+#endif
 #else
     bat_cap_param.v_soc_0 = ADP5360_mV_TO_VSOC(3000);
     bat_cap_param.v_soc_5 = ADP5360_mV_TO_VSOC(3565);
@@ -655,7 +669,23 @@ ret_code_t Adp5360_bat_proc_init(void)
     bat_protection.bat_proc_ctrl.oc_dis_hiccup = 0;
     bat_protection.bat_proc_ctrl.oc_chg_hiccup = 0;
 
-//    bat_protection.bat_dischg_uv_set.uv_disch = ADP5360_mV_TO_UV_DISCH(2600);//2.6V,the battery parameter was 2.5V
+#ifdef VSM_MBOARD
+#ifdef RJD2450
+    bat_protection.bat_dischg_uv_set.uv_disch = ADP5360_mV_TO_UV_DISCH(2800);//3.3V,electric quantity only remain 1%
+    bat_protection.bat_dischg_uv_set.hys_uv_disch = 0;
+    bat_protection.bat_dischg_uv_set.dgt_uv_disch = 0;
+
+    bat_protection.bat_dischg_oc_set.oc_disch = ADP5360_mA_TO_OC_DISCH(350); // set maximum discharge to 350mA (RJD2450 max is 2C = 400mA)
+    bat_protection.bat_dischg_oc_set.dgt_oc_disch = ADP5360_DGT_OC_DISCH_5MS;
+
+    bat_protection.bat_chg_ov_set.ov_chg = ADP5360_mV_TO_OV_CHG(4250);//4.25V,the battery parameter was (4.2±0.030)V
+    bat_protection.bat_chg_ov_set.hys_ov_chg = 0;
+    bat_protection.bat_chg_ov_set.dgt_ov_chg = 0;
+
+    bat_protection.bat_chg_oc_set.oc_chg = ADP5360_OC_CHG_200MA;//200mA,the battery parameter was 200mA(20~45),100(10~20),40ma(0~10)
+    bat_protection.bat_chg_oc_set.dgt_oc_chg = 1;
+#else
+    //bat_protection.bat_dischg_uv_set.uv_disch = ADP5360_mV_TO_UV_DISCH(2600);//2.6V,the battery parameter was 2.5V
     bat_protection.bat_dischg_uv_set.uv_disch = ADP5360_mV_TO_UV_DISCH(2800);//3.3V,electric quantity only remain 1%
     bat_protection.bat_dischg_uv_set.hys_uv_disch = 0;
     bat_protection.bat_dischg_uv_set.dgt_uv_disch = 0;
@@ -663,12 +693,29 @@ ret_code_t Adp5360_bat_proc_init(void)
     bat_protection.bat_dischg_oc_set.oc_disch = ADP5360_mA_TO_OC_DISCH(600);
     bat_protection.bat_dischg_oc_set.dgt_oc_disch = ADP5360_DGT_OC_DISCH_0_5MS;
 
-    bat_protection.bat_chg_ov_set.ov_chg = ADP5360_mV_TO_OV_CHG(4400);//4.4V,the battery parameter was (4.425Â±0.020)V
+    bat_protection.bat_chg_ov_set.ov_chg = ADP5360_mV_TO_OV_CHG(4400);//4.4V,the battery parameter was (4.425±0.020)V
     bat_protection.bat_chg_ov_set.hys_ov_chg = 0;
     bat_protection.bat_chg_ov_set.dgt_ov_chg = 0;
 
     bat_protection.bat_chg_oc_set.oc_chg = ADP5360_OC_CHG_200MA;//200ma,the battery parameter was 200mA(20~45),100(10~20),40ma(0~10)
     bat_protection.bat_chg_oc_set.dgt_oc_chg = 1;
+#endif
+#else
+    //bat_protection.bat_dischg_uv_set.uv_disch = ADP5360_mV_TO_UV_DISCH(2600);//2.6V,the battery parameter was 2.5V
+    bat_protection.bat_dischg_uv_set.uv_disch = ADP5360_mV_TO_UV_DISCH(2800);//3.3V,electric quantity only remain 1%
+    bat_protection.bat_dischg_uv_set.hys_uv_disch = 0;
+    bat_protection.bat_dischg_uv_set.dgt_uv_disch = 0;
+
+    bat_protection.bat_dischg_oc_set.oc_disch = ADP5360_mA_TO_OC_DISCH(600);
+    bat_protection.bat_dischg_oc_set.dgt_oc_disch = ADP5360_DGT_OC_DISCH_0_5MS;
+
+    bat_protection.bat_chg_ov_set.ov_chg = ADP5360_mV_TO_OV_CHG(4400);//4.4V,the battery parameter was (4.425±0.020)V
+    bat_protection.bat_chg_ov_set.hys_ov_chg = 0;
+    bat_protection.bat_chg_ov_set.dgt_ov_chg = 0;
+
+    bat_protection.bat_chg_oc_set.oc_chg = ADP5360_OC_CHG_200MA;//200ma,the battery parameter was 200mA(20~45),100(10~20),40ma(0~10)
+    bat_protection.bat_chg_oc_set.dgt_oc_chg = 1;
+#endif
     Adp5360_setBatProtecton(&bat_protection);
 
     return ADP5360_SUCCESS;
@@ -686,6 +733,28 @@ ret_code_t Adp5360_bat_charger_init(void)
 
     ADP5360_BATTERY_THRESHOLDS bat_thr;
 #ifdef VSM_MBOARD
+#ifdef RJD2450
+    /*
+      The charging requirements are as follows:
+
+      Nom capacity 200mAh
+      Charging voltage 4.2V
+      Nominal Voltage 3.7V
+      Max discharge 200mAh
+      End Discharge voltage 3.0V
+
+      Charging scheme:
+      Constant  charging current of 100mAh until battery voltage reaches 4.2V then, constant voltage of 4.2V until current reaches ~2.4mA.
+    */
+    bat_thr.chg_termination_set.vtrm = ADP5360_mV_TO_VTRM(4200);//Charging voltage is 4.2V
+    bat_thr.chg_termination_set.itrk_dead = 2;
+    bat_thr.chg_current_set.iend = ADP5360_mA_TO_IEND(5);//2mA constant voltage phase
+    bat_thr.chg_current_set.ichg = ADP5360_mA_TO_ICHG(100);//use the 0.5C charge.the battery is 200mAh
+    bat_thr.chg_voltage_threshold.dis_rch = 0;//enable charge.
+    bat_thr.chg_voltage_threshold.vrch = 1;
+    bat_thr.chg_voltage_threshold.vtrk_dead = 3;//2.9V,the battery parameter
+    bat_thr.chg_voltage_threshold.vweak = ADP5360_mV_TO_VWEAK(3050);//2.7V, the battery parameter, better to go higher than lower
+#else
     /*
       The charging requirements are as follows:
 
@@ -706,6 +775,7 @@ ret_code_t Adp5360_bat_charger_init(void)
     bat_thr.chg_voltage_threshold.vrch = 1;
     bat_thr.chg_voltage_threshold.vtrk_dead = 2;//2.6V,the battery parameter
     bat_thr.chg_voltage_threshold.vweak = ADP5360_mV_TO_VWEAK(2800);//2.7V, the battery parameter, better to go higher than lower
+#endif
 #else
     bat_thr.chg_termination_set.vtrm = ADP5360_mV_TO_VTRM(4340);//the battery parameter was 4.35V,need to confirm select 4.34 or 4.36V
     bat_thr.chg_termination_set.itrk_dead = 2;//wait confirm
@@ -883,4 +953,3 @@ ADP5360_RESULT Adp5360_get_battery_details(BATTERY_STATUS_t *p_battery_stat) {
   //p_battery_stat->temp_c          = degreesC;
   return ADP5360_SUCCESS;
 }
-

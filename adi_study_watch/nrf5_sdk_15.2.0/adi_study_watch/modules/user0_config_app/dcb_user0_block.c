@@ -32,7 +32,7 @@
  */
 #ifdef USER0_CONFIG_APP
 #ifdef DCB
-#ifdef LOW_TOUCH_FEATURE
+//#ifdef LOW_TOUCH_FEATURE
 #include "nrf_log_ctrl.h"
 /* User0 DCB Block Module Log settings */
 #define NRF_LOG_MODULE_NAME USER0_DCB_BLK
@@ -47,7 +47,7 @@ NRF_LOG_MODULE_REGISTER();
 
 /**< Flag variable to check if user0_blk DCB entry is present or not. This is
  * updated for every DCB Write/Read and on bootup */
-static volatile bool g_dcb_Present = false;
+static volatile bool g_usr0_cfg_dcb_present = false;
 
 /**< RAM buffer which holds the user0 block DCB contents */
 static uint32_t g_current_user0_blk_dcb[MAXUSER0BLKDCBSIZE] = {'\0'};
@@ -168,9 +168,9 @@ USER0_BLK_DCB_STATUS_t delete_user0_blk_dcb(void) {
  * @retval   None
  */
 void user0_blk_set_dcb_present_flag(bool set_flag) {
-  g_dcb_Present = set_flag;
+  g_usr0_cfg_dcb_present = set_flag;
   NRF_LOG_INFO("Setting..USER0 BLK DCB present: %s",
-      (g_dcb_Present == true ? "TRUE" : "FALSE"));
+      (g_usr0_cfg_dcb_present == true ? "TRUE" : "FALSE"));
 }
 
 /**
@@ -181,8 +181,8 @@ void user0_blk_set_dcb_present_flag(bool set_flag) {
  */
 bool user0_blk_get_dcb_present_flag(void) {
   NRF_LOG_INFO("USER0 BLK DCB present: %s",
-      (g_dcb_Present == true ? "TRUE" : "FALSE"));
-  return g_dcb_Present;
+      (g_usr0_cfg_dcb_present == true ? "TRUE" : "FALSE"));
+  return g_usr0_cfg_dcb_present;
 }
 
 /**
@@ -192,10 +192,10 @@ bool user0_blk_get_dcb_present_flag(void) {
  * @retval   None
  */
 void user0_blk_update_dcb_present_flag(void) {
-  g_dcb_Present = adi_dcb_check_fds_entry(ADI_DCB_USER0_BLOCK_IDX);
+  g_usr0_cfg_dcb_present = adi_dcb_check_fds_entry(ADI_DCB_USER0_BLOCK_IDX);
   NRF_LOG_INFO("Updated. USER0 BLK DCB present: %s",
-      (g_dcb_Present == true ? "TRUE" : "FALSE"));
+      (g_usr0_cfg_dcb_present == true ? "TRUE" : "FALSE"));
 }
-#endif//LOW_TOUCH_FEATURE
+//#endif//LOW_TOUCH_FEATURE
 #endif
 #endif

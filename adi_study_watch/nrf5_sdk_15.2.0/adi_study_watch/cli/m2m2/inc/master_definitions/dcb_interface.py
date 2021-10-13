@@ -13,7 +13,7 @@ MAXADXLDCBSIZE = (25) #Max size of adxl DCB size in double word length; 25 uint3
 MAXPPGDCBSIZE = (56)
 MAXECGDCBSIZE = (4)
 MAXEDADCBSIZE = (2)
-MAXBCMDCBSIZE = (5)
+MAXBIADCBSIZE = (18)
 
 """
 Size of gen Blk DCB contents passed in 1 pkt for the read/write/delete DCB
@@ -103,13 +103,14 @@ class m2m2_dcb_eda_data_t(Structure):
               ("size", c_uint16),
               ("dcbdata", c_uint32 * MAXEDADCBSIZE),
               ]
-class m2m2_dcb_bcm_data_t(Structure):
+
+class m2m2_dcb_bia_data_t(Structure):
     fields = [
               ("command", c_uint8),
               ("status", c_uint8),
               ("size", c_uint16),
-              ("dcbdata", c_uint32 * MAXBCMDCBSIZE),
-              ]              
+              ("dcbdata", c_uint32 * MAXBIADCBSIZE),
+              ]
 
 class m2m2_dcb_gen_blk_data_t(Structure):
     fields = [
@@ -172,8 +173,8 @@ class M2M2_DCB_CONFIG_BLOCK_INDEX_t(c_uint8):
     ADI_DCB_USER1_BLOCK_IDX = 0xD
     ADI_DCB_USER2_BLOCK_IDX = 0xE
     ADI_DCB_USER3_BLOCK_IDX = 0xF
-    ADI_DCB_BCM_BLOCK_IDX = 0x10
-    ADI_DCB_MAX_BLOCK_IDX = 0x14
+    ADI_DCB_BIA_BLOCK_IDX = 0x10
+    ADI_DCB_MAX_BLOCK_IDX = 0x11
 
 class m2m2_dcb_block_status_t(Structure):
     fields = [

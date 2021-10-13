@@ -108,6 +108,7 @@ Output/watchv4_nrf52840\ Debug/Obj/touch_detect.o: \
  ..\..\..\..\components\libraries\util/sdk_macros.h \
  ..\..\..\drivers\ad7156/ad7156.h \
  ..\..\..\modules\ad7156_lt/low_touch_task.h \
+ ..\..\..\drivers\display/lcd_driver.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \

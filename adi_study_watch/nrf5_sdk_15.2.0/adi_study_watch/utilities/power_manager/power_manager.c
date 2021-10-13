@@ -84,6 +84,7 @@
 #include "nrf_log_default_backends.h"
 
 extern uint8_t dvt2; //whether dvt2 or not
+bool gb_ecgldo_enable = false;
 #ifdef HIBERNATE_MD_EN
 /* Variable which controls the enable/disable of Hibernate Mode from m2m2 command */
 bool gb_hib_mode_control = true;
@@ -271,7 +272,9 @@ void adp5360_enable_ldo(int PIN,bool en)
             {
 #ifdef PRINTS_OUT
               NRF_LOG_INFO("Enabling Power for 8233 and bio impedance LDO");
+
 #endif
+              gb_ecgldo_enable = true;
               nrf_gpio_pin_set(PWE_EPHYZ_PIN);
             }
             else
@@ -279,6 +282,7 @@ void adp5360_enable_ldo(int PIN,bool en)
 #ifdef PRINTS_OUT
               NRF_LOG_INFO("Disabling Power for 8233 and bio impedance LDO");
 #endif
+              gb_ecgldo_enable = false;
               nrf_gpio_pin_clear(PWE_EPHYZ_PIN);
             }
     break;

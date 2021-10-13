@@ -59,7 +59,7 @@
 #define SZ_MEM_BLK_TYPE2	( 32u )
 //#define SZ_MEM_BLK_TYPE3	( 64u )
 #define SZ_MEM_BLK_TYPE4	( 80u )
-#define SZ_MEM_BLK_TYPE5	( 528 )
+#define SZ_MEM_BLK_TYPE5	( 532 )
 
 typedef enum {
   MEM_MANAGER_ERR_SUCCESS 	= 0x00,

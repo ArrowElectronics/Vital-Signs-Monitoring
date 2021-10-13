@@ -741,8 +741,13 @@ static m2m2_hdr_t *adxl_app_stream_config(m2m2_hdr_t *p_pkt) {
         adxl_app_timings.delayed_start = true;
       }
 
+#ifdef LOW_TOUCH_FEATURE
       //ADXL app not in continuous mode & its interval operation mode
       if(!is_adxl_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+#else
+      //ADXL app not in continuous mode
+      if(!is_adxl_app_mode_continuous())
+#endif
       {
         start_adxl_app_timer();
       }

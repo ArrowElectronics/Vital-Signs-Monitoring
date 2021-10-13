@@ -254,8 +254,10 @@ static void key_handle(uint8_t key_value)
         break;
         case KEY_SELECT_LONG_VALUE:
         {
+#ifdef LOW_TOUCH_FEATURE
             if(get_low_touch_trigger_mode2_status())
                 dis_page_jump(&page_LT_mode2_log_enable);
+#endif
         }
         break;
         /*can add other key handle*/

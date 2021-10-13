@@ -8,7 +8,7 @@ DCB_BLK_WORD_SZ = (4)
 MAXAD7156DCBSIZE = (20)
 MAXADPD4000DCBSIZE = (57)
 MAXADXLDCBSIZE = (25)
-MAXBCMDCBSIZE = (5)
+MAXBIADCBSIZE = (18)
 MAXECGDCBSIZE = (4)
 MAXEDADCBSIZE = (2)
 MAXGENBLKDCBSIZE = (57)
@@ -52,8 +52,8 @@ class M2M2_DCB_CONFIG_BLOCK_INDEX_t(c_ubyte):
     ADI_DCB_USER1_BLOCK_IDX = 0xD
     ADI_DCB_USER2_BLOCK_IDX = 0xE
     ADI_DCB_USER3_BLOCK_IDX = 0xF
-    ADI_DCB_BCM_BLOCK_IDX = 0x10
-    ADI_DCB_MAX_BLOCK_IDX = 0x14
+    ADI_DCB_BIA_BLOCK_IDX = 0x10
+    ADI_DCB_MAX_BLOCK_IDX = 0x11
 
 class m2m2_dcb_cmd_t(Structure):
     _pack_ = 1
@@ -108,13 +108,13 @@ class m2m2_dcb_eda_data_t(Structure):
               ("dcbdata", c_ulong * 2),
               ]
 
-class m2m2_dcb_bcm_data_t(Structure):
+class m2m2_dcb_bia_data_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("size", c_ushort),
-              ("dcbdata", c_ulong * 5),
+              ("dcbdata", c_ulong * 18),
               ]
 
 class m2m2_dcb_gen_blk_data_t(Structure):
@@ -171,6 +171,6 @@ class m2m2_dcb_block_status_t(Structure):
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
-              ("dcb_blk_array", c_ubyte * 20),
+              ("dcb_blk_array", c_ubyte * 17),
               ]
 

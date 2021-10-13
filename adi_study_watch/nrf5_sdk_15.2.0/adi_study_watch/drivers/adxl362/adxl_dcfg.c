@@ -155,21 +155,27 @@ ADXL_DCFG_STATUS_t read_adxl_dcfg(uint32_t *p_dcfg, uint8_t *p_dcfg_size) {
   uint8_t reg_addr;
   uint8_t reg_data;
   uint16_t *np_dcfg;
-  bool dcb_cfg = false;
-  
+
   if (p_dcfg == NULL) {
     return ADXL_DCFG_STATUS_NULL_PTR;
-  }  
+  }
   np_dcfg = (uint16_t *)p_dcfg;
 
+#ifdef DCB
+  bool dcb_cfg = false;
   dcb_cfg = adxl_get_dcb_present_flag();
+#endif
 
   for (int i = 0; i < MAXGETDCFGSIZE; i++) {
+#ifdef DCB
     if(dcb_cfg == true) {
       reg_addr = (uint8_t) (g_current_adxldcb[i] >> 8);
     }else {
       reg_addr = (uint8_t) (g_current_adxldcfg[i] >> 8);
     }
+#else
+    reg_addr = (uint8_t) (g_current_adxldcfg[i] >> 8);
+#endif
     if (AdxlDrvRegRead(reg_addr, &reg_data) != ADXLDrv_SUCCESS) {
       return ADXL_DCFG_STATUS_ERR;
     }

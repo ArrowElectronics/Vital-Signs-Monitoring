@@ -54,7 +54,7 @@
 #include "adp5360.h"
 #include "adpd4000_buffering.h"
 #include "adpd4000_dcfg.h"
-#include "bcm_application_task.h"
+#include "bia_application_task.h"
 #include "adxl_dcfg.h"
 #include "app_timer.h"
 #include "ble_gap.h"
@@ -217,6 +217,15 @@ static M2M2_ADDR_ENUM_t gsStausCmdSrcAddr = NULL;
 
 extern g_state_t g_state;
 
+#ifdef ENABLE_EDA_APP
+extern volatile bool gEdaAppInitFlag;
+#endif
+#ifdef ENABLE_ECG_APP
+extern volatile bool gEcgAppInitFlag;
+#endif
+#ifdef ENABLE_BCM_APP
+extern volatile bool gBiaAppInitFlag;
+#endif
 void GetSensorAppsStatus();
 void SendSensorStopCmds();
 #ifdef ENABLE_WATCH_DISPLAY
@@ -295,6 +304,21 @@ static void SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_ENUM_t nAlertMsg) {
   }
 #endif
 }
+
+/* RAM buffer which hold a copy of either DCB/NAND config file which has LT
+ * start/stop sequence of commands
+ * This buffer is to be reused between holding the copy of LT config file
+ * as well as temporary storage for DCB content during READ/WRITE DCB block
+ * for ADPD, Gen block DCB
+ * NAND config file size = 1 page size = 4096 bytes.
+ * Gen block DCB size, with MAX_GEN_BLK_DCB_PKTS=18 pkts,
+ * each having 57 * 4 bytes = 4104 bytes.
+ * ADPD4000 DCB size, with MAX_ADPD4000_DCB_PKTS=4 pkts,
+ * each having 57 * 4 bytes = 912 bytes.
+ * In the below array size definition, maximum of the above is chosen.
+ */
+uint32_t gsConfigTmpFile[MAXGENBLKDCBSIZE * MAX_GEN_BLK_DCB_PKTS];
+
 #ifdef LOW_TOUCH_FEATURE
 #define MAX_CMD_RETRY_CNT 5
 #define MAX_FILE_COUNT 62
@@ -341,19 +365,6 @@ static m2m2_hdr_t *gsConfigCmdHdr = NULL;
 /* Debug variables used in ValidateStatus() api*/
 static uint8_t gsStartStatusCnt = 0, gsSubStatusCnt = 0, gsfslogStatusCnt = 0,
                gsCommonStatusCnt = 0, gsCmdRetryCnt = 0;
-/* RAM buffer which hold a copy of either DCB/NAND config file which has LT
- * start/stop sequence of commands
- * This buffer is to be reused between holding the copy of LT config file
- * as well as temporary storage for DCB content during READ/WRITE DCB block
- * for ADPD, Gen block DCB
- * NAND config file size = 1 page size = 4096 bytes.
- * Gen block DCB size, with MAX_GEN_BLK_DCB_PKTS=18 pkts,
- * each having 57 * 4 bytes = 4104 bytes.
- * ADPD4000 DCB size, with MAX_ADPD4000_DCB_PKTS=4 pkts,
- * each having 57 * 4 bytes = 912 bytes.
- * In the below array size definition, maximum of the above is chosen.
- */
-uint32_t gsConfigTmpFile[MAXGENBLKDCBSIZE * MAX_GEN_BLK_DCB_PKTS];
 /* Variable to hold the index where DCB/NAND config file is to be written to */
 static uint16_t gsCfgWrIndex = 0;
 /* Variable pointer which holds the summary info on the DCB/NAND config file
@@ -1524,6 +1535,7 @@ static void system_task(void *pArgument) {
               (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_PM_SYS_STATUS_OK;
           post_office_send(response_mail, &err);
           MCU_HAL_Delay(20);
+#ifdef USE_FS
           /* if logging is in progress , close file */
           if(UpdateFileInfo() == true){
             NRF_LOG_INFO("Success file close ");
@@ -1532,6 +1544,7 @@ static void system_task(void *pArgument) {
             /* failure */
             NRF_LOG_INFO("Error file close");
           }
+#endif
           rtc_timestamp_store(320);
           NVIC_SystemReset();
           // pm_System_reboot();
@@ -1559,6 +1572,7 @@ static void system_task(void *pArgument) {
           MCU_HAL_Delay(20);
           // rtc_timestamp_store(320);//no use at here,because the reset time is
           // unfixed.
+#ifdef USE_FS
           /* if logging is in progress , close file */
           if(UpdateFileInfo() == true){
             NRF_LOG_INFO("Success file close ");
@@ -1567,6 +1581,7 @@ static void system_task(void *pArgument) {
             /* failure */
             NRF_LOG_INFO("Error file close");
           }
+#endif
           trigger_nRF_MCU_hw_reset();
           NRF_LOG_INFO("Initiating Hardware reset");
         }
@@ -1993,17 +2008,60 @@ static void system_task(void *pArgument) {
           switch (req1->sw_name) {
 #ifdef ENABLE_ECG_APP
           case M2M2_PM_SYS_DG2502_8233_SW:
-            adp5360_enable_ldo(ECG_LDO, true);
-            DG2502_SW_control_AD8233(req1->sw_enable);
-            dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_OK;
-            adp5360_enable_ldo(ECG_LDO, false);
+            /*We are not alterning anything when apps are running*/
+            if( 1
+                #ifdef  ENABLE_EDA_APP
+                && (gEdaAppInitFlag == false)
+                #endif
+                #ifdef  ENABLE_ECG_APP
+                && (gEcgAppInitFlag == false)
+                #endif
+                #ifdef  ENABLE_BCM_APP
+                && (gBiaAppInitFlag == false)
+                #endif
+                ) {
+              /*Turning LDO always on so that even duplicate disable commands work fine*/
+              adp5360_enable_ldo(ECG_LDO, true);
+              DG2502_SW_control_AD8233(req1->sw_enable);
+              dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_OK;
+              /*Turning LDO off only when we are disabling electrodes*/
+              if(req1->sw_enable == 0x00) {
+                adp5360_enable_ldo(ECG_LDO, false);
+              }
+            }
+            else {
+              /*TODO a better enum can be created to explain this error*/
+              dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_ERR_ARGS;
+            }
             break;
 #endif
           case M2M2_PM_SYS_DG2502_5940_SW:
-            adp5360_enable_ldo(ECG_LDO, true);
-            DG2502_SW_control_AD5940(req1->sw_enable);
-            dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_OK;
-            adp5360_enable_ldo(ECG_LDO, false);
+            /*We are not alterning anything when apps are running*/
+            /* TODO defined flags need to be checked */
+            if( 1
+                #ifdef  ENABLE_EDA_APP
+                && (gEdaAppInitFlag == false)
+                #endif
+                #ifdef  ENABLE_ECG_APP
+                && (gEcgAppInitFlag == false)
+                #endif
+                #ifdef  ENABLE_BCM_APP
+                && (gBiaAppInitFlag == false)
+                #endif
+                ) {
+              /*Turning LDO always on so that even duplicate disable commands work fine*/
+              adp5360_enable_ldo(ECG_LDO, true);
+              DG2502_SW_control_AD5940(req1->sw_enable);
+              dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_OK;
+              /*Turning LDO off only when we are disabling electrodes*/
+              if(req1->sw_enable == 0x00) {
+                adp5360_enable_ldo(ECG_LDO, false);
+              }
+            }
+            else {
+              /*TODO a better enum can be created to explain this error*/
+              dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_ERR_ARGS;
+            }
             break;
           case M2M2_PM_SYS_DG2502_4K_SW:
             DG2502_SW_control_ADPD4000(req1->sw_enable);
@@ -2567,8 +2625,8 @@ static void system_task(void *pArgument) {
         if (resp->status == M2M2_FILE_SYS_STATUS_OK ||
             resp->status == M2M2_FILE_SYS_END_OF_FILE) {
           uint8_t *gsConfigTmpFile_ptr = (uint8_t *)&gsConfigTmpFile[0];
-          memcpy(&gsConfigTmpFile_ptr[gsCfgWrIndex], &resp->byte_stream[0],resp->len_stream);
-          gsCfgWrIndex += resp->len_stream;
+          memcpy(&gsConfigTmpFile_ptr[gsCfgWrIndex], &resp->page_chunk_bytes[0],resp->page_chunk_size);
+          gsCfgWrIndex += resp->page_chunk_size;
           if (resp->status == M2M2_FILE_SYS_END_OF_FILE) {
             gsConfigFileSize = gsCfgWrIndex - CONFIG_FILE_SUMMARY_PKT_SIZE;
             //                    gsConfigFileFromFlash =1;
@@ -2712,9 +2770,9 @@ static void system_task(void *pArgument) {
           resp->dcb_blk_array[ADI_DCB_EDA_BLOCK_IDX] =
               eda_get_dcb_present_flag();
 #endif
-#ifdef ENABLE_BCM_APP
-          resp->dcb_blk_array[ADI_DCB_BCM_BLOCK_IDX] =
-              bcm_get_dcb_present_flag();
+#ifdef ENABLE_BIA_APP
+          resp->dcb_blk_array[ADI_DCB_BIA_BLOCK_IDX] =
+              bia_get_dcb_present_flag();
 #endif
           resp->dcb_blk_array[ADI_DCB_AD7156_BLOCK_IDX] =
               ad7156_get_dcb_present_flag();
@@ -2771,7 +2829,9 @@ static void system_task(void *pArgument) {
          if(stop_log_resp->status == (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_ERR_MEMORY_FULL) {
           /*low touch log stopped due to mem-full; stop the sensors and inform
           * the tool*/
+#ifdef LOW_TOUCH_FEATURE
           MaxFileErr(); /*Memory is full ; give indication on Display*/
+#endif
         }
         //post_office_consume_msg(pkt);
         //break;//intentionally commented out to let the default case for
@@ -2898,15 +2958,15 @@ static void system_task(void *pArgument) {
 #ifdef CUST4_SM
             //Low touch logging stopped
             USER0_CONFIG_APP_STATE_t read_user0_config_app_state = get_user0_config_app_state();
-            if(read_user0_config_app_state ==
-               STATE_INTERMITTENT_MONITORING_STOP_LOG)
+            if((read_user0_config_app_state ==
+               STATE_INTERMITTENT_MONITORING_STOP_LOG))
             {
               set_user0_config_app_state(STATE_INTERMITTENT_MONITORING);
             }
-            if(read_user0_config_app_state ==
-               STATE_INTERMITTENT_MONITORING_STOP_LOG ||
-               read_user0_config_app_state ==
-               STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING)
+            if( (read_user0_config_app_state ==
+                STATE_INTERMITTENT_MONITORING_STOP_LOG) ||
+                (read_user0_config_app_state ==
+                STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING) )
             {
               //Turn on BLE
               turn_on_BLE();

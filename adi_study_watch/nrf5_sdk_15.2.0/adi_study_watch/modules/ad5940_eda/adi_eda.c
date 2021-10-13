@@ -368,8 +368,13 @@ AD5940Err AppEDASeqMeasureGen(void) {
   AD5940_SEQGenCtrl(bTRUE);
 
   /* Stage I: Initialization */
+#ifdef EXTERNAL_TRIGGER_EDA	
   /* GP6->endSeq, GP5 -> AD8233=OFF, GP1->RLD=OFF */
   AD5940_SEQGpioCtrlS(AGPIO_Pin6);
+#else
+  /* GP6->endSeq, GP5 -> AD8233=OFF,GP3 ->ELECTRODESWITCH=ON, GP1->RLD=OFF */
+  AD5940_SEQGpioCtrlS(AGPIO_Pin3 | AGPIO_Pin6);
+#endif  
   /* LP loop configure: LPDAC and LPAMP */
   lpdac_cfg.LpdacSel = LPDAC0;
   lpdac_cfg.DataRst = bFALSE;
@@ -584,7 +589,8 @@ AD5940Err AppEDAInit(uint32_t *pBuffer, uint32_t BufferSize) {
   /* Wakeup AFE by read register, read 10 times at most */
   if (AD5940_WakeUp(10) > 10)
     return AD5940ERR_WAKEUP;
-
+  /*For now keeping the external trigger code as it is till it gets in working mode */
+#ifdef EXTERNAL_TRIGGER_EDA	
   uint32_t tempreg;
   tempreg = AD5940_ReadReg(REG_AGPIO_GP0OEN);
   tempreg &= 0xFFE7;
@@ -602,6 +608,7 @@ AD5940Err AppEDAInit(uint32_t *pBuffer, uint32_t BufferSize) {
   /* set only eda gpio pin as high */
   tempreg |= 0x0008;
   AD5940_AGPIOSet(tempreg);
+#endif
   /* Configure sequencer and stop it */
   seq_cfg.SeqMemSize = SEQMEMSIZE_2KB;
   seq_cfg.SeqBreakEn = bFALSE;
@@ -743,7 +750,7 @@ void AD5940EDAStructInit(void) {
   }
   /* The minimum threshold value is 4, and should always be 4*N, where N is
    * 1,2,3... */
-  pCfg->FifoThresh = 2;
+  pCfg->FifoThresh = 4;
 }
 
 /*!
@@ -820,10 +827,11 @@ static AD5940Err AD5940PlatformCfg(void) {
   cfg.SeqPinTrigMode = SEQPINTRIGMODE_FALLING;
   AD5940_SEQGpioTrigCfg(&cfg);
 #else
+  /*Adding electrode switch on measurement sequence only using GPIO3*/
   /* Step4: Configure GPIO */
-  gpio_cfg.FuncSet =  GP6_SYNC | GP5_SYNC | GP4_SYNC | GP2_EXTCLK | GP1_SYNC | GP0_INT;
+  gpio_cfg.FuncSet =  GP6_SYNC | GP5_SYNC | GP4_SYNC | GP3_SYNC | GP2_EXTCLK | GP1_SYNC | GP0_INT;
   gpio_cfg.InputEnSet = AGPIO_Pin2;
-  gpio_cfg.OutputEnSet =  AGPIO_Pin0 | AGPIO_Pin1 | AGPIO_Pin4 | AGPIO_Pin5 | AGPIO_Pin6;
+  gpio_cfg.OutputEnSet =  AGPIO_Pin0 | AGPIO_Pin1 | AGPIO_Pin3 | AGPIO_Pin4 | AGPIO_Pin5 | AGPIO_Pin6;
   gpio_cfg.OutVal = 0;
   gpio_cfg.PullEnSet = 0;
   AD5940_AGPIOCfg(&gpio_cfg);
@@ -1111,12 +1119,13 @@ void ad5940_eda_start(void)
   ad5940_port_Init();
 
 #endif
-    /* switch off other switches */
+/* switch off other switches */
+/*
 #ifdef ENABLE_ECG_APP
   DG2502_SW_control_AD8233(false);
 #endif
   DG2502_SW_control_ADPD4000(false);
-
+*/
 if(init_flag == 1){
   InitCfg();
 }

@@ -62,9 +62,11 @@
 //#define DEBUG_INTERMITTENT_OP_PAGE 1
 
 char hw_id_string[6] = {0};
-char exp_id_string[6] = {0};
+char exp_id_string[8] = {0};
 
+#ifdef DEBUG_INTERMITTENT_OP_PAGE
 char rtc_string1[6] = {0};
+#endif
 static char memory_string1[6] = {0};
 static uint8_t fs_display_cnt1 = 0;//for refresh fs dispaly every 1 minute.
 
@@ -76,7 +78,6 @@ static void usb_detect_func(uint8_t value,ADP5360_PGOOD_STATUS status)
     }
 }
 
-#ifdef DEBUG_INTERMITTENT_OP_PAGE
 static uint8_t flash_vol_req_refresh1,refresh_cnt1=0,status_display1;
 uint16_t fs_display_query_cnt1=0;
 
@@ -85,7 +86,6 @@ static uint8_t flash_reset_evt1 =0;
 
 /* Function prototype which returns the status of NAND flash log download process*/
 bool get_download_status();
-#endif
 
 extern user0_config_app_lcfg_type_t user0_config_app_lcfg;
 
@@ -100,11 +100,9 @@ extern user0_config_app_lcfg_type_t user0_config_app_lcfg;
 
 void reset_display_vol_info1()
 {
-#ifdef DEBUG_INTERMITTENT_OP_PAGE
   flash_reset_evt1  = 1; // flag to indicate flash reset/format event
   flash_vol_req_refresh1 = 0; //vol info updated on static flag;
   refresh_cnt1 = 5; // to simulate 5 min delay
-#endif
 }
 
 
@@ -125,7 +123,6 @@ void reset_display_vol_info1()
 
 static void menu_fs_display(void)
 {
-#ifdef DEBUG_INTERMITTENT_OP_PAGE
     uint32_t ret = M2M2_SUCCESS;
     uint8_t remain_level = 100;
     uint8_t status;
@@ -145,10 +142,14 @@ static void menu_fs_display(void)
 
      //copy prev value
     remain_level = flash_vol_req_refresh1;
-    ret = m2m2_check_fs_status(&status);
-    APP_ERROR_CHECK(ret);
-    if((M2M2_FILE_SYS_STATUS_LOGGING_IN_PROGRESS == status)
-    &&(M2M2_SUCCESS == status_display1))
+
+    USER0_CONFIG_APP_STATE_t read_user0_config_app_state = get_user0_config_app_state();
+    if( ( (read_user0_config_app_state == STATE_START_MONITORING) ||
+          (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING) ||
+          (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_START_LOG) ||
+          (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_STOP_LOG) ||
+          (read_user0_config_app_state == STATE_END_MONITORING) ) &&
+          (M2M2_SUCCESS == status_display1) )
     {
          lcd_background_color_set_section(0,70,COLOR_BACKGROUND);
          lygl_process_bar_level(remain_level);
@@ -161,13 +162,12 @@ static void menu_fs_display(void)
     }
 
     refresh_cnt1 += 1;
-#endif //DEBUG_INTERMITTENT_OP_PAGE
 }
 #endif
 
+#ifdef DEBUG_INTERMITTENT_OP_PAGE
 static void menu_time_display(m_time_struct *time)
 {
-#ifdef DEBUG_INTERMITTENT_OP_PAGE
     if(time->tm_hour >= 12)
     {
         if(time->tm_hour == 12)
@@ -200,13 +200,27 @@ static void menu_time_display(m_time_struct *time)
     lygl_dis_string_middle(&lygl_font_24,80,160,COLOR_YELLOW,week_str[time->tm_wday]);
     lygl_dis_string_middle(&lygl_font_24,130,160,COLOR_WHITE,month_str[time->tm_mon]);
     lygl_dis_value_middle(&lygl_font_24,160,160,COLOR_WHITE,time->tm_mday,2);
-    lygl_dis_string(&lygl_font_62,84,62,COLOR_WHITE,hw_id_string);
-    lygl_dis_string(&lygl_font_32,84,110,COLOR_YELLOW,exp_id_string);
+    lygl_dis_string(&lygl_font_32,84,65,COLOR_WHITE,hw_id_string);
+    lygl_dis_string(&lygl_font_62,44,85,COLOR_YELLOW,exp_id_string);
 #else
-    sprintf(hw_id_string,"%02d",user0_config_app_lcfg.hw_id);
-    sprintf(exp_id_string,"%04d",user0_config_app_lcfg.exp_id);
-    lygl_dis_string(&lygl_font_62,84,64,COLOR_WHITE,hw_id_string);
-    lygl_dis_string(&lygl_font_32,84,120,COLOR_YELLOW,exp_id_string);
+static void menu_time_display()
+{
+    USER0_CONFIG_APP_STATE_t read_user0_config_app_state = get_user0_config_app_state();
+    if((read_user0_config_app_state == STATE_START_MONITORING) ||
+       (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING) ||
+       (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_START_LOG) ||
+       (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_STOP_LOG) ||
+       (read_user0_config_app_state == STATE_END_MONITORING))
+    {
+      sprintf(exp_id_string,"ID ");
+      lygl_dis_string(&lygl_font_48,34,84,COLOR_YELLOW,exp_id_string);
+      sprintf(exp_id_string,"%04d",user0_config_app_lcfg.exp_id);
+      lygl_dis_string(&lygl_font_48,84,84,COLOR_YELLOW,exp_id_string);
+    }
+
+    sprintf(hw_id_string,"No.%02d",user0_config_app_lcfg.hw_id);
+    lygl_dis_string(&lygl_font_32,80,140,COLOR_WHITE,hw_id_string);
+
 #endif//DEBUG_INTERMITTENT_OP_PAGE
 }
 
@@ -216,29 +230,29 @@ static void display_func(void)
 
     lcd_background_color_set(COLOR_BACKGROUND);
 
-    //lygl_draw_image(&bm_memory_usage_ico,94,12);
-    dis_time = rtc_date_time_get();
-#ifdef DEBUG_INTERMITTENT_OP_PAGE
     lygl_creat_process_bar(&bm_memory_progressbar,80,36,0);
+
+#ifdef DEBUG_INTERMITTENT_OP_PAGE
+    dis_time = rtc_date_time_get();
+#endif
 
 #ifdef USE_FS
     menu_fs_display();
 #endif
 
+
     if(0 == Adp5360_pgood_pin_status_get())
     {
-        //dis_dynamic_refresh(1000);
         fs_display_cnt1 = 1;
     }
     else
     {
-        //dis_dynamic_refresh((60 - dis_time->tm_sec)*1000);
         fs_display_cnt1 = 60 - dis_time->tm_sec;
     }
-#endif//DEBUG_INTERMITTENT_OP_PAGE
     dis_dynamic_refresh(1000);
 
     Register_pgood_detect_func(usb_detect_func);
+
     menu_time_display(dis_time);
 
     lygl_creat_battery(&bm_battery_level_ico,30,152,0);
@@ -288,14 +302,14 @@ static void signal_handle(uint8_t signal_value)
         {
             m_time_struct *dis_time;
             dis_time = rtc_date_time_get();
+
             lcd_background_color_set_section(70,207,COLOR_BACKGROUND);
-#ifdef DEBUG_INTERMITTENT_OP_PAGE
+
             if((fs_display_cnt1 >= 60) || (flash_reset_evt1))
             {
                 if(flash_reset_evt1)
                 {
                   flash_reset_evt1 = 0;
-                  //lcd_background_color_set_section(0,70,COLOR_BACKGROUND);
 #ifdef USE_FS
                   menu_fs_display();
 #endif
@@ -303,7 +317,6 @@ static void signal_handle(uint8_t signal_value)
                 else
                 {
                   fs_display_cnt1 -= 60;
-                  //lcd_background_color_set_section(0,70,COLOR_BACKGROUND);
 #ifdef USE_FS
                   menu_fs_display();
 #endif
@@ -313,16 +326,14 @@ static void signal_handle(uint8_t signal_value)
             }
             if(0 == Adp5360_pgood_pin_status_get())
             {
-                //dis_dynamic_refresh(1000);
                 fs_display_cnt1++;
             }
             else
             {
-                //dis_refresh_reset((60 - dis_time->tm_sec)*1000);
                 dis_refresh_reset(1000);
                 fs_display_cnt1 += (60 - dis_time->tm_sec);
             }
-#endif
+
             menu_time_display(dis_time);
 
             static BATTERY_STATUS_t battery_stat;

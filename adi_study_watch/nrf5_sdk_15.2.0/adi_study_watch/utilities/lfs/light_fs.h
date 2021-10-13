@@ -269,5 +269,5 @@ elfs_result lfs_write_last_page_at_mem_full(_file_handler *file_handler);
 elfs_result lfs_read_file(uint8_t * outBuffer,
                           uint32_t offset,
                           uint32_t *size,
-                          _file_handler *file_handler);
+                          _file_handler *file_handler,uint32_t *page_number);
 #endif

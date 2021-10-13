@@ -46,7 +46,7 @@ NRF_LOG_MODULE_REGISTER();
 
 /**< Flag variable to check if gen_blk DCB entry is present or not. This is
  * updated for every DCB Write/Read and on bootup */
-static volatile bool g_dcb_Present = false;
+static volatile bool g_gen_blk_dcb_present = false;
 
 /**
  * @brief  Reads gen blk DCB and copy the contents to the
@@ -138,9 +138,9 @@ GEN_BLK_DCB_STATUS_t delete_gen_blk_dcb(void) {
  * @retval   None
  */
 void gen_blk_set_dcb_present_flag(bool set_flag) {
-  g_dcb_Present = set_flag;
+  g_gen_blk_dcb_present = set_flag;
   NRF_LOG_INFO("Setting..GEN BLK DCB present: %s",
-      (g_dcb_Present == true ? "TRUE" : "FALSE"));
+      (g_gen_blk_dcb_present == true ? "TRUE" : "FALSE"));
 }
 
 /**
@@ -151,8 +151,8 @@ void gen_blk_set_dcb_present_flag(bool set_flag) {
  */
 bool gen_blk_get_dcb_present_flag(void) {
   NRF_LOG_INFO("GENERAL BLK DCB present: %s",
-      (g_dcb_Present == true ? "TRUE" : "FALSE"));
-  return g_dcb_Present;
+      (g_gen_blk_dcb_present == true ? "TRUE" : "FALSE"));
+  return g_gen_blk_dcb_present;
 }
 
 /**
@@ -162,9 +162,9 @@ bool gen_blk_get_dcb_present_flag(void) {
  * @retval   None
  */
 void gen_blk_update_dcb_present_flag(void) {
-  g_dcb_Present = adi_dcb_check_fds_entry(ADI_DCB_GENERAL_BLOCK_IDX);
+  g_gen_blk_dcb_present = adi_dcb_check_fds_entry(ADI_DCB_GENERAL_BLOCK_IDX);
   NRF_LOG_INFO("Updated. GENERAL BLK DCB present: %s",
-      (g_dcb_Present == true ? "TRUE" : "FALSE"));
+      (g_gen_blk_dcb_present == true ? "TRUE" : "FALSE"));
 }
 #endif//LOW_TOUCH_FEATURE
 #endif

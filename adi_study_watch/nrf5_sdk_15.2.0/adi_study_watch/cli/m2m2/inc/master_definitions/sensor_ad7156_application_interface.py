@@ -23,7 +23,7 @@ class m2m2_sensor_ad7156_data_t(Structure):
               (None, common_application_interface._m2m2_app_common_cmd_t),
               ("sequence_num", c_uint16),
               ("timestamp", c_uint32),
-              ("touch_position", c_uint8),
-              ("touch_value", c_uint8),
+              ("ch1_cap", c_uint16),
+              ("ch2_cap", c_uint16),
               ]
 

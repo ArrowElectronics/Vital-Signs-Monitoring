@@ -17,6 +17,7 @@
 #ifdef LOW_TOUCH_FEATURE
 #include "low_touch_task.h"
 #endif
+#include "lcd_driver.h"
 
 #include "nrf_log.h"
 #if NRF_LOG_ENABLED
@@ -32,11 +33,23 @@
 #include <dcb_interface.h>
 #endif
 
+
+
 ADI_OSAL_STATIC_THREAD_ATTR touch_task_attributes;
 uint8_t touch_task_stack[APP_OS_CFG_TOUCH_TASK_STK_SIZE];
 StaticTask_t touch_task_tcb;
 ADI_OSAL_THREAD_HANDLE touch_task_handler;
 ADI_OSAL_QUEUE_HANDLE  touch_task_msg_queue = NULL;
+
+/* Create semaphores */
+ADI_OSAL_SEM_HANDLE touch_detect_task_evt_sem;
+
+/* structure varible for storing the ad7156 app states*/
+g_state_ad7156_t g_state_ad7156;
+
+/* Variables for storing trigger status */
+static bool gn_out1_gpio_triggered;
+static bool gn_out2_gpio_triggered;
 
 #define TOP_TOUCH_APP_ROUTING_TBL_SZ (sizeof(top_touch_app_routing_table) / sizeof(top_touch_app_routing_table[0]))
 
@@ -48,14 +61,22 @@ typedef struct _app_routing_table_entry_t {
 }app_routing_table_entry_t;
 
 static m2m2_hdr_t *ad7156_app_reg_access(m2m2_hdr_t *p_pkt);
+static m2m2_hdr_t *ad7156_app_stream_config(m2m2_hdr_t *p_pkt);
+static m2m2_hdr_t *ad7156_app_status(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *ad7156_app_load_cfg(m2m2_hdr_t *p_pkt);
 #ifdef DCB
 static m2m2_hdr_t *ad7156_dcb_command_read_config(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *ad7156_dcb_command_write_config(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *ad7156_dcb_command_delete_config(m2m2_hdr_t *p_pkt);
 #endif
+static void fetch_ad7156_data(void);
 
 app_routing_table_entry_t top_touch_app_routing_table[] = {
+  {M2M2_APP_COMMON_CMD_STREAM_START_REQ, ad7156_app_stream_config},
+  {M2M2_APP_COMMON_CMD_STREAM_STOP_REQ, ad7156_app_stream_config},
+  {M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ, ad7156_app_stream_config},
+  {M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_REQ, ad7156_app_stream_config},
+  {M2M2_APP_COMMON_CMD_SENSOR_STATUS_QUERY_REQ, ad7156_app_status},
   {M2M2_SENSOR_AD7156_COMMAND_LOAD_CFG_REQ, ad7156_app_load_cfg},
   {M2M2_SENSOR_COMMON_CMD_READ_REG_16_REQ, ad7156_app_reg_access},
   {M2M2_SENSOR_COMMON_CMD_WRITE_REG_16_REQ, ad7156_app_reg_access},
@@ -113,8 +134,31 @@ static void out_pin_detect(uint8_t value)
 {
     if(AD7156_TOUCH == value)
     {
-        adi_osal_ThreadResumeFromISR(touch_task_handler);
+        adi_osal_SemPost(touch_detect_task_evt_sem);
     }
+}
+
+/** @brief   Out Pin 1 detect
+ * @details  Handle used for AD7156 GPIO OUT1 triggers, based on the trigger value
+ * appropriate trigger status is set
+ * @param    value = 0 --> release 1 --> press
+ * @retval   None
+ */
+static void out_pin1_detect(uint8_t value)
+{
+        gn_out1_gpio_triggered = true;
+        adi_osal_SemPost(touch_detect_task_evt_sem);
+}
+/** @brief   Out Pin 2 detect
+ * @details  Handle used for AD7156 GPIO OUT2 triggers, based on the trigger value
+ * appropriate trigger status is set
+ * @param    value = 0 --> release 1 --> press
+ * @retval   None
+ */
+static void out_pin2_detect(uint8_t value)
+{
+        gn_out2_gpio_triggered = true;
+        adi_osal_SemPost(touch_detect_task_evt_sem);
 }
 
 /** @brief   Top Touch Initialization
@@ -166,19 +210,19 @@ void touch_detect_thread(void * arg)
     static uint8_t last_touch_down_value = 0;
     static uint16_t touch_down_cnt = 0;*/
     UNUSED_PARAMETER(arg);
-
+    
+    adi_osal_SemCreate(&touch_detect_task_evt_sem, 0);
 #ifdef ENABLE_TOP_TOUCH
     top_touch_init();
-#else
-    adi_osal_ThreadSuspend(NULL);
 #endif
+    post_office_add_mailbox(M2M2_ADDR_SENSOR_AD7156, M2M2_ADDR_SENSOR_AD7156_STREAM);
     while(true)
     {
         m2m2_hdr_t *p_in_pkt = NULL;
         m2m2_hdr_t *p_out_pkt = NULL;
+        adi_osal_SemPend(touch_detect_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
         p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_TOUCH_TASK_INDEX);
 
-        // We got an m2m2 message from the queue, process it.
         if(p_in_pkt != NULL)
         {
           // We got an m2m2 message from the queue, process it.
@@ -194,11 +238,14 @@ void touch_detect_thread(void * arg)
           if (p_out_pkt != NULL) {
             post_office_send(p_out_pkt, &err);
           }
-          adi_osal_ThreadSuspend(NULL);
         }
-#ifdef ENABLE_TOP_TOUCH
         else
         {
+#ifndef ENABLE_TOP_TOUCH
+            /* No m2m2 messages to process, so fetch some data from the device. */
+            fetch_ad7156_data();
+#endif
+#ifdef ENABLE_TOP_TOUCH
             /*up touch detect handle start*/
             touch_up_value = ad7156_out1_pin_status_get();//up touch
             if(last_touch_up_value == touch_up_value)
@@ -265,13 +312,69 @@ void touch_detect_thread(void * arg)
                 adi_osal_ThreadSuspend(NULL);
             }
             adi_osal_ThreadSleep(10);
-        }//else of if(p_in_pkt != NULL)
 #endif//ENABLE_TOP_TOUCH
+        }//else of if(p_in_pkt != NULL)
+    }
+}
+
+
+/**
+ * @brief  Fetches the ad7156 data from device and does the data packetization
+ *
+ * @param[in]  None
+ *
+ * @return     None
+ */
+static void fetch_ad7156_data(void) {
+
+  ADI_OSAL_STATUS err;
+  g_state_ad7156.ad7156_pktizer.p_pkt = NULL;
+  static m2m2_sensor_ad7156_data_t ad7156pkt;
+
+  if(g_state_ad7156.num_subs != 0)
+    {
+      ad7156pkt.timestamp = get_sensor_time_stamp();
+      if (gn_out1_gpio_triggered){
+        ad7156pkt.ch1_cap = AD7156_ReadChannelCap(1);
+        gn_out1_gpio_triggered = false;
+      } else {
+        ad7156pkt.ch1_cap = 0;
+      }
+      if (gn_out2_gpio_triggered){
+          ad7156pkt.ch2_cap = AD7156_ReadChannelCap(2);
+          gn_out2_gpio_triggered = false;
+      } else {
+        ad7156pkt.ch2_cap = 0;
+      }
+      adi_osal_EnterCriticalRegion();
+      g_state_ad7156.ad7156_pktizer.p_pkt = post_office_create_msg(
+              sizeof(m2m2_sensor_ad7156_data_t) + M2M2_HEADER_SZ);
+
+      if (g_state_ad7156.ad7156_pktizer.p_pkt != NULL) {
+        PYLD_CST(g_state_ad7156.ad7156_pktizer.p_pkt,
+                m2m2_sensor_ad7156_data_t, p_payload_ptr);
+        g_state_ad7156.ad7156_pktizer.p_pkt->src = M2M2_ADDR_SENSOR_AD7156;
+        g_state_ad7156.ad7156_pktizer.p_pkt->dest = M2M2_ADDR_SENSOR_AD7156_STREAM;
+        memcpy(&p_payload_ptr->command, &ad7156pkt, sizeof(m2m2_sensor_ad7156_data_t));
+        p_payload_ptr->command = M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
+        p_payload_ptr->status = 0x00;
+        p_payload_ptr->sequence_num = g_state_ad7156.data_pkt_seq_num++;
+        post_office_send(g_state_ad7156.ad7156_pktizer.p_pkt, &err);
+        adi_osal_ExitCriticalRegion();
+        g_state_ad7156.ad7156_pktizer.p_pkt = NULL;
+      } else {
+        adi_osal_ExitCriticalRegion();
+      }
+
     }
 }
 
 void touch_detect_init(void) {
   ADI_OSAL_STATUS eOsStatus;
+
+  /* Initialize app state */
+  g_state_ad7156.num_subs = 0;
+  g_state_ad7156.num_starts = 0;
 
   AD7156_Init();
   /* Create touch thread */
@@ -305,7 +408,7 @@ void send_message_top_touch_task(m2m2_hdr_t *p_pkt) {
   osal_result = adi_osal_MsgQueuePost(touch_task_msg_queue,p_pkt);
   if (osal_result != ADI_OSAL_SUCCESS)
     post_office_consume_msg(p_pkt);
-  vTaskResume((TaskHandle_t)touch_task_handler);
+  adi_osal_SemPost(touch_detect_task_evt_sem);
 }
 
 m2m2_hdr_t *ad7156_app_reg_access(m2m2_hdr_t *p_pkt) {
@@ -368,6 +471,146 @@ static m2m2_hdr_t *ad7156_app_load_cfg(m2m2_hdr_t *p_pkt) {
   p_resp_payload->command = M2M2_SENSOR_AD7156_COMMAND_LOAD_CFG_RESP;
   p_resp_pkt->src = p_pkt->dest;
   p_resp_pkt->dest = p_pkt->src;
+  return p_resp_pkt;
+}
+
+/**
+ * @brief  returns the AD7156 stream status
+ *
+ * @param[in]  p_pkt: Pointer to the input m2m2 packet structure
+ *
+ * @return     p_resp_pkt: Pointer to the output response m2m2 packet structure
+ */
+static m2m2_hdr_t *ad7156_app_status(m2m2_hdr_t *p_pkt) {
+  /* Declare and malloc a response packet */
+  PKT_MALLOC(p_resp_pkt, m2m2_app_common_status_t, 0);
+  if (NULL != p_resp_pkt) {
+    /* Declare a pointer to the response packet payload */
+    PYLD_CST(p_resp_pkt, m2m2_app_common_status_t, p_resp_payload);
+
+    p_resp_payload->command = M2M2_APP_COMMON_CMD_SENSOR_STATUS_QUERY_RESP;
+    p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
+
+    if (g_state_ad7156.num_starts == 0) {
+      p_resp_payload->status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
+    } else {
+      p_resp_payload->status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
+    }
+    p_resp_payload->stream = M2M2_ADDR_SENSOR_AD7156_STREAM;
+    p_resp_payload->num_subscribers = g_state_ad7156.num_subs;
+    p_resp_payload->num_start_reqs = g_state_ad7156.num_starts;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_pkt->dest = p_pkt->src;
+  }
+  return p_resp_pkt;
+}
+
+/**
+ * @brief  Handles start/stop/sub/unsub of ad7156 data streams commands
+ *
+ * @param[in]  p_pkt: Pointer to the input m2m2 packet structure with command
+ *                    for stream start/stop/sub/unsub operations
+ *
+ * @return     p_resp_pkt: Pointer to the output response m2m2 packet structure
+ */
+static m2m2_hdr_t *ad7156_app_stream_config(m2m2_hdr_t *p_pkt) {
+  M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
+  M2M2_APP_COMMON_CMD_ENUM_t command;
+
+  /* Declare a pointer to access the input packet payload */
+  PYLD_CST(p_pkt, m2m2_app_common_sub_op_t, p_in_payload);
+  /* Declare and malloc a response packet */
+  PKT_MALLOC(p_resp_pkt, m2m2_app_common_sub_op_t, 0);
+  if (NULL != p_resp_pkt) {
+    /* Declare a pointer to the response packet payload */
+    PYLD_CST(p_resp_pkt, m2m2_app_common_sub_op_t, p_resp_payload);
+
+    switch (p_in_payload->command) {
+    case M2M2_APP_COMMON_CMD_STREAM_START_REQ:
+      if (g_state_ad7156.num_starts == 0) {
+        if (!load_ad7156_cfg()) {
+          Debug_Handler(); /* exception handler */
+        }
+        g_state_ad7156.num_starts = 1;
+#ifdef ENABLE_WATCH_DISPLAY
+        /* Lower the Display refresh rate, so that top touch is stable */
+        lcd_extcomin_status_set(DISPLAY_REVERSE_LOW);
+#endif
+         /* Disable low touch application during AD7156 stream */
+#ifdef LOW_TOUCH_FEATURE
+        EnableLowTouchDetection(false);
+#endif
+        Register_out1_pin_detect_func(out_pin1_detect);
+        Register_out2_pin_detect_func(out_pin2_detect);
+        top_touch_func_set(1);
+        bottom_touch_func_set(1);
+        status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
+      } else {
+        g_state_ad7156.num_starts++;
+        status = M2M2_APP_COMMON_STATUS_STREAM_IN_PROGRESS;
+      }
+      command = M2M2_APP_COMMON_CMD_STREAM_START_RESP;
+      break;
+    case M2M2_APP_COMMON_CMD_STREAM_STOP_REQ:
+       if (0 == g_state_ad7156.num_starts) {
+        status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
+      } else if (1 == g_state_ad7156.num_starts){
+          g_state_ad7156.num_starts = 0;
+          Unregister_out1_pin_detect_func(out_pin1_detect);
+          Unregister_out2_pin_detect_func(out_pin2_detect);
+          top_touch_func_set(0);
+          bottom_touch_func_set(0);
+#ifdef ENABLE_WATCH_DISPLAY
+          /* Revert the Display refresh rate change done for AD7156 stream start */
+          lcd_extcomin_status_set(DISPLAY_REVERSE_HIGH);
+#endif
+          /* Re-enable low touch application when AD7156 stream is stopped*/
+#ifdef LOW_TOUCH_FEATURE
+        EnableLowTouchDetection(true);
+#endif
+          status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
+      } else {
+        g_state_ad7156.num_starts--;
+        status = M2M2_APP_COMMON_STATUS_STREAM_COUNT_DECREMENT;
+      }
+      command = M2M2_APP_COMMON_CMD_STREAM_STOP_RESP;
+      break;
+    case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
+      g_state_ad7156.num_subs++;
+      if(g_state_ad7156.num_subs == 1)
+      {
+         /* reset pkt sequence no. only during 1st sub request */
+         g_state_ad7156.data_pkt_seq_num = 0;
+      }
+      post_office_setup_subscriber(M2M2_ADDR_SENSOR_AD7156,
+          M2M2_ADDR_SENSOR_AD7156_STREAM, p_pkt->src, true);
+      status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
+      command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;
+      break;
+    case M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_REQ:
+      if (g_state_ad7156.num_subs <= 1) {
+        g_state_ad7156.num_subs = 0;
+        status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
+      } else {
+        g_state_ad7156.num_subs--;
+        status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
+      }
+      post_office_setup_subscriber(M2M2_ADDR_SENSOR_AD7156,
+          M2M2_ADDR_SENSOR_AD7156_STREAM, p_pkt->src, false);
+      command = M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP;
+      break;
+    default:
+      /* Something has gone horribly wrong. */
+      post_office_consume_msg(p_resp_pkt);
+      return NULL;
+      break;
+    }
+    p_resp_payload->command = command;
+    p_resp_payload->status = status;
+    p_resp_payload->stream = p_in_payload->stream;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_pkt->dest = p_pkt->src;
+  }
   return p_resp_pkt;
 }
 

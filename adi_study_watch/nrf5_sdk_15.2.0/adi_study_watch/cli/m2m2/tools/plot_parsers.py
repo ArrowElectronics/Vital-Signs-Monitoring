@@ -3149,10 +3149,9 @@ class temperature_plot(plot):
             # fstream.close()
         return
 
-class bcm_plot(plot):
-    selection_name = "rbcm"
-    name = "BCM Data Plot"
-    fname = "BcmAppStream.csv"
+    selection_name = "rbia"
+    name = "BIA Data Plot"
+    fname = "BiaAppStream.csv"
     fstream = None
     enable_csv_logs = 0
     admitance_real_key = "Real Admitance"
@@ -3173,7 +3172,7 @@ class bcm_plot(plot):
     impedance_phase_key = "Impedance Phase"
     impedance_phase_series_name = "Impedance phase Data"
 
-    stream_addr = M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM_STREAM
+    stream_addr = M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA_STREAM
     
     def __del__(self):
         if self.fstream:
@@ -3315,21 +3314,23 @@ class bcm_plot(plot):
 
         for data in data_list:
             # Peek at the header to find out what kind of data we have
-            pkt = m2m2_packet(0, bcm_app_stream_t())
+            pkt = m2m2_packet(0, bia_app_stream_t())
             pkt.unpack(data)
             self.check_seq_num(pkt.payload.sequence_num)
-            for my_bcm_data in pkt.payload.bcm_data:
-                #bcm data calculation
-                if my_bcm_data.real == 0:
-                    my_bcm_data.real = 1
-                if my_bcm_data.img == 0:
-                    my_bcm_data.img = 1
+            for my_bia_data in pkt.payload.bia_data:
+                #bia data calculation
+                if my_bia_data.real == 0:
+                    my_bia_data.real = 1
+                if my_bia_data.img == 0:
+                    my_bia_data.img = 1
 
-                impedance_real = my_bcm_data.real
-                impedance_img = my_bcm_data.img
-
-               # print impedance_real
-                # print impedance_img
+                impedance_real = float(my_bia_data.real)
+                impedance_img = float(my_bia_data.img)
+                #Divide data by 1000 to get the float precision*/
+                impedance_real = impedance_real/1000.0
+                impedance_img  = impedance_img/1000.0
+                #print "Real " + str(impedance_real)
+                #print "IMg  " + str(impedance_img)
 
                 admitance_real = float(impedance_real / float(impedance_real*impedance_real + impedance_img*impedance_img))
                 admitance_img =  -float(impedance_img / float(impedance_real*impedance_real + impedance_img*impedance_img))
@@ -3356,7 +3357,7 @@ class bcm_plot(plot):
 
                 if self.enable_csv_logs:
                     # fstream = open(self.fname, "a")
-                    self.fstream.write ('{},{},{},{}\n'.format(my_bcm_data.timestamp, pkt.payload.sequence_num,impedance_magnitude,impedance_phase))
+                    self.fstream.write ('{},{},{},{}, {}, {}\n'.format(my_bia_data.timestamp, pkt.payload.sequence_num,impedance_magnitude,impedance_phase, impedance_real, impedance_img))
                     # fstream.close()
 
             if len(new_data_admitance_real) == 0:
@@ -3400,10 +3401,118 @@ class bcm_plot(plot):
         if self.enable_csv_logs:
             print "creating."
             self.fstream = open(self.fname, "w+")
-            self.fstream.write ('Time_Stamp, Sequence number, Magnitude, Phase\n')
+            self.fstream.write ('Time_Stamp, Sequence number, Magnitude, Phase, Real Impedance, Imaginary Impedance\n')
             # fstream.close()
         return
-        
+
+class bcm_algo_plot(plot):
+    selection_name = "rbcm"
+    name = "BCM Algo Data Plot"
+    fname = "BCMAlgoStream.csv"    
+    ffm_estimated_key = "ffm_estimated"
+    bmi_key = "bmi"
+    fat_percent_key = "fat_percent"
+    ffm_estimated_series_name = "FFM Estimated"
+    bmi_series_name = "bmi"
+    fat_percent = "fat_percent"
+    stream_addr_series_name = M2M2_ADDR_ENUM_t.M2M2_ADDR_BCM_ALGO_STREAM
+    enable_csv_logs = 0
+    fstream = None
+
+    def __del__(self):
+        if self.fstream:
+            self.fstream.close()
+
+    def setup(self):
+        self.add_subplot(subplot_name=self.ffm_estimated_key,
+                         row=1,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="ffm_estimated",
+                         yunit="unit",
+                         data_series={self.ffm_estimated_key:
+                                          {"format":
+                                               {"name": self.ffm_estimated_series_name,
+                                                "colour": "r"},
+                                           "data": np.zeros(250),
+                                           },
+                                      })
+        self.add_subplot(subplot_name=self.bmi_key,
+                         row=2,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="bmi",
+                         yunit="unit",
+                         data_series={self.bmi_key:
+                                          {"format":
+                                               {"name": self.bmi_series_name,
+                                                "colour": "r"},
+                                           "data": np.zeros(250),
+                                           },
+                                      })
+        self.add_subplot(subplot_name=self.fat_percent_key,
+                         row=3,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="fat_percent",
+                         yunit="%",
+                         data_series={self.fat_percent_key:
+                                          {"format":
+                                               {"name": self.fat_percent,
+                                                "colour": "r"},
+                                           "data": np.zeros(250),
+                                           },
+                                      })
+
+    def update(self, data_list):
+        # Function that's called to update the plot. Should return a dictionary with each subplot's data
+        new_data_ffm_estimated = []
+        new_data_bmi = []
+        new_data_fat_percent = []
+
+        for data in data_list:
+            # Peek at the header to find out what kind of data we have
+            pkt = m2m2_packet(0, bcm_app_algo_out_stream_t())
+            pkt.unpack(data)
+            self.check_seq_num(pkt.payload.sequence_num, 'rbcm')
+            new_data_ffm_estimated.append(pkt.payload.ffm_estimated)
+            new_data_bmi.append(pkt.payload.bmi)
+            new_data_fat_percent.append(pkt.payload.fat_percent)
+            # print "Plot Data.: {} {} {}".format(pkt.payload.first_xdata, pkt.payload.first_ydata, pkt.payload.first_zdata)
+            #ts = pkt.payload.timestamp
+            if self.enable_csv_logs:
+                # fstream = open(self.fname, "a")
+                self.fstream.write('{}, {},{},{}\n'.format(pkt.payload.sequence_num, pkt.payload.ffm_estimated, pkt.payload.bmi, pkt.payload.fat_percent))
+                # fstream.close()
+            if len(new_data_ffm_estimated) == 0 and len(new_data_bmi) == 0 and len(new_data_fat_percent) == 0:
+                return None
+
+        return {self.ffm_estimated_key: [{
+                    "series_name":self.ffm_estimated_key,
+                    "series_data":new_data_ffm_estimated},
+                    ],
+                self.bmi_key: [{
+                    "series_name":self.bmi_key,
+                    "series_data":new_data_bmi},
+                    ],
+                self.fat_percent_key: [{
+                    "series_name":self.fat_percent_key,
+                    "series_data":new_data_fat_percent},
+                    ]
+                }
+
+    def save_csv_option(self, option):
+        self.enable_csv_logs = option
+        if self.enable_csv_logs:
+            print "creating."
+            self.fstream = open(self.fname, "w+")
+            self.fstream.write('sequence_num, ffm_estimated, bmi, fat_percent\n')
+            # fstream.close()
+        return
+
 class ped_plot(plot):
     selection_name = "rped"
     name = "PED Data Plot"
@@ -3660,7 +3769,96 @@ class hrv_plot(plot):
             self.fstream.write ('Time_Stamp, RRInterval, HRVValid, RMSSD\n')
             # fstream.close()
         return
-		
+
+
+class ad7156_plot(plot):
+    selection_name = "rad7156"
+    name = "AD7156 Data"
+    ad7156_name1 = "AD7156 CH1"
+    ad7156_name2 = "AD7156 CH2"
+    ch1_cap_key = "CH1"
+    ch2_cap_key = "CH2"
+    ch1_cap_series_name = "CH1 Capacitance"
+    ch2_cap_series_name = "CH2 Capacitance"
+    stream_addr = M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156_STREAM
+    enable_csv_logs = 0
+    fname = "ad7156Stream.csv"
+    fstream = None
+    update_pkt_loss('rad7156', False)
+
+    def __del__(self):
+        if self.fstream:
+            self.fstream.close()
+
+    def setup(self):
+        self.add_subplot(subplot_name=self.ad7156_name1,
+                         row=1,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Capacitance",
+                         yunit="pF",
+                         data_series={self.ch1_cap_key:
+                                          {"format":
+                                               {"name": self.ch1_cap_series_name,
+                                                "colour": "r"},
+                                           "data": np.zeros(250),
+                                           }
+                                      })
+        self.add_subplot(subplot_name=self.ad7156_name2,
+                         row=2,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Capacitance",
+                         yunit="pF",
+                         data_series={self.ch2_cap_key:
+                                          {"format":
+                                               {"name": self.ch2_cap_series_name,
+                                                "colour": "g"},
+                                           "data": np.zeros(250),
+                                           }
+                                      })                             
+
+    def update(self, data_list):
+        # Function that's called to update the plot. Should return a dictionary with each subplot's data
+        new_data_ch1_cap = []
+        new_data_ch2_cap = []
+
+        for data in data_list:
+            # Peek at the header to find out what kind of data we have
+            pkt = m2m2_packet(0, m2m2_sensor_ad7156_data_t())
+            pkt.unpack(data)
+            self.check_seq_num(pkt.payload.sequence_num, 'rad7156')
+            new_data_ch1_cap.append(pkt.payload.ch1_cap)
+            new_data_ch2_cap.append(pkt.payload.ch2_cap)
+            # print "Plot Data.: {} {} {}".format(pkt.payload.first_xdata, pkt.payload.first_ydata, pkt.payload.first_zdata)
+            ts = pkt.payload.timestamp
+            if self.enable_csv_logs:
+                # fstream = open(self.fname, "a")
+                self.fstream.write('{},{},{},{}\n'.format(ts, pkt.payload.sequence_num, pkt.payload.ch1_cap, pkt.payload.ch2_cap))
+                # fstream.close()
+            if len(new_data_ch1_cap) == 0 and len(new_data_ch2_cap) == 0:
+                return None
+
+        return {self.ad7156_name1: [{
+            "series_name": self.ch1_cap_key,
+            "series_data": new_data_ch1_cap}],
+            self.ad7156_name2: [{
+             "series_name": self.ch2_cap_key,
+             "series_data": new_data_ch2_cap}]
+        }
+
+    def save_csv_option(self, option):
+        self.enable_csv_logs = option
+        if self.enable_csv_logs:
+            print "creating."
+            self.fstream = open(self.fname, "w+")
+            self.fstream.write('TimeStamp, SeqNo, ad7156_ch1_cap, ad7156_ch2_cap\n')
+            # fstream.close()
+        return
+
+
 def FIXED16Q4_TO_FLOAT(x):
     result_in_float = ((float(x))/float(16))
     return result_in_float

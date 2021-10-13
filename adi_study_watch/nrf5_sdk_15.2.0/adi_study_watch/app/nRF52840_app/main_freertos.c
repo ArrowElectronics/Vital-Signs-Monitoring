@@ -69,7 +69,7 @@
 #endif
 #include "key_detect.h"
 #include <eda_application_task.h>
-#include <bcm_application_task.h>
+#include <bia_application_task.h>
 #include "low_touch_task.h"
 #include <pedometer_task.h>
 #include <sqi_task.h>
@@ -233,8 +233,8 @@ int main(void)
 #ifdef ENABLE_EDA_APP
     ad5940_eda_task_init();
 #endif
-#ifdef ENABLE_BCM_APP
-    ad5940_bcm_task_init();
+#ifdef ENABLE_BIA_APP
+    ad5940_bia_task_init();
 #endif
 #ifdef ENABLE_TEMPERATURE_APP
     temperature_app_task_init();

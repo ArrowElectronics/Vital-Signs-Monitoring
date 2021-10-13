@@ -102,10 +102,12 @@ Output/watchv4_nrf52840\ Debug/Obj/ad5940_buffering.o: \
  ..\..\..\drivers\ad5940/ad5940.h ..\..\..\drivers\ad5940/sensor_ad5940.h \
  ..\..\..\modules\ad5940_eda/app_eda.h \
  ..\..\..\modules\ad5940_ecg/adi_ecg.h \
- ..\..\..\modules\ad5940_bcm/bcm_application_task.h \
- ..\..\..\cli\m2m2\inc\c/bcm_application_interface.h \
- ..\..\..\modules\ad5940_bcm/app_bcm.h \
+ ..\..\..\modules\ad5940_bia/bia_application_task.h \
+ ..\..\..\cli\m2m2\inc\c/bia_application_interface.h \
+ ..\..\..\modules\ad5940_bia/app_bia.h \
  ..\..\..\modules\adpd4000_ppg/sensor_internal.h \
+ ..\..\..\modules\ad5940_bia/adi_bcm_algo.h \
+ ..\..\..\algo\bcm/adi_vsm_bcm.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  ..\..\..\..\components\libraries\util/sdk_os.h \

@@ -151,10 +151,12 @@ Output/watchv4_nrf52840\ Debug/Obj/main_freertos.o: \
  ..\..\..\modules\ad5940_eda/eda_application_task.h \
  ..\..\..\cli\m2m2\inc\c/eda_application_interface.h \
  ..\..\..\modules\ad5940_eda/app_eda.h \
- ..\..\..\modules\ad5940_bcm/bcm_application_task.h \
- ..\..\..\cli\m2m2\inc\c/bcm_application_interface.h \
- ..\..\..\modules\ad5940_bcm/app_bcm.h \
+ ..\..\..\modules\ad5940_bia/bia_application_task.h \
+ ..\..\..\cli\m2m2\inc\c/bia_application_interface.h \
+ ..\..\..\modules\ad5940_bia/app_bia.h \
  ..\..\..\modules\adpd4000_ppg/sensor_internal.h \
+ ..\..\..\modules\ad5940_bia/adi_bcm_algo.h \
+ ..\..\..\algo\bcm/adi_vsm_bcm.h \
  ..\..\..\modules\ad7156_lt/low_touch_task.h \
  ..\..\..\modules\adxl362_pedo/pedometer_task.h \
  ..\..\..\cli\m2m2\inc\c/pedometer_application_interface.h \

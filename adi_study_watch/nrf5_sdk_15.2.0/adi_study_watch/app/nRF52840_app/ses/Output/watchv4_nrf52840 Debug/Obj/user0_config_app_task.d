@@ -7,9 +7,7 @@ Output/watchv4_nrf52840\ Debug/Obj/user0_config_app_task.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
  ..\..\..\cli\m2m2\inc\c/user0_config_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/common_application_interface.h \
- ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
- ..\..\..\modules\ad7156_lt/low_touch_task.h \
- ..\..\..\modules\system/system_task.h ..\..\..\modules\system/ble_task.h \
+ ..\..\..\cli\m2m2\inc\c/dcb_interface.h ..\display/display_app.h \
  ..\..\..\modules\system/post_office.h ..\..\..\modules\system/includes.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdarg.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
@@ -96,6 +94,8 @@ Output/watchv4_nrf52840\ Debug/Obj/user0_config_app_task.o: \
  ..\..\..\utilities\memory_management/memory_management.h \
  ..\..\..\cli\m2m2\inc\c/led_interface.h \
  ..\..\..\cli\m2m2\inc\c/post_office_interface.h \
+ ..\..\..\modules\ad7156_lt/low_touch_task.h \
+ ..\..\..\modules\system/system_task.h ..\..\..\modules\system/ble_task.h \
  ..\..\..\..\components\libraries\timer/app_timer.h \
  ..\..\..\..\components\libraries\util/app_error.h \
  ..\..\..\utilities\power_manager/power_manager.h \
@@ -104,6 +104,7 @@ Output/watchv4_nrf52840\ Debug/Obj/user0_config_app_task.o: \
  ..\..\..\modules\system/fds_drv.h \
  D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\dcb_user0_block.h \
  ..\..\..\modules\ad7156_lt/dcb_general_block.h \
+ ..\..\..\drivers\display/lcd_driver.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  ..\..\..\..\components\libraries\util/sdk_os.h \

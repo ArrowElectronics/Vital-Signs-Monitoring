@@ -79,7 +79,7 @@
 
 #define  APP_OS_CFG_SENSOR_ADPD4000_TASK_PRIO          6
 #define  APP_OS_CFG_SENSOR_ADXL_TASK_PRIO              6
-#define  APP_OS_CFG_BCM_TASK_PRIO                      6
+#define  APP_OS_CFG_BIA_TASK_PRIO                      6
 #define  APP_OS_CFG_ECG_TASK_PRIO                      7
 #define  APP_OS_CFG_EDA_TASK_PRIO                      6
 #define  APP_OS_CFG_PEDOMETER_APP_TASK_PRIO            6
@@ -103,7 +103,7 @@
 //#define  APP_OS_CFG_AD7156_TASK_STK_SIZE          512
 #define  APP_OS_BATTERY_TEMP_DETECT_TASK_STK_SIZE           1024
 
-#define  APP_OS_CFG_KEY_TASK_STK_SIZE             512
+#define  APP_OS_CFG_KEY_TASK_STK_SIZE             1024
 #define  APP_OS_CFG_PM_TASK_STK_SIZE              (1024+256)
 #define  APP_OS_CFG_FS_TASK_STK_SIZE              (1024+512)
 #define  APP_OS_CFG_WDT_TASK_STK_SIZE             512
@@ -115,7 +115,7 @@
 
 #define  APP_OS_CFG_SENSOR_ADPD4000_TASK_STK_SIZE      (1024 + 512)
 #define  APP_OS_CFG_SENSOR_ADXL_TASK_STK_SIZE           1024
-#define  APP_OS_CFG_BCM_TASK_STK_SIZE                   2048
+#define  APP_OS_CFG_BIA_TASK_STK_SIZE                   2048
 #ifdef ECG_HR_ALGO
 #define  APP_OS_CFG_ECG_TASK_STK_SIZE                   (1024+2000)
 #else

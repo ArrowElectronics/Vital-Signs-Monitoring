@@ -20,6 +20,10 @@ class M2M2_EDA_APP_CMD_ENUM_t(c_uint8):
     M2M2_EDA_APP_CMD_REQ_DEBUG_INFO_RESP = 0x49
     M2M2_EDA_APP_CMD_RTIA_CAL_REQ = 0x4A
     M2M2_EDA_APP_CMD_RTIA_CAL_RESP = 0x4B
+    M2M2_EDA_APP_CMD_BASELINE_IMP_SET_REQ = 0x4C
+    M2M2_EDA_APP_CMD_BASELINE_IMP_SET_RESP = 0x4D
+    M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_REQ = 0x4E
+    M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_RESP = 0x4F
 
 class M2M2_SENSOR_EDA_NSAMPLES_ENUM_t(c_uint8):
     M2M2_SENSOR_EDA_NSAMPLES = 0x6
@@ -79,6 +83,16 @@ class eda_app_set_dft_num_t(Structure):
     fields = [
               (None, common_application_interface._m2m2_app_common_cmd_t),
               ("dftnum", c_uint8),
+              ]
+
+class eda_app_set_baseline_imp_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_common_cmd_t),
+              ("imp_real_dft16", c_float),
+              ("imp_img_dft16", c_float),
+              ("imp_real_dft8", c_float),
+              ("imp_img_dft8", c_float),
+              ("resistor_baseline", c_uint32),
               ]
 
 class eda_app_dcb_lcfg_t(Structure):

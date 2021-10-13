@@ -22,7 +22,7 @@
 #define MAXAD7156DCBSIZE	20
 #define MAXADPD4000DCBSIZE	57
 #define MAXADXLDCBSIZE	25
-#define MAXBCMDCBSIZE	5
+#define MAXBIADCBSIZE	18
 #define MAXECGDCBSIZE	4
 #define MAXEDADCBSIZE	2
 #define MAXGENBLKDCBSIZE	57
@@ -70,8 +70,8 @@ enum M2M2_DCB_CONFIG_BLOCK_INDEX_t:uint8_t {
   ADI_DCB_USER1_BLOCK_IDX = 13,
   ADI_DCB_USER2_BLOCK_IDX = 14,
   ADI_DCB_USER3_BLOCK_IDX = 15,
-  ADI_DCB_BCM_BLOCK_IDX = 16,
-  ADI_DCB_MAX_BLOCK_IDX = 20,
+  ADI_DCB_BIA_BLOCK_IDX = 16,
+  ADI_DCB_MAX_BLOCK_IDX = 17,
 };
 static_assert(sizeof(M2M2_DCB_CONFIG_BLOCK_INDEX_t) == 1, "Enum 'M2M2_DCB_CONFIG_BLOCK_INDEX_t' has an incorrect size!");
 
@@ -116,11 +116,11 @@ struct m2m2_dcb_eda_data_t {
   uint32_t  dcbdata[2]; 
 };
 
-struct m2m2_dcb_bcm_data_t {
+struct m2m2_dcb_bia_data_t {
   uint8_t  command; 
   uint8_t  status; 
   uint16_t  size; 
-  uint32_t  dcbdata[5]; 
+  uint32_t  dcbdata[18]; 
 };
 
 struct m2m2_dcb_gen_blk_data_t {
@@ -165,7 +165,7 @@ struct m2m2_dcb_user0_blk_data_t {
 struct m2m2_dcb_block_status_t {
   uint8_t  command; 
   uint8_t  status; 
-  uint8_t  dcb_blk_array[20]; 
+  uint8_t  dcb_blk_array[17]; 
 };
 
 // Reset struct packing outside of this file

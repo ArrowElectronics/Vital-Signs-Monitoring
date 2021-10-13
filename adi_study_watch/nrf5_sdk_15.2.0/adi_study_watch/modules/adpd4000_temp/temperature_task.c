@@ -44,11 +44,12 @@
 * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 * POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
+#include <adpd4000_task.h>
+volatile uint8_t gb_adpd_raw_start_temp = 1; /* Flag to handle whether ADPD sensor was 'start'ed to get raw data(CLI_USB/CLI_BLE) or if it was started by internal applications like Temp */
 #ifdef ENABLE_TEMPERATURE_APP
 /* -------------------------------- Includes -------------------------------- */
 #ifdef EVTBOARD
 #include <temperature_task.h>
-#include <adpd4000_task.h>
 #include "adpd400x_reg.h"
 
 #include "nrf_log.h"
@@ -93,7 +94,6 @@ uint32_t aTemp_LUT[LUT_STEP_CNT] = {  355600, 271800, 209400, 162500, 127000,
                                       5410
                                    };
 extern g_state_t g_state;
-volatile uint8_t gb_adpd_raw_start_temp = 1; /* Flag to handle whether ADPD sensor was 'start'ed to get raw data(CLI_USB/CLI_BLE) or if it was started by internal applications like Temp */
 extern slot_led_reg_t led_reg;
 extern uint8_t gsOneTimeValueWhenReadAdpdData;
 extern uint32_t gsTempSampleCount;
@@ -338,8 +338,13 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       {
         temp_app_timings.delayed_start = true;
       }
+#ifdef LOW_TOUCH_FEATURE
       //Temp app not in continuous mode & its interval operation mode
       if(!is_temp_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+#else
+      //Temp app not in continuous mode
+      if(!is_temp_app_mode_continuous())
+#endif
       {
         start_temp_app_timer();
       }
@@ -382,8 +387,13 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
         temp_app_timings.delayed_start = true;
       }
 
+#ifdef LOW_TOUCH_FEATURE
       //Temp app not in continuous mode & its interval operation mode
       if(!is_temp_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+#else
+      //Temp app not in continuous mode
+      if(!is_temp_app_mode_continuous())
+#endif
       {
         start_temp_app_timer();
       }

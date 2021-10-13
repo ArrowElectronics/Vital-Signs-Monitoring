@@ -36,6 +36,7 @@
 #ifdef USER0_CONFIG_APP
 /*---------------------------- Includes --------------------------------------*/
 #include "user0_config_app_task.h"
+#include "display_app.h"
 #include "low_touch_task.h"
 #include "system_task.h"
 #include "ble_task.h"
@@ -48,6 +49,7 @@
 #include "adi_dcb_config.h"
 #include "dcb_user0_block.h"
 #include "dcb_general_block.h"
+#include "lcd_driver.h"
 #include <dcb_interface.h>
 #endif
 /* Low touch App Module Log settings */
@@ -88,6 +90,7 @@ volatile uint8_t gUser0ConfigAppTimerUp = 0;
 static uint8_t gnUser0ConfigInitFlag = 0;
 
 #ifdef CUST4_SM
+#include "usbd_task.h"
 //Changes to make sure that the variable is not cleared to zero after Watch reset
 volatile USER0_CONFIG_APP_STATE_t gnUser0ConfigAppState __attribute__((section(".non_init")));
 
@@ -172,8 +175,10 @@ void user0_config_app_lcfg_set_fw_default();
 /* Variable which holds the status of NAND config file */
 extern volatile uint8_t gsCfgFileFoundFlag;
 extern ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
-extern bool usbd_get_cradle_disconnection_status();
 
+#ifdef CUST4_SM
+extern void reset_display_vol_info1();
+#endif
 /*!
  ****************************************************************************
  * @brief    To do init of user0 config app based on DCB/default fw lcfg
@@ -205,7 +210,11 @@ static void init_user0_config_app_lcfg() {
       user_applied_adv_timeout_monitor = 0;
 
     if( !user_applied_hw_id )
+    {
       user0_config_app_lcfg.hw_id = USER0_CFG_HW_ID;
+      //Update hw_id in the System Info structure
+      update_hw_id_in_system_info(user0_config_app_lcfg.hw_id);
+    }
     else
       user_applied_hw_id = 0;
 
@@ -306,10 +315,20 @@ USER0_CONFIG_ERROR_CODE_t user0_config_app_write_lcfg(uint8_t field, uint16_t va
       user_applied_hw_id = 1;
       //Update hw_id in the System Info structure
       update_hw_id_in_system_info(user0_config_app_lcfg.hw_id);
+#ifdef CUST4_SM
+      //Update the id shown in page_watch_id of Display
+      send_private_type_value(DIS_REFRESH_SIGNAL);
+      reset_display_vol_info1();
+#endif
       break;
     case USER0_CONFIG_LCFG_EXP_ID:
       user0_config_app_lcfg.exp_id = value;
       user_applied_exp_id = 1;
+#ifdef CUST4_SM
+      //Update the id shown in page_watch_id of Display
+      send_private_type_value(DIS_REFRESH_SIGNAL);
+      reset_display_vol_info1();
+#endif
       break;
     case USER0_CONFIG_LCFG_ADXL_START_TIME:
       user0_config_app_lcfg.adxl_start_time = value;
@@ -522,17 +541,17 @@ static m2m2_hdr_t *user0_config_app_get_set_state(m2m2_hdr_t *p_pkt) {
 
     switch (p_in_payload->command) {
     case M2M2_USER0_CONFIG_APP_COMMAND_SET_STATE_REQ:
-        gnUser0ConfigAppState = p_in_payload->state;
+        set_user0_config_app_state(p_in_payload->state);
         status = M2M2_APP_COMMON_STATUS_OK;
 
-        p_resp_payload->state = gnUser0ConfigAppState;
+        p_resp_payload->state = p_in_payload->state;
         p_resp_payload->command =
           (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_USER0_CONFIG_APP_COMMAND_SET_STATE_RESP;
       break;
     case M2M2_USER0_CONFIG_APP_COMMAND_GET_STATE_REQ:
         status = M2M2_APP_COMMON_STATUS_OK;
 
-        p_resp_payload->state = gnUser0ConfigAppState;
+        p_resp_payload->state = get_user0_config_app_state();
         p_resp_payload->command =
           (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_USER0_CONFIG_APP_COMMAND_GET_STATE_RESP;
       break;
@@ -557,15 +576,25 @@ static m2m2_hdr_t *user0_battery_level_alert_handler(m2m2_hdr_t *p_pkt)
 {
   USER0_CONFIG_APP_STATE_t read_user0_config_app_state;
 
-  PYLD_CST(p_pkt, m2m2_pm_sys_cmd_t, p_in_payload);
+  if(p_pkt != NULL)
+  {
+    read_user0_config_app_state = get_user0_config_app_state();
+    PYLD_CST(p_pkt, m2m2_pm_sys_cmd_t, p_in_payload);
+
     switch (p_in_payload->status) {
     case M2M2_PM_SYS_STATUS_BATTERY_LEVEL_FULL:
           NRF_LOG_INFO("User0 config app received Battery Full");
           battery_full_event_cnt++;
-          set_user0_config_app_state(STATE_ADMIT_STANDBY);
+          /*if((STATE_SLEEP != read_user0_config_app_state)  &&
+                   (STATE_INTERMITTENT_MONITORING != read_user0_config_app_state) &&
+                   (STATE_INTERMITTENT_MONITORING_START_LOG != read_user0_config_app_state)&&
+                   (STATE_INTERMITTENT_MONITORING_STOP_LOG != read_user0_config_app_state)  )*/
+          if((STATE_CHARGING_BATTERY == read_user0_config_app_state))
+          {
+            set_user0_config_app_state(STATE_ADMIT_STANDBY);
+          }
           break;
     case M2M2_PM_SYS_STATUS_BATTERY_LEVEL_CRITICAL:
-          read_user0_config_app_state = get_user0_config_app_state();
           NRF_LOG_INFO("User0 config app received Battery Level Critical, \
                         current state:%d", read_user0_config_app_state);
           /* set the flag and increase the count*/
@@ -575,7 +604,7 @@ static m2m2_hdr_t *user0_battery_level_alert_handler(m2m2_hdr_t *p_pkt)
              (STATE_START_MONITORING ==
                         read_user0_config_app_state) )
             set_user0_config_app_state(STATE_OUT_OF_BATTERY_STATE_BEFORE_START_MONITORING);
-          else if((STATE_SLEEP == read_user0_config_app_state)  ||
+          else if( (STATE_SLEEP == read_user0_config_app_state)  ||
                    (STATE_INTERMITTENT_MONITORING == read_user0_config_app_state) ||
                    (STATE_INTERMITTENT_MONITORING_START_LOG == read_user0_config_app_state)||
                    (STATE_INTERMITTENT_MONITORING_STOP_LOG == read_user0_config_app_state)  )
@@ -589,6 +618,7 @@ static m2m2_hdr_t *user0_battery_level_alert_handler(m2m2_hdr_t *p_pkt)
     default:
           return NULL;
     }
+  }
   return NULL;
 }
 
@@ -603,7 +633,8 @@ static m2m2_hdr_t *user0_battery_level_alert_handler(m2m2_hdr_t *p_pkt)
  *****************************************************************************/
 USER0_CONFIG_APP_STATE_t get_user0_config_app_state()
 {
-  return(gnUser0ConfigAppState);
+  USER0_CONFIG_APP_STATE_t state = gnUser0ConfigAppState;
+  return(state);
 }
 
 /*!
@@ -616,6 +647,24 @@ USER0_CONFIG_APP_STATE_t get_user0_config_app_state()
  ******************************************************************************/
 void set_user0_config_app_state(USER0_CONFIG_APP_STATE_t state)
 {
+  //Update page_watch_id contents of Display
+  send_private_type_value(DIS_REFRESH_SIGNAL);
+  reset_display_vol_info1();
+
+  switch(state)
+  {
+    case STATE_START_MONITORING:
+    case STATE_END_MONITORING: {
+      //Turn on the backlight of LCD
+      lcd_backlight_set(LCD_BACKLIGHT_ON);
+      break;
+    }
+    default: {
+      //Turn off the backlight of LCD
+      lcd_backlight_set(LCD_BACKLIGHT_OFF);
+      break;
+    }
+  }
   gnUser0ConfigAppState = state;
 }
 
@@ -672,7 +721,7 @@ int User0ConfigTimerEvent() {
     gUser0ConfigAppTimerUp = 0;
 
     if (get_user0_config_app_state() != STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING) {
-      gnUser0ConfigAppState = STATE_INTERMITTENT_MONITORING_STOP_LOG;
+      set_user0_config_app_state(STATE_INTERMITTENT_MONITORING_STOP_LOG);
     }
 
     user0_config_app_on_timer_stop();
@@ -810,7 +859,6 @@ void user0_config_app_task_init(void) {
  ******************************************************************************/
 static void user0_config_app(void *arg) {
   ADI_OSAL_STATUS err;
-  USER0_CONFIG_APP_STATE_t read_user0_config_app_state;
 
   UNUSED_PARAMETER(arg);
 
@@ -820,60 +868,61 @@ static void user0_config_app(void *arg) {
   init_user0_config_app_lcfg();
 
 #ifdef CUST4_SM
+  USER0_CONFIG_APP_STATE_t read_user0_config_app_state;
   read_user0_config_app_state = get_user0_config_app_state();
+  USBD_CONN_STATUS_t usbd_conn_status = usbd_get_cradle_disconnection_status();
 
   /*After Watch reset, find previous state and set current state*/
-  //if(read_user0_config_app_state == STATE_ADMIT_STANDBY)
-  //if(read_user0_config_app_state == STATE_INTERMITTENT_MONITORING)
-  //if(read_user0_config_app_state == STATE_END_MONITORING)
-  //if(read_user0_config_app_state == STATE_CHARGING_BATTERY)
-  //Do nothing
 
-  if(read_user0_config_app_state == STATE_START_MONITORING)
+  if((read_user0_config_app_state == STATE_ADMIT_STANDBY) ||
+     (read_user0_config_app_state == STATE_START_MONITORING))
   {
     user0_config_app_enter_state_admit_standby();
   }
 
-  //Disconnected from cradle
-  else if(read_user0_config_app_state == STATE_SLEEP
-   && usbd_get_cradle_disconnection_status())
-  {
-    user0_config_app_enter_state_intermittent_monitoring();
-  }
-
-  //connected to cradle for charging
-  else if((read_user0_config_app_state == STATE_SLEEP
-   || read_user0_config_app_state == STATE_INTERMITTENT_MONITORING)
-  && !usbd_get_cradle_disconnection_status())
-  {
-    user0_config_app_enter_state_end_monitoring();
-  }
-
-  //Disconnected from cradle
-  else if((read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_START_LOG
-   || read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_STOP_LOG)
-   && usbd_get_cradle_disconnection_status())
-  {
-    user0_config_app_enter_state_intermittent_monitoring();
-  }
-
-  //connected to cradle for charging
-  else if(read_user0_config_app_state == STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING
-  && !usbd_get_cradle_disconnection_status())
+  else if(read_user0_config_app_state == STATE_END_MONITORING)
   {
     user0_config_app_enter_state_end_monitoring();
   }
 
   //connected to cradle for charging
-  else if(read_user0_config_app_state == STATE_OUT_OF_BATTERY_STATE_BEFORE_START_MONITORING
-  && !usbd_get_cradle_disconnection_status())
+  else if(usbd_conn_status == USBD_CONNECTED)
   {
-    user0_config_app_enter_state_admit_standby();
+    switch(read_user0_config_app_state)
+    {
+      case STATE_SLEEP:
+      case STATE_INTERMITTENT_MONITORING:
+      case STATE_INTERMITTENT_MONITORING_START_LOG:
+      case STATE_INTERMITTENT_MONITORING_STOP_LOG:
+      case STATE_OUT_OF_BATTERY_STATE_BEFORE_START_MONITORING:
+        user0_config_app_enter_state_end_monitoring();
+        break;
+      case STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING:
+        user0_config_app_enter_state_admit_standby();
+        break;
+      default:
+        break;
+    }
+  }
+  //Disconnected from cradle
+  else if(usbd_conn_status == USBD_DISCONNECTED)
+  {
+    switch(read_user0_config_app_state)
+    {
+      case STATE_SLEEP:
+      case STATE_INTERMITTENT_MONITORING:
+      case STATE_INTERMITTENT_MONITORING_START_LOG:
+      case STATE_INTERMITTENT_MONITORING_STOP_LOG:
+        user0_config_app_enter_state_intermittent_monitoring();
+        break;
+      default:
+        break;
+    }
   }
 
   /* Force the current state to STATE_ADMIT_STANDBY incase of any unknown state */
-  else if( read_user0_config_app_state != STATE_ADMIT_STANDBY &&
-      read_user0_config_app_state > STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING)
+  else if( (read_user0_config_app_state != STATE_ADMIT_STANDBY) &&
+      (read_user0_config_app_state > STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING) )
   {
     user0_config_app_enter_state_admit_standby();
   }
@@ -922,9 +971,6 @@ static void user0_config_app(void *arg) {
 void user0_config_app_enter_state_admit_standby()
 {
   set_user0_config_app_state(STATE_ADMIT_STANDBY);
-  //TODO: Display Band No: and Experiment ID on LCD
-  //TODO: Turn on the backlight of LCD
-  //Turn BLE On
 }
 
 /*!
@@ -938,9 +984,6 @@ void user0_config_app_enter_state_start_monitoring()
 {
   set_user0_config_app_state(STATE_START_MONITORING);
   gn_intermittent_op_count=0;
-  //TODO: Display Band No: and Experiment ID on LCD
-  //TODO: Turn on the backlight of LCD
-  //Turn BLE On
 }
 
 /*!
@@ -976,28 +1019,32 @@ void user0_config_app_enter_state_intermittent_monitoring()
   /* Wait for FS task FindConfigFile() completes */
   adi_osal_SemPend(user0_config_app_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
 
-  //Change state after FS task updates the config file status
-  set_user0_config_app_state(STATE_INTERMITTENT_MONITORING);
-
-  //TODO: Display Band No: and Experiment ID on LCD
-  //TODO: Turn off the backlight of LCD
-
-  //Turn off BLE
-  turn_off_BLE();
-  //Change the BLE advertising duration as specified in user0 config DCB
-  change_ble_adv_duration(user0_config_app_lcfg.adv_timeout_monitor);
-
   // On Bootup Enable User0 Config app if user0 config cfg files are present
   if( get_low_touch_trigger_mode3_status() &&
       (gen_blk_get_dcb_present_flag() || gsCfgFileFoundFlag) )
   {
+      //Change state after FS task updates the config file status
+      set_user0_config_app_state(STATE_INTERMITTENT_MONITORING);
+
+      //Turn off BLE
+      turn_off_BLE();
+      //Change the BLE advertising duration as specified in user0 config DCB
+      change_ble_adv_duration(user0_config_app_lcfg.adv_timeout_monitor);
+
       user0_config_app_init(true);
       /* Increment debug variable to count no: of times intermittent
          operation is done */
       gn_intermittent_op_count++;
   }
   else
+  {
+      /*
+       * After wakeup from sleep, found that no Configs exist -> fall back to inital state
+      */
+      NRF_LOG_INFO("No Cfg found after sleep state-setting admit standby state");
+      set_user0_config_app_state(STATE_ADMIT_STANDBY);
       user0_config_app_deinit(false);
+  }
 }
 
 /*!
@@ -1010,8 +1057,6 @@ void user0_config_app_enter_state_intermittent_monitoring()
 void user0_config_app_enter_state_end_monitoring()
 {
   set_user0_config_app_state(STATE_END_MONITORING);
-  //TODO: Display Band No: and Experiment ID on LCD
-  //TODO: Turn on the backlight of LCD
 }
 
 /*!
@@ -1024,8 +1069,6 @@ void user0_config_app_enter_state_end_monitoring()
 void user0_config_app_enter_charging_battery()
 {
   set_user0_config_app_state(STATE_CHARGING_BATTERY);
-  //TODO: Display Band No: and Experiment ID on LCD
-  //TODO: Turn off the backlight of LCD
 }
 #endif
 
@@ -1482,6 +1525,11 @@ static m2m2_hdr_t *id_operation(m2m2_hdr_t *p_pkt) {
         }
         p_resp_payload->id_op = ID_OPERATION_MODE_WRITE;
         p_resp_payload->id_num = p_in_payload->id_num;
+#ifdef CUST4_SM
+        //Update the id shown in page_watch_id of Display
+        send_private_type_value(DIS_REFRESH_SIGNAL);
+        reset_display_vol_info1();
+#endif
         break;
 
       case ID_OPERATION_MODE_DELETE:

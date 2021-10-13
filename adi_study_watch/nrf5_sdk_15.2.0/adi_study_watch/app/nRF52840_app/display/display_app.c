@@ -211,7 +211,9 @@ void display_page_init(void)
     lcd_dis_bit_set(DISPLAY_OUT_4BIT);
     Current_page = &page_power_on;
     Current_page->display_func();
+#ifndef CUST4_SM
     turn_on_backlight();
+#endif
     //fds_rtc_init();
     adi_osal_ThreadSleep(3000);//display 3s log page.
 #ifdef CUST4_SM
@@ -273,7 +275,9 @@ static void display_thread(void * arg)
                     if(NULL != Current_page->key_handle)
                     {
                         Current_page->key_handle(display_signal->signal_value);
+#ifndef CUST4_SM
                         turn_on_backlight();
+#endif
 
                         if(Current_page->page_type == DIS_STATIC_PAGE)
                         {

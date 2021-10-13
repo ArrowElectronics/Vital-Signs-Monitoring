@@ -51,9 +51,9 @@ def call(Object builder, String build_mode, String builder_name, String email_id
         archiveArtifacts artifacts: 'nrf5_sdk_15.2.0/adi_study_watch/app/nRF52840_app/ses/Output/Debug/Exe/*.hex', onlyIfSuccessful: true
       } else {
         // Build SES for PM
-        builder("./nrf5_sdk_15.2.0/adi_study_watch/app/nRF52840_app/ses/watchv4_nrf52840.emProject", "Release", "HeartRateCoolidge", env.COVERITY_STREAM_PERSEUS_HR, email_id, pkg_prefix)
+        builder("./nrf5_sdk_15.2.0/adi_study_watch/app/nRF52840_app/ses/watchv4_nrf52840.emProject", "Release", "HeartRateCoolidge", env.COVERITY_STREAM_PERSEUS_HR, email_id, pkg_prefix, "Y")
         sleep 5
-        builder("./nrf5_sdk_15.2.0/adi_study_watch/app/nRF52840_app/ses/watchv4_nrf52840.emProject", "Release", "pedometer", env.COVERITY_STREAM_PERSEUS, email_id, pkg_prefix)
+        builder("./nrf5_sdk_15.2.0/adi_study_watch/app/nRF52840_app/ses/watchv4_nrf52840.emProject", "Release", "pedometer", env.COVERITY_STREAM_PERSEUS, email_id, pkg_prefix, "Y")
         sleep 5
         builder("./nrf5_sdk_15.2.0/adi_study_watch/app/nRF52840_app/ses/watchv4_nrf52840.emProject", "Release", "watchv4_nrf52840", env.COVERITY_STREAM_PERSEUS, email_id, pkg_prefix)
 

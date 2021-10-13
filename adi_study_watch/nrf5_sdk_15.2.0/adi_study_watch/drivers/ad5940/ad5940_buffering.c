@@ -29,7 +29,7 @@
 * DEALINGS IN THE SOFTWARE.                                                   *
 *                                                                             *
 *                                                                             *
-* This software is intended for use with the AD5950 and derivative parts     *
+* This software is intended for use with the ad5940 and derivative parts     *
 * only                                                                        *
 *                                                                             *
 ******************************************************************************/
@@ -43,8 +43,8 @@
 #ifdef ENABLE_ECG_APP
 #include "adi_ecg.h"
 #endif
-#ifdef ENABLE_BCM_APP
-#include "bcm_application_task.h"
+#ifdef ENABLE_BIA_APP
+#include "bia_application_task.h"
 #endif
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -79,7 +79,8 @@
     Pointer to next buffer structure
  */
 typedef struct Ad5940_Rx_Buffer_Def_Struct {
-    uint32_t nDataValue;
+    uint32_t nDataValueR;
+    uint32_t nDataValueI;
     uint32_t nTimeStamp;
     struct Ad5940_Rx_Buffer_Def_Struct* Next;
 } AD5940_RX_BUFFER_DEF;
@@ -97,8 +98,8 @@ uint8_t gnAd5940TimeIrqSet = 0, gnAd5940TimeIrqSet1 = 0;
 uint32_t gn_DivErr_Cnt = 0, gn_ecg_fetch_data_cnt = 0;
 uint32_t gn_ad5940_isr_cnt = 0;
 uint32_t gn_eda_fetch_data_cnt = 0;
-uint32_t BcmFifoCount;
-
+uint32_t BiaFifoCount;
+uint16_t BiaRealImgDataSetCount;
 /****** Driver related declarations start ********/
 int32_t anRegReadAd5940Data[WATERMARK_VALUE] = {0};
 AD5940_RX_BUFFER_DEF Ad5940RxBuff[AD5940_RX_BUFFER_SIZE];
@@ -109,13 +110,13 @@ uint32_t gnAd5940TimeCurVal_copy = 0;
 uint32_t gnAd5940TimeCurValInMicroSec = 0;
 uint32_t gnAd5940TimePrevVal = 0;
 uint32_t FifoCount;
-AD5950_APP_ENUM_t gnAd5940App = AD5940_APP_NONE;
+AD5940_APP_ENUM_t gnAd5940App = AD5940_APP_NONE;
 #ifdef DEBUG_EDA
 uint32_t eda_tick=0,eda_tick_prev=0;
 uint32_t eda_load_time_diff=0;
 #endif
 #ifdef DEBUG_BCM
-uint32_t bcm_tick=0,bcm_tick_prev=0,bcm_load_time_diff=0;
+uint32_t bia_tick=0,bia_tick_prev=0,bia_load_time_diff=0;
 #endif
 static uint8_t FifoOverflow = 0;
 static uint32_t fifo_cnt=0;
@@ -132,14 +133,14 @@ extern ADI_OSAL_SEM_HANDLE   eda_task_evt_sem;
 extern g_state_eda_t g_state_eda;
 extern AppEDACfg_Type AppEDACfg;
 #endif
-#ifdef ENABLE_BCM_APP
-extern ADI_OSAL_SEM_HANDLE   bcm_task_evt_sem;
+#ifdef ENABLE_BIA_APP
+extern ADI_OSAL_SEM_HANDLE   bia_task_evt_sem;
 extern AppBIACfg_Type AppBIACfg;
 #endif
 
 /************************************************* Function declarations ***********************************************************/
-uint16_t ad5950_buff_get(uint32_t *rdData, uint32_t *time);
-uint16_t ad5950_buff_put(int32_t *pRegReadData, uint32_t nTcv);
+int8_t ad5940_buff_get(uint32_t *rdData, uint32_t *time);
+int8_t ad5940_buff_put(int32_t *pRegReadData, uint32_t nTcv);
 uint8_t getAd5940DataReady();
 void ResetTimeGapAd5940();
 
@@ -279,18 +280,18 @@ void Ad5940FifoCallBack(void) {
                 adi_osal_SemPost(eda_task_evt_sem);
       break;
 #endif
-#ifdef ENABLE_BCM_APP
-      case AD5940_APP_BCM:
+#ifdef ENABLE_BIA_APP
+      case AD5940_APP_BIA:
       /* Case 3: BCM Interrupt */
-#ifdef DEBUG_BCM
+#ifdef DEBUG_BIA
                 /* timing obtained to know difference between successive BCM Interrupts */
-                bcm_tick = MCU_HAL_GetTick();
-                bcm_load_time_diff = bcm_tick - bcm_tick_prev;
-                bcm_tick_prev = bcm_tick;
-                NRF_LOG_INFO("Time diff b/n BCM Interrupts = %d",bcm_load_time_diff);
+                bia_tick = MCU_HAL_GetTick();
+                bia_load_time_diff = bia_tick - bia_tick_prev;
+                bia_tick_prev = bia_tick;
+                NRF_LOG_INFO("Time diff b/n BCM Interrupts = %d",bia_load_time_diff);
 #endif
                 /* post bcm semaphore */
-                adi_osal_SemPost(bcm_task_evt_sem);
+                adi_osal_SemPost(bia_task_evt_sem);
       break;
 #endif
       default:
@@ -304,10 +305,10 @@ void Ad5940FifoCallBack(void) {
   *@brief      Move data from SPI FIFO to this Ring Buffer. If WtPtr reach RdPtr,
                host's reading is too slow.
   *@param      *pRegReadData: Pointer to data being read out from FIFO
-  *             tcv Timestamp of the oldest data in the FIFO
-  *@return     int16_t A 16-bit integer: 0 ( success );  -1 ( failure )
+  *             nTcv: Timestamp of the oldest data in the FIFO
+  *@return      int8_t A 8-bit integer: 0 ( success );  -1 ( failure )
 ******************************************************************************/
-uint16_t ad5950_buff_put(int32_t *pRegReadData, uint32_t nTcv) {
+int8_t ad5940_buff_put(int32_t *pRegReadData, uint32_t nTcv) {
     uint32_t nTimeStamp;
     /* when read = write pointer , return error */
     if (Ad5940WtBufferPtr->Next == Ad5940RdBufferPtr) {
@@ -324,21 +325,24 @@ uint16_t ad5950_buff_put(int32_t *pRegReadData, uint32_t nTcv) {
     gnAd5940TimePreVal = nTimeStamp;
     /* assign pointers to data and time stamp of Ring buffer */
     Ad5940WtBufferPtr->nTimeStamp = nTimeStamp;
-    Ad5940WtBufferPtr->nDataValue = *pRegReadData;
+    Ad5940WtBufferPtr->nDataValueR = *pRegReadData;
+    if((gnAd5940App == AD5940_APP_EDA) || (gnAd5940App == AD5940_APP_BIA))
+    {
+      Ad5940WtBufferPtr->nDataValueI = *(pRegReadData+1);
+    }
     /* Increment write pointer to point to next node */
     Ad5940WtBufferPtr = Ad5940WtBufferPtr->Next;
     gnAd5940NumberOfEcgData++;
     return AD5940Drv_SUCCESS;
 }
-
 /*!
   ****************************************************************************
   *@brief      Read Ring buffer which holds data and time stamp
   *@param      *rxData: data read from ring buffer
   *@param      *time: timestamp attached to data when it was written
-  *@return     int16_t A 16-bit integer: 0 ( success );  -1 ( failure )
+  *@return     int8_t A 8-bit integer: 0 ( success );  -1 ( failure )
 ******************************************************************************/
-uint16_t ad5950_buff_get(uint32_t *rxData, uint32_t *time) {
+int8_t ad5940_buff_get(uint32_t *rxData, uint32_t *time) {
 
     if (Ad5940RdBufferPtr == Ad5940WtBufferPtr) {
         /* Return error as there is no data in soft FIFO */
@@ -346,7 +350,11 @@ uint16_t ad5950_buff_get(uint32_t *rxData, uint32_t *time) {
     }
 
     /* data read from ring buffer */
-    *rxData = Ad5940RdBufferPtr->nDataValue;
+    *(rxData) = Ad5940RdBufferPtr->nDataValueR;
+    if((gnAd5940App == AD5940_APP_EDA) || (gnAd5940App == AD5940_APP_BIA))
+    {
+      *(rxData+1) = Ad5940RdBufferPtr->nDataValueI;
+    }
 
     /* read time stamp attached to written data from ring buffer
         if attached time is valid */
@@ -520,7 +528,7 @@ int8_t ad5940_read_ecg_data_to_buffer() {
       gnAd5940TimeIrqSet1 = 0;
       /* put read data from fifo to ring buffer */
       for (nCount = 0; nCount < Fifolevel; nCount++) {
-        ad5950_buff_put(&pRegReadData[nCount], nTcv);
+        ad5940_buff_put(&pRegReadData[nCount], nTcv);
       }
     }
   }
@@ -563,9 +571,9 @@ AD5940Err AppEDAISR(void *pBuff, uint32_t *pCount)  {
 
     /* If FIFO threshold flag is set high in AD5940 register field, read FIFO data */
     if(AD5940_INTCTestFlag(AFEINTC_0, AFEINTSRC_DATAFIFOTHRESH) == bTRUE) {
-      /* Now there should be fifo data ; number of samples to read is being set in
+      /* Now there should be 4 fifo data ; number of samples to read is being set in
       eda app which FIFO threshold variable*/
-      FifoCount = (AD5940_FIFOGetCnt()/2)*2;
+      FifoCount = (AD5940_FIFOGetCnt()/4)*4;
 
       if(FifoCount > AppEDACfg.FifoThresh)  {
         /* check for FIFO Overflow */
@@ -595,25 +603,25 @@ AD5940Err AppEDAISR(void *pBuff, uint32_t *pCount)  {
       /* Process data and timw */
       if(FifoCount != 0){
         if (gnAd5940TimePrevVal != 0) {
-        /* this happens in roll over when current time value is less than previous,
-        handle roll over of time stamp */
+          /* this happens in roll over when current time value is less than previous,
+          handle roll over of time stamp */
           if(gnAd5940TimeCurVal < gnAd5940TimePrevVal)  {
-          /* MAX_RTC_TICKS_FOR_24_HOUR:- Max RTC Count value returned by get_sensor_timestamp() after 24hrs.
-          Adding that value to have correct TimeGap value during day roll-over */
-          gnAd5940TimeGap = (uint16_t)((MAX_RTC_TICKS_FOR_24_HOUR + gnAd5940TimeCurVal - gnAd5940TimePrevVal) / FifoCount);
-          day_roll_over = true;
+            /* MAX_RTC_TICKS_FOR_24_HOUR:- Max RTC Count value returned by get_sensor_timestamp() after 24hrs.
+             Adding that value to have correct TimeGap value during day roll-over */
+            gnAd5940TimeGap = (uint16_t)((MAX_RTC_TICKS_FOR_24_HOUR + gnAd5940TimeCurVal - gnAd5940TimePrevVal) / FifoCount);
+            day_roll_over = true;
+          }
+          /* calculate time gap based on current time value - previous value */
+          else  {
+            gnAd5940TimeGap = (uint16_t)((gnAd5940TimeCurVal - gnAd5940TimePrevVal) / FifoCount);
+          }
         }
-         /* calculate time gap based on current time value - previous value */
-        else  {
-          gnAd5940TimeGap = (uint16_t)((gnAd5940TimeCurVal - gnAd5940TimePrevVal) / FifoCount);
-        }
-       }
-       /* occurs when first time Interrupt data is read out , calculate time gap
+        /* occurs when first time Interrupt data is read out , calculate time gap
         based on number of tick of RTC */
-       else {
-           /* 32KHz is ticks resolution of RTC */
+        else {
+          /* 32KHz is ticks resolution of RTC */
           gnAd5940TimeGap = (uint16_t)((1000.0/AppEDACfg.EDAODR) * RTC_TICKS_PER_MILLI_SEC);//32KHz ticks resolution
-       }
+        }
       }
 
       /* assign previous time value with current time value for next iteration */
@@ -652,9 +660,9 @@ AD5940Err AppEDAISR(void *pBuff, uint32_t *pCount)  {
 
        pBuffer = (int32_t *)pBuff;
        /* put read data from fifo to ring buffer */
-       for (nCount = 0; nCount < FifoCount; nCount++) {
+       for (nCount = 0; nCount < (FifoCount*2); nCount+=2) {
           //NRF_LOG_DEBUG("pRegReadData[%d]=%u",nCount,pRegReadData[nCount]);
-          ad5950_buff_put((int32_t*)&pBuffer[nCount], nTcv);
+          ad5940_buff_put((int32_t*)&pBuffer[nCount], nTcv);
         }
       }
     }
@@ -662,14 +670,14 @@ AD5940Err AppEDAISR(void *pBuff, uint32_t *pCount)  {
 }
 #endif
 
-#ifdef ENABLE_BCM_APP
+#ifdef ENABLE_BIA_APP
 /*!
   ****************************************************************************
-  *@brief      Read BCM data from the AD5940.
+  *@brief      Read BIA data from the AD5940.
   *@param     None
   *@return     int8_t A 8-bit integer: 0 ( success );  -1 ( failure )
 ******************************************************************************/
-int8_t ad5940_read_bcm_data_to_buffer() {
+int8_t ad5940_read_bia_data_to_buffer() {
   int32_t *pRegReadData;
   uint32_t nCount = 0;
 
@@ -689,21 +697,22 @@ int8_t ad5940_read_bcm_data_to_buffer() {
 
   if(AD5940_INTCTestFlag(AFEINTC_0, AFEINTSRC_DATAFIFOTHRESH) == bTRUE) {
     /* Now there should be 4 data in FIFO */
-    BcmFifoCount = (AD5940_FIFOGetCnt()/4)*4;
+    BiaFifoCount = AD5940_FIFOGetCnt();
      /* Now there should be fifo data ; number of samples to read is being set in
       eda app which FIFO threshold variable*/
-    AD5940_FIFORd(pRegReadData, BcmFifoCount);
+    AD5940_FIFORd(pRegReadData, BiaFifoCount);
     /* clear fifo interrupt */
     AD5940_INTCClrFlag(AFEINTSRC_DATAFIFOTHRESH);
     /* If there is need to do AFE re-configure, do it here when AFE is in active state */
-    AppBIARegModify(pRegReadData, &BcmFifoCount);
+    AppBIARegModify(pRegReadData, &BiaFifoCount);
     /* Manually put AFE back to hibernate mode. */
     AD5940_EnterSleepS();
     /* Allow AFE to enter hibernate mode */
     AD5940_SleepKeyCtrlS(SLPKEY_UNLOCK);
-    /* Process data */
-    AppBIADataProcess((int32_t*)pRegReadData,&BcmFifoCount);
-
+    /* Process data, BiaFifoCount will be modified in AppBIADataProcess as BiaFifoCount/4*/
+    AppBIADataProcess((int32_t*)pRegReadData,&BiaFifoCount);
+    /* We have two data sets real and imaginary calculated from DFT result*/
+    BiaRealImgDataSetCount = BiaFifoCount * 2;
     /* Process data */
     if (gnAd5940TimePrevVal != 0) {
         /* this happens in roll over when current time value is less than previous,
@@ -711,12 +720,12 @@ int8_t ad5940_read_bcm_data_to_buffer() {
        if(gnAd5940TimeCurVal < gnAd5940TimePrevVal) {
           /* MAX_RTC_TICKS_FOR_24_HOUR:- Max RTC Count value returned by get_sensor_timestamp() after 24hrs.
           Adding that value to have correct TimeGap value during day roll-over */
-          gnAd5940TimeGap = (uint16_t)((MAX_RTC_TICKS_FOR_24_HOUR + gnAd5940TimeCurVal - gnAd5940TimePrevVal) / BcmFifoCount);
+          gnAd5940TimeGap = (uint16_t)((MAX_RTC_TICKS_FOR_24_HOUR + gnAd5940TimeCurVal - gnAd5940TimePrevVal) / BiaFifoCount);
           day_roll_over = true;
         }
          /* calculate time gap based on current time value - previous value */
         else  {
-          gnAd5940TimeGap = (uint16_t)((gnAd5940TimeCurVal - gnAd5940TimePrevVal) / BcmFifoCount);
+          gnAd5940TimeGap = (uint16_t)((gnAd5940TimeCurVal - gnAd5940TimePrevVal) / BiaFifoCount);
         }
      }
      /* occurs when first time Interrupt data is read out , calculate time gap
@@ -747,18 +756,16 @@ int8_t ad5940_read_bcm_data_to_buffer() {
     if(day_roll_over) {
       /* MAX_RTC_TICKS_FOR_24_HOUR:- Max RTC Count value returned by get_sensor_timestamp() after 24hrs.
         Adding that value to have correct TS during day roll-over */
-      nTcv = (uint32_t)(MAX_RTC_TICKS_FOR_24_HOUR + gnAd5940TimeCurVal - ((BcmFifoCount * gnAd5940TimeGap) - gnAd5940TimeGap));
+      nTcv = (uint32_t)(MAX_RTC_TICKS_FOR_24_HOUR + gnAd5940TimeCurVal - ((BiaFifoCount * gnAd5940TimeGap) - gnAd5940TimeGap));
       /* Reset roll over flag */
       day_roll_over = false;
     }
     else  {
-      nTcv = (uint32_t)(gnAd5940TimeCurVal - ((BcmFifoCount * gnAd5940TimeGap) - gnAd5940TimeGap));
+      nTcv = (uint32_t)(gnAd5940TimeCurVal - ((BiaFifoCount * gnAd5940TimeGap) - gnAd5940TimeGap));
     }
-
     gnAd5940TimeIrqSet1 = 0;
-    /* put read data from fifo to ring buffer */
-    for (nCount = 0; nCount < BcmFifoCount; nCount++) {
-        ad5950_buff_put(&pRegReadData[nCount], nTcv);
+    for (nCount = 0; nCount < BiaRealImgDataSetCount; nCount+=2) {
+        ad5940_buff_put((int32_t*)&pRegReadData[nCount], nTcv);
     }
   }
  }

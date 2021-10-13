@@ -44,6 +44,7 @@
 * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 * POSSIBILITY OF SUCH DAMAGE.
 ******************************************************************************/
+#ifdef LOW_TOUCH_FEATURE
 #ifdef ENABLE_WATCH_DISPLAY
 #include "display_app.h"
 #include "lcd_driver.h"
@@ -58,7 +59,7 @@
 #include "low_touch_task.h"
 
 static bool gs_LT_mode2_log_display_status = false;     //!< flag used to track the LT mode2 log status for the display; used only in this file
-static volatile bool g_LT_mode2_selection_status = false;  //!< flag used to track the LT mode2 log ON or OFF status set by the user; used by low touch task 
+static volatile bool g_LT_mode2_selection_status = false;  //!< flag used to track the LT mode2 log ON or OFF status set by the user; used by low touch task
 
 extern ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
 
@@ -88,7 +89,7 @@ static void key_handle(uint8_t key_value)
     {
         case KEY_SELECT_SHORT:
         {
-          gs_LT_mode2_log_display_status = true; 
+          gs_LT_mode2_log_display_status = true;
           destroy_key_detect_task();      /* disable the button action*/
           display_LT_mode2_log_config();  /*Update the display status*/
           vTaskDelay(5000);               /*wait for watch stabilization*/
@@ -119,7 +120,7 @@ static void key_handle(uint8_t key_value)
 bool get_lt_mode2_selection_status()
 {
   return(g_LT_mode2_selection_status);
-} 
+}
 
 /*!
  ****************************************************************************
@@ -133,7 +134,7 @@ bool get_lt_mode2_selection_status()
 void reset_lt_mode2_selection_status()
 {
   g_LT_mode2_selection_status = false;
-} 
+}
 
 
 /*used to handle signal except key,
@@ -158,4 +159,5 @@ const PAGE_HANDLE page_LT_mode2_log_enable = {
 .signal_handle = &signal_handle,
 .page_type = DIS_STATIC_PAGE,
 };
+#endif
 #endif

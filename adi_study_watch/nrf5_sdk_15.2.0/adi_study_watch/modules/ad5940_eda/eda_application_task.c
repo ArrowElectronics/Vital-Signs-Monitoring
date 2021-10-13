@@ -99,16 +99,18 @@ static _gEdaAd5940Data_t gEdaData = {{0}, 0, 0, 0};
 extern uint32_t FifoCount;
 extern uint64_t nTcv; /* timestamp */
 uint32_t ResistorForBaseline = 0;
+uint32_t UserConfig_BaselineResistor = 0;
 float magnitude, phase;
 static int32_t SignalData[MAX_NUM_OF_FFT_POINTS] = {0}, eda_counter = 0;
 uint8_t measurement_cycle_completed = 0;
 uint8_t init_flag;
-extern AD5950_APP_ENUM_t gnAd5940App;
+extern AD5940_APP_ENUM_t gnAd5940App;
 extern volatile uint8_t gnAd5940DataReady;
 extern uint8_t gnAd5940TimeIrqSet;
 extern uint8_t gnAd5940TimeIrqSet1;
 
 g_state_eda_t g_state_eda;
+volatile bool gEdaAppInitFlag = false;
 #ifdef EXTERNAL_TRIGGER_EDA
 uint8_t eda_start_req=0;
 #endif
@@ -116,9 +118,36 @@ AppEDACfg_Type AppEDACfg;
 volatile int16_t eda_user_applied_odr = 0;
 volatile int16_t eda_user_applied_dftnum = 0;
 volatile int16_t eda_user_applied_rtia_cal = 0;
+volatile int16_t eda_user_applied_baseline_imp = 0;
+
 uint8_t rtia_cal_completed = 0;
 extern uint32_t AppBuff[APPBUFF_SIZE];
 
+/*Base resistor used for measurements is 20kOhm*/
+
+fImpCar_Type EDABase_Dft16 = {
+      .Real = 29079.223,
+      .Image = 29079.223,
+  };
+
+fImpCar_Type EDABase_Dft8 = {
+      .Real = 26012.926,
+      .Image = 26000.182,
+  };
+
+fImpCar_Type EDABase_Userconfig_Dft16 = {
+      .Real = 0,
+      .Image =0,
+  };
+
+fImpCar_Type EDABase_Userconfig_Dft8 = {
+      .Real = 0,
+      .Image =0,
+  };
+
+#define USER_CONFIG_BASELINE_IMPEDANCE_RESET  0x00
+#define USER_CONFIG_BASELINE_IMPEDANCE_SET    0x01
+#define DEFAULT_BASELINE_RESISTOR             19940
 
 #ifdef PROFILE_TIME_ENABLED
 uint64_t delay_in_first_measurement;
@@ -138,7 +167,7 @@ typedef m2m2_hdr_t *(app_cb_function_t)(m2m2_hdr_t *);
 const char GIT_EDA_VERSION[] = "TEST EDA_VERSION STRING";
 const uint8_t GIT_EDA_VERSION_LEN = sizeof(GIT_EDA_VERSION);
 static void packetize_eda_raw_data(
-    int32_t *SignalData, eda_app_stream_t *pPkt, uint32_t timestamp);
+    int32_t *SignalData,  uint8_t index, eda_app_stream_t *pPkt, uint32_t timestamp);
 static m2m2_hdr_t *eda_app_reg_access(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_app_stream_config(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_app_status(m2m2_hdr_t *p_pkt);
@@ -146,6 +175,7 @@ static m2m2_hdr_t *eda_app_get_version(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_app_decimation(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_app_dynamic_scaling(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_app_dft_num_set(m2m2_hdr_t *p_pkt);
+static m2m2_hdr_t *eda_app_baseline_imp_set(m2m2_hdr_t *p_pkt);
 #ifdef DEBUG_EDA
 static m2m2_hdr_t *eda_app_debug_info(m2m2_hdr_t *p_pkt);
 #endif
@@ -195,6 +225,8 @@ app_routing_table_entry_t eda_app_routing_table[] = {
     {M2M2_EDA_APP_CMD_REQ_DEBUG_INFO_REQ, eda_app_debug_info},
 #endif
     {M2M2_EDA_APP_CMD_SET_DFT_NUM_REQ, eda_app_dft_num_set},
+    {M2M2_EDA_APP_CMD_BASELINE_IMP_SET_REQ,eda_app_baseline_imp_set},
+    {M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_REQ,eda_app_baseline_imp_set},
 #ifdef DCB
     {M2M2_APP_COMMON_CMD_SET_LCFG_REQ, eda_app_set_dcb_lcfg},
     {M2M2_DCB_COMMAND_READ_CONFIG_REQ, eda_dcb_command_read_config},
@@ -362,7 +394,7 @@ void InitCfg() {
   AppEDACfg.SysClkFreq = 16000000.0;
   AppEDACfg.LfoscClkFreq = 32000.0;
   AppEDACfg.AdcClkFreq = 16000000.0;
-  AppEDACfg.FifoThresh = 2;
+  AppEDACfg.FifoThresh = 4;
   AppEDACfg.NumOfData = -1;
   AppEDACfg.VoltCalPoints = 8;
   AppEDACfg.RcalVal = 10000.0;          /* 10kOhm */
@@ -398,39 +430,35 @@ void InitCfg() {
  *@return      AD5940Err
  ************************************************************************************/
 fImpCar_Type *pImp;
-AD5940Err EDACalculateImpedance(void *pData, uint32_t DataCount) {
-  float RtiaMag;
+AD5940Err EDACalculateImpedance(void *pData) {
   /* Process data */
   pImp = (fImpCar_Type *)pData;
-  AppEDACtrl(EDACTRL_GETRTIAMAG, &RtiaMag);
   /* Process data */
-  for (int i = 0; i < DataCount; i++) {
-    fImpCar_Type res;
-    res = pImp[i];
-    /* Show the real result of impedance under test(between F+/S+) */
-    res.Real += ResistorForBaseline;
+  uint8_t i =0;
+  fImpCar_Type res;
+  res = pImp[i];
+  /* Show the real result of impedance under test(between F+/S+) */
+  res.Real += ResistorForBaseline;
 #if defined(IMPEDANCE_POLAR_FORM)
-    gEdaData.edaImpedenc.real = AD5940_ComplexMag(&res);
-    gEdaData.edaImpedence.img = AD5940_ComplexPhase(&res) * 180 / MATH_PI;
+  gEdaData.edaImpedenc.real = AD5940_ComplexMag(&res);
+  gEdaData.edaImpedence.img = AD5940_ComplexPhase(&res) * 180 / MATH_PI;
 #elif defined(IMPEDANCE_CARTESIAN_FORM)
-    gEdaData.edaImpedence.real = res.Real;
-    gEdaData.edaImpedence.img = res.Image;
+  gEdaData.edaImpedence.real = res.Real;
+  gEdaData.edaImpedence.img = res.Image;
 #elif defined(ADMITANCE_POLAR_FORM)
-    res.Real = res.Real / (res.Real * res.Real + res.Image * res.Image);
-    res.Image = -res.Image / (res.Real * res.Real + res.Image * res.Image);
-    gEdaData.edaImpedence.real = AD5940_ComplexMag(&res);
-    gEdaData.edaImpedence.img = AD5940_ComplexPhase(&res) * 180 / MATH_PI;
+  res.Real = res.Real / (res.Real * res.Real + res.Image * res.Image);
+  res.Image = -res.Image / (res.Real * res.Real + res.Image * res.Image);
+  gEdaData.edaImpedence.real = AD5940_ComplexMag(&res);
+  gEdaData.edaImpedence.img = AD5940_ComplexPhase(&res) * 180 / MATH_PI;
 #else
-    gEdaData.edaImpedence.real =
-        (res.Real / (float)(res.Real * res.Real + res.Image * res.Image)) *
-        1000;
-    gEdaData.edaImpedence.img =
-        (-res.Image / (float)(res.Real * res.Real + res.Image * res.Image)) *
-        1000;
+  gEdaData.edaImpedence.real =
+      (res.Real / (float)(res.Real * res.Real + res.Image * res.Image)) *
+      1000;
+  gEdaData.edaImpedence.img =
+      (-res.Image / (float)(res.Real * res.Real + res.Image * res.Image)) *
+      1000;
 #endif
-    /* clear flag */
-    measurement_cycle_completed = 0;
-  }
+
   return 0;
 }
 /*!
@@ -570,9 +598,9 @@ static void sensor_eda_task(void *pArgument) {
  *@return     None
  ******************************************************************************/
 static void packetize_eda_raw_data(
-    int32_t *SignalData, eda_app_stream_t *pPkt, uint32_t timestamp) {
+    int32_t *SignalData, uint8_t index, eda_app_stream_t *pPkt, uint32_t timestamp) {
   /*   Calculate Impedance in form of Cartesian form */
-  EDACalculateImpedance(&SignalData[0], FifoCount);
+  EDACalculateImpedance(&SignalData[index]);
   if (g_state_eda.eda_pktizer.packet_nsamples == 0) {
     g_state_eda.eda_pktizer.packet_max_nsamples =
         (sizeof(pPkt->eda_data) / sizeof(pPkt->eda_data[0]));
@@ -613,24 +641,30 @@ static void fetch_eda_data(void) {
   ADI_OSAL_STATUS err;
   uint32_t edaTS = 0;
   int8_t status = 0;
-  static uint32_t edaData = 0;
+  //To hold real, imaginary data read from AD5940 fifo
+  static uint32_t edaData[2] = {0};
   static eda_app_stream_t pkt;
   g_state_eda.eda_pktizer.p_pkt = NULL;
   temp = APPBUFF_SIZE;
   AppEDAISR(AppBuff, &temp);
-  status = ad5950_buff_get((uint32_t *)&edaData, &edaTS);
+  status = ad5940_buff_get((uint32_t *)&edaData, &edaTS);
 
   /* reading a pair of samples for impedance calculation */
-  SignalData[eda_counter++] = edaData;
-  if (eda_counter > FifoCount / 2) {
-    eda_counter = 0;
-  }
-  while ((status == AD5940Drv_SUCCESS) && (eda_counter == FifoCount / 2)) {
+  //SignalData[eda_counter++] = edaData;
+  //if (eda_counter > FifoCount / 2) {
+  //  eda_counter = 0;
+  //}
+  eda_counter = 0;
+
+  //while ((status == AD5940Drv_SUCCESS) && (eda_counter == FifoCount / 2)) {
+  while ((status == AD5940Drv_SUCCESS)) {
+    SignalData[eda_counter++] = edaData[REAL_INDEX];//Real part
+    SignalData[eda_counter++] = edaData[IMAG_INDEX];//Imaginary part
     g_state_eda.decimation_nsamples++;
 
     if (g_state_eda.decimation_nsamples >= g_state_eda.decimation_factor) {
       g_state_eda.decimation_nsamples = 0;
-      packetize_eda_raw_data(SignalData, &pkt, edaTS);
+      packetize_eda_raw_data(SignalData, (eda_counter-RL_IM_PAIR), &pkt, edaTS);
       if (g_state_eda.eda_pktizer.packet_nsamples >=
           g_state_eda.eda_pktizer.packet_max_nsamples) {
         adi_osal_EnterCriticalRegion();
@@ -682,9 +716,10 @@ static void fetch_eda_data(void) {
                                           mem_alloc fails*/
       }
     } /* Copy data from circular buffer data to soft buffer*/
-    status = ad5950_buff_get((uint32_t *)&edaData, &edaTS);
-    SignalData[eda_counter++] = edaData;
+    status = ad5940_buff_get((uint32_t *)&edaData, &edaTS);
+    //SignalData[eda_counter++] = edaData;
   }
+  measurement_cycle_completed = 0;
 }
 
 /*!
@@ -854,6 +889,66 @@ static m2m2_hdr_t *eda_app_dft_num_set(m2m2_hdr_t *p_pkt) {
 
 /*!
  ****************************************************************************
+ *@brief      Set Baseline resistor used and measured impedance  for eda application
+ *@param      pPkt: pointer to the packet structure
+ *@return     m2m2_hdr_t
+ ******************************************************************************/
+static m2m2_hdr_t *eda_app_baseline_imp_set(m2m2_hdr_t *p_pkt) {
+  /* Declare a pointer to access the input packet payload */
+  PYLD_CST(p_pkt, eda_app_set_baseline_imp_t, p_in_payload);
+
+  /* Allocate memory to the response packet payload */
+  PKT_MALLOC(p_resp_pkt, eda_app_set_baseline_imp_t, 0);
+  if (NULL != p_resp_pkt) {
+    /* Declare a pointer to the response packet payload */
+    PYLD_CST(p_resp_pkt, eda_app_set_baseline_imp_t, p_resp_payload);
+    switch (p_in_payload->command) {
+    case M2M2_EDA_APP_CMD_BASELINE_IMP_SET_REQ:
+      EDABase_Userconfig_Dft16.Real  =  p_in_payload->imp_real_dft16;
+      EDABase_Userconfig_Dft16.Image =  p_in_payload->imp_img_dft16;
+      EDABase_Userconfig_Dft8.Real  =  p_in_payload->imp_real_dft8;
+      EDABase_Userconfig_Dft8.Image =  p_in_payload->imp_img_dft8;
+      UserConfig_BaselineResistor =  p_in_payload->resistor_baseline;
+      eda_user_applied_baseline_imp = USER_CONFIG_BASELINE_IMPEDANCE_SET;
+
+      p_resp_payload->command = M2M2_EDA_APP_CMD_BASELINE_IMP_SET_RESP;
+      p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
+      p_resp_payload->imp_real_dft16 = EDABase_Userconfig_Dft16.Real;
+      p_resp_payload->imp_img_dft16  = EDABase_Userconfig_Dft16.Image;
+      p_resp_payload->imp_real_dft8 = EDABase_Userconfig_Dft8.Real;
+      p_resp_payload->imp_img_dft8  = EDABase_Userconfig_Dft8.Image;
+
+      p_resp_payload->resistor_baseline = UserConfig_BaselineResistor;
+
+      break;
+    case M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_REQ:
+      eda_user_applied_baseline_imp = USER_CONFIG_BASELINE_IMPEDANCE_RESET;
+      EDABase_Userconfig_Dft16.Real  =  0x00;
+      EDABase_Userconfig_Dft16.Image =  0x00;
+      EDABase_Userconfig_Dft8.Real  =  0x00;
+      EDABase_Userconfig_Dft8.Image =  0x00;
+      UserConfig_BaselineResistor   = 0x00;
+
+      p_resp_payload->command = M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_RESP;
+      p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
+      p_resp_payload->imp_real_dft16 = EDABase_Userconfig_Dft16.Real;
+      p_resp_payload->imp_img_dft16  = EDABase_Userconfig_Dft16.Image;
+      p_resp_payload->imp_real_dft8 = EDABase_Userconfig_Dft8.Real;
+      p_resp_payload->imp_img_dft8  = EDABase_Userconfig_Dft8.Image;
+
+      p_resp_payload->resistor_baseline = UserConfig_BaselineResistor;
+
+      break;
+    }
+
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_pkt->dest = p_pkt->src;
+  }
+  return p_resp_pkt;
+}
+
+/*!
+ ****************************************************************************
  *@brief      Perform dynamic scaling
  *@param      pPkt: pointer to the packet structure
  *@return     m2m2_hdr_t
@@ -925,8 +1020,13 @@ static m2m2_hdr_t *eda_app_stream_config(m2m2_hdr_t *p_pkt) {
       {
         eda_app_timings.delayed_start = true;
       }
+#ifdef LOW_TOUCH_FEATURE
       //EDA app not in continuous mode & its interval operation mode
       if(!is_eda_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+#else
+      //EDA app not in continuous mode
+      if(!is_eda_app_mode_continuous())
+#endif
       {
         start_eda_app_timer();
       }
@@ -1054,7 +1154,7 @@ EDA_ERROR_CODE_t EDAAppDeInit() {
 #endif
 
   ad5940_port_deInit();
-
+  gEdaAppInitFlag = false;
   /* de initing for next use */
   init_flag=0;
 
@@ -1129,10 +1229,12 @@ EDA_ERROR_CODE_t EDAAppInit() {
   eda_init_start_time = get_micro_sec();
 #endif
    EDA_ERROR_CODE_t retVal = EDA_ERROR;
+/*
   fImpCar_Type EDABase = {
       .Real = 24368.6,
       .Image = -16.696,
   };
+*/
   /* power on */
   adp5360_enable_ldo(ECG_LDO, true);
 
@@ -1142,12 +1244,35 @@ EDA_ERROR_CODE_t EDAAppInit() {
 
   /* start eda initialization */
   ad5940_eda_start();
-
+  gEdaAppInitFlag = true;
   /* Control BIA measurment to start. Second parameter has no
    * meaning with this command. */
   AppEDACtrl(APPCTRL_START, 0);/* to disable running on wake up timer */
-  AppEDACtrl(EDACTRL_SETBASE, &EDABase);
-  ResistorForBaseline = 19900;
+
+  /* Base line impedance value can be controlled by user or
+     default measurements will be used */
+  if( eda_user_applied_baseline_imp == USER_CONFIG_BASELINE_IMPEDANCE_SET){
+    ResistorForBaseline = UserConfig_BaselineResistor;
+    /*Setting baseline impedance with corresponding DFT measured values*/
+    if( AppEDACfg.DftNum == DFTNUM_16){
+      AppEDACtrl(EDACTRL_SETBASE,&EDABase_Userconfig_Dft16);
+    }
+    else {
+      AppEDACtrl(EDACTRL_SETBASE,&EDABase_Userconfig_Dft8);
+    }
+  }
+  else {
+    //Default value will be used
+    ResistorForBaseline = DEFAULT_BASELINE_RESISTOR;
+    /*Setting baseline impedance with corresponding DFT measured values*/
+    if( AppEDACfg.DftNum == DFTNUM_16){
+      AppEDACtrl(EDACTRL_SETBASE,&EDABase_Dft16);
+    }
+    else {
+      AppEDACtrl(EDACTRL_SETBASE,&EDABase_Dft8);
+    }
+  }
+
   retVal = EDA_SUCCESS;
 #ifdef PROFILE_TIME_ENABLED
   eda_init_diff_time = get_micro_sec() - eda_init_start_time;

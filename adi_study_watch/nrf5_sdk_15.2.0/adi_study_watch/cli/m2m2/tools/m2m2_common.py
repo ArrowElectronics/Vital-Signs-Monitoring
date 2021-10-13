@@ -27,7 +27,7 @@ application_name_map = {
 "syncppg":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SYNC_ADPD_ADXL, 'help':"The sync PPG data stream service."},
 "eda":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, 'help':"The EDA service."},
 "ecg":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_ECG, 'help':"The ECG service."},
-"bcm":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, 'help':"The BCM service."},
+"bia":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, 'help':"The BIA service."},
 "temperature":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'help':"The Temperature service."},
 "ped":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PED, 'help':"The Pedometer service."},
 "ad5940":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, 'help':"The AD5940 device."}, #Since we dont have ad5940 app separately, using EDA address to access ad5940
@@ -38,6 +38,7 @@ application_name_map = {
 "sqi":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SQI, 'help':"The SQI service."},
 "lt_app_lcfg":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, 'help':"The lt_app_lcfg."},
 "user0_config":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, 'help':"The user0_config lcfg."},
+"bcm":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, 'help':"The BIA service."},
 }
 
 stream_name_map = {
@@ -54,11 +55,12 @@ stream_name_map = {
 "radpd11":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD_STREAM11, 'help':"Raw ADPD data slot11"},
 "radpd12":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD_STREAM12, 'help':"Raw ADPD data slot12"},
 "radxl":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL_STREAM, 'help':"Raw ADXL data."},
+"rad7156":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD7156_STREAM, 'help':"Raw AD7156 data."},
 "rppg":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG_STREAM, 'help':"Raw PPG data."},
 "rsyncppg":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SYNC_ADPD_ADXL, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM, 'help':"Raw sync PPG data."},
 "reda":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA_STREAM, 'help':"Raw EDA data."},
 "recg":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_ECG, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_ECG_STREAM, 'help':"Raw ECG data."},
-"rbcm":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BCM_STREAM, 'help':"Raw BCM data."},
+"rbia":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA_STREAM, 'help':"Raw BIA data."},
 "ragc":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_AGC_STREAM, 'help':"PPG AGC data."},
 "radp":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_BATT_STREAM, 'help':"ADP5350 Battery data."},
 "rtemperature":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM, 'help':"Raw Temperature data."},
@@ -66,9 +68,10 @@ stream_name_map = {
 "rsqi":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SQI, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SQI_STREAM, 'help':"Raw SQI data."},
 "rhrv":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_HRV_STREAM, 'help':"PPG HRV data."},
 #"rad5940":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD5940, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_AD5940_STREAM, 'help':"Raw ADPD data (support for dual-slot)"},
+"rbcm":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_BCM_ALGO_STREAM, 'help':"BCM Algo data."},
 }
 
-pkt_loss_dict = {'recg': False, 'rppg': False, 'radxl': False, 'rtemperature': False, 'reda': False, 'rsyncppg': False, 'radpd': False}
+pkt_loss_dict = {'recg': False, 'rppg': False, 'radxl': False, 'rtemperature': False, 'reda': False, 'rsyncppg': False, 'radpd': False, 'rad7156': False}
 
 def init_pkt_loss_dict():
     global pkt_loss_dict

@@ -39,12 +39,12 @@
 #define AD5940Drv_SUCCESS (0)
 #define AD5940Drv_ERROR  (-1)
 
-typedef enum AD5950_APP_ENUM_t {
+typedef enum AD5940_APP_ENUM_t {
   AD5940_APP_NONE = 0,
   AD5940_APP_ECG,
   AD5940_APP_EDA,
-  AD5940_APP_BCM
-} AD5950_APP_ENUM_t;
+  AD5940_APP_BIA,
+} AD5940_APP_ENUM_t;
 
 void Ad5940Init();
 void Ad5940FifoCallBack(void);
@@ -54,10 +54,10 @@ uint8_t ReadAd5940DrvBcmData(uint32_t *pData, uint32_t *pTimeStamp);
 uint8_t ReadAd5940DrvEdaData(uint32_t *pData, uint32_t *pTimeStamp);
 int8_t ad5940_read_ecg_data_to_buffer();
 int8_t ad5940_read_eda_data_to_buffer();
-uint16_t ad5950_buff_get(uint32_t *rxData, uint32_t *time);
+int8_t ad5940_buff_get(uint32_t *rxData, uint32_t *time);
 uint8_t getAd5940DataReady();
 void ResetTimeGapAd5940();
-int8_t ad5940_read_bcm_data_to_buffer();
+int8_t ad5940_read_bia_data_to_buffer();
 void Ad5940DrvDataReadyCallback(void (*pfAD5940DataReady)());
 int32_t AppECGDataProcess(int32_t * const pData, uint32_t *pDataCount);
 int32_t AppECGRegModify(int32_t * const pData, uint32_t *pDataCount);

@@ -241,6 +241,7 @@ void key_detect_thread(void * arg)
                     /* reset operation not rely the other task*/
                     if(key_value == KEY_NAVIGATION_LONG_VALUE)
                     {
+#ifdef USE_FS
                         /* if logging is in progress , close file */
                         if(UpdateFileInfo() == true){
                           NRF_LOG_INFO("Success file close ");
@@ -249,6 +250,7 @@ void key_detect_thread(void * arg)
                           /* failure */
                           NRF_LOG_INFO("Error file close");
                         }
+#endif
                         rtc_timestamp_store(320);
                         NVIC_SystemReset();
                     }

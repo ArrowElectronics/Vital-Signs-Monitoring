@@ -134,12 +134,25 @@ void gpio_init(void)
 
 }
 
+/*!
+ ************************************************************************************
+ *@brief      Enables the adxl trigger pin in output mode
+ *@param      None
+ *@return     None
+ ************************************************************************************/
 void enable_adxl_trigger_pin()
 {
   nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(false);
   nrf_drv_gpiote_out_init(ADXL362_INT2_PIN, &out_config);
 }
 
+
+/*!
+ ************************************************************************************
+ *@brief      Enables the AD5940 trigger pin in output mode
+ *@param      None
+ *@return     None
+ ************************************************************************************/
 void enable_ad5940_trigger_pin()
 {
 //  nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(true);
@@ -147,28 +160,64 @@ void enable_ad5940_trigger_pin()
   nrf_gpio_cfg_output_high_drive(AD5940_INT0_PIN);
 }
 
+
+/*!
+ ************************************************************************************
+ *@brief      Disables the AD5940 trigger pin
+ *@param      None
+ *@return     None
+ ************************************************************************************/
 void disable_ad5940_trigger_pin()
 {
 //   nrfx_gpiote_out_uninit(AD5940_INT0_PIN);
   nrf_gpio_out_high_drive_uninit(AD5940_INT0_PIN);
 }
 
+/*!
+ ************************************************************************************
+ *@brief      Disables the ADXL trigger pin
+ *@param      None
+ *@return     None
+ ************************************************************************************/
 void disable_adxl_trigger_pin()
 {
   nrfx_gpiote_out_uninit(ADXL362_INT2_PIN);
 }
 
+
+/*!
+ ************************************************************************************
+ *@brief      Inverts the ADXL trigger pin
+ *            It toggles the current state of ADXL trigger pin
+ *@param      None
+ *@return     None
+ ************************************************************************************/
 void invert_adxl_trigger_signal()
 {
   nrf_drv_gpiote_out_toggle(ADXL362_INT2_PIN);
 }
 
+
+/*!
+ ************************************************************************************
+ *@brief      Inverts the AD5940 trigger pin
+ *            It toggles the current state of AD5940 trigger pin
+ *@param      None
+ *@return     None
+ ************************************************************************************/
 void invert_ad5940_trigger_signal()
 {
 //  nrf_drv_gpiote_out_toggle(AD5940_INT0_PIN);
   nrf_gpio_pin_toggle(AD5940_INT0_PIN);
 }
 
+/*!
+ ************************************************************************************
+ *@brief      Resets the AD5940 trigger pin
+ *            This sets/resets the AD5940 trigger pin based on n_state argument
+ *@param      n_state: state to which the trigger pin needs to be set
+ *@return     None
+ ************************************************************************************/
 void reset_ad5940_trigger_signal(bool n_state)
 {
   if(n_state){
@@ -181,23 +230,84 @@ void reset_ad5940_trigger_signal(bool n_state)
     }
 }
 
+/*!
+ ************************************************************************************
+ *@brief      Resets the ADXL trigger pin
+ *            This sets/resets the ADXL trigger pin based on n_state argument
+ *@param      n_state: state to which the trigger pin needs to be set
+ *@return     None
+ ************************************************************************************/
+void reset_adxl_trigger_signal(bool n_state)
+{
+  if(n_state){
+    nrf_drv_gpiote_out_set(ADXL362_INT2_PIN);
+    }
+  else{
+    nrf_drv_gpiote_out_clear(ADXL362_INT2_PIN);
+    }
+}
+
+
+/*!
+ ************************************************************************************
+ *@brief      Resets the ADPD trigger pin
+ *            This sets/resets the ADPD trigger pin based on n_state argument
+ *@param      n_state: state to which the trigger pin needs to be set
+ *@return     None
+ ************************************************************************************/
+void reset_adpd_trigger_signal(bool n_state)
+{
+  if(n_state){
+    nrf_drv_gpiote_out_set(ADPD4K_GPIO3_PIN);
+    }
+  else{
+    nrf_drv_gpiote_out_clear(ADPD4K_GPIO3_PIN);
+    }
+}
+
+/*!
+ ************************************************************************************
+ *@brief      Resets the ADPD and ADXL trigger pin to known state(High)
+ *@param      None
+ *@return     None
+ ************************************************************************************/
 void reset_trigger_pulses()
 {
   nrf_drv_gpiote_out_set(ADXL362_INT2_PIN);
   nrf_drv_gpiote_out_set(ADPD4K_GPIO3_PIN);
 }
 
+/*!
+ ************************************************************************************
+ *@brief      Enables the ADPD trigger pin in output mode
+ *@param      None
+ *@return     None
+ ************************************************************************************/
 void enable_adpd_trigger_pin()
 {
   nrf_drv_gpiote_out_config_t out_config = GPIOTE_CONFIG_OUT_SIMPLE(false);
   nrf_drv_gpiote_out_init(ADPD4K_GPIO3_PIN, &out_config);
 }
 
+
+/*!
+ ************************************************************************************
+ *@brief      Disables the ADPD trigger pin
+ *@param      None
+ *@return     None
+ ************************************************************************************/
 void disable_adpd_trigger_pin()
 {
   nrfx_gpiote_out_uninit(ADPD4K_GPIO3_PIN);
 }
 
+/*!
+ ************************************************************************************
+ *@brief      Inverts the ADPD trigger pin
+ *            It toggles the current state of ADPD trigger pin
+ *@param      None
+ *@return     None
+ ************************************************************************************/
 void invert_adpd_trigger_signal()
 {
   nrf_drv_gpiote_out_toggle(ADPD4K_GPIO3_PIN);

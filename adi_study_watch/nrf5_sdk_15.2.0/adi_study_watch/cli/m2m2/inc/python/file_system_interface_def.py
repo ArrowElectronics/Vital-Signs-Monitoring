@@ -127,6 +127,10 @@ class FILE_SYS_STREAM_SUBS_STATE_ENUM_t(c_ubyte):
     M2M2_FILE_SYS_SUBSCRIBED = 0x1
     M2M2_FILE_SYS_SUBS_INVALID = 0xFF
 
+class FILE_PAGE_CHUNK_RETRANSMIT_TYPE_ENUM_t(c_ubyte):
+    M2M2_FILE_SYS_PAGE_CHUNK_CRC_ERROR = 0x0
+    M2M2_FILE_SYS_PAGE_CHUNK_LOST = 0x1
+
 class m2m2_file_sys_cmd_t(Structure):
     _pack_ = 1
     _fields_ = [
@@ -180,35 +184,29 @@ def m2m2_file_sys_get_req_t(array_size):
               ]
   return m2m2_file_sys_get_req_t_internal()
 
-class m2m2_file_sys_get_resp_t(Structure):
+def m2m2_file_sys_page_chunk_retransmit_req_t(array_size):
+  class m2m2_file_sys_page_chunk_retransmit_req_t_internal(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
-              ("len_stream", c_ushort),
-              ("byte_stream", c_ubyte * 512),
-              ("crc16", c_ushort),
-              ]
-
-def m2m2_file_sys_pkt_retransmit_req_t(array_size):
-  class m2m2_file_sys_pkt_retransmit_req_t_internal(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("command", c_ubyte),
-              ("status", c_ubyte),
-              ("Roll_over", c_ubyte),
-              ("chunk_number", c_ushort),
+              ("retransmit_type", c_ubyte),
+              ("page_roll_over", c_ubyte),
+              ("page_chunk_number", c_ubyte),
+              ("page_number", c_ushort),
               ("file_name", c_ubyte * array_size),
               ]
-  return m2m2_file_sys_pkt_retransmit_req_t_internal()
+  return m2m2_file_sys_page_chunk_retransmit_req_t_internal()
 
 class m2m2_file_sys_download_log_stream_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
-              ("len_stream", c_ushort),
-              ("byte_stream", c_ubyte * 512),
+              ("page_chunk_number", c_ubyte),
+              ("page_number", c_ushort),
+              ("page_chunk_size", c_ushort),
+              ("page_chunk_bytes", c_ubyte * 512),
               ("crc16", c_ushort),
               ]
 
@@ -348,25 +346,6 @@ class m2m2_file_sys_get_file_count_pkt_t(Structure):
               ("file_count", c_ushort),
               ]
 
-class m2m2_file_sys_get_file_info_req_pkt_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("command", c_ubyte),
-              ("status", c_ubyte),
-              ("file_index", c_ubyte),
-              ]
-
-class m2m2_file_sys_get_file_info_resp_pkt_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("command", c_ubyte),
-              ("status", c_ubyte),
-              ("file_name", c_ubyte * 16),
-              ("start_page", c_ulong),
-              ("end_page", c_ulong),
-              ("file_size", c_ulong),
-              ]
-
 class m2m2_file_sys_page_read_test_req_pkt_t(Structure):
     _pack_ = 1
     _fields_ = [
@@ -389,6 +368,23 @@ class m2m2_file_sys_page_read_test_resp_pkt_t(Structure):
               ("data_region_status", c_ubyte),
               ("sample_data", c_ubyte * 100),
               ("num_bytes", c_ubyte),
+              ]
+
+class m2m2_file_sys_sample_data_file_read_req_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("start_page_ind", c_ulong),
+              ("end_page_ind", c_ulong),
+              ]
+
+class m2m2_file_sys_sample_data_file_read_resp_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("sample_data", c_ubyte * 202),
               ]
 
 class m2m2_file_sys_log_stream_t(Structure):
@@ -471,19 +467,22 @@ class m2m2_file_sys_format_debug_info_resp_t(Structure):
               ("format_dest_blk_ind_2", c_ulong),
               ]
 
-class m2m2_file_sys_sample_data_file_read_req_t(Structure):
+class m2m2_file_sys_get_file_info_req_pkt_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),
               ("status", c_ubyte),
-              ("start_page_ind", c_uint32),
-              ("end_page_ind", c_uint32),
+              ("file_index", c_ubyte),
               ]
 
-class m2m2_file_sys_sample_data_file_read_resp_t(Structure):
+class m2m2_file_sys_get_file_info_resp_pkt_t(Structure):
     _pack_ = 1
     _fields_ = [
-               ("command", c_ubyte),
-               ("status", c_ubyte),
-               ("sample_data",c_ubyte * 202),
-               ]
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("file_name", c_ubyte * 16),
+              ("start_page", c_ulong),
+              ("end_page", c_ulong),
+              ("file_size", c_ulong),
+              ]
+

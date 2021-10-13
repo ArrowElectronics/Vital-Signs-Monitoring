@@ -365,7 +365,7 @@ uint32_t gBleTaskMsgPostCnt=0, gBleTaskMsgPostCntFailed=0, gBleTaskMsgProcessCnt
 
 #ifdef CUST4_SM
 #include "user0_config_app_task.h"
-extern bool usbd_get_cradle_disconnection_status();
+#include "usbd_task.h"
 #endif
 /*!
  ****************************************************************************
@@ -1277,12 +1277,13 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt) {
   case BLE_ADV_EVT_IDLE:
 #ifdef CUST4_SM
     //Check curr state and do re-adv only for intermittent state
-    if(get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING)
+    if((get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING)
+       && (gb_ble_status == BLE_DISCONNECTED))
     {
       NRF_LOG_INFO("Advertising timeout, entering sleep state.")
       user0_config_app_enter_state_sleep();
     }
-    else
+    else if((gb_ble_status == BLE_DISCONNECTED))
     {
 #endif
       NRF_LOG_INFO("Advertising timeout, restarting.")
@@ -1346,14 +1347,14 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
 #ifdef CUST4_SM
      //Watch connected to tool and its connected to cradle for charging
      //if(get_user0_config_app_state() == STATE_START &&
-     if(get_user0_config_app_state() == STATE_ADMIT_STANDBY &&
-        !usbd_get_cradle_disconnection_status())
+     if( (get_user0_config_app_state() == STATE_ADMIT_STANDBY) &&
+         (usbd_get_cradle_disconnection_status() == USBD_CONNECTED) )
      {
         user0_config_app_enter_state_admit_standby();
      }
      //Watch connected to tool and its disconnected from cradle
-     else if(get_user0_config_app_state() == STATE_ADMIT_STANDBY &&
-             usbd_get_cradle_disconnection_status())
+     else if( (get_user0_config_app_state() == STATE_ADMIT_STANDBY) &&
+              (usbd_get_cradle_disconnection_status() == USBD_DISCONNECTED) )
      {
         user0_config_app_enter_state_start_monitoring();
      }
@@ -2308,6 +2309,7 @@ void ble_enter_bootloader_prepare(void) {
 uint32_t enter_bootloader_and_restart(void) {
   uint32_t err_code;
   uint8_t bat_soc;
+#ifdef USE_FS
   /* if logging is in progress , close file */
   if(UpdateFileInfo() == true){
     NRF_LOG_INFO("Success file close ");
@@ -2316,6 +2318,7 @@ uint32_t enter_bootloader_and_restart(void) {
     /* failure */
     NRF_LOG_INFO("Error file close");
   }
+#endif
   Adp5360_getBatSoC(&bat_soc);
   if ((bat_soc < UPGRADE_BATTERY_LEVEL) &&
       (0 != Adp5360_pgood_pin_status_get())) {

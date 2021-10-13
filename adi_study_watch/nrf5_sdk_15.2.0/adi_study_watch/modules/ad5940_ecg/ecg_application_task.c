@@ -34,8 +34,9 @@
 * ****************************************************************************
 */
 
-#if defined(ENABLE_ECG_APP) || defined(ENABLE_EDA_APP) || defined(ENABLE_BCM_APP)
 #include <includes.h>
+#include "adi_ecg.h"
+#if defined(ENABLE_ECG_APP) || defined(ENABLE_EDA_APP) || defined(ENABLE_BIA_APP)
 #include <ecg_task.h>
 /* Buffer is reused in ECG,EDA,BCM applications to minmize RAM usage */
 uint32_t AppBuff[APPBUFF_SIZE];
@@ -44,7 +45,6 @@ uint32_t AppBuff[APPBUFF_SIZE];
 #ifdef ENABLE_ECG_APP
 #include <adpd4000_dcfg.h>
 #include <power_manager.h>
-#include "adi_ecg.h"
 #include <rtc.h>
 #include <stdint.h>
 #include <string.h>
@@ -83,7 +83,7 @@ ECG_ERROR_CODE_t delete_ecg_dcb(void);
 #endif
 /////////////////////////////////////////
 g_state_ecg_t g_state_ecg;
-
+volatile bool gEcgAppInitFlag = false;
 #ifdef EXTERNAL_TRIGGER_EDA
 uint8_t ecg_start_req=0;
 #endif
@@ -132,7 +132,7 @@ ADI_OSAL_STATIC_THREAD_ATTR sensor_ecg_task_attributes;
 StaticTask_t ecgTaskTcb;
 ADI_OSAL_SEM_HANDLE ecg_task_evt_sem;
 AppECGCfg_Type AppECGCfg;
-extern AD5950_APP_ENUM_t gnAd5940App;
+extern AD5940_APP_ENUM_t gnAd5940App;
 uint8_t send_packets=0;
 void send_key_value(uint8_t  k_value);
 #if DEBUG_ECG
@@ -330,7 +330,7 @@ static void fetch_ecg_data(void) {
 
   M2M2_SENSOR_ECG_APP_INFO_BITSET_ENUM_t ecg_info = M2M2_SENSOR_ECG_APP_INFO_BITSET_LEADSOFF;
   ad5940_read_ecg_data_to_buffer();
-  status = ad5950_buff_get(&ecgData, &ecgTS);
+  status =ad5940_buff_get(&ecgData, &ecgTS);
   while (status == AD5940Drv_SUCCESS) {
 #ifdef ECG_HR_ALGO
     //Current ECG HR Alog supports only upto 200Hz
@@ -460,7 +460,7 @@ static void fetch_ecg_data(void) {
      }
     } /* if (g_state_ecg.decimation_nsamples >= g_state_ecg.decimation_factor)
        */
-    status = ad5950_buff_get(&ecgData, &ecgTS);
+    status =ad5940_buff_get(&ecgData, &ecgTS);
   } /* while */
 }
 
@@ -934,6 +934,9 @@ void HAL_GPIO_ECG_Sport_Enable(uint8_t en) {
  * @return None
  *****************************************************************************/
 void DG2502_SW_control_AD5940(uint8_t sw_enable) {
+  /* Using  hardware reset and initialization */
+  AD5940_HWReset();
+  AD5940_Initialize();
   if (sw_enable) {
     /* Gp0 Output enable */
     AD5940_WriteReg(REG_AGPIO_GP0OEN, (AGPIO_Pin3));
@@ -957,6 +960,9 @@ void DG2502_SW_control_AD5940(uint8_t sw_enable) {
  * @return None
  *****************************************************************************/
 void DG2502_SW_control_AD8233(uint8_t sw_enable) {
+  /* Using  hardware reset and initialization */
+  AD5940_HWReset();
+  AD5940_Initialize();
   if (sw_enable) {
     /* Gp0 Output enable */
     AD5940_WriteReg(REG_AGPIO_GP0OEN, (AGPIO_Pin4));
@@ -980,13 +986,14 @@ ECG_ERROR_CODE_t EcgAppInit() {
 
   /* switch off other switches */
   // DG2502_SW_control_AD5940(false);
-  DG2502_SW_control_ADPD4000(false);
+  //DG2502_SW_control_ADPD4000(false);
   ECG_ERROR_CODE_t retVal = ECG_ERROR;
 
     adp5360_enable_ldo(ECG_LDO,true);
     InitCfg();
     ClearDataBufferAd5940();
     ad5940_ecg_start();
+    gEcgAppInitFlag = true;
     user_applied_packetization_enable=0;/* re init every time so that by default packetization is enabled for every start */
   /* GPIO for ECG mode and electrodes */
   /* Enable Sport AD8233 device */
@@ -1013,7 +1020,7 @@ ECG_ERROR_CODE_t EcgAppDeInit() {
   disable_ad5940_ext_trigger(pCfg->ECGODR);
   /* Disable Sport AD8233 device */
   HAL_GPIO_ECG_Sport_Enable(0);
-
+  gEcgAppInitFlag = false;
   /* de init power */
   adp5360_enable_ldo(ECG_LDO, false);
   return ECG_SUCCESS;

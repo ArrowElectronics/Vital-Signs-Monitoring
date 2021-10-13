@@ -18,6 +18,18 @@
 #define TOUCH_SHORT_PRESS_TIME_MS  (8)//add detect time, filter disturb from the display screen.
 #define TOUCH_LONG_PRESS_TIMEOUT_MS (500) /**< The time to hold for a long push (in milliseconds). */
 
+/*----------------------------- Typedefs -------------------------------------*/
+typedef struct _ad7156_packetizer_t {
+  m2m2_hdr_t                *p_pkt;
+} ad7156_packetizer_t;
+
+typedef struct _g_state_ad7156 {
+  uint16_t  num_subs;
+  uint16_t  num_starts;
+  uint16_t  data_pkt_seq_num;
+  ad7156_packetizer_t  ad7156_pktizer;
+} g_state_ad7156_t;
+
 typedef void (*Send_touch_func)(uint8_t value);
 
 void Register_touch_send_func(Send_touch_func hander);

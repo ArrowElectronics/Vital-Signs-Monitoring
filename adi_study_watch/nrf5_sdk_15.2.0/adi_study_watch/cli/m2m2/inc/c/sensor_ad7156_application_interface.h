@@ -41,8 +41,8 @@ typedef struct _m2m2_sensor_ad7156_data_t {
   uint8_t  status; 
   uint16_t  sequence_num; 
   uint32_t  timestamp; 
-  uint8_t  touch_position; 
-  uint8_t  touch_value; 
+  uint16_t  ch1_cap; 
+  uint16_t  ch2_cap; 
 } m2m2_sensor_ad7156_data_t;
 
 // Reset struct packing outside of this file

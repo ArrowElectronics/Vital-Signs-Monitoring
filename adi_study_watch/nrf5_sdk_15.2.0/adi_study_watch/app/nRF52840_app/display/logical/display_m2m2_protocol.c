@@ -567,6 +567,7 @@ uint32_t m2m2_check_sensor_status(M2M2_ADDR_ENUM_t dest_addr,uint8_t *status,uin
     return M2M2_SUCCESS;
 }
 
+#ifdef USE_FS
 extern uint8_t get_fs_logging_status(void);
 uint32_t m2m2_check_fs_status(uint8_t *status)
 {
@@ -718,6 +719,7 @@ uint32_t m2m2_set_fs_subscribe(uint8_t sensor,uint8_t en)
     }
     return M2M2_SUCCESS;
 }
+#endif//USE_FS
 
 uint32_t m2m2_set_stream_status(uint8_t sensor,uint8_t en)
 {
@@ -1050,6 +1052,7 @@ uint32_t m2m2_unsubscribe_stream(M2M2_ADDR_ENUM_t dest_addr,M2M2_ADDR_ENUM_t sub
     return M2M2_SUCCESS;
 }
 
+#ifdef USE_FS
 extern M2M2_FILE_SYS_STATUS_ENUM_t get_fs_available_memory(uint32_t *p_available_mem);
 uint32_t m2m2_memory_usage_get(uint8_t *percent)
 {
@@ -1124,4 +1127,5 @@ uint32_t m2m2_check_logging_status(uint8_t *status)
     return M2M2_SUCCESS;
 
 }
+#endif//USE_FS
 #endif

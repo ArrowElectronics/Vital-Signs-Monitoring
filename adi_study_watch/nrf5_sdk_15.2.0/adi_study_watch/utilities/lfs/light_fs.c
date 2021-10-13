@@ -1260,6 +1260,7 @@ elfs_result lfs_open_file_by_name(char * file_name,
   * @param       offset    : Offset inside the file to start reading from
   * @param       size      : Number of bytes to read
   * @param      _file_header * _file_header : file handler that will be used
+  * @param       page_number: current page number of file
   * @return   elfs_result Function result: LFS_SUCCESS/LFS_ERROR
   **************************************************************************************************/
 #ifdef PAGE_READ_DEBUG_INFO
@@ -1271,7 +1272,7 @@ uint8_t last_page_read_status=0;
 elfs_result lfs_read_file(uint8_t * outBuffer,
                           uint32_t offset,
                           uint32_t *size,
-                          _file_handler *file_handler)  {
+                          _file_handler *file_handler,uint32_t *page_number)  {
   if(file_handler->current_offset != offset)  {
     /* set read position in page to read data bytes */
     if(lfs_set_read_pos(offset,file_handler) != LFS_SUCCESS)  {
@@ -1299,6 +1300,7 @@ elfs_result lfs_read_file(uint8_t * outBuffer,
       read_page,
       read_page_offset);
 #endif
+     *page_number = read_page;
       /* if spare area of page to be read */
        if(lfs_read_oob(read_page,&page_header) != LFS_SUCCESS)
        {

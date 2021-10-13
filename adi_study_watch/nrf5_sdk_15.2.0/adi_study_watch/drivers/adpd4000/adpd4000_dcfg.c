@@ -53,7 +53,7 @@ NRF_LOG_MODULE_REGISTER();
 #define MAXADPD4000DCFGSIZE (228) /* Max 4*57 registers */
 
 #ifdef DCB
-static volatile bool g_dcb_Present = false;
+static volatile bool g_adpd4000_dcb_present = false;
 static uint32_t g_current_dcb[MAX_ADPD4000_DCB_PKTS*MAXADPD4000DCBSIZE] = {'\0'};
 #endif
 extern uint32_t  gnTemperature_Slot;
@@ -1041,7 +1041,7 @@ ADPD4000_DCFG_STATUS_t get_adpd4k_dcfg(uint16_t slot_id, uint16_t app_id, uint8_
   {
     gDcfgMaxSlot = slot_id;/* store the max slot in dcfg to set the opmode */
   }
-   
+
   if(index == num_slots - 1)
   {
    /* Enable Slots */
@@ -1281,20 +1281,20 @@ ADPD4000_DCB_STATUS_t delete_adpd4000_dcb(void)
 
 void adpd4000_set_dcb_present_flag(bool set_flag)
 {
-    g_dcb_Present = set_flag;
-    NRF_LOG_INFO("Setting..ADPD4000 DCB present: %s",(g_dcb_Present == true ? "TRUE" : "FALSE"));
+    g_adpd4000_dcb_present = set_flag;
+    NRF_LOG_INFO("Setting..ADPD4000 DCB present: %s",(g_adpd4000_dcb_present == true ? "TRUE" : "FALSE"));
 }
 
 bool adpd4000_get_dcb_present_flag(void)
 {
-    NRF_LOG_INFO("ADPD4000 DCB present: %s", (g_dcb_Present == true ? "TRUE" : "FALSE"));
-    return g_dcb_Present;
+    NRF_LOG_INFO("ADPD4000 DCB present: %s", (g_adpd4000_dcb_present == true ? "TRUE" : "FALSE"));
+    return g_adpd4000_dcb_present;
 }
 
 void adpd4000_update_dcb_present_flag(void)
 {
-    g_dcb_Present = adi_dcb_check_fds_entry(ADI_DCB_ADPD4000_BLOCK_IDX);
-    NRF_LOG_INFO("Updated. ADPD4000 DCB present: %s", (g_dcb_Present == true ? "TRUE" : "FALSE"));
+    g_adpd4000_dcb_present = adi_dcb_check_fds_entry(ADI_DCB_ADPD4000_BLOCK_IDX);
+    NRF_LOG_INFO("Updated. ADPD4000 DCB present: %s", (g_adpd4000_dcb_present == true ? "TRUE" : "FALSE"));
 }
 #endif
 

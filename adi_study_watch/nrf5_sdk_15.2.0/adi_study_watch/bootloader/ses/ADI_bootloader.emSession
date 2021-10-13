@@ -13,7 +13,6 @@
  <Project>
   <ProjectSessionItem path="ADI_bootloader"/>
   <ProjectSessionItem path="ADI_bootloader;ADI_bootloader"/>
-  <SourceCodeControlLogin password="F9BB6682F5D56822" user="Arpan Patel &lt;arpan.patel@einfochips.com>"/>
  </Project>
  <Register1/>
  <Register2/>

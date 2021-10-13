@@ -116,11 +116,13 @@ Output/watchv4_nrf52840\ Debug/Obj/adpd4000_task.o: \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\agc.h \
  ..\..\..\modules\adpd4000_ppg/app_common.h \
- ..\..\..\modules\ad5940_bcm/bcm_application_task.h \
- ..\..\..\cli\m2m2\inc\c/bcm_application_interface.h \
+ ..\..\..\modules\ad5940_bia/bia_application_task.h \
+ ..\..\..\cli\m2m2\inc\c/bia_application_interface.h \
  ..\..\..\drivers\ad5940/ad5940.h ..\..\..\drivers\ad5940/sensor_ad5940.h \
- ..\..\..\modules\ad5940_bcm/app_bcm.h \
+ ..\..\..\modules\ad5940_bia/app_bia.h \
  ..\..\..\modules\adpd4000_ppg/sensor_internal.h \
+ ..\..\..\modules\ad5940_bia/adi_bcm_algo.h \
+ ..\..\..\algo\bcm/adi_vsm_bcm.h \
  ..\..\..\modules\ad5940_eda/eda_application_task.h \
  ..\..\..\cli\m2m2\inc\c/eda_application_interface.h \
  ..\..\..\modules\ad5940_eda/app_eda.h \
@@ -142,6 +144,7 @@ Output/watchv4_nrf52840\ Debug/Obj/adpd4000_task.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_timer.h \
  ..\..\..\modules\adpd4000_ppg/app_sync.h \
  ..\..\..\modules\ad7156_lt/low_touch_task.h \
+ ..\..\..\cli\m2m2\inc\c/ppg_application_interface.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \

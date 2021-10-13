@@ -129,6 +129,10 @@ class FILE_SYS_STREAM_SUBS_STATE_ENUM_t(c_uint8):
     M2M2_FILE_SYS_SUBSCRIBED     = 0x1
     M2M2_FILE_SYS_SUBS_INVALID   = 0xFF
 
+class FILE_PAGE_CHUNK_RETRANSMIT_TYPE_ENUM_t(c_uint8):
+    M2M2_FILE_SYS_PAGE_CHUNK_CRC_ERROR     = 0x0
+    M2M2_FILE_SYS_PAGE_CHUNK_LOST          = 0x1
+    
 class m2m2_file_sys_cmd_t(Structure):
   fields = [
     (None, common_application_interface._m2m2_app_common_cmd_t),
@@ -168,27 +172,23 @@ class m2m2_file_sys_get_req_t(Structure):
     ("file_name", c_uint8 * 0),
   ]
 
-class m2m2_file_sys_get_resp_t(Structure):
+class m2m2_file_sys_page_chunk_retransmit_req_t(Structure):
   fields = [
     (None, common_application_interface._m2m2_app_common_cmd_t),
-    ("len_stream", c_uint16),
-    ("byte_stream", c_uint8 * 512),
-    ("crc16", c_uint16),
-  ]
-
-class m2m2_file_sys_pkt_retransmit_req_t(Structure):
-  fields = [
-    (None, common_application_interface._m2m2_app_common_cmd_t),
-    ("Roll_over", c_uint8),
-    ("chunk_number", c_uint16),
+    ("retransmit_type", FILE_PAGE_CHUNK_RETRANSMIT_TYPE_ENUM_t),
+    ("page_roll_over", c_uint8),
+    ("page_chunk_number", c_uint8),
+    ("page_number", c_uint16),
     ("file_name", c_uint8 * 0),
   ]
 
 class m2m2_file_sys_download_log_stream_t(Structure):
   fields = [
     (None, common_application_interface._m2m2_app_common_cmd_t),
-    ("len_stream", c_uint16),
-    ("byte_stream", c_uint8 * 512),
+    ("page_chunk_number", c_uint8),
+    ("page_number", c_uint16),
+    ("page_chunk_size", c_uint16),
+    ("page_chunk_bytes", c_uint8 * 512),
     ("crc16", c_uint16),
   ]
 

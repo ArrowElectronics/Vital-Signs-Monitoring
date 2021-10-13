@@ -882,6 +882,7 @@ FS_STATUS_ENUM_t fs_hal_get_vol_info(uint32_t *p_size) {
   *@param       p_file_path: pointer to character array of file path
   *@param       p_buffer: pointer to buffer
   *@param       p_length: pointer to length
+  *@param       p_page_number: current page number of file 
   *@return      FS_STATUS_ENUM_t: file system status.
 *****************************************************************************/
 #ifdef PROFILE_TIME_ENABLED
@@ -892,7 +893,7 @@ FS_STATUS_ENUM_t fs_hal_get_vol_info(uint32_t *p_size) {
 /* Start node to be scanned (also used as work area) */
 uint32_t gbytesread;
 uint8_t flag_failure;
-FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t *p_length) {
+FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t *p_length,uint32_t *p_page_number) {
   static uint32_t nfile_size = 0;
   static uint32_t read_size = 0;
   static uint32_t bytes_read = 0;
@@ -916,7 +917,7 @@ FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t
     bytes_read_start_time = get_micro_sec();
 #endif
       /* Read Data from file */
-      if(lfs_read_file(p_buffer, bytes_read, &read_size, &gh_fs_file_read_handler) != LFS_SUCCESS) {
+      if(lfs_read_file(p_buffer, bytes_read, &read_size, &gh_fs_file_read_handler, p_page_number) != LFS_SUCCESS) {
         ge_file_read_access = FS_FILE_ACCESS_START;
         bytes_read = 0;
         flag_failure=1;
@@ -962,7 +963,7 @@ FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t
       }
 
       /* Read Data from file */
-      if(lfs_read_file(p_buffer, bytes_read, &read_size, &gh_fs_file_read_handler) != LFS_SUCCESS) {
+      if(lfs_read_file(p_buffer, bytes_read, &read_size, &gh_fs_file_read_handler, p_page_number) != LFS_SUCCESS) {
         ge_file_read_access = FS_FILE_ACCESS_START;
         bytes_read = 0;
         flag_failure=2;
@@ -992,27 +993,44 @@ FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t
   *@param       p_buffer: pointer to character array to get the content of file
   *@param       p_length: number bytes to be read
   *@param       p_filesize: pointer to integer to get file size in bytes
-  *@param       offset: specify the page-offset to move the file pointer to that particular
-                              byte position
+  *@param       in_page_number: page_number to read interms of offset to the file start page number.
+  *@param       p_out_page_number:current page_number from file read interms of offset to the file start page number.
+  *@param       next_page_number: next page_number from file read interms of offset to the file start page number.
   *@return      FS_STATUS_ENUM_t:file system status.
 *****************************************************************************/
 FS_STATUS_ENUM_t fs_hal_read_pageoffset(char* p_file_path, uint8_t *p_buffer, \
                                         uint32_t *p_length,  uint32_t *p_filesize,\
-                                        uint32_t offset) {
+                                        uint32_t in_page_number,uint32_t *p_out_page_number,uint32_t *next_page_number) {
   uint32_t nfilesize = 0;
   uint32_t read_size = 0;
   uint32_t bytes_read = 0;
-  uint32_t maximum_offset = 0;
-
+  uint32_t offset = 0,maximum_page_offset = 0,nFileStartPagenumber = 0,nFileEndPagenumber = 0;
+  
   if (ge_file_read_access == FS_FILE_ACCESS_START) {
     if (p_file_path == NULL) {
       return FS_STATUS_ERR;
     }
-
+    
     /* Open file for reading */
     if(LFS_SUCCESS == lfs_open_file_by_name(p_file_path, &gh_fs_file_read_handler)) {
       /* Get File size */
       nfilesize = gh_fs_file_read_handler.head.file_size;
+      nFileStartPagenumber = gh_fs_file_read_handler.current_read_pos/go_fs_mem_prop.page_size;
+      nFileEndPagenumber = gh_fs_file_read_handler.head.last_used_page;
+
+      maximum_page_offset = fs_get_file_page_number_offset(&nFileEndPagenumber,&nFileStartPagenumber,false);
+      /* return error if user has given offset maximum than file size*/ 
+      if (in_page_number  > maximum_page_offset){
+        return FS_STATUS_ERR;
+      }
+
+      /*Get absolute page number*/
+      if(nFileStartPagenumber + in_page_number <= MAX_DATA_FILE_BLOCK_PAGE_NUMBER){
+        in_page_number = nFileStartPagenumber + in_page_number;
+      }else{
+        in_page_number = nFileStartPagenumber + in_page_number - FILE_PAGE_ROLL_OVER;
+      }
+      offset = in_page_number * go_fs_mem_prop.page_size;
       *p_filesize = nfilesize;
       /* Check for file length */
       if((*p_length + offset) < nfilesize) {
@@ -1023,23 +1041,20 @@ FS_STATUS_ENUM_t fs_hal_read_pageoffset(char* p_file_path, uint8_t *p_buffer, \
       bytes_read += offset;
       gh_fs_file_read_handler.current_offset = offset;
       /* moving the file poniter read position with offset value */
-      gh_fs_file_read_handler.current_read_pos += offset;
-      maximum_offset = gh_fs_file_read_handler.head.last_used_page * go_fs_mem_prop.page_size;
-      /* return error if user has given offset maximum than file size */
-      if (gh_fs_file_read_handler.current_read_pos > maximum_offset){
-        return FS_STATUS_ERR;
-      }
+      gh_fs_file_read_handler.current_read_pos = offset;
       /* Read Data from file */
-      if(lfs_read_file(p_buffer, bytes_read, &read_size, &gh_fs_file_read_handler) != LFS_SUCCESS) {
+      if(lfs_read_file(p_buffer, bytes_read, &read_size, &gh_fs_file_read_handler,p_out_page_number) != LFS_SUCCESS) {
         bytes_read = 0;
         return FS_STATUS_ERR_STDIO;
       }
       bytes_read += read_size;
-      if (bytes_read == nfilesize) {
-        *p_length = read_size;
-        bytes_read = 0;
-        return FS_STATUS_ERR_EOF;
-      }
+      /*To confirm the page number is correct , reading it from that file and sending out*/
+      *p_out_page_number = fs_get_file_page_number_offset(p_out_page_number,&nFileStartPagenumber,true);
+      
+      /*Get next page number also so that for chunk lost case we can read next page*/  
+      *next_page_number = gh_fs_file_read_handler.current_read_pos/go_fs_mem_prop.page_size;
+      *next_page_number = fs_get_file_page_number_offset(next_page_number,&nFileStartPagenumber,false);
+
       *p_length = read_size;
       return FS_STATUS_OK;
     } else {     /* ... dir does not exist.        */
@@ -1693,7 +1708,28 @@ FS_STATUS_ENUM_t fs_flash_power_on (bool benable) {
   return FS_STATUS_OK;
 }
 
+/*!
+  ****************************************************************************
+  *@brief       Page number offset from start page number of a file
+  *@param       CurrentPageNumber:current page number of file
+  *@param       StartPageNumber: start page number of file
+  *@param       bHandleRollover: True  - Handle 16 bit roll over for page number offset
+                                 False - Disable Roll over for page number offset  
+  *@return      uint32_t: Page number offset.
+*****************************************************************************/
+uint32_t fs_get_file_page_number_offset(uint32_t *CurrentPageNumber, uint32_t *StartPageNumber, bool bHandleRollover) {
+uint32_t PageNumberOffset = 0;
+uint32_t nRollover = 65536;
+  if(!bHandleRollover)
+    nRollover = 0;
 
+  if(*CurrentPageNumber  >= *StartPageNumber){
+    PageNumberOffset = (*CurrentPageNumber - *StartPageNumber) % nRollover;
+  }else{
+    PageNumberOffset  = ((*CurrentPageNumber + FILE_PAGE_ROLL_OVER)  - *StartPageNumber) % nRollover;
+  }
+  return PageNumberOffset;
+}
 
 #ifdef TEST_FS_NAND
 #define MAX_BLOCKSIZE           2048

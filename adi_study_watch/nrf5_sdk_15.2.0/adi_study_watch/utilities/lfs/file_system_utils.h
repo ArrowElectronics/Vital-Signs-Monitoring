@@ -62,7 +62,9 @@ POSSIBILITY OF SUCH DAMAGE.
 #define PAGES_PER_BLOCK 64
 #define NUM_OF_BLOCKS 2048
 #define DELIMITER ','
-
+#define MIN_DATA_FILE_BLOCK_PAGE_NUMBER FILEBLOCK * PAGES_PER_BLOCK
+#define MAX_DATA_FILE_BLOCK_PAGE_NUMBER ((NUM_OF_BLOCKS) * PAGES_PER_BLOCK) - 1
+#define FILE_PAGE_ROLL_OVER (MAX_DATA_FILE_BLOCK_PAGE_NUMBER - MIN_DATA_FILE_BLOCK_PAGE_NUMBER + 1)
 typedef enum {
   FS_STATUS_OK = 0x00,
   FS_STATUS_ERR,
@@ -108,7 +110,7 @@ FS_STATUS_ENUM_t fs_hal_mount( void );
 FS_STATUS_ENUM_t fs_hal_format( bool_t bfmt_config_blk );
 FS_STATUS_ENUM_t fs_hal_list_dir(const char* p_dir_path, char *p_file_path, uint32_t length, uint8_t *filetype, uint32_t *filesize);
 FS_STATUS_ENUM_t fs_hal_get_size(char* p_path, uint32_t *p_size);
-FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t *p_length);
+FS_STATUS_ENUM_t fs_hal_read_file(char* p_file_path, uint8_t *p_buffer, uint32_t *p_length, uint32_t *p_page_number);
 FS_STATUS_ENUM_t fs_hal_open_file(char* p_file_path);
 FS_STATUS_ENUM_t fs_hal_open_config_file(uint8_t* p_file_path);
 FS_STATUS_ENUM_t fs_hal_find_config_file( uint8_t *pfile_name, uint8_t nfile_nameLen, bool_t bdelete_config_file, uint8_t *pconfig_file_found);
@@ -128,7 +130,7 @@ FS_STATUS_ENUM_t fs_flash_power_on (bool benable);
 FS_STATUS_ENUM_t fs_hal_find_file(char* filename);
 uint32_t fs_hal_get_remaining_memory (void);
 FS_STATUS_ENUM_t fs_hal_flash_reset();
-FS_STATUS_ENUM_t fs_hal_read_pageoffset(char* p_file_path, uint8_t *p_buffer, uint32_t *p_length,  uint32_t *p_filesize, uint32_t offset);
+FS_STATUS_ENUM_t fs_hal_read_pageoffset(char* p_file_path, uint8_t *p_buffer, uint32_t *p_length,  uint32_t *p_filesize,uint32_t in_page_number,uint32_t *p_out_page_number,uint32_t *next_page_number);
 M2M2_APP_COMMON_STATUS_ENUM_t fs_hal_test_pattern_config_write(uint8_t* pbuff, uint32_t nbuff_size);
 FS_STATUS_ENUM_t fs_hal_write_config_file(uint8_t *p_buffer, uint32_t *nitems, _file_handler *file_handler);
 FS_STATUS_ENUM_t fs_hal_write_blocks( uint8_t *pbuff, uint16_t start_block_num,uint16_t num_blocks_write,uint8_t first_time_write );
@@ -140,6 +142,7 @@ FS_STATUS_ENUM_t fs_block_erase(uint16_t block_no);
 bool UpdateFileInfo();
 FS_STATUS_ENUM_t fs_hal_append_file();
 FS_STATUS_ENUM_t set_write_handler_mode();
+uint32_t fs_get_file_page_number_offset(uint32_t *CurrentPageNumber, uint32_t *StartPageNumber, bool bHandleRollover);
 #ifdef TEST_FS_NAND
 void fs_hal_test_features(void);
 void fs_hal_test_file_write_read(uint32_t inp_num_iter, uint32_t block_size);
