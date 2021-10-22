@@ -375,6 +375,15 @@ struct m2m2_adpd_agc_cntrl_t {
         // NOTE: Use offsetof(m2m2_adpd_agc_cntrl_t, ops) instead of sizeof(m2m2_adpd_agc_cntrl_t)
 };
 
+struct m2m2_sensor_adpd_static_agc_stream_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  uint32_t  timestamp; 
+  uint16_t  mts[6]; 
+  uint16_t  setting[10]; 
+};
+
 struct adpd_ext_data_stream_t {
   uint8_t  command; 
   uint8_t  status; 

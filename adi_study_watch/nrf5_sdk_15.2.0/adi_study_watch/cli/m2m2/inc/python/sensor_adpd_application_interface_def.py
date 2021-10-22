@@ -419,6 +419,17 @@ def m2m2_adpd_agc_cntrl_t(array_size):
               ]
   return m2m2_adpd_agc_cntrl_t_internal()
 
+class m2m2_sensor_adpd_static_agc_stream_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("sequence_num", c_ushort),
+              ("timestamp", c_ulong),
+              ("mts", c_ushort * 6),
+              ("setting", c_ushort * 10),
+              ]
+
 class adpd_ext_data_stream_t(Structure):
     _pack_ = 1
     _fields_ = [

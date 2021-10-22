@@ -142,7 +142,7 @@ struct ppg_app_set_lcfg_resp_t {
   uint8_t  status; 
 };
 
-struct ppg_app_agc_info_t {
+struct ppg_app_dynamic_agc_stream_t {
   uint8_t  command; 
   uint8_t  status; 
   uint16_t  sequence_num; 

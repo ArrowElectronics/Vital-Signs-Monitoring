@@ -461,7 +461,7 @@ void post_office_msg_cnt(m2m2_hdr_t *p_msg)
       {
       po_apps[SYNC_PPG_APP].cnt_created++;
       }
-      else if(p_msg->length == (sizeof(ppg_app_agc_info_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_PPG && p_msg->dest == M2M2_ADDR_SYS_AGC_STREAM)
+      else if(p_msg->length == (sizeof(ppg_app_dynamic_agc_stream_t) + M2M2_HEADER_SZ) && p_msg->src == M2M2_ADDR_MED_PPG && p_msg->dest == M2M2_ADDR_SYS_DYNAMIC_AGC_STREAM)
       {
       po_apps[AGC_APP].cnt_created++;
       }
@@ -515,7 +515,7 @@ void post_office_consume_msg(m2m2_hdr_t *p_msg) {
       {
       po_apps[HRV_APP].cnt_consumed++;
       }
-      else if(p_msg->length == (sizeof(ppg_app_agc_info_t) + M2M2_HEADER_SZ) && p_msg->src == (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_SYS_AGC_STREAM))
+      else if(p_msg->length == (sizeof(ppg_app_dynamic_agc_stream_t) + M2M2_HEADER_SZ) && p_msg->src == (M2M2_ADDR_ENUM_t)BYTE_SWAP_16(M2M2_ADDR_SYS_DYNAMIC_AGC_STREAM))
       {
       po_apps[AGC_APP].cnt_consumed++;
       }

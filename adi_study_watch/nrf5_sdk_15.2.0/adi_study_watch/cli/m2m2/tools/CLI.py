@@ -140,8 +140,12 @@ class m2m2_shell(cmd.Cmd):
 #                "help":"Setup the ADPD in 32 bit summation mode with the default DCFG."},
     "adpd4000": {   "commands":[ "loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green LED."},
-    "ecg4000": {   "commands":[ "controlECGElectrodeSwitch 4k_sw 1", "loadAdpdCfg 40","SetEcg4kLcfg 0:300", "clockCalibration", "sensor adpd4000 start", "sub radpd1 add"],
-                "help":"Setup the ADPD for measuring ecg in slot A."},
+    "ecg4k": {   "commands":[ "loadAdpdCfg 40","SetEcg4kLcfg 0:300", "clockCalibration", "controlECGElectrodeSwitch 4k_sw 1", "sensor adpd4000 start", "sub radpd1 add"],
+                "help":"Setup the ADPD for measuring ecg in slot A on DVT1/2/3 Watch"},
+    "ecg4k_dvt1": {   "commands":["write_dcb_config adpd4000 ADPD4K_ECG_DVT1.dcfg", "loadAdpdCfg 40", "clockCalibration", "controlECGElectrodeSwitch 4k_sw 1", "sensor adpd4000 start", "sub radpd1 add"],
+                "help":"Setup the ADPD for measuring ecg in slot A on DVT1 Watch"},
+    "ecg4k_dvt2": {   "commands":["write_dcb_config adpd4000 ADPD4K_ECG_DVT2.dcfg", "loadAdpdCfg 40","clockCalibration", "controlECGElectrodeSwitch 4k_sw 1", "sensor adpd4000 start", "sub radpd1 add"],
+                "help":"Setup the ADPD for measuring ecg in slot A on DVT2/3 Watch"},
     "adpd4000_g": {   "commands":["loadAdpdCfg 40", "clockCalibration", "adpdAGCControl 1:1", "sensor adpd4000 start", "sub radpd6 add"],
                 "help":"Setup the ADPD in 32 bit summation mode with the default DCFG for green LED."},
     "adpd4000_r": {   "commands":["loadAdpdCfg 41", "clockCalibration", "adpdAGCControl 2:1", "sensor adpd4000 start", "sub radpd7 add"],
@@ -198,6 +202,16 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Quickstarts the ADPD and starts a plot of the raw ADPD SlotI."},
     "temperature": {   "commands":["create_adpd4k_dcfg 4:2 5:3", "loadAdpdCfg 40", "sensor temperature start", "sub rtemperature add"],
                 "help":"Start Temperature"},
+    "temperature_C_D_J_K_L": {   "commands":["create_adpd4k_dcfg 3:2 4:2 5:3 10:2 11:2 12:2", "loadAdpdCfg 40", "sensor temperature start", "sub rtempr3 add", "sub rtemperature add","sub rtempr10 add","sub rtempr11 add","sub rtempr12 add"],
+                "help":"Start Temperature slot C,D,J,K,L"},
+    "temperature_C_D_J_K_L_uc1": {   "commands":["loadAdpdUCDcfg 6","tempr_lcfg_write 0x01 0x0E1C","reg adpd4000 w 0x0010:0x0B00","reg adpd4000 w 0x0150:0x0004", "reg adpd4000 w 0x0230:0x0004","reg adpd4000 w 0x0250:0x0004", "reg adpd4000 w 0x0270:0x0004",
+                                                 "reg adpd4000 w 0x0143:0x5A40", "reg adpd4000 w 0x0163:0x5A40","reg adpd4000 w 0x0183:0x5A40", "reg adpd4000 w 0x0223:0x5A40","reg adpd4000 w 0x0243:0x5A40", "reg adpd4000 w 0x0263:0x5A40","sensor temperature start", "sub rtempr3 add", "sub rtemperature add","sub rtempr10 add","sub rtempr11 add","sub rtempr12 add"],
+                "help":"Start Temperature slot C,D,J,K,L dvt1"},
+    "start_log_temperature_C_D_J_K_L_uc1": {   "commands":["loadAdpdUCDcfg 6","tempr_lcfg_write 0x01 0x0E1C","reg adpd4000 w 0x0010:0x0B00","reg adpd4000 w 0x0150:0x0004", "reg adpd4000 w 0x0230:0x0004","reg adpd4000 w 0x0250:0x0004", "reg adpd4000 w 0x0270:0x0004",
+                                                 "reg adpd4000 w 0x0143:0x5A40", "reg adpd4000 w 0x0163:0x5A40","reg adpd4000 w 0x0183:0x5A40", "reg adpd4000 w 0x0223:0x5A40","reg adpd4000 w 0x0243:0x5A40", "reg adpd4000 w 0x0263:0x5A40","fs_sub rtempr3 add", "fs_sub rtemperature add","fs_sub rtempr10 add","fs_sub rtempr11 add","fs_sub rtempr12 add","sensor temperature start","fs_log start"],
+                "help":"Start Temperature slot C,D,J,K,L dvt1"},
+    "temperature_C_D": {   "commands":["create_adpd4k_dcfg 3:2 4:2 5:3", "loadAdpdCfg 40", "sensor temperature start", "sub rtempr3 add", "sub rtemperature add"],
+                "help":"Start Temperature slot C and D"},                                
     "ped": {   "commands":["sensor adxl start", "sensor ped start", "sub rped add"],
                 "help":"Starts the Pedometer."},
     "sqi_ext":{   "commands":["plot rsqi", "SQISetSlot 6", "set_adpd_ext_datastream_odr 100", "sensor sqi start","sub rsqi add","send_ext_adpd_datastream 11173863_ADPDAppStream_SlotFChannel1.csv 6 2", "sub rsqi remove", "sensor sqi stop"],
@@ -280,9 +294,9 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts logging the ADPD4000."},
     "start_log_ppg": {   "commands":["loadAdpdCfg 40", "clockCalibration","setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1210", "fs_sub rppg add", "sensor ppg start", "fs_log start"],
                 "help":"Starts logging the PPG with Static AGC enabled"},
-    "start_log_ppg_dynamic_agc": {   "commands":["loadAdpdCfg 40", "clockCalibration","setPpgLcfg 40", "fs_sub rppg add", "fs_sub ragc add", "sensor ppg start", "fs_log start"],
+    "start_log_ppg_dynamic_agc": {   "commands":["loadAdpdCfg 40", "clockCalibration","setPpgLcfg 40", "fs_sub rppg add","fs_sub rstatic_agc add", "fs_sub rdynamic_agc add", "sensor ppg start", "fs_log start"],
                 "help":"Starts logging the PPG with Static+Dynamic AGC enabled"},
-    "start_log_hrv": {   "commands":["loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "fs_sub rppg add", "fs_sub ragc add", "fs_sub rhrv add", "sensor ppg start","fs_log start"],
+    "start_log_hrv": {   "commands":["loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "fs_sub rppg add","fs_sub rstatic_agc add", "fs_sub rdynamic_agc add", "fs_sub rhrv add", "sensor ppg start","fs_log start"],
                 "help":"Starts logging the PPG+HRV Stream"},
     "start_log_temperature": {   "commands":["create_adpd4k_dcfg 4:2 5:3", "loadAdpdCfg 40", "fs_sub rtemperature add", "sensor temperature start","fs_log start"],
                 "help":"Start Temperature"},
@@ -292,28 +306,44 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts the Pedometer. logging"},
     "start_log_adpd4000_r_adxl": {"commands":["loadAdpdCfg 41", "clockCalibration","fs_sub radpd7 add","fs_sub radxl add","fs_log start","sensor adpd4000 start","sensor adxl start"],
                     "help":"Starts the ADPD4000_r, ADXL logging"},
+    ###Testing ECG4K in UC3 in place of ECG from AD5940###
+    "uc3_ecg4k_dvt2": {   "commands":["write_dcb_config adpd4000 TEST_ECG4K_DVT2_UC3.dcfg", "loadAdpdCfg 40", "setPpgLcfg 40", "clockCalibration", "setUCHREnab 1 6", "controlECGElectrodeSwitch 4k_sw 1", "sub rstatic_agc add", "sub rdynamic_agc add", "sub rppg add", "sub rsqi add", "sub radpd1 add", "sub radpd6 add", "sub radxl add", "sub rtemperature add", "sensor adxl start", "SQISetSlot 6", "sensor sqi start", "adpdAGCControl 1:1", "sensor adpd4000 start", "sensor temperature start"],
+                "help":"Starts streaming UC3 - ECG4K@300Hz, Adxl@50Hz, SQI, Adpd@100Hz, Temperature"},
+    "ecg4k_eda_dvt2": {    "commands":["quickstart ecg4k_dvt2", "quickstart eda"],
+                "help":"Running ECG from ADPD4K + EDA"},
+    ######################################################
     #"start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1", "clockCalibration","fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
-    "start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1","setPpgLcfg 40", "loadPpgUCLcfg 1", "clockCalibration", "setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc1": {   "commands":["loadAdpdUCDcfg 1","setPpgLcfg 40", "loadPpgUCLcfg 1", "clockCalibration", "setUCHREnab 1 6", "fs_sub rstatic_agc add", "fs_sub rdynamic_agc add", "fs_sub rppg add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC1 - Adpd@500Hz, Adxl, HR, Temperature"},
-    "start_log_mv_uc2": {   "commands":["loadAdpdUCDcfg 2","setPpgLcfg 40", "loadPpgUCLcfg 2", "clockCalibration","setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","fs_sub rtemperature add","lcfgEdaWrite 0:30","sensor eda start","sensor adxl start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc1_without_hr": {   "commands":["loadAdpdUCDcfg 1","clockCalibration", "fs_sub rstatic_agc add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+                "help":"Starts logging for MV UC1 - Adpd@500Hz, Adxl,Temperature"},
+    "start_log_mv_uc1_without_hr_recalibration": {   "commands":["loadAdpdUCDcfg 1","clockCalibration", "fs_sub rstatic_agc add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub rtemperature add","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start","delay 15","sensor temperature stop","sensor adpd4000 stop","delay 15","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start"],
+                "help":"Starts logging for MV UC1 - Adpd@500Hz, Adxl,Temperature"},
+    "start_log_mv_uc2": {   "commands":["loadAdpdUCDcfg 2","setPpgLcfg 40", "loadPpgUCLcfg 2", "clockCalibration","setUCHREnab 1 6","fs_sub rstatic_agc add", "fs_sub rdynamic_agc add", "fs_sub rppg add", "fs_sub rsqi add", "fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","fs_sub rtemperature add","lcfgEdaWrite 0:30","lcfgEdaWrite 2:1","sensor eda start","sensor adxl start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC2 - Eda@30Hz, Adxl, SQI, Adpd@100Hz, HR, Temperature"},
-    "start_log_mv_uc3": {   "commands":["loadAdpdUCDcfg 3","setPpgLcfg 40", "loadPpgUCLcfg 3", "clockCalibration","setUCHREnab 1 6","fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radxl add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:250","sensor ecg start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc3": {   "commands":["loadAdpdUCDcfg 3","setPpgLcfg 40", "loadPpgUCLcfg 3", "clockCalibration","setUCHREnab 1 6","fs_sub rstatic_agc add","fs_sub rdynamic_agc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radxl add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:250","sensor ecg start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC3 - Ecg@250Hz, SQI, Adpd@100Hz, HR, Adxl, Temperature"},
-    "start_log_mv_uc4": {   "commands":["loadAdpdUCDcfg 4","setPpgLcfg 40", "loadPpgUCLcfg 4", "clockCalibration","fs_sub rppg add","fs_sub ragc add", "fs_sub rsqi add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:1000","sensor ecg start","SQISetSlot 6","sensor sqi start","sensor ppg start","sensor temperature start","fs_log start"],
+    "start_log_mv_uc4": {   "commands":["loadAdpdUCDcfg 4","setPpgLcfg 40", "loadPpgUCLcfg 4", "clockCalibration","fs_sub rppg add","fs_sub rstatic_agc add","fs_sub rdynamic_agc add", "fs_sub rsqi add","fs_sub recg add","fs_sub rtemperature add","lcfgEcgWrite 0:1000","sensor ecg start","SQISetSlot 6","sensor sqi start","sensor ppg start","sensor temperature start","fs_log start"],
                 "help":"Starts logging for MV UC4 - Ecg@1000Hz, SQI, ppg, Temperature"},
-    "start_log_mv_uc5": {   "commands":["loadAdpdUCDcfg 5","setPpgLcfg 40", "loadPpgUCLcfg 5","clockCalibration","setUCHREnab 1 6", "fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
+    "start_log_mv_uc5": {   "commands":["loadAdpdUCDcfg 5","setPpgLcfg 40", "loadPpgUCLcfg 5","clockCalibration","setUCHREnab 1 6","fs_sub rstatic_agc add", "fs_sub rdynamic_agc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
                 "help":"Starts logging for MV UC5 - 4 LED Slots at 100Hz, SQI, HR, Adxl"},
-    "start_log_mv_uc6": {   "commands":["loadAdpdUCDcfg 6","setPpgLcfg 40", "loadPpgUCLcfg 3", "clockCalibration","setUCHREnab 1 6","fs_sub ragc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radxl add","fs_sub rbia add","fs_sub rtemperature add","lcfgBiaWrite 0:20","sensor bia start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
-                "help":"Starts logging for MV UC6 - 4 LED Slots at 100Hz, SQI, HR, Adxl, Bia at 20 Hz"},            
+    "start_log_mv_uc5_recalibration": {   "commands":["loadAdpdUCDcfg 5","setPpgLcfg 40", "loadPpgUCLcfg 5","clockCalibration","setUCHREnab 1 6","fs_sub rstatic_agc add", "fs_sub rdynamic_agc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start","delay 15","sensor temperature stop","sensor adpd4000 stop","delay 15","adpdAGCControl 0:1","sensor adpd4000 start","sensor temperature start"],
+                "help":"Starts logging for MV UC5 - 4 LED Slots at 100Hz, SQI, HR, Adxl"},
+    "start_log_mv_uc5_without_hr": {   "commands":["loadAdpdUCDcfg 5","setPpgLcfg 40","clockCalibration","fs_sub rstatic_agc add","fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start"],
+                "help":"Starts logging for MV UC5 - 4 LED Slots at 100Hz, SQI, Adxl"},
+    "start_log_mv_uc5_without_hr_recalibration": {   "commands":["loadAdpdUCDcfg 5","clockCalibration","fs_sub rstatic_agc add","fs_sub rsqi add","fs_sub radpd6 add","fs_sub radpd7 add","fs_sub radpd8 add","fs_sub radpd9 add","fs_sub radxl add","SQISetSlot 6","sensor sqi start","adpdAGCControl 0:1","sensor adpd4000 start","sensor adxl start","fs_log start","delay 15","sensor temperature stop","sensor adpd4000 stop","delay 15","adpdAGCControl 0:1","sensor adpd4000 start","sensor temperature start"],
+                "help":"Starts logging for MV UC5 - 4 LED Slots at 100Hz, SQI, Adxl"},
     "start_log_nk_uc": {   "commands":["loadAdpdCfg 40","clockCalibration","fs_sub rtemperature add","fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","adpdAGCControl 1:1","sensor temperature start","set_eda_dcb_lcfg","sensor eda start","sensor adxl start","sensor adpd4000 start","fs_log_append"],
                 "help":"Starts logging for NK UC - Eda@8Hz, Adxl, Adpd@500Hz, Temperature"},
     "start_log_nk_uc_set_bat_thresh": {   "commands":["loadAdpdCfg 40","clockCalibration","fs_sub rtemperature add","fs_sub radpd6 add","fs_sub radxl add","fs_sub reda add","adpdAGCControl 1:1","sensor temperature start","set_eda_dcb_lcfg","sensor eda start","sensor adxl start","sensor adpd4000 start","fs_log_append","setBatteryThreshold 87 88"],
                 "help":"Starts logging for NK UC - Eda@8Hz, Adxl, Adpd@500Hz, Temperature after setting Battery threshold"},
+    "start_log_mv_uc6": {   "commands":["loadAdpdUCDcfg 6","setPpgLcfg 40", "loadPpgUCLcfg 3", "clockCalibration","setUCHREnab 1 6","fs_sub rstatic_agc add", "fs_sub rdynamic_agc add", "fs_sub rppg add", "fs_sub rsqi add","fs_sub radpd6 add","fs_sub radxl add","fs_sub rbia add","fs_sub rtemperature add","lcfgBiaWrite 0:20","sensor bia start","SQISetSlot 6","sensor sqi start","adpdAGCControl 1:1","sensor adpd4000 start","sensor adxl start","sensor temperature start","fs_log start"],
+                "help":"Starts logging for MV UC6 - 4 LED Slots at 100Hz, SQI, HR, Adxl, Bia at 20 Hz"},     
     "ppg": {    "commands":["loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "lcfgPpgWrite 0x4 0x1210", "sensor ppg start", "sub rppg add"],
                "help":"Starts the PPG application with Static AGC enabled"},
-    "ppg_dynamic_agc": {    "commands":["loadAdpdCfg 40", "clockCalibration","setPpgLcfg 40", "sensor ppg start", "sub rppg add", "sub ragc add"],
+    "ppg_dynamic_agc": {    "commands":["loadAdpdCfg 40", "clockCalibration","setPpgLcfg 40", "sensor ppg start", "sub rppg add","sub rstatic_agc add", "sub rdynamic_agc add"],
                "help":"Starts the PPG application with Static+Dynamic AGC enabled"},
-    "hrv":{   "commands":["loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "sensor ppg start","sub rppg add", "sub ragc add", "sub rhrv add"],
+    "hrv":{   "commands":["loadAdpdCfg 40", "clockCalibration", "setPpgLcfg 40", "sensor ppg start","sub rppg add","sub rstatic_agc add", "sub rdynamic_agc add", "sub rhrv add"],
                 "help":"starts PPG+HRV stream with Static+Dynamic AGC enabled"},
     "periodic_ppg": {    "commands":["loadAdpdCfg 40","clockCalibration","setPpgLcfg 40","lcfgPpgWrite 6 0x000F001E", "sensor ppg start", "sub rppg add"],
                "help":"Starts Duty cycle based periodic PPG, Ton=15sec,Toff=30sec"},
@@ -321,21 +351,21 @@ class m2m2_shell(cmd.Cmd):
                  "help": "Start ECG"},
     "ecg_dcb": {"commands":  ["set_ecg_dcb_lcfg", "sensor ecg start", "sub recg add"],
                  "help": "Start ECG, writes lcfg from DCB if present"},
-    "eda": {"commands":["lcfgEdaWrite 0:4", "sensor eda start", "sub reda add"],
+    "eda": {"commands":["lcfgEdaWrite 0:4","lcfgEdaWrite 2:2", "sensor eda start", "sub reda add"],
                 "help":"Starts the eda."},
     "tst_issue_330_1": {"commands":["fs_log start","fs_log stop"],
                 "help":"Open and close "}, 
     "tst_issue_330_2": {"commands":["pattern_write 16384 0 1 1 1"],
                "help":"pattern write with 2 pages "},                                     
-    "eda_4": {"commands":["lcfgEdaWrite 0:4","sensor eda start","sub reda add"],
+    "eda_4": {"commands":["lcfgEdaWrite 0:4","lcfgEdaWrite 2:2","sensor eda start","sub reda add"],
                 "help":"Starts the eda."},
-    "eda_8": {"commands":["lcfgEdaWrite 0:8","sensor eda start","sub reda add"],
+    "eda_8": {"commands":["lcfgEdaWrite 0:8","lcfgEdaWrite 2:2","sensor eda start","sub reda add"],
                 "help":"Starts the eda."},
-    "eda_16": {"commands":["lcfgEdaWrite 0:16","sensor eda start","sub reda add"],
+    "eda_16": {"commands":["lcfgEdaWrite 0:16","lcfgEdaWrite 2:2","sensor eda start","sub reda add"],
                 "help":"Starts the eda."},
-    "eda_25": {"commands":["lcfgEdaWrite 0:25","sensor eda start","sub reda add"],
+    "eda_25": {"commands":["lcfgEdaWrite 0:25","lcfgEdaWrite 2:1","sensor eda start","sub reda add"],
                 "help":"Starts the eda."},
-    "eda_30": {"commands":["lcfgEdaWrite 0:30","sensor eda start","sub reda add"],
+    "eda_30": {"commands":["lcfgEdaWrite 0:30","lcfgEdaWrite 2:1","sensor eda start","sub reda add"],
                 "help":"Starts the eda."},  
     "use_case_2": {"commands":["quickstart start_log_eda","quickstart start_log_adxl","quickstart start_log_adpd4000_g","quickstart start_log_temperature"],
                 "help":"Starts the use case 2."},                                                                                                                    
@@ -535,6 +565,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Opens MWL view with Green, Red, IR, Blue LED from Slot F, G, H, I of ADPD4000"},
     "mwl_view_agc_off": {"commands": ["loadAdpdCfg 44","clockCalibration","adpdAGCControl 0:0", "sensor adpd4000 start", "sub radpd6 add","sub radpd7 add","sub radpd8 add","sub radpd9 add","plot radpd6", "plot radpd7","plot radpd8","plot radpd9"],
                 "help":"Opens MWL view with Green, Red, IR, Blue LED from Slot F, G, H, I of ADPD4000, with static AGC OFF"},
+    "eda_dcfg_test": {"commands":[ "edadcfg_write 1","loadEdaDcfg","edadcfg_read","lcfgEdaWrite 0:4","sub add reda","sensor eda start"],
+                "help":"DCFG reg commands usage for EDA app and start sensor"},
 ###################################################################################################################
 #### Commands for Slot Switching, to be used only when Watch is loaded with FW built with "SLOT_SELECT" macro ####
 #################################################################################################################
@@ -642,9 +674,9 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts UC HR enable test"},
     "start_stream_mv_uc1_1": {   "commands":["setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","loadAdpdUCDcfg 1", "clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
                 "help":"Starts streaming for MV UC1 - UC HR, Adpd@500Hz, Adxl@50Hz, Temperature"}, 
-    "start_stream_mv_uc2_1": {   "commands":["loadAdpdUCDcfg 2","clockCalibration","lcfgEdaWrite 0:30","sensor eda start","sub reda add","sensor adxl start","sub radxl add","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor temperature start","sub rtemperature add"],
+    "start_stream_mv_uc2_1": {   "commands":["loadAdpdUCDcfg 2","clockCalibration","lcfgEdaWrite 0:30","lcfgEdaWrite 2:1","sensor eda start","sub reda add","sensor adxl start","sub radxl add","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor temperature start","sub rtemperature add"],
                 "help":"Starts streaming for MV UC2 - Eda@30Hz, Adxl, UC HR, SQI, Adpd@100Hz, Temperature"},
-    "start_stream_mv_uc2_2": {   "commands":["loadAdpdUCDcfg 2","clockCalibration","lcfgEdaWrite 0:30","sensor eda start","sub reda add","sensor adxl start","sub radxl add","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start"],
+    "start_stream_mv_uc2_2": {   "commands":["loadAdpdUCDcfg 2","clockCalibration","lcfgEdaWrite 0:30","lcfgEdaWrite 2:1","sensor eda start","sub reda add","sensor adxl start","sub radxl add","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sensor temperature start"],
                 "help":"Starts streaming for MV UC2(modified for testing) - Eda@30Hz, Adxl, UC HR, SQI, Adpd@100Hz, Temperature"},
     "start_stream_mv_uc3_1": {   "commands":["lcfgEcgWrite 0:250","sensor ecg start","sub recg add","loadAdpdUCDcfg 3", "clockCalibration","reg w adpd4000 0x0D:0x2710","SQISetSlot 6","sensor sqi start","sub rsqi add","setPpgLcfg 40","sub rppg add", "setUCHREnab 1 6","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add"],
                 "help":"Starts streaming for MV UC3 - Ecg@250Hz, UC HR, SQI, Adpd@100Hz, Adxl, Temperature"},
@@ -673,8 +705,12 @@ class m2m2_shell(cmd.Cmd):
     quickstops = {
     "adpd4000": {   "commands":["sub radpd6 remove", "sensor adpd4000 stop"],
                 "help":"Stops the ADPD application and unsubscribes it."},
-    "ecg4000": {   "commands":["sub radpd1 remove", "sensor adpd4000 stop", "controlECGElectrodeSwitch 4k_sw 0"],
-                "help":"Stops and Unsubscribes the ADPD that is measuring ecg in slot A."},
+    "ecg4k": {   "commands":["sub radpd1 remove", "sensor adpd4000 stop", "controlECGElectrodeSwitch 4k_sw 0", "LDOControl 3 0"],
+                "help":"Stops and Unsubscribes the ADPD that is measuring ecg in slot A on DVT1/2/3 Watch"},
+    "ecg4k_dvt1": {   "commands":["sub radpd1 remove", "sensor adpd4000 stop", "controlECGElectrodeSwitch 4k_sw 0", "LDOControl 3 0", "delete_dcb_config adpd4000"],
+                "help":"Stops and Unsubscribes the ADPD that is measuring ecg in slot A on DVT1 Watch"},
+    "ecg4k_dvt2": {   "commands":["sub radpd1 remove", "sensor adpd4000 stop", "controlECGElectrodeSwitch 4k_sw 0", "LDOControl 3 0", "delete_dcb_config adpd4000"],
+                "help":"Stops and Unsubscribes the ADPD that is measuring ecg in slot A on DVT2 Watch"},
     "adpd4000_g": {   "commands":["sub radpd6 remove", "sensor adpd4000 stop"],
                 "help":"Stops the ADPD application and unsubscribes it."},
     "adpd4000_r": {   "commands":["sub radpd7 remove", "sensor adpd4000 stop"],
@@ -721,6 +757,14 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Stop MV UC1 streaming "},				
     "temperature": {   "commands":["sub rtemperature remove", "sensor temperature stop"],
                 "help":"Stop Temperature"},
+    "temperature_C_D_J_K_L": {   "commands":["sub rtempr3 r", "sub rtemperature r","sub rtempr10 r","sub rtempr11 r","sub rtempr12 r","sensor temperature stop"],
+                "help":"Start Temperature"},
+    "temperature_C_D_J_K_L_uc1": {   "commands":["reg adpd4000 w 0x0143:0x0000", "reg adpd4000 w 0x0163:0x0000","reg adpd4000 w 0x0183:0x0000", "reg adpd4000 w 0x0223:0x0000","reg adpd4000 w 0x0243:0x0000", "reg adpd4000 w 0x0263:0x0000","sub rtempr3 r", "sub rtemperature r","sub rtempr10 r","sub rtempr11 r","sub rtempr12 r","sensor temperature stop"],
+                "help":"Start Temperature"},
+    "stop_log_temperature_C_D_J_K_L_uc1": {   "commands":["reg adpd4000 w 0x0143:0x0000", "reg adpd4000 w 0x0163:0x0000","reg adpd4000 w 0x0183:0x0000", "reg adpd4000 w 0x0223:0x0000","reg adpd4000 w 0x0243:0x0000", "reg adpd4000 w 0x0263:0x0000","fs_sub rtempr3 r", "fs_sub rtemperature r","fs_sub rtempr10 r","fs_sub rtempr11 r","fs_sub rtempr12 r","sensor temperature stop","fs_log stop"],
+                "help":"Stop logging Temperature"},
+    "temperature_C_D": {   "commands":["sub rtemperature r","sub rtempr3 r","sensor temperature stop"],
+                "help":"Start Temperature"},                 
     "ped": {   "commands":["sensor ped stop", "sub rped remove", "sensor adxl stop"],
                 "help":"Stops the Pedometer application, unsubscribes it and disables the ADXL sensor."},
     "sqi_green": {   "commands":["sub radpd6 remove","sensor adpd4000 stop","sub rsqi remove","sensor sqi stop"],
@@ -759,9 +803,9 @@ class m2m2_shell(cmd.Cmd):
                          "help": "Stops logging the Battery info."},
     "ppg": {    "commands":["sub rppg remove", "sensor ppg stop"],
                 "help":"Stops the PPG library with Unsubscribes it."},
-    "ppg_dynamic_agc": {    "commands":["sub ragc remove", "sub rppg remove", "sensor ppg stop"],
+    "ppg_dynamic_agc": {    "commands":["sub rstatic_agc remove","sub rdynamic_agc remove", "sub rppg remove", "sensor ppg stop"],
                 "help":"Stops the PPG library with Unsubscribes it."},
-    "hrv": {    "commands":["sub rhrv remove", "sub ragc remove", "sub rppg remove", "sensor ppg stop"],
+    "hrv": {    "commands":["sub rhrv remove","sub rstatic_agc remove", "sub rdynamic_agc remove", "sub rppg remove", "sensor ppg stop"],
                 "help":"Stops the PPG+HRV stream"},
     "periodic_ppg": {    "commands":["sub rppg remove", "sensor ppg stop"],
                 "help":"Stops the PPG library with Unsubscribes it."},
@@ -775,9 +819,9 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Stops logging the ADPD_b data"},
     "stop_log_ppg": {   "commands":["sensor ppg stop","fs_sub rppg remove","fs_log stop"],
                 "help":"Stops logging the PPG data"},
-    "stop_log_ppg_dynamic_agc": {   "commands":["sensor ppg stop", "fs_sub ragc remove", "fs_sub rppg remove", "fs_log stop"],
+    "stop_log_ppg_dynamic_agc": {   "commands":["sensor ppg stop","fs_sub rstatic_agc remove", "fs_sub rdynamic_agc remove", "fs_sub rppg remove", "fs_log stop"],
                 "help":"Stops logging the PPG data"},
-    "stop_log_hrv": {   "commands":["sensor ppg stop", "fs_sub ragc remove", "fs_sub rhrv remove", "fs_sub rppg remove","fs_log stop"],
+    "stop_log_hrv": {   "commands":["sensor ppg stop","fs_sub rstatic_agc remove", "fs_sub rdynamic_agc remove", "fs_sub rhrv remove", "fs_sub rppg remove","fs_log stop"],
                 "help":"Stops logging the PPG+HRV data"},
     "stop_log_temperature": {   "commands":["sensor temperature stop","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stop Temperature"},
@@ -801,19 +845,29 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Stops the Pedometer application, unsubscribes it and disables the ADXL sensor."}, 
     "stop_log_adpd4000_r_adxl": {"commands":["fs_sub radpd7 remove","fs_sub radxl remove","fs_log stop","sensor adpd4000 stop","sensor adxl stop"],
                     "help":"Stops the ADPD4000_r, ADXL logging"},
+    ###Testing ECG4K in UC3 in place of ECG from AD5940###
+    "uc3_ecg4k_dvt2": {   "commands":["sub rtemperature remove", "sub radxl remove", "sub radpd6 remove", "sub radpd1 remove", "sub rsqi remove", "sub rppg remove", "sub rdynamic_agc remove", "sub rstatic_agc remove", "sensor temperature stop", "sensor adxl stop", "sensor adpd4000 stop", "sensor sqi stop", "controlECGElectrodeSwitch 4k_sw 0", "LDOControl 3 0", "delete_dcb_config adpd4000"],
+                "help":"Stops streaming for UC3 - ECG4K, SQI, Adpd, Adxl, Temperature"},
+    "ecg4k_eda_dvt2": {    "commands":["sub radpd1 remove", "sensor adpd4000 stop", "controlECGElectrodeSwitch 4k_sw 0", "delete_dcb_config adpd4000", "quickstop eda"],
+                "help":"Running ECG from ADPD4K + EDA"},
+    #####################################################          
     #"stop_log_mv_uc1": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","fs_sub radpd6 remove","fs_sub radxl remove","fs_sub rtemperature remove","fs_log stop"],
-    "stop_log_mv_uc1": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop", "setUCHREnab 0 6", "fs_sub ragc remove", "fs_sub rppg remove", "fs_sub radpd6 remove","fs_sub radxl remove","fs_sub rtemperature remove","fs_log stop"],
+    "stop_log_mv_uc1": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop", "setUCHREnab 0 6","fs_sub rstatic_agc remove", "fs_sub rdynamic_agc remove", "fs_sub rppg remove", "fs_sub radpd6 remove","fs_sub radxl remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stops logging for MV UC1 - Adpd, Adxl, HR, Temperature"},
-    "stop_log_mv_uc2": {   "commands":["sensor temperature stop","sensor adpd4000 stop","sensor sqi stop","sensor adxl stop","sensor eda stop","setUCHREnab 0 6", "fs_sub ragc remove", "fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub reda remove","fs_sub rtemperature remove","fs_log stop"],
+    "stop_log_mv_uc1_without_hr": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","fs_sub rstatic_agc remove","fs_sub radpd6 remove","fs_sub radxl remove","fs_sub rtemperature remove","fs_log stop"],
+                "help":"Stops logging for MV UC1 - Adpd, Adxl,Temperature"},
+    "stop_log_mv_uc2": {   "commands":["sensor temperature stop","sensor adpd4000 stop","sensor sqi stop","sensor adxl stop","sensor eda stop","setUCHREnab 0 6","fs_sub rstatic_agc remove", "fs_sub rdynamic_agc remove", "fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub reda remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stops logging for MV UC2 - Eda, Adxl, SQI, Adpd, HR, Temperature"},
-    "stop_log_mv_uc3": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","sensor ecg stop","setUCHREnab 0 6", "fs_sub ragc remove", "fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
+    "stop_log_mv_uc3": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","sensor ecg stop","setUCHREnab 0 6","fs_sub rstatic_agc remove", "fs_sub rdynamic_agc remove", "fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stops logging for MV UC3 - Ecg, SQI, Adpd, HR, Adxl, Temperature"},
-    "stop_log_mv_uc4": {   "commands":["sensor temperature stop","sensor ppg stop","sensor sqi stop","sensor ecg stop","fs_sub rppg remove","fs_sub rsqi remove", "fs_sub ragc remove", "fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
+    "stop_log_mv_uc4": {   "commands":["sensor temperature stop","sensor ppg stop","sensor sqi stop","sensor ecg stop","fs_sub rppg remove","fs_sub rsqi remove","fs_sub rstatic_agc remove", "fs_sub rdynamic_agc remove", "fs_sub recg remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stops logging for MV UC4 - Ecg, ppg, SQI,Temperature"},
-    "stop_log_mv_uc5": {   "commands":["sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove", "fs_sub ragc remove", "fs_sub rsqi remove","fs_sub radpd7 remove","fs_sub radpd8 remove","fs_sub radpd9 remove","fs_sub radxl remove","fs_log stop"],
+    "stop_log_mv_uc5": {   "commands":["sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","setUCHREnab 0 6","fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rstatic_agc remove", "fs_sub rdynamic_agc remove", "fs_sub rsqi remove","fs_sub radpd7 remove","fs_sub radpd8 remove","fs_sub radpd9 remove","fs_sub radxl remove","fs_log stop"],
                 "help":"Stops logging for MV UC5- 4 LED Slots at 100Hz, HR, SQI, ADXL"},
-    "stop_log_mv_uc6": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","sensor bia stop","setUCHREnab 0 6", "fs_sub ragc remove", "fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub rbia remove","fs_sub rtemperature remove","fs_log stop"],
-                "help":"Stops logging for MV UC6 - Bia, SQI, Adpd, HR, Adxl, Temperature"},
+    "stop_log_mv_uc5_without_hr": {   "commands":["sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","fs_sub radpd6 remove", "fs_sub rstatic_agc remove", "fs_sub rsqi remove","fs_sub radpd7 remove","fs_sub radpd8 remove","fs_sub radpd9 remove","fs_sub radxl remove","fs_log stop"],
+                "help":"Stops logging for MV UC5- 4 LED Slots at 100Hz, HR, SQI, ADXL"},
+    "stop_log_mv_uc6": {   "commands":["sensor temperature stop","sensor adxl stop","sensor adpd4000 stop","sensor sqi stop","sensor bia stop","setUCHREnab 0 6", "fs_sub rstatic_agc remove","fs_sub rdynamic_agc remove", "fs_sub rppg remove","fs_sub radpd6 remove","fs_sub rsqi remove","fs_sub radxl remove","fs_sub rbia remove","fs_sub rtemperature remove","fs_log stop"],
+                "help":"Stops logging for MV UC6 - Bia, SQI, Adpd, HR, Adxl, Temperature"},    
     "stop_log_nk_uc": {   "commands":["sensor temperature stop","sensor adpd4000 stop","sensor adxl stop","sensor eda stop","fs_sub radpd6 remove","fs_sub radxl remove","fs_sub reda remove","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stops logging for NK UC - Eda, Adxl, Adpd, Temperature"},
     "bia": {"commands": ["sub rbia remove", "sensor bia stop"],
@@ -1771,6 +1825,8 @@ Get the PM device system Information
             self.vrb.write("  BOM:         '{}'".format(reply_msg.payload.bom_id))
             self.vrb.write("  Batch:       '{}'".format(reply_msg.payload.batch_id))
             self.vrb.write("  Date:        '{}'".format(reply_msg.payload.date))
+            board_type = self._get_enum_name(ADI_PM_BOARD_TYPE_t, reply_msg.payload.board_type)
+            self.vrb.write("  Board_Type:  '{}'".format(board_type))
             status = self._get_enum_name(M2M2_PM_SYS_STATUS_ENUM_t, reply_msg.payload.status)
             self.vrb.write("  Status: '{}'".format(status))
             sys_info_dict['version'] = reply_msg.payload.version
@@ -1781,6 +1837,7 @@ Get the PM device system Information
             sys_info_dict['bom_id'] = reply_msg.payload.bom_id
             sys_info_dict['batch_id'] = reply_msg.payload.batch_id
             sys_info_dict['date'] = reply_msg.payload.date
+            sys_info_dict['board_type'] = reply_msg.payload.board_type
             error_stat = 0
         else:
             self.vrb.err("response timeout from device.")
@@ -2246,15 +2303,20 @@ Eg:
             if a in stream_name_map:
                 if address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000:
                     stream = stream_name_map[a]["stream"]
+                if address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE:
+                    stream = stream_name_map[a]["stream"]
         if address == None:
             self.vrb.err("Incorrect usage! You did not provide a valid device.")
             return
         if address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000 and stream == None:
             self.vrb.err("Incorrect usage! You did not provide a valid slot for ADPD.")
             return
+        if address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE and stream == None:
+            self.vrb.err("Incorrect usage! You did not provide a valid slot for Temperature.")
+            return
         msg = m2m2_packet(address, m2m2_app_common_status_t())
         msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_SENSOR_STATUS_QUERY_REQ
-        if address != M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000:
+        if address != M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000 and address != M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE:
           msg.payload.stream = address
         else:
           msg.payload.stream = stream
@@ -3046,6 +3108,7 @@ Usage:
         if reply_msg != None:
             if (reply_msg.payload.status == M2M2_APP_COMMON_STATUS_ENUM_t.M2M2_APP_COMMON_STATUS_OK):
                 print("user0 config app state in the Watch Fw : {} ").format(reply_msg.payload.state)
+                self._print_user0_app_state(reply_msg.payload.state)
             else:
                 self.vrb.err("Error occured while reading state")
         else:
@@ -3190,6 +3253,93 @@ Usage:
                 self.vrb.err("Error occured while doing exp_id request")
         else:
             self.vrb.err("The device did not respond!")
+
+    def do_clear_user0_prev_state_event(self, arg):
+        """
+    This is a command, to clear the user0 config app's previous state, event received and the corresponding timestamp structure  maintained registered in the Watch Fw. 
+    Usage:
+    clear_user0_prev_state_event
+
+    Eg:
+    #>clear_user0_prev_state_event
+        """
+        args = self._parse_args(arg, 0)
+        address = M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP
+        msg = m2m2_packet(address, m2m2_user0_config_app_cmd_t())
+        msg.payload.command = M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t.M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_REQ
+        msg.payload.status = M2M2_USER0_CONFIG_APP_STATUS_ENUM_t.M2M2_USER0_CONFIG_APP_STATUS_OK
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, m2m2_user0_config_app_cmd_t(), 10)
+        if reply_msg != None:
+            if (reply_msg.payload.status == M2M2_USER0_CONFIG_APP_STATUS_ENUM_t.M2M2_USER0_CONFIG_APP_STATUS_OK):
+                print("The structure is cleared")
+            else:
+                self.vrb.err("Error occured while doing clear_user0_prev_state_event request")
+        else:
+            self.vrb.err("The device did not respond!")
+
+
+    def do_get_user0_prev_state_event(self, arg):
+        """
+    This is a command, to get the user0 config app's previous state, event received and the corresponding timestamp registered in the Watch Fw. 
+    Usage:
+    get_user0_prev_state_event
+
+    Eg:
+    #>get_user0_prev_state_event
+        """
+        args = self._parse_args(arg, 0)
+        address = M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP
+        msg = m2m2_packet(address, user0_app_prev_state_event_pkt_t())
+        msg.payload.command = M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t.M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_REQ
+        msg.payload.status = M2M2_USER0_CONFIG_APP_STATUS_ENUM_t.M2M2_USER0_CONFIG_APP_STATUS_OK
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, user0_app_prev_state_event_pkt_t(), 10)
+        if reply_msg != None:
+            if (reply_msg.payload.status == M2M2_USER0_CONFIG_APP_STATUS_ENUM_t.M2M2_USER0_CONFIG_APP_STATUS_OK):
+                print("Prev state0 Read back-")
+                self._print_user0_app_state(reply_msg.payload.prev_st_evt[0].prev_state)
+                print("Prev event0 Read back-")
+                self._print_user0_app_event(reply_msg.payload.prev_st_evt[0].prev_event)
+                print("Prev timestamp0 Read back: {} ").format(reply_msg.payload.prev_st_evt[0].prev_timestamp)
+
+                print("Prev state1 Read back-")
+                self._print_user0_app_state(reply_msg.payload.prev_st_evt[1].prev_state)
+                print("Prev event1 Read back-")
+                self._print_user0_app_event(reply_msg.payload.prev_st_evt[1].prev_event)
+                print("Prev timestamp1 Read back: {} ").format(reply_msg.payload.prev_st_evt[1].prev_timestamp)
+
+                print("Prev state2 Read back-")
+                self._print_user0_app_state(reply_msg.payload.prev_st_evt[2].prev_state)
+                print("Prev event2 Read back-")
+                self._print_user0_app_event(reply_msg.payload.prev_st_evt[2].prev_event)
+                print("Prev timestamp2 Read back: {} ").format(reply_msg.payload.prev_st_evt[2].prev_timestamp)
+
+                print("Prev state3 Read back-")
+                self._print_user0_app_state(reply_msg.payload.prev_st_evt[3].prev_state)
+                print("Prev event3 Read back-")
+                self._print_user0_app_event(reply_msg.payload.prev_st_evt[3].prev_event)
+                print("Prev timestamp3 Read back: {} ").format(reply_msg.payload.prev_st_evt[3].prev_timestamp)
+
+                print("Intermittent Operation Count: {} ").format(reply_msg.payload.intermittent_op_cnt)
+            else:
+                self.vrb.err("Error occured while doing get_user0_prev_state_event request")
+        else:
+            self.vrb.err("The device did not respond!")
+
+    def _print_user0_app_event(self, event):
+        status = self._get_enum_name(USER0_CONFIG_APP_EVENT_t, event)
+        if status == None:
+            self.vrb.err("Error decoding a packet's return event value!")
+            return
+        self.vrb.write("  Event Read back: '{}'".format(status))
+
+    def _print_user0_app_state(self, state):
+        status = self._get_enum_name(USER0_CONFIG_APP_STATE_t, state)
+        if status == None:
+            self.vrb.err("Error decoding a packet's return state value!")
+            return
+        self.vrb.write("  State Read back: '{}'".format(status))
 
     def do_lcfgUser0ConfigAppRead(self, arg):
         """
@@ -3907,6 +4057,10 @@ Usage:
             dcb_file = os.path.join(dcb_cfg_dir, 'DVT1_UseCase5.dcfg')
         elif uc == 5 and dvt_revision == "dvt2":
             dcb_file = os.path.join(dcb_cfg_dir, 'DVT2_UseCase5.dcfg')
+        elif uc == 6 and dvt_revision == "dvt1":
+            dcb_file = os.path.join(dcb_cfg_dir, 'DVT1_UseCase1_multi_thermistor.dcfg')
+        elif uc == 6 and dvt_revision == "dvt2":
+            dcb_file = os.path.join(dcb_cfg_dir, 'DVT2_UseCase1_multi_thermistor.dcfg')            
         else:
             self.vrb.write("Wrong UC/DVT revision selected. Check help & retry")
             return
@@ -4025,6 +4179,8 @@ ex. read_dcb_config [sensor_name]
 
         if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE):
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG):
@@ -4053,6 +4209,8 @@ ex. read_dcb_config [sensor_name]
 
         if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t(), 20)
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE):
+            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_temperature_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_adxl_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG):
@@ -4127,6 +4285,40 @@ ex. read_dcb_config [sensor_name]
                     Array_Element_Count_r = Array_Element_Count_r + int(reply_msg.payload.size) #Update total read size
                     p = p+1
                 status = status_list[p-2]
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE):
+            num_of_pkts = int(reply_msg.payload.num_of_pkts)
+            reply_msg_list = []
+            status_list = []
+            reply_msg_list.append(reply_msg)
+            status_list.append(status)
+            p = 1 #Start with second packet
+            while p < num_of_pkts:
+                _reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_temperature_data_t(), 20)
+                if _reply_msg == None:
+                    self.vrb.err("Error! Timed out waiting for the device! at pkt 2")
+                    return 1
+                status = self._get_enum_name(M2M2_DCB_STATUS_ENUM_t, _reply_msg.payload.status)
+                if status == None:
+                    status = format(_reply_msg.payload.status, '#04x')
+                reply_msg_list.append(_reply_msg)
+                status_list.append(status)
+                p = p+1
+            f = open('dcb_cfg/temperature_lcfg_dcb_get.lcfg','w')
+            Array_Element_Count_r = 0
+            if(len(reply_msg_list) > 0):
+                p = 0 #Start with first packet, index=0 from reply_msg_list
+                while p < (num_of_pkts):
+                    reply_msg = reply_msg_list[p]
+                    Array_Element_Count_r_pkt = int(reply_msg.payload.size)
+                    ECnt = 0
+                    while ECnt < Array_Element_Count_r_pkt:
+                        self.vrb.write("Read Settings : 0x{:08X} {}".format(int(reply_msg.payload.dcbdata[ECnt]),ECnt))
+                        f.write('{:08X}'.format((reply_msg.payload.dcbdata[ECnt])))
+                        f.write('\n')
+                        ECnt+=1
+                    Array_Element_Count_r = Array_Element_Count_r + int(reply_msg.payload.size) #Update total read size
+                    p = p+1
+                status = status_list[p-1]
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG):
             f = open('dcb_cfg/ppg_dcb_get.lcfg','w')
             while ECnt < Array_Element_Count_r:
@@ -4316,6 +4508,94 @@ ex. write_dcb_config [sensor_name] [file_name]
                 msg4.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
             print "Number of pkts:{}".format(msg.payload.num_of_pkts)
             Array_Element = adpd4000_dcb_cfg
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE):
+            adpd4000_dcb_temp_cfg = arr.array('I',[])
+            try:
+                f = open(filename)
+            except:
+                self.vrb.err("Invalid File Name")
+                return 1
+            slot_tag_list = {
+                                '<TEMP_SLOTA_DCB>': 0x01,
+                                '<TEMP_SLOTB_DCB>': 0x02,
+                                '<TEMP_SLOTC_DCB>': 0x04,
+                                '<TEMP_SLOTD_DCB>': 0x08,
+                                '<TEMP_SLOTE_DCB>': 0x10,
+                                '<TEMP_SLOTF_DCB>': 0x20,
+                                '<TEMP_SLOTG_DCB>': 0x40,
+                                '<TEMP_SLOTH_DCB>': 0x80,
+                                '<TEMP_SLOTI_DCB>': 0x100,
+                                '<TEMP_SLOTJ_DCB>': 0x200,
+                                '<TEMP_SLOTK_DCB>': 0x400,
+                                '<TEMP_SLOTL_DCB>': 0x800,
+                            }
+            hdr_start_list = ['<TEMP_DCB>','<TEMP_SLOTC_DCB>','<TEMP_SLOTD_DCB>','<TEMP_SLOTJ_DCB>',
+                              '<TEMP_SLOTK_DCB>','<TEMP_SLOTL_DCB>']
+            hdr_stop_list = ['</TEMP_DCB>', '</TEMP_SLOTC_DCB>', '</TEMP_SLOTD_DCB>', '</TEMP_SLOTJ_DCB>',
+                              '</TEMP_SLOTK_DCB>', '</TEMP_SLOTL_DCB>']
+            hdr_start = 0
+            slots_selected = 0
+            hdr_start_str = ""
+            loop_cnt = 0
+            hdr_stop = 0
+            for line in f.readlines():
+                if(line[0] == '#' or line[0]=='\n' or line[0]==' ' or line[0]=='\t'):
+                    continue
+                else:
+                    str = line.split('#')
+                    str = str[0].replace('\t', '').replace('\n', '')
+                    str = str.split(' ')
+                    # print("lines: {}".format(str[0]))
+                    if str[0] in hdr_start_list:
+                        hdr_start = 1
+                        hdr_stop = 0
+                        hdr_start_str = str[0]
+                        # print("hdr start str = {}".format(hdr_start_str))
+                        loop_cnt = 0;
+                    elif str[0] in hdr_stop_list:
+                        hdr_start = 0
+                        hdr_stop = 1
+                        hdr_stop_str = str[0]
+                        # print("hdr stop str = {}".format(hdr_stop_str))
+                    elif hdr_start == 1:
+                        if hdr_start_str == '<TEMP_DCB>':
+                            adpd4000_dcb_temp_cfg.append(int(str[1], 16))
+                            loop_cnt += 1
+                            if loop_cnt == 2:
+                                slots_selected = int(str[1],16)
+                                # print("slots selected = {:X}".format(slots_selected))
+                        else:
+                            loop_cnt += 1
+                            slot_en_mask = slot_tag_list[hdr_start_str]
+                            # print("slot_en_mask  :{}".format(slot_en_mask))
+                            if slots_selected & slot_en_mask:
+                                adpd4000_dcb_temp_cfg.append(int(str[1], 16))
+                                # print("slot tag:{}, val ={}".format(hdr_start_str,int(str[1],16)))
+
+                    # dcb =str[0].replace(' ','').replace('\t','').replace('\n','')
+                    #adpd4000_dcb_temp_cfg.append(int(dcb,16))
+            f.close()
+            msg = m2m2_packet(Sensor_Address, m2m2_dcb_temperature_data_t())
+            pkt_cnt = len(adpd4000_dcb_temp_cfg)/MAXADPD4000DCBSIZE
+            if len(adpd4000_dcb_temp_cfg)%MAXADPD4000DCBSIZE:
+                pkt_cnt = pkt_cnt + 1
+            if pkt_cnt > 2 :
+              print "Temperature LCFG DCB File Size exceed. Retry with smaller files"
+              return
+
+            if pkt_cnt == 1 :
+                msg.payload.size = 0
+                msg.payload.num_of_pkts = 1
+            elif pkt_cnt == 2 :
+                msg.payload.size = 0
+                msg.payload.num_of_pkts = 2
+                #2nd pkt#
+                msg2 = m2m2_packet(Sensor_Address, m2m2_dcb_temperature_data_t())
+                msg2.payload.size = 0
+                msg2.payload.num_of_pkts = msg.payload.num_of_pkts
+                msg2.payload.command = M2M2_DCB_COMMAND_ENUM_t.M2M2_DCB_COMMAND_WRITE_CONFIG_REQ
+            print "Number of pkts:{}".format(msg.payload.num_of_pkts)
+            Array_Element = adpd4000_dcb_temp_cfg
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
             adxl_dcb_cfg = arr.array('I',[])
             try:
@@ -4534,6 +4814,15 @@ ex. write_dcb_config [sensor_name] [file_name]
                     msg.payload.size = msg.payload.size + 1
                     msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
                     self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
+            elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE):
+                if ECnt >= (1*MAXTEMPRLCFGDCBSIZE) and ECnt <= (2*MAXTEMPRLCFGDCBSIZE):
+                    msg2.payload.size = msg2.payload.size + 1
+                    msg2.payload.dcbdata[ECnt%MAXTEMPRLCFGDCBSIZE] = int(Array_Element[ECnt])
+                    self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg2.payload.dcbdata[ECnt%MAXTEMPRLCFGDCBSIZE]), int(ECnt%(MAXTEMPRLCFGDCBSIZE))))
+                else:
+                    msg.payload.size = msg.payload.size + 1
+                    msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
+                    self.vrb.write("Write Settings : 0x{:08X} {}".format(int(msg.payload.dcbdata[ECnt]), int(ECnt)))
             elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
                 msg.payload.dcbdata[ECnt] = int(Array_Element[ECnt])
                 self.vrb.write("Write Settings : 0x{:04X} {}".format(int(msg.payload.dcbdata[ECnt]),int(ECnt)))
@@ -4577,6 +4866,8 @@ ex. write_dcb_config [sensor_name] [file_name]
             else:
                 if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
                     msg.payload.size = MAXADPD4000DCBSIZE
+                elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE):
+                    msg.payload.size = MAXTEMPRLCFGDCBSIZE
                 '''else:
                     print"Something went wrong"
                     return'''
@@ -4606,6 +4897,8 @@ ex. write_dcb_config [sensor_name] [file_name]
 
         if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t(), 20)
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE):
+            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_temperature_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_adxl_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG):
@@ -4644,6 +4937,11 @@ ex. write_dcb_config [sensor_name] [file_name]
                 #time.sleep(0.04)
                 self._send_packet(msg2)
                 reply_msg2 = self._get_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t(), 20)
+            elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE):
+                self.vrb.write("Sending Temperature LCFG DCB packet 2 of size:{}".format(msg2.payload.size))
+                #time.sleep(0.04)
+                self._send_packet(msg2)
+                reply_msg2 = self._get_packet(Sensor_Address, m2m2_dcb_temperature_data_t(), 20)
 
             if reply_msg2 == None:
                 self.vrb.err("Error! Timed out waiting for the device, with 2nd pkt receive!")
@@ -4716,6 +5014,8 @@ ex. delete_dcb_config [sensor_name]
 
         if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE):
+            msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
             msg = m2m2_packet(Sensor_Address, m2m2_pm_sys_cmd_t())
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG):
@@ -4741,6 +5041,8 @@ ex. delete_dcb_config [sensor_name]
 
         if(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_adpd4000_data_t(), 20)
+        elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE):
+            reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_temperature_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL):
             reply_msg = self._get_packet(Sensor_Address, m2m2_dcb_adxl_data_t(), 20)
         elif(Sensor_Address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG):
@@ -4830,6 +5132,10 @@ ex. query_dcb_blk_status
             self.vrb.write("ADI_DCB_USER0_BLOCK_IDX Present")
         else:
             self.vrb.write("ADI_DCB_USER0_BLOCK_IDX Absent")
+        if reply_msg.payload.dcb_blk_array[M2M2_DCB_CONFIG_BLOCK_INDEX_t.ADI_DCB_TEMPERATURE_BLOCK_IDX]:
+            self.vrb.write("ADI_DCB_TEMPERATURE_BLOCK_IDX Present")
+        else:
+            self.vrb.write("ADI_DCB_TEMPERATURE_BLOCK_IDX Absent")
         self.vrb.write("-------------------------------------")
 
     def do_getTimeOffset(self, arg):
@@ -4940,10 +5246,10 @@ Usage:
         reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, m2m2_pm_sys_dg2502_sw_ctrl_cmd_t(), 10)
 
         if reply_msg != None:
-            status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
+            status = self._get_enum_name(M2M2_PM_SYS_STATUS_ENUM_t, reply_msg.payload.status)
             self.vrb.write("  Status: '{}'".format(status))
         else:
-            self.vrb.err("Boost enable Failed!")
+            self.vrb.err("Switch Control Failed!")
 
     def do_LDOControl(self, arg):
         """
@@ -5198,6 +5504,111 @@ Usage:
         else:
             print "Putting Display into the desired colour failed! Please check the arguments"
 
+    def do_loadEdaDcfg(self, arg):
+        """
+Load the EDA application DCFG.
+    #>loadEdaDcfg
+        """
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, m2m2_app_common_sub_op_t())
+        msg.payload.command = M2M2_EDA_APP_CMD_ENUM_t.M2M2_EDA_APP_CMD_LOAD_DCFG_REQ
+        self._send_packet(msg)		
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA,m2m2_app_common_sub_op_t(), 10)
+        if reply_msg != None:
+            status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
+            self._print_packet_status(reply_msg)
+        else:
+            self.vrb.err("Loading EDA device configuration failed!")     
+
+    def do_EdaDcfgUpdate(self, arg):
+        """
+Update EDA DCFG register values.
+      Eg: = EdaDcfgUpdate addr1 value1 addr2 value2 ...
+      Usage: EdaDcfgUpdate 0x000021D8 0x00000489
+        """
+
+        args = self._parse_args(arg, None)
+        if len(args) == 0:
+            self._p_err("No arguments supplied!")
+            return
+
+        num_ops = len(args)
+        num_ops >>= 1
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, eda_app_dcfg_op_hdr_t(num_ops))
+        msg.payload.command = M2M2_EDA_APP_CMD_ENUM_t.M2M2_APP_COMMON_CMD_WRITE_DCFG_REQ
+        msg.payload.num_ops = num_ops
+        for i in range(num_ops):
+            tempVal = args[i*2]
+            reg_index = int(tempVal,16)
+            tempVal = args[i*2+1]
+            if ("0x") in tempVal:
+                reg_val = int(tempVal, 16)
+            elif ("0X") in tempVal:
+                reg_val = int(tempVal, 16)
+            else:
+                reg_val = int(tempVal)
+            msg.payload.ops[i].field = reg_index
+            msg.payload.ops[i].value = reg_val
+
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, eda_app_dcfg_op_hdr_t(num_ops), 60)
+        if reply_msg == None:
+            status = self._get_enum_name(M2M2_EDA_APP_CMD_ENUM_t, reply_msg.payload.status)
+            print "Writing EDA App DCFG failed!"
+	    return
+        self._print_eda_app_dcfg_result(reply_msg)
+        
+    def do_EdaDcfgRead(self, arg):
+        """
+Read the EDA DCFG. The argument is the DCFG ID to choose from the eda configuration structure:
+    ---------------------------------------------------------------
+    |Config Element                         |    Address        |
+    ---------------------------------------------------------------
+    |     FIFO Config register              |    0x000021D8     |
+    ---------------------------------------------------------------
+
+      Eg: = EdaDcfgRead addr1 addr2 ......
+        """
+        args = self._parse_args(arg, None)
+        if len(args) == 0:
+            self.vrb.err("No arguments supplied!")
+            return
+
+        num_ops = len(args)
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, eda_app_dcfg_op_hdr_t(num_ops))
+        msg.payload.command = M2M2_EDA_APP_CMD_ENUM_t.M2M2_APP_COMMON_CMD_READ_DCFG_REQ
+        msg.payload.num_ops = num_ops
+        for i in range(num_ops):
+            tempVal = args[i]
+            if ("0x") in tempVal:
+                reg_addr = int(tempVal, 16)
+            elif ("0X") in tempVal:
+                reg_addr = int(tempVal, 16)
+            else:
+                reg_addr = int(tempVal)
+            msg.payload.ops[i].field = reg_addr
+
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, eda_app_dcfg_op_hdr_t(num_ops), 10)
+        reg_result_list = []
+        if reply_msg == None:
+            err_stat = 1
+            self.vrb.err("Reading EDA DCFG failed!")
+        else:
+            self._print_eda_dcfg_result(reply_msg)
+            err_stat = 0
+            for i in range(reply_msg.payload.num_ops):
+                reg_result_list.append((reg_addr, hex(int(reply_msg.payload.ops[i].value))))
+        return err_stat, reg_result_list
+    
+    def _print_eda_app_dcfg_result(self, packet):
+        self._print_packet_status(packet)
+        self.vrb.write("  Num of registers: '{}'".format(int(packet.payload.num_ops)))
+
+        t = table(["Field", "Value"])
+        for i in range(packet.payload.num_ops):
+            t.add_row([hex(packet.payload.ops[i].field), hex(packet.payload.ops[i].value)])
+        t.display()
+        
     def do_backlightCntrl(self, arg):
         """
 Do backlight control: enable/disable. The argument is the bl_cntrl:
@@ -6890,8 +7301,21 @@ read contents of file. Command is used to read file by getting data from file st
          self.onecmd("flash_reset")
          self.onecmd("pattern_write 16384 0 2 1 4")
          self.onecmd("test_627_download")
+         
+    def do_edadcfg_write(self,arg) :
+        """
+        To write default dcfg below command is used
+        #>edadcfg_write 1
+        other arguments will be used to write user configurable registers to test in future
+        """
+        args = self._parse_args(arg,1)
+        if(int(args[0]) == 1):
+            self.onecmd("EdaDcfgUpdate 0x00002044 0x00004091 0x00003008 0x02000000 0x0000300C 0xFFFFFFFF 0x000021D8 0x00000480 0x000021D8 0x00000489 0x000021A8 0x00000814 0x000020D0 0x00000021 0x00002054 0x00000048 0x00002114 0x00000103 0x00002008 0x00008000")
+        else:
+            self.onecmd("EdaDcfgUpdate 0x00002044 0x00004092 0x00003008 0x02000001 0x0000300C 0xFFFFFFFE 0x000021D8 0x00000481 0x000021D8 0x00000487 0x000021A8 0x00000815 0x000020D0 0x00000022 0x00002054 0x00000049 0x00002114 0x00000104 0x00002008 0x00008001")
 
-    
+    def do_edadcfg_read(self,arg) :
+        self.onecmd("EdaDcfgRead 0x00002044 0x00003008 0x0000300C 0x000021D8  0x000021D8 0x000021A8 0x000020D0 0x00002054 0x00002114 0x00002008")  
     
     def do_get_apps_health_status(self, arg):    
         """
@@ -7442,7 +7866,142 @@ Writes the ECG LCFG values from DCB if present,otherwise it will write default v
         if reply_msg != None:
             self.vrb.write("  Status: '{}'".format(status))
         else:
-            self.vrb.err("Setting ECG Library configuration failed!")   
+            self.vrb.err("Setting ECG Library configuration failed!")
+    def do_tempr_lcfg_write(self,arg):
+        """
+Write the temperature LCFG. The first argument is the LCFG ID to choose from the temperature configuration structure,
+second argument is the value to be updated
+    ------------------------------------------------------------------
+    |     Config Element            |  Index |   Value to be updated |
+    ------------------------------------------------------------------
+    |     Sample period             |    0   |   integer value       |
+    |     slots selected            |    1   |   integer value       |
+    |     LUT for thermistor 0      |    2   | thermistor0_LUT.lcfg  |
+    |     LUT for thermistor 1      |    3   | thermistor1_LUT.lcfg  |
+    |     LUT for thermistor 2      |    4   | thermistor2_LUT.lcfg  |
+    |     LUT for thermistor 3      |    5   | thermistor3_LUT.lcfg  |
+    |     LUT for thermistor 4      |    6   | thermistor4_LUT.lcfg  |
+    ------------------------------------------------------------------
+
+      Eg: =  tempr_lcfg_write addr1 value ......
+      Usage: tempr_lcfg_write  0   5     /* To update the sampling period to 5 seconds*/
+             tempr_lcfg_write  1   0xFF  /* To update the slots selected to 0xFF */
+             tempr_lcfg_write  2   thermistor_LUT.lcfg   /* To update the thermistor 0 LUT with values
+                                                            defined in thermistor_LUT.lcfg, template file is given
+                                                            in the same directory as CLI.py*/
+        """
+        args = self._parse_args(arg)
+        if(len(args) <= 1):
+            self.vrb.err("Insufficient arguments supplied!")
+            return
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, temperature_app_lcfg_t())
+        msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_WRITE_LCFG_REQ
+        tempVal = args[0]
+        if ("0x") in tempVal:
+            msg.payload.field = int(tempVal, 16)
+        elif ("0X") in tempVal:
+            msg.payload.field = int(tempVal, 16)
+        else:
+            msg.payload.field = int(tempVal)
+        if(msg.payload.field == 0 or msg.payload.field == 1):
+            tempVal = args[1]
+            if ("0x") in tempVal:
+                msg.payload.value[0] = int(tempVal, 16)
+            elif ("0X") in tempVal:
+                msg.payload.value[0] = int(tempVal, 16)
+            else:
+                msg.payload.value[0] = int(tempVal)
+        elif(msg.payload.field >= 2 or msg.payload.field <= 6):
+            filename = args[1]
+            thermistor_lut = []
+            try:
+                f = open(filename)
+            except:
+                self.vrb.err("Invalid File Name")
+                return 1
+            for line in f.readlines():
+                if (line[0] == '#' or line[0] == '\n' or line[0] == ' ' or line[0] == '\t'):
+                    continue
+                else:
+                    str = line.split('#')
+                    dcb = str[0].replace(' ', '').replace('\t', '').replace('\n', '')
+                    thermistor_lut.append(dcb)  # int(dcb, 16))
+            f.close()
+            if (len(thermistor_lut) != 21):
+                self.vrb.err("Invalid number of elements in the look up table")
+                return
+            for index in range(21):
+                msg.payload.value[index] = int(thermistor_lut[index],16)
+        else:
+            self.vrb.err("Invalid field argument passed")
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, temperature_app_lcfg_t(), 10)
+        if reply_msg == None:
+            self.vrb.err("Writing Temperature LCFG failed!")
+        else:
+            self._print_temperature_lcfg_result(reply_msg)
+
+    def do_tempr_lcfg_read(self,arg):
+        """
+Read the temperature LCFG. The argument is the LCFG ID to choose from the temperature configuration structure:
+    ------------------------------------------
+    |     Config Element            |  Index |
+    ------------------------------------------
+    |     Sample period             |    0   |
+    |     slots selected            |    1   |
+    |     LUT for thermistor 0      |    2   |
+    |     LUT for thermistor 1      |    3   |
+    |     LUT for thermistor 2      |    4   |
+    |     LUT for thermistor 3      |    5   |
+    |     LUT for thermistor 4      |    6   |
+    ------------------------------------------
+
+      Eg: = tempr_lcfg_read addr1  
+      Usage: tempr_lcfg_read  0     /* To get the sampling period */
+        """
+
+        args = self._parse_args(arg, None)
+        if len(args) == 0:
+            self.vrb.err("No arguments supplied!")
+            return
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, temperature_app_lcfg_t())
+        msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_READ_LCFG_REQ
+        tempVal = args[0]
+        if ("0x") in tempVal:
+            msg.payload.field = int(tempVal, 16)
+        elif ("0X") in tempVal:
+            msg.payload.field = int(tempVal, 16)
+        else:
+            msg.payload.field = int(tempVal)
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, temperature_app_lcfg_t(), 10)
+        if reply_msg == None:
+            self.vrb.err("Reading Temperature LCFG failed!")
+        else:
+            self._print_temperature_lcfg_result(reply_msg)
+
+    def do_set_temperature_lcfg_dcb(self, arg):
+        """
+Writes the Temperature LCFG values from DCB if present,otherwise it will write default value. There is no argument.
+
+      Eg: = set_temperature_dcb_lcfg
+        """
+        args = self._parse_args(arg, None)
+        if len(args) != 0:
+            self.vrb.err("Invalid No. arguments supplied!")
+            return
+
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, temperature_app_dcb_lcfg_t())
+        msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_SET_LCFG_REQ
+        self._send_packet(msg)
+        time.sleep(3)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, temperature_app_dcb_lcfg_t(), 10)
+        if reply_msg != None:
+            status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
+        if reply_msg != None:
+            self.vrb.write("  Status: '{}'".format(status))
+        else:
+            self.vrb.err("Setting Temperature app Library configuration failed!")
 
     def do_set_adpd4k_fs(self,arg):
         """
@@ -7804,25 +8363,19 @@ Currently ecg lcfg for adpd4k has only one entry i.e. ODR
 
     def do_lcfgEdaWrite(self, arg):
         """
-Set the EDA LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the eda lcfg value
+Set the EDA LCFG. The argument is the EDA LCFG ID:VALUE pair to modify the eda lcfg value
 
-       FS             address -->0
+       ODR             address -->0
         Values
-        100
-        200
-        300
-        400
-        500
+        4 , 8 , 16 ,25 , 30...........
 
-       ADC_PGA_GAIN   address -->1
+       DFT_NUMBER   address -->2
         Values
-        0     /**< ADC PGA Gain of 1 */
-        1     /**< ADC PGA Gain of 1.5 */
-        2     /**< ADC PGA Gain of 2 */
-        3     /**< ADC PGA Gain of 4 */
-        4     /**< ADC PGA Gain of 9 */
-
-      Eg: = lcfgEdaWrite addr1:value1 addr2:value2 ...
+        1      DFT_NUMBER = 8 .Recommended for odr >16 Hz
+        2      DFT_NUMBER = 16 Recommended for odr <= 16Hz
+       Eg: = lcfgEdaWrite addr1:value1 addr2:value2
+            lcfgEdaWrite 0:30
+            lcfgEdaWrite 2:1
         """
 
         args = self._parse_args(arg, None)
@@ -7908,6 +8461,41 @@ Set the EDA LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the eda l
             return
         self._print_bia_lcfg_result(reply_msg)    
 
+    def do_dcfgEdaWrite(self, arg):
+        """
+    Set the EDA DCFG. The argument is the EDA DCFG ADDRESS:VALUE pair to modify the eda lcfg value
+        Eg: = dcfgEdaWrite addr1:value1 addr2:value2 ...
+        """
+        args = self._parse_args(arg, None)
+        if len(args) == 0:
+            self.vrb.err("No arguments supplied!")
+            return
+
+        num_ops = len(args)
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, eda_app_dcfg_op_hdr_t(num_ops))
+        msg.payload.command = M2M2_APP_COMMON_CMD_ENUM_t.M2M2_APP_COMMON_CMD_WRITE_DCFG_REQ
+        msg.payload.num_ops = num_ops
+        for i in range(num_ops):
+            tempVal = args[i]
+            if ("0x") in tempVal:
+                reg_addr = int(tempVal.split(':')[0], 16)
+                reg_val = int(tempVal.split(':')[1], 16)
+            elif ("0X") in tempVal:
+                reg_addr = int(tempVal.split(':')[0], 16)
+                reg_val = int(tempVal.split(':')[1], 16)
+            else:
+                reg_addr = int(tempVal.split(':')[0])
+                reg_val = int(tempVal.split(':')[1])
+            msg.payload.ops[i].field = reg_addr
+            msg.payload.ops[i].value = reg_val
+
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, eda_app_dcfg_op_hdr_t(num_ops), 10)
+        if reply_msg == None:
+            print "Writing EDA DCFG failed!"
+            return
+        self._print_eda_dcfg_result(reply_msg)
+        
     def _print_rtia_cal_result(self, packet):
         self._print_packet_status(packet)
         self.vrb.write("  Num of calibrated values: '{}'".format(int(packet.payload.num_calibrated_values)))
@@ -7923,6 +8511,19 @@ Set the EDA LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the eda l
         for i in range(packet.payload.num_ops):
             t.add_row([hex(packet.payload.ops[i].field), hex(packet.payload.ops[i].value)])
         t.display()
+
+    def _print_temperature_lcfg_result(self, packet):
+        self._print_packet_status(packet)
+        if(packet.payload.field == 0):
+            self.vrb.write("  Sample Period : {} sec".format(int(packet.payload.value[0])))
+        elif(packet.payload.field == 1):
+            self.vrb.write("  Slots Selected : {}".format(hex(int(packet.payload.value[0]))))
+        elif(packet.payload.field >= 2 and packet.payload.field <= 6):
+            self.vrb.write("  LUT for Thermistor {} is listed below:".format(hex(int(packet.payload.field) - 2)))
+            for index in range(21):
+                self.vrb.write(" LUT[{}] Impedance (ohm) at {} degrees : {} ".format(int(packet.payload.field) - 2, index*5,hex(int(packet.payload.value[index]))))
+        else:
+            self.vrb.write("Invalid Field Index found")
 
     def _print_eda_lcfg_result(self, packet):
         self._print_packet_status(packet)
@@ -7945,7 +8546,14 @@ Set the EDA LCFG. The argument is the ECG LCFG ID:VALUE pair to modify the eda l
         for i in range(packet.payload.num_ops):
             t.add_row([hex(packet.payload.ops[i].field), float(packet.payload.ops[i].value)])
         t.display()
-
+    def _print_eda_dcfg_result(self, packet):
+        self._print_packet_status(packet)
+        self.vrb.write("  Num of registers: '{}'".format(int(packet.payload.num_ops)))
+        t = table(["Field", "Value"])
+        for i in range(packet.payload.num_ops):
+            t.add_row([hex(packet.payload.ops[i].field), hex(packet.payload.ops[i].value)])
+        t.display()
+        
     def do_flash_reset(self, arg):
         """
 format file system. Command to format file system.
@@ -8012,6 +8620,124 @@ run dcb tests from robot script
                 #self.onecmd("quickstart adxl_dcb_test_2")
                 #self.onecmd("quickstart ppg_status_check_robot_test")
                 #self.onecmd("quickstart temp_dcb_test")
+
+    def do_loadBiaDcfg(self, arg):
+        """
+    Load the EDA application DCFG.
+    #>loadBiaDcfg
+        """
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, m2m2_app_common_sub_op_t())
+        msg.payload.command = M2M2_BIA_APP_CMD_ENUM_t.M2M2_BIA_APP_CMD_LOAD_DCFG_REQ
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA,m2m2_app_common_sub_op_t(), 10)
+        if reply_msg != None:
+            status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
+            self._print_packet_status(reply_msg)
+        else:
+            self.vrb.err("Loading BIA device configuration failed!")
+
+    def do_BiaDcfgUpdate(self, arg):
+        """
+      Update BIA DCFG register values.
+      Eg: = BiaDcfgUpdate addr1 value1 addr2 value2 ...
+      Usage: BiaDcfgUpdate 0x000021D8 0x00000489
+        """
+        args = self._parse_args(arg, None)
+        if len(args) == 0:
+            self._p_err("No arguments supplied!")
+            return
+
+        num_ops = len(args)
+        num_ops >>= 1
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_dcfg_op_hdr_t(num_ops))
+        msg.payload.command = M2M2_BIA_APP_CMD_ENUM_t.M2M2_BIA_APP_COMMON_CMD_WRITE_DCFG_REQ
+        msg.payload.num_ops = num_ops
+        for i in range(num_ops):
+            tempVal = args[i*2]
+            reg_index = int(tempVal,16)
+            tempVal = args[i*2+1]
+            if ("0x") in tempVal:
+                reg_val = int(tempVal, 16)
+            elif ("0X") in tempVal:
+                reg_val = int(tempVal, 16)
+            else:
+                reg_val = int(tempVal)
+            msg.payload.ops[i].field = reg_index
+            msg.payload.ops[i].value = reg_val
+
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_dcfg_op_hdr_t(num_ops), 60)
+        if reply_msg == None:
+            status = self._get_enum_name(M2M2_EDA_APP_CMD_ENUM_t, reply_msg.payload.status)
+            print "Writing BIA App DCFG failed!"
+        return self._print_bia_app_dcfg_result(reply_msg)
+
+    def do_BiaDcfgRead(self, arg):
+        """
+Read the BIA DCFG. The argument is the DCFG ID to choose from the eda configuration structure:
+    ---------------------------------------------------------------
+    |Config Element                         |    Address        |
+    ---------------------------------------------------------------
+    |     FIFO Config register              |    0x000021D8     |
+    ---------------------------------------------------------------
+
+      Eg: = BiaDcfgRead addr1 addr2 ......
+        """
+        args = self._parse_args(arg, None)
+        if len(args) == 0:
+            self.vrb.err("No arguments supplied!")
+            return
+
+        num_ops = len(args)
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_dcfg_op_hdr_t(num_ops))
+        msg.payload.command = M2M2_BIA_APP_CMD_ENUM_t.M2M2_BIA_APP_COMMON_CMD_READ_DCFG_REQ
+        msg.payload.num_ops = num_ops
+        for i in range(num_ops):
+            tempVal = args[i]
+            if ("0x") in tempVal:
+                reg_addr = int(tempVal, 16)
+            elif ("0X") in tempVal:
+                reg_addr = int(tempVal, 16)
+            else:
+                reg_addr = int(tempVal)
+            msg.payload.ops[i].field = reg_addr
+
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, bia_app_dcfg_op_hdr_t(num_ops), 10)
+        reg_result_list = []
+        if reply_msg == None:
+            err_stat = 1
+            self.vrb.err("Reading BIA DCFG failed!")
+        else:
+            self._print_bia_app_dcfg_result(reply_msg)
+            err_stat = 0
+            for i in range(reply_msg.payload.num_ops):
+                reg_result_list.append((reg_addr, hex(int(reply_msg.payload.ops[i].value))))
+        return err_stat, reg_result_list
+
+    def _print_bia_app_dcfg_result(self, packet):
+        self._print_packet_status(packet)
+        self.vrb.write("  Num of registers: '{}'".format(int(packet.payload.num_ops)))
+
+        t = table(["Field", "Value"])
+        for i in range(packet.payload.num_ops):
+            t.add_row([hex(packet.payload.ops[i].field), hex(packet.payload.ops[i].value)])
+        t.display()
+
+    def do_biadcfg_write(self,arg) :
+        """
+        To write default dcfg below command is used
+        #>biadcfg_write 1
+        other arguments will be used to write user configurable registers to test in future
+        """
+        args = self._parse_args(arg,1)
+        if(int(args[0]) == 1):
+            self.onecmd("BiaDcfgUpdate 0x00002004 0x00000000 0x000021d8 0x00000489 0x000021e0 0x00040000 0x00002008 0x00004800 0x00002030 0x00333333 0x0000203c 0x000007ff 0x00002038 0x00000000 0x00002034 0x00000000 0x00002014 0x00000004 0x00002044 0x0000e011 0x000020d0 0x001000b1")
+        else:
+            self.onecmd("BiaDcfgUpdate 0x00002004 0x00000001 0x000021d8 0x00000488 0x000021e0 0x00040001 0x00002008 0x00004801 0x00002030 0x00333332 0x0000203c 0x000007fe 0x00002038 0x00000001 0x00002034 0x00000001 0x00002014 0x00000005 0x00002044 0x0000e012 0x000020d0 0x001000b2")
+
+    def do_biadcfg_read(self,arg) :
+        self.onecmd("BiaDcfgRead 0x00002004 0x000021d8 0x000021e0 0x00002008 0x00002030 0x0000203c 0x00002038 0x00002034 0x00002014 0x00002044 0x000020d0")
 
     def do_EdaDynamicScaling(self, arg):
         """

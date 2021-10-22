@@ -21,7 +21,9 @@ class m2m2_test_lib():
         self.clk_calib_val = None
         # TODO: Any newly added check function has to be added to the 'self.checkFuncs' dictionary
         self.checkFuncs = {'must_contain':self._must_contain_check,
-                           'must_not_contain':self._must_not_contain_check}
+                           'must_not_contain':self._must_not_contain_check,
+                           'parse_eda_dcfg_check':self._parse_eda_dcfg_check,
+                           'parse_bia_dcfg_check':self._parse_bia_dcfg_check}
         if connect == True:
             if connect_mode == 'ble':
                 connect_command = "connect_dongle {}".format(serial_port)
@@ -85,6 +87,48 @@ class m2m2_test_lib():
 
     
     # ****** Measurement & Pass/Fail Check Functions ****** #
+    def _parse_eda_dcfg_check(self, **kwargs):
+        """
+        
+        """
+        cmd = kwargs['cmd']
+        expected_returns = kwargs['expected_returns']
+        cmd_return = kwargs['cmd_return']
+        std_out = self.stdout.getvalue()
+        out_list = std_out.split('\n')
+        if len(out_list) >= 5:
+            line_list = out_list[5].split('|')
+            addr = int(line_list[1].strip().strip('L'), 16)
+            val = int(line_list[2].strip().strip('L'), 16)
+            exp_val = int(expected_returns[0].strip(), 16)
+            if exp_val == val:
+                pass
+            else:
+                raise m2m2_error("Read value check failed!\nExpVal: {} | ActualVal: {}".format(exp_val, val))
+        else:
+            raise m2m2_error("Read output is invalid!\nCmd Return: {}".format(std_out))
+
+    def _parse_bia_dcfg_check(self, **kwargs):
+        """
+        
+        """
+        cmd = kwargs['cmd']
+        expected_returns = kwargs['expected_returns']
+        cmd_return = kwargs['cmd_return']
+        std_out = self.stdout.getvalue()
+        out_list = std_out.split('\n')
+        if len(out_list) >= 5:
+            line_list = out_list[5].split('|')
+            addr = int(line_list[1].strip().strip('L'), 16)
+            val = int(line_list[2].strip().strip('L'), 16)
+            exp_val = int(expected_returns[0].strip(), 16)
+            if exp_val == val:
+                pass
+            else:
+                raise m2m2_error("Read value check failed!\nExpVal: {} | ActualVal: {}".format(exp_val, val))
+        else:
+            raise m2m2_error("Read output is invalid!\nCmd Return: {}".format(std_out))
+
     def _check_func_template(self, **kwargs):
         """
         DO NOT EDIT THIS FUNCTION!

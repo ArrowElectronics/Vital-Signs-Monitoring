@@ -70,6 +70,9 @@
 #include "ppg_application_interface.h"
 /* System Task Module Log settings */
 #include "nrf_log.h"
+#ifdef ENABLE_DEBUG_STREAM
+#include <debug_interface.h>
+#endif
 /*---------------------------- Defines --------------------------------------*/
 #define MAX_PAYLOAD_BYTE 24
 #define TOTAL_SLOT 12 /* total number of slots */
@@ -77,6 +80,11 @@
 #define ADPD_APP_ROUTING_TBL_SZ                                                \
   (sizeof(adpd4000_app_routing_table) / sizeof(adpd4000_app_routing_table[0]))
 #define SECONDS_PER_MIN               60U   //! Number of seconds per minute
+#define SKIP_STATIC_AGC_SAMPLES     40
+#ifdef ENABLE_DEBUG_STREAM
+#define M2M2_DEBUG_INFO_SIZE   4
+#define DEBUG_INFO_SIZE    M2M2_DEBUG_INFO_SIZE + 6 // 6 here to avoid overflow   
+#endif
 
 /*--------------------------- Typedef ---------------------------------------*/
 
@@ -90,6 +98,13 @@ typedef struct _app_routing_table_entry_t {
   app_cb_function_t *cb_handler;
 } app_routing_table_entry_t;
 
+#ifdef ENABLE_DEBUG_STREAM
+static struct _g_adpd_debug_data{
+  m2m2_hdr_t   *p_pkt;
+  uint8_t num_subs;
+  uint16_t  data_pkt_seq_num;
+} g_adpd_debug_data;
+#endif
 /*------------------------------ Public Variable ----------------------------*/
 slot_led_reg_t led_reg;
 bool gAdpdPause = false;
@@ -105,6 +120,7 @@ uint16_t gAdpd_ext_data_stream_odr = 50U;
 
 /* Application status trace */
 g_state_t g_state;
+g_state_agc g_state_static_agc;
 ADPD_TS_DATA_TYPE gADPD4000_dready_ts_prev, g_time_diff;
 static uint16_t g_adpd_reg_base;
 /****Flags to control AGC for 4 LEDs ****/
@@ -172,11 +188,10 @@ following flag is set in two cases for PPG or UC HR
 */
 extern uint8_t gPpg_agc_done;
 extern uint32_t Ppg_Slot;
-extern uint8_t gnFirstAGCcal;
 extern volatile uint8_t gnAppSyncTimerStarted;
 #endif
 #ifdef ENABLE_TEMPERATURE_APP
-extern uint32_t gnTemperature_Slot;
+extern uint32_t g_therm_slot_en_bit_mask;
 extern uint16_t gsTemperatureStarts;
 #endif
 extern agc_data_t agc_data[SLOT_NUM];
@@ -196,6 +211,13 @@ extern uint32_t gnSQI_Slot;
 extern uint16_t g_adpd_odr; /**/
 extern uint16_t get_adpd_odr();
 
+#ifdef ENABLE_DEBUG_STREAM
+uint8_t g_adpdOffset = 0;
+extern uint8_t g_adpd_ts_flag_set;
+uint32_t g_adpd_debugInfo[DEBUG_INFO_SIZE];
+extern uint64_t g_adpd_rtc_info[];
+void packetize_adpd_debug_data(void);
+#endif
 #ifdef DCB
 /* Reuse the gsConfigTmpFile[] RAM buffer used in system_task.c for
  * holding copy of either DCB/NAND config file which has LT
@@ -240,7 +262,7 @@ extern uint16_t Adpd400xUtilGetRegFromMonotonicCurrent(uint8_t ncurrent);
 #endif
 
 #ifdef ENABLE_TEMPERATURE_APP
-extern void temperatureAppData(uint32_t *pData);
+extern void temperatureAppData (uint32_t *pData, uint8_t slot_index);
 #endif
 extern void ADP5360_gpio_interrupt_enable();
 extern void enable_ext_syncmode();
@@ -343,7 +365,9 @@ static uint8_t fetch_adpd_data(void);
 static void sensor_adpd4000_task(void *pArgument);
 static void reset_adpd_packetization(void);
 static bool _OptionalByteArrange(uint8_t *, uint16_t, uint32_t, m2m2_hdr_t *);
-
+static void Adpd400xUpdateStaticAgcInfo(AGCState_t *pnagcInfo,uint8_t slotnum);
+static void packetize_adpd_static_agc_settings(void);
+static void static_agc_stream_state_reset(void);
 #ifdef OS_TIMER
 static OS_TMR gsPollFIFO_Timer;
 #endif
@@ -417,8 +441,8 @@ static void adpd_timer_start(void);
 static void adpd_timer_stop(void);
 static void adpd_timeout_handler(void * p_context);
 void start_adpd_app_timer();
-static user0_config_app_timing_params_t adpd_app_timings = {0};
-
+user0_config_app_timing_params_t adpd_app_timings = {0};
+extern user0_config_app_timing_params_t temp_app_timings;
 /**@brief Function for the Timer initialization.
 *
 * @details Initializes the timer module. This creates and starts application timers.
@@ -498,6 +522,7 @@ static void adpd_timeout_handler(void * p_context)
         }
 #endif
         //delayed start time expired-turn ON ADPD
+        reset_adpd_packetization();
         if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE))
         {
         }
@@ -574,6 +599,13 @@ void sensor_adpd4000_task_init(void) {
     g_state.data_pkt_seq_num[i][CH1] = 0;
     g_state.data_pkt_seq_num[i][CH2] = 0;
   }
+#ifdef ENABLE_DEBUG_STREAM
+g_adpd_debug_data.num_subs = 0;
+g_adpd_debug_data.data_pkt_seq_num = 0;
+#endif
+/*Initialize static AGC state*/
+  g_state_static_agc.num_subs = 0;
+  static_agc_stream_state_reset();
 
   ADI_OSAL_STATUS eOsStatus = ADI_OSAL_SUCCESS;
   sensor_adpd4000_task_attributes.pThreadFunc = sensor_adpd4000_task;
@@ -609,7 +641,9 @@ void sensor_adpd4000_task_init(void) {
 #ifdef ADPD_SEM_CORRUPTION_DEBUG
   pAdpdSemPtr = (uint8_t *)adpd4000_task_evt_sem;
 #endif
-  post_office_add_mailbox(M2M2_ADDR_SYS_PM, M2M2_ADDR_SYS_DBG_STREAM);
+#ifdef ENABLE_DEBUG_STREAM
+  post_office_add_mailbox(M2M2_ADDR_SENSOR_ADPD4000, M2M2_ADDR_SYS_DBG_STREAM);
+#endif
 }
 
 /*!
@@ -652,7 +686,7 @@ static void sensor_adpd4000_task(void *pArgument) {
     post_office_add_mailbox(M2M2_ADDR_SENSOR_ADPD4000,
         (M2M2_ADDR_ENUM_t)(M2M2_ADDR_SENSOR_ADPD_STREAM1 + i));
   }
-
+  post_office_add_mailbox(M2M2_ADDR_SENSOR_ADPD4000, M2M2_ADDR_SYS_STATIC_AGC_STREAM);
   ret_code_t err_code = sd_nvic_SetPriority(GPIOTE_IRQn, APP_IRQ_PRIORITY_LOW);
   APP_ERROR_CHECK(err_code);
   GPIO_IRQ_ADPD_Enable();
@@ -736,6 +770,8 @@ static void sensor_adpd4000_task(void *pArgument) {
     if (p_in_pkt == NULL) {
       /* No m2m2 messages to process, so fetch some data from the device. */
       /*_nStatus = */ fetch_adpd_data();
+      /*send static AGC stream if agc state udpated */
+      packetize_adpd_static_agc_settings();
     } else {
       /* We got an m2m2 message from the queue, process it. */
       PYLD_CST(p_in_pkt, _m2m2_app_common_cmd_t, p_in_cmd);
@@ -824,7 +860,6 @@ static void reset_adpd_packetization(void) {
  uint16_t dataPtr =0,eachSlotSize =0;
  uint32_t gn_sample_size_cp=0;
 #endif
-
 static uint8_t fetch_adpd_data(void) {
   ADI_OSAL_STATUS err;
   uint32_t timestamp = 0;
@@ -861,7 +896,15 @@ static uint8_t fetch_adpd_data(void) {
     {
       gbAdpdSamplingRateChanged = 0;
       /* reset the counter for temp only if sampling rate is changed */
+#ifdef CUST4_SM
+  #ifndef ENABLE_DEBUG_STREAM
+        gsTempSampleCount = (gsSlot[ADPD400xDrv_SLOTD].odr - 1);
+  #else
+        gsTempSampleCount = 0;
+  #endif
+#else
       gsTempSampleCount = 0;
+#endif
     }
     Adpd400xDrvRegRead(ADPD400x_REG_FIFO_STATUS_BYTES, &nStatusRegValue);
     // Handle ADPD at 500Hz by increasing ADPD task priority
@@ -931,25 +974,29 @@ static uint8_t fetch_adpd_data(void) {
 
 #ifdef ENABLE_TEMPERATURE_APP
 #ifdef EVTBOARD
+#ifdef USER0_CONFIG_APP
+      if(temp_app_timings.app_mode_on)
+      {
+#endif
       /* Check the slot is in Temperature mode */
-      if (gnTemperature_Slot != 0) {
-        if (gnTemperature_Slot == (0x01 << i)) {
-          if (++gsTempSampleCount == gsSlot[i].odr) {
-            gsTempSampleCount = 0;
-            /* Get Thermistor value */
-            memcpy(&tmpPPGData[0], &tmp[dataPtr], eachSlotSize);
-            ppgData[0] = *(uint32_t *)tmpPPGData;
-            /* Get Calibration resistor value */
-            memcpy(&tmpPPGData[0], &tmp[dataPtr + eachSlotSize], eachSlotSize);
-            ppgData[1] = *(uint32_t *)tmpPPGData;
-            temperatureAppData(ppgData);
-          }
+      if(g_therm_slot_en_bit_mask != 0)
+      {
+        if(g_therm_slot_en_bit_mask & (1 << i))
+        {
+          temperatureAppData((uint32_t *)&tmp[dataPtr],i);
         }
       }
+#ifdef USER0_CONFIG_APP
+      } //if(temp_app_timings.app_mode_on)
 #endif
-#endif
+#endif//EVTBOARD
+#endif//ENABLE_TEMPERATURE_APP
 
 #ifdef ENABLE_SQI_APP
+#ifdef USER0_CONFIG_APP
+      if(adpd_app_timings.app_mode_on)
+      {
+#endif
       /* Check if sqi event is started */
       if (gnSQI_Slot != 0) {
         if (gnSQI_Slot == (0x01 << i)) {
@@ -967,7 +1014,10 @@ static uint8_t fetch_adpd_data(void) {
           }
         }
       }
+#ifdef USER0_CONFIG_APP
+      } // if(adpd_app_timings.app_mode_on)
 #endif
+#endif//ENABLE_SQI_APP
 
 #ifdef ENABLE_PPG_APP
       /* Check the slot is in PPG mode and agc calibration is done */
@@ -997,8 +1047,12 @@ static uint8_t fetch_adpd_data(void) {
          }//if (Ppg_Slot == (0x01 << i))
        }//if (Ppg_Slot != 0 && !gRun_agc)
 
-     /* Check if ppg app is not running & if its slot F data
-        to calculate HR */
+#ifdef USER0_CONFIG_APP
+    if(adpd_app_timings.app_mode_on)
+    {
+#endif
+    /* Check if ppg app is not running & if its slot F data
+       to calculate HR */
     if (gn_uc_hr_enable && Ppg_Slot == 0 && i==(gn_uc_hr_slot-1) && !gRun_agc) {
       MwPPG_ReadLCFG(2, &nTargetCh);
       if(((nTargetCh & BITM_TARGET_CH) == TARGET_CH4) || ((nTargetCh & BITM_TARGET_CH) == TARGET_CH3)
@@ -1052,9 +1106,16 @@ static uint8_t fetch_adpd_data(void) {
         SyncAppDataSend(ppgData, timestamp, 0, 0);
        }
      }
+#ifdef USER0_CONFIG_APP
+    } //if(adpd_app_timings.app_mode_on)
+#endif
 #endif //ENABLE_PPG_APP
 
      if(gRun_agc){
+#ifdef USER0_CONFIG_APP
+      if(adpd_app_timings.app_mode_on)
+      {
+#endif
        if (gn_agc_active_slots != 0) {
          if (gn_agc_active_slots & (0x01 << i)) {
             int8_t slotnum = i;
@@ -1104,22 +1165,26 @@ static uint8_t fetch_adpd_data(void) {
 #ifdef ENABLE_PPG_APP
                 if(gPpg_agc_en)//if(gn_agc_active_slots & Ppg_slot)
                 {
-                  /* This variabe get reset on AGC un-subscribe in ppg application task */
-                  if(!gnFirstAGCcal){
-                    gnFirstAGCcal = 1;
-                    Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_STATIC_AGC_FIRST_CAL);//update agc stream info in library
-                  }else{
-                    Adpd400xLibUpdateAGCStateInfo(ADPD400xLIB_AGCLOG_STATIC_AGC_RECAL);//update agc stream info in library
-                  }
-                  gPpg_agc_done = 1;
+                  gPpg_agc_done = 1;//Notify HRM library that static agc process done
                 }
 #endif
+                /* Capture AGC settings for AGC stream*/
+                g_state_static_agc.active_slots = gn_agc_active_slots;
+                /* If UCHR and PPG is not enabled , update AGC state for static AGC stream*/
+                if(g_state_static_agc.agc_log_state == ADPD400x_AGCLOG_STATIC_AGC_INVALID) {
+                  g_state_static_agc.agc_log_state = ADPD400xLIB_AGCLOG_STATIC_AGC_FIRST_CAL;
+                }else {
+                  g_state_static_agc.agc_log_state = ADPD400xLIB_AGCLOG_STATIC_AGC_RECAL;
+                }
                 agc_deinit();
                 gsAgcFlag = 0;
                 gRun_agc = false;
             }
          }//if (gn_agc_active_slots & (0x01 << i))
       }//if (gn_agc_active_slots != 0)
+#ifdef USER0_CONFIG_APP
+    } //if(adpd_app_timings.app_mode_on)
+#endif
     }//gRun_agc
 
       if (eachSlotSize == 0) {
@@ -1344,6 +1409,10 @@ static uint8_t fetch_adpd_data(void) {
     status = adpd4000_buff_get(&tmp[0], &timestamp, &len);
   }
   nInterruptSequence = nReadSequence;
+#ifdef ENABLE_DEBUG_STREAM
+  g_adpdOffset = 0;
+  packetize_adpd_debug_data();
+#endif
   /* set FIFO threshold value for 4 sets */
   nSampleSize = get_samples_size(
       gnAdpdFifoWaterMark, gsSlot, &nInterruptSequence, gnLcmValue, highest_slot);
@@ -1783,51 +1852,6 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
 
     switch (p_in_payload->command) {
     case M2M2_APP_COMMON_CMD_STREAM_START_REQ:
-/*
-      if (
-#ifdef ENABLE_ECG_APP
-      g_state_ecg.num_starts == 0 &&
-#endif
-#ifdef ENABLE_EDA_APP
-      1 && g_state_eda.num_starts == 0 &&
-#endif
-#ifdef ENABLE_BIA_APP
-      1 && g_state_bia.num_starts == 0 &&
-#endif
-      1 ) {
-        // switch on ECG ldo 
-        adp5360_enable_ldo(ECG_LDO, true);
-#ifdef ENABLE_BIA_APP
-        DG2502_SW_control_AD5940(false);
-#endif
-#ifdef ENABLE_ECG_APP
-        DG2502_SW_control_AD8233(false);
-#endif
-        // de init power 
-        adp5360_enable_ldo(ECG_LDO, false);
-      } else if (
-#ifdef ENABLE_ECG_APP
-      g_state_ecg.num_starts == 0 && (
-#else
-      (
-#endif
-#ifdef ENABLE_EDA_APP
-      g_state_eda.num_starts > 0 ||
-#endif
-#ifdef ENABLE_BIA_APP
-      g_state_bia.num_starts > 0 ||
-#endif
-      0 )) {
-#ifndef CUST4_SM
-        DG2502_SW_control_AD5940(false);
-#endif
-#ifdef ENABLE_ECG_APP
-#ifndef CUST4_SM
-        DG2502_SW_control_AD8233(false);
-#endif
-#endif
-      }
-*/
       gsOneTimeValueWhenReadAdpdData = 0;
       if (g_state.num_starts == 0) {
 #ifdef ENABLE_PPG_APP
@@ -2080,23 +2104,96 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
 
     case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
       /* Get the slot number for every subscription. */
-      if (p_in_payload->stream == M2M2_ADDR_SENSOR_ADPD_OPTIONAL_BYTES_STREAM) {
-        /* Enable Stream Flag */
-        bIsStatusStreamEnabled = true;
-        /* Reset the Interrupt Status variables */
-        _PreviousStatus.level0_int = 1;
-        _PreviousStatus.level1_int = 1;
-        _PreviousStatus.tia_ch1_int = 1;
-        _PreviousStatus.tia_ch2_int = 1;
-      } else {
-        sl_num = p_in_payload->stream - M2M2_ADDR_SENSOR_ADPD_STREAM1;
-        g_state.num_subs[sl_num]++;
-        if(g_state.num_subs[sl_num] == 1)
-        {
-          /* reset pkt sequence no. only during 1st sub request */
-          g_state.data_pkt_seq_num[sl_num][CH1] = 0;
-          g_state.data_pkt_seq_num[sl_num][CH2] = 0;
+      if(p_in_payload->stream == M2M2_ADDR_SYS_STATIC_AGC_STREAM) {
+        g_state_static_agc.num_subs++;
+        if(g_state_static_agc.num_subs == 1) {
+        /* reset pkt sequence no. only during 1st sub request */
+          static_agc_stream_state_reset();
         }
+        post_office_setup_subscriber(M2M2_ADDR_SENSOR_ADPD4000, M2M2_ADDR_SYS_STATIC_AGC_STREAM, p_pkt->src, true);
+      }else {
+        if (p_in_payload->stream == M2M2_ADDR_SENSOR_ADPD_OPTIONAL_BYTES_STREAM) {
+          /* Enable Stream Flag */
+          bIsStatusStreamEnabled = true;
+          /* Reset the Interrupt Status variables */
+          _PreviousStatus.level0_int = 1;
+          _PreviousStatus.level1_int = 1;
+          _PreviousStatus.tia_ch1_int = 1;
+          _PreviousStatus.tia_ch2_int = 1;
+        } else {
+          sl_num = p_in_payload->stream - M2M2_ADDR_SENSOR_ADPD_STREAM1;
+          g_state.num_subs[sl_num]++;
+          if(g_state.num_subs[sl_num] == 1)
+          {
+            /* reset pkt sequence no. only during 1st sub request */
+            g_state.data_pkt_seq_num[sl_num][CH1] = 0;
+            g_state.data_pkt_seq_num[sl_num][CH2] = 0;
+          }
+#ifdef ENABLE_DEBUG_STREAM
+          g_adpd_debug_data.num_subs++;
+          if(g_adpd_debug_data.num_subs == 1){
+            g_adpd_debug_data.data_pkt_seq_num = 0;
+            g_adpdOffset = 0;
+            memset(g_adpd_debugInfo,0,sizeof(g_adpd_debugInfo));
+            post_office_setup_subscriber(M2M2_ADDR_SENSOR_ADPD4000,M2M2_ADDR_SYS_DBG_STREAM, p_pkt->src, true);
+          }
+#endif
+          //Check if no: of subscribers are more than 1, for all slots
+          uint8_t i;
+          // Go through total adpd slots
+          gb_adpd_multi_sub_start = 0;
+          for (i = 0; i < SLOT_NUM; i++) {
+            if (g_state.num_subs[i] >= 1) {
+              gb_adpd_multi_sub_start = 1;
+              break;
+            }
+          }
+        }
+        post_office_setup_subscriber(
+            M2M2_ADDR_SENSOR_ADPD4000, p_in_payload->stream, p_pkt->src, true);
+      }
+      status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
+      command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;
+      break;
+
+    case M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_REQ:
+      if(p_in_payload->stream == M2M2_ADDR_SYS_STATIC_AGC_STREAM) {
+        if(g_state_static_agc.num_subs <= 1) {
+          g_state_static_agc.num_subs = 0;
+          static_agc_stream_state_reset();
+          status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
+        }else {
+          g_state_static_agc.num_subs--;
+          status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
+        }
+        post_office_setup_subscriber(M2M2_ADDR_SENSOR_ADPD4000, M2M2_ADDR_SYS_STATIC_AGC_STREAM, p_pkt->src, false);
+      }else {
+        if (p_in_payload->stream == M2M2_ADDR_SENSOR_ADPD_OPTIONAL_BYTES_STREAM) {
+            bIsStatusStreamEnabled = false;
+            status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
+        }else {
+          sl_num = p_in_payload->stream - M2M2_ADDR_SENSOR_ADPD_STREAM1;
+          if (g_state.num_subs[sl_num] <= 1) {
+            g_state.num_subs[sl_num] = 0;
+            status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
+          } else {
+            g_state.num_subs[sl_num]--;
+            status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
+          }
+#ifdef ENABLE_DEBUG_STREAM
+          if(g_adpd_debug_data.num_subs <= 1){
+            g_adpd_debug_data.num_subs = 0;
+            g_adpd_debug_data.data_pkt_seq_num = 0;
+            g_adpdOffset = 0;
+            memset(g_adpd_debugInfo,0,sizeof(g_adpd_debugInfo));
+            post_office_setup_subscriber(M2M2_ADDR_SENSOR_ADPD4000,M2M2_ADDR_SYS_DBG_STREAM,p_pkt->src, false);
+          }else{
+            g_adpd_debug_data.num_subs--;
+          }
+#endif
+        }
+        post_office_setup_subscriber(
+            M2M2_ADDR_SENSOR_ADPD4000, p_in_payload->stream, p_pkt->src, false);
         //Check if no: of subscribers are more than 1, for all slots
         uint8_t i;
         // Go through total adpd slots
@@ -2108,39 +2205,7 @@ static m2m2_hdr_t *adpd_app_stream_config(m2m2_hdr_t *p_pkt) {
           }
         }
       }
-      post_office_setup_subscriber(
-          M2M2_ADDR_SENSOR_ADPD4000, p_in_payload->stream, p_pkt->src, true);
-      status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
-      command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;
-      break;
-
-    case M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_REQ:
-      if (p_in_payload->stream == M2M2_ADDR_SENSOR_ADPD_OPTIONAL_BYTES_STREAM) {
-        bIsStatusStreamEnabled = false;
-        status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
-      } else {
-        sl_num = p_in_payload->stream - M2M2_ADDR_SENSOR_ADPD_STREAM1;
-        if (g_state.num_subs[sl_num] <= 1) {
-          g_state.num_subs[sl_num] = 0;
-          status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
-        } else {
-          g_state.num_subs[sl_num]--;
-          status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
-        }
-      }
-      post_office_setup_subscriber(
-          M2M2_ADDR_SENSOR_ADPD4000, p_in_payload->stream, p_pkt->src, false);
       command = M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP;
-      //Check if no: of subscribers are more than 1, for all slots
-      uint8_t i;
-      // Go through total adpd slots
-      gb_adpd_multi_sub_start = 0;
-      for (i = 0; i < SLOT_NUM; i++) {
-        if (g_state.num_subs[i] >= 1) {
-          gb_adpd_multi_sub_start = 1;
-          break;
-        }
-      }
       break;
 
     default:
@@ -2903,6 +2968,9 @@ uint8_t adpd_list_index = 0;
 #endif
 static void adpd_data_ready_cb(void) {
   /* Get the RTC timestamp at the time the ADPD data ready interrupt happened */
+#ifdef ENABLE_DEBUG_STREAM
+  g_adpd_ts_flag_set = 1;
+#endif  
   gADPD4000_dready_ts = get_sensor_time_stamp();
 #ifdef ADPD_SEM_CORRUPTION_DEBUG
  g_adpd_isr_list[adpd_list_index++] = gADPD4000_dready_ts;
@@ -3245,5 +3313,131 @@ if(nCh2Enable)
 }
 Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_adpd_reg_base, nTIAgain);
 Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);
+}
+#endif
+/*!
+ ****************************************************************************
+ * @brief update AGC structure with ADPD device info
+ *
+ * @param[in]           AGCState_t - AGC structure
+ * @param[in]           slotnum - ADPD slot number
+ *
+ * @return              None
+ *****************************************************************************/
+static void Adpd400xUpdateStaticAgcInfo(AGCState_t *pnagcInfo,uint8_t slotnum){
+  uint16_t nRegValue = 0;
+  pnagcInfo->setting[0] = g_state_static_agc.agc_log_state;
+  g_adpd_reg_base = slotnum * ADPD400x_SLOT_BASE_ADDR_DIFF;
+  AdpdDrvRegRead(g_adpd_reg_base + ADPD400x_REG_LED_POW12_A, &nRegValue);
+  pnagcInfo->setting[1] = nRegValue;
+  AdpdDrvRegRead(g_adpd_reg_base + ADPD400x_REG_LED_POW34_A, &nRegValue);
+  pnagcInfo->setting[2] = nRegValue;
+  AdpdDrvRegRead(g_adpd_reg_base + ADPD400x_REG_COUNTS_A, &nRegValue);
+  pnagcInfo->setting[3] = nRegValue;
+  AdpdDrvRegRead(g_adpd_reg_base + ADPD400x_REG_AFE_TRIM_A, &nRegValue);
+  pnagcInfo->setting[4] = nRegValue;
+  pnagcInfo->setting[5] = get_adpd_odr();
+  pnagcInfo->setting[6] = slotnum;
+  pnagcInfo->mts[0] = 0xFFFF;// No signal quality check for static AGC calibration and saturation case
+  pnagcInfo->setting[9] = 0x0000;
+}
+
+/**
+* @brief Packetize and send static AGC data
+*
+* @return None
+*
+*/
+static void packetize_adpd_static_agc_settings(void) {
+  ADI_OSAL_STATUS err;
+  AGCState_t agcInfo;
+  uint16_t nHighestSlotActive = 0;
+  if((g_state_static_agc.num_subs > 0) && (g_state_static_agc.skip_samples >= SKIP_STATIC_AGC_SAMPLES)) {
+   /* Highest active slot */
+    if(g_state_static_agc.active_slots != 0){
+      Adpd400xDrvGetParameter(ADPD400x_HIGHEST_SLOT_NUM, 0, &nHighestSlotActive);
+      for(uint8_t slot = 0; slot <= nHighestSlotActive; slot++){
+        if (g_state_static_agc.active_slots & (0x01 << slot)){
+          memset(&agcInfo,0,sizeof(agcInfo));
+          Adpd400xUpdateStaticAgcInfo(&agcInfo,slot);
+          adi_osal_EnterCriticalRegion();
+          g_state_static_agc.agc_pktizer.p_pkt = post_office_create_msg(sizeof(m2m2_sensor_adpd_static_agc_stream_t) + M2M2_HEADER_SZ);
+          if(g_state_static_agc.agc_pktizer.p_pkt != NULL){
+            PYLD_CST(g_state_static_agc.agc_pktizer.p_pkt, m2m2_sensor_adpd_static_agc_stream_t, p_payload_ptr);
+            p_payload_ptr->command = M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
+            p_payload_ptr->status = (M2M2_SENSOR_INTERNAL_STATUS_ENUM_t)M2M2_SENSOR_INTERNAL_STATUS_PKT_READY;
+            p_payload_ptr->timestamp = get_sensor_time_stamp(); // Since nand flash log start command given at last , capturing TS before that will create negative delta in epoch calculation
+            for(int i = 0; i < 6; i++)
+            {
+             p_payload_ptr->mts[i] = agcInfo.mts[i];
+            }
+            for(int i = 0; i < 10; i++)
+            {
+             p_payload_ptr->setting[i] = agcInfo.setting[i];
+            }
+            g_state_static_agc.agc_pktizer.p_pkt->src = M2M2_ADDR_SENSOR_ADPD4000;
+            g_state_static_agc.agc_pktizer.p_pkt->dest = M2M2_ADDR_SYS_STATIC_AGC_STREAM;
+            p_payload_ptr->sequence_num = g_state_static_agc.data_pkt_seq_num++;
+            post_office_send(g_state_static_agc.agc_pktizer.p_pkt, &err);
+            g_state_static_agc.agc_pktizer.p_pkt = NULL;
+          }
+          adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
+        }
+      }
+    }
+    g_state_static_agc.active_slots = 0;
+  }else{
+    g_state_static_agc.skip_samples++;
+  }
+}
+
+/**
+* @brief Clear the static AGC stream state variables
+*
+* @return None
+*
+*/
+static void static_agc_stream_state_reset(void){
+  g_state_static_agc.skip_samples = 0;
+  g_state_static_agc.data_pkt_seq_num = 0;
+  g_state_static_agc.agc_log_state = ADPD400x_AGCLOG_STATIC_AGC_INVALID; /* clear AGC state*/
+  g_state_static_agc.active_slots = 0;
+}
+
+#ifdef ENABLE_DEBUG_STREAM
+
+/**
+* @brief Constructs the packet to send the ADPD debug data
+*
+* @return None
+*
+*/
+void packetize_adpd_debug_data(void) {
+  ADI_OSAL_STATUS         err;
+  if(g_adpd_debug_data.num_subs > 0){
+    adi_osal_EnterCriticalRegion();
+    g_adpd_debug_data.p_pkt = post_office_create_msg(sizeof(m2m2_app_debug_stream_t) + M2M2_HEADER_SZ);
+    if(g_adpd_debug_data.p_pkt != NULL){
+      PYLD_CST(g_adpd_debug_data.p_pkt, m2m2_app_debug_stream_t,p_payload_ptr);
+      p_payload_ptr->command = M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
+      p_payload_ptr->status = (M2M2_SENSOR_INTERNAL_STATUS_ENUM_t)M2M2_SENSOR_INTERNAL_STATUS_PKT_READY;
+      p_payload_ptr->timestamp = get_sensor_time_stamp();
+      memset(p_payload_ptr->debuginfo, 0, M2M2_DEBUG_INFO_SIZE*4);
+      for (uint8_t i = 0; i < M2M2_DEBUG_INFO_SIZE; i++){
+        p_payload_ptr->debuginfo[i] = g_adpd_debugInfo[i];
+      }
+      for (uint8_t j = 0; j < M2M2_DEBUG_INFO_SIZE; j++){
+        p_payload_ptr->debuginfo_64[j] = g_adpd_rtc_info[j];
+      }
+      memset(g_adpd_debugInfo, 0, sizeof(g_adpd_debugInfo));
+      g_adpd_debug_data.p_pkt->src = M2M2_ADDR_SENSOR_ADPD4000;
+      g_adpd_debug_data.p_pkt->dest = M2M2_ADDR_SYS_DBG_STREAM;
+      p_payload_ptr->sequence_num = g_adpd_debug_data.data_pkt_seq_num++;
+
+      post_office_send(g_adpd_debug_data.p_pkt, &err);
+      g_adpd_debug_data.p_pkt = NULL;
+    }
+    adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
+  }
 }
 #endif

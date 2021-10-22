@@ -413,6 +413,23 @@ PPG Status Check
 	Cmd Must Contain	status ppg	Application: M2M2_ADDR_MED_PPG:	Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'	Number of Subscribers: '0'	Number of Start Requests: '0'
 	Set test message	Checked PPG app status in case of subscriber added/removed and sensor start/stop.
 	
+ECG4K_TEST
+	[Documentation]	Test functionality of ECG4K\n\n
+	...				1. Verify - \n\n
+	...				-> Start ECG4K, Stop ECG4K
+	[Tags]	ECG4K
+	Cmd Must Contain 	loadAdpdCfg 40							Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain 	SetEcg4kLcfg 0:300                      Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	clockCalibration						Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	controlECGElectrodeSwitch 4k_sw 1		Status: 'M2M2_PM_SYS_STATUS_OK'
+	Cmd Must Contain	sensor adpd4000 start					Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
+	Cmd Must Contain	sub radpd1 add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain	delay 5
+	Cmd Must Contain 	sub radpd1 remove                       Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain 	sensor adpd4000 stop				    Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
+	Cmd Must Contain	controlECGElectrodeSwitch 4k_sw 0		Status: 'M2M2_PM_SYS_STATUS_OK'
+	Cmd Must Contain	LDOControl 3 0							Status: '65'
+	Set test message	Tested ECG4K stream start/stop.
 	
 EDA_Test
 	[Documentation]	Test functionality of EDA\n\n
@@ -445,7 +462,19 @@ DCB_Read/Write_Test1
 	Cmd Must Contain	delay 4
 	Cmd Must Contain	compare_cfg_files adpd4000_dcb_test1.dcfg adpd4000_dcb_get.dcfg		Command return status: Cfg. in both files matched
 	Cmd Must Contain	delete_dcb_config adpd4000											Command return status: M2M2_DCB_STATUS_OK
-	Cmd Must Contain	delay 4	
+	Cmd Must Contain	delay 4
+	Cmd Must Contain 	write_dcb_config temperature temperature_lcfg_dcb_test.lcfg					Command return status: M2M2_DCB_STATUS_OK
+	Cmd Must Contain	delay 4
+	Cmd Must Contain 	read_dcb_config temperature											Command return status: M2M2_DCB_STATUS_OK
+	Cmd Must Contain	delay 4
+	Cmd Must Contain	set_temperature_lcfg_dcb 		Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	delay 4
+	Cmd Must Contain	tempr_lcfg_read 1 	  Status: 'M2M2_APP_COMMON_STATUS_OK'  Slots Selected : 0xe1c
+	Cmd Must Contain	delay 4
+	Cmd Must Contain	delete_dcb_config temperature											Command return status: M2M2_DCB_STATUS_OK
+	Cmd Must Contain	delay 4
+	Cmd Must Contain	tempr_lcfg_read 1 	  Status: 'M2M2_APP_COMMON_STATUS_OK'  Slots Selected : 0x18
+	Cmd Must Contain	delay 4
 	Cmd Must Contain 	write_dcb_config adxl adxl_dcb_test1.dcfg							Command return status: M2M2_DCB_STATUS_OK
 	Cmd Must Contain	delay 4
 	Cmd Must Contain 	read_dcb_config adxl												Command return status: M2M2_DCB_STATUS_OK
@@ -796,13 +825,15 @@ HRV_Test
 	Cmd Must Contain 	setPpgLcfg 40							Device: '40'	Status: 'M2M2_APP_COMMON_STATUS_OK'
 	Cmd Must Contain 	sensor ppg start						Status: 'M2M2_APP_COMMON_STATUS_STREAM_STARTED'
 	Cmd Must Contain 	sub rppg add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
-	Cmd Must Contain 	sub ragc add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain 	sub rstatic_agc add						Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
+	Cmd Must Contain 	sub rdynamic_agc add					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	Cmd Must Contain 	sub rhrv add							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED'
 	
 	Cmd Must Contain    delay 5
 	
 	Cmd Must Contain 	sub rhrv remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
-	Cmd Must Contain 	sub ragc remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain 	sub rstatic_agc remove					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
+	Cmd Must Contain 	sub rdynamic_agc remove					Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
 	Cmd Must Contain 	sub rppg remove							Status: 'M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED'
 	Cmd Must Contain 	sensor ppg stop							Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
 	Set test message	Tested HRV stream start/stop
@@ -840,6 +871,9 @@ EDA_DCB_Test
 	Cmd Must Contain	sensor eda stop							Status: 'M2M2_APP_COMMON_STATUS_STREAM_STOPPED'
 	Cmd Must Contain	lcfgEdaRead 0							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	4
 	Cmd Must Contain	lcfgEdaRead 2							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	
+	Cmd Must Contain	loadEdaDcfg							Status: 'M2M2_APP_COMMON_STATUS_OK'
+	Cmd Must Contain	EdaDcfgUpdate 0x000021D8 0x00000489				Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'
+	Pass Fail Check    	EdaDcfgRead 0x000021D8                parse_eda_dcfg_check                0x00000489
 	Set test message	Tested EDA DCB read/write/erase. Loaded Lcfg is verified.
 	
 ECG_DCB_Test
@@ -960,6 +994,9 @@ BIA_DCB_Test
 	Cmd Must Contain	lcfgBiaRead 16							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	-9.99999974738e-05
 	Cmd Must Contain	lcfgBiaRead 17							Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'	-42.9930000305	
 	Cmd Must Contain	delete_dcb_config bia						Command return status: M2M2_DCB_STATUS_OK
+    Cmd Must Contain	loadBiaDcfg							    Status: 'M2M2_APP_COMMON_STATUS_OK'
+    Cmd Must Contain	BiaDcfgUpdate 0x000021D8 0x00000489		Status: 'M2M2_APP_COMMON_STATUS_OK'	Num of registers: '1'
+	Pass Fail Check    	BiaDcfgRead 0x000021D8                  parse_bia_dcfg_check                0x00000489
 	Set test message	Tested BIA DCB read/write/erase. Loaded Lcfg is verified.
 
 	
@@ -1190,7 +1227,7 @@ AD7156 Start Stop
 	Cmd Must Contain	sub rad7156 remove	M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED
 	Cmd Must Contain	sensor ad7156 stop	M2M2_APP_COMMON_STATUS_STREAM_STOPPED
 	Set test message	Tested AD7156 stream start/stop.
-	
+
 UC HR Test1
 	[Documentation]	Test s/m stability for UC HR from raw ADPD4X00, ADXL app for diff frequencies\n\n
 	...				1.start ADPD4000 at 50Hz, ADXL at 50Hz-> stream sequence, then stop\n\n

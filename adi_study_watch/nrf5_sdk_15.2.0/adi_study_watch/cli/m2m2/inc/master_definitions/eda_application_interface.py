@@ -7,7 +7,7 @@ import m2m2_core
 import common_sensor_interface
 
 import common_application_interface
-
+  
 class M2M2_EDA_APP_CMD_ENUM_t(c_uint8):
     _M2M2_EDA_APP_CMD_LOWEST = 0x40
     M2M2_EDA_APP_CMD_DYNAMIC_SCALE_REQ = 0x42
@@ -24,6 +24,13 @@ class M2M2_EDA_APP_CMD_ENUM_t(c_uint8):
     M2M2_EDA_APP_CMD_BASELINE_IMP_SET_RESP = 0x4D
     M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_REQ = 0x4E
     M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_RESP = 0x4F
+    M2M2_EDA_APP_CMD_LOAD_DCFG_REQ         = 0x50
+    M2M2_EDA_APP_CMD_LOAD_DCFG_RESP        = 0x51
+    M2M2_APP_COMMON_CMD_WRITE_DCFG_REQ     = 0x52
+    M2M2_APP_COMMON_CMD_WRITE_DCFG_RESP    = 0x53
+    M2M2_APP_COMMON_CMD_READ_DCFG_REQ      = 0x54
+    M2M2_APP_COMMON_CMD_READ_DCFG_RESP     = 0x55
+
 
 class M2M2_SENSOR_EDA_NSAMPLES_ENUM_t(c_uint8):
     M2M2_SENSOR_EDA_NSAMPLES = 0x6
@@ -48,6 +55,19 @@ class eda_app_lcfg_op_hdr_t(Structure):
               (None, common_application_interface._m2m2_app_common_cmd_t),
               ("num_ops", c_uint8),
               ("ops", eda_app_lcfg_op_t * 0),
+              ]
+
+class eda_app_dcfg_op_t(Structure):
+    fields = [
+              ("field", c_uint32),
+              ("value", c_uint32),
+              ]
+
+class eda_app_dcfg_op_hdr_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_common_cmd_t),
+              ("num_ops", c_uint8),
+              ("ops", eda_app_dcfg_op_t * 0),
               ]
 
 class eda_data_set_t(Structure):

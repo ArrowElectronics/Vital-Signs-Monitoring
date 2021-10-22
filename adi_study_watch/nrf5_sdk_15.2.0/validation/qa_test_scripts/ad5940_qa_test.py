@@ -294,108 +294,108 @@ def eda_fs_freq_sweep_test():
         eda_fs_stream_test(freq_hz=freq_hz)
 
 
-def bcm_fs_stream_test(freq_hz=10):
+def bia_fs_stream_test(freq_hz=10):
 
     qa_utils.clear_fs_logs('eda')
 
-    common.quick_start_bcm_fs(freq_hz)
+    common.quick_start_bia_fs(freq_hz)
     time.sleep(capture_time)
-    common.quick_stop_bcm_fs()
-    log_file_name, csv_file_name_dict = qa_utils.get_fs_log('bcm')
+    common.quick_stop_bia_fs()
+    log_file_name, csv_file_name_dict = qa_utils.get_fs_log('bia')
 
-    f_path = common.rename_stream_file(csv_file_name_dict["bcm"], '_BCM_stream_fs_{}hz_test.csv'.format(freq_hz))
+    f_path = common.rename_stream_file(csv_file_name_dict["bia"], '_bia_stream_fs_{}hz_test.csv'.format(freq_hz))
 
-    err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'bcm', 0, freq_hz, True)
-    common.test_logger.info('BCM {}Hz FS Stream Test Results: {}'.format(freq_hz, results_dict))
+    err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'bia', 0, freq_hz, True)
+    common.test_logger.info('bia {}Hz FS Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.test_logger.error('*** BCM {}Hz FS Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** bia {}Hz FS Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
-def bcm_stream_test(freq_hz=10):
+def bia_stream_test(freq_hz=10):
 
     capture_time = 30
-    # common.dcb_cfg('d', 'bcm')
+    # common.dcb_cfg('d', 'bia')
 
-    common.quick_start_bcm(freq_hz)
+    common.quick_start_bia(freq_hz)
     time.sleep(capture_time)
-    common.watch_shell.quick_stop('bcm', 'bcm')
-    # common.dcb_cfg('d', 'bcm')
+    common.watch_shell.quick_stop('bia', 'bia')
+    # common.dcb_cfg('d', 'bia')
 
-    f_path = common.rename_stream_file(common.bcm_stream_file_name, '_BCM_stream{}hz_test.csv'.format(freq_hz))
+    f_path = common.rename_stream_file(common.bia_stream_file_name, '_bia_stream{}hz_test.csv'.format(freq_hz))
 
-    err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'bcm', 1, freq_hz)
-    common.test_logger.info('BCM {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'bia', 1, freq_hz)
+    common.test_logger.info('bia {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.test_logger.error('*** BCM {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** bia {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
-def bcm_freq_sweep_test():
+def bia_freq_sweep_test():
     """
-    Sweep BCM across Valid Frequencies
+    Sweep bia across Valid Frequencies
     :return:
     """
     freq = [4, 10, 15, 20, 22]
     for freq_hz in freq:
-        bcm_stream_test(freq_hz=freq_hz)
+        bia_stream_test(freq_hz=freq_hz)
 
 
-def bcm_fs_freq_sweep_test():
+def bia_fs_freq_sweep_test():
     """
-    Sweep BCM across Valid Frequencies
+    Sweep bia across Valid Frequencies
     :return:
     """
     freq = [4, 10, 15, 20, 22]
     for freq_hz in freq:
-        bcm_fs_stream_test(freq_hz=freq_hz)
+        bia_fs_stream_test(freq_hz=freq_hz)
 
 
-def bcm_repeatability_sweep_test():
+def bia_repeatability_sweep_test():
     """
     Repeat EDA freq sweep test for 5 iterations
     :return:
     """
     for _ in range(5):
-        bcm_freq_sweep_test()
+        bia_freq_sweep_test()
 
 
-def bcm_dcb_test():
+def bia_dcb_test():
     """
     Load a dcb  file and read back to check if the values are loaded correctly
     :return:
     """
-    qa_utils.dcb_test(dev='BCM', dcb_file='bcm_dcb.lcfg', dcb_read_file='bcm_dcb_get.lcfg',
-                      test_name='BCM DCB Test')
+    qa_utils.dcb_test(dev='BIA', dcb_file='bia_dcb.lcfg', dcb_read_file='bia_dcb_get.lcfg',
+                      test_name='bia DCB Test')
 
 
-def bcm_dcb_stream_test():
+def bia_dcb_stream_test():
 
     capture_time = 30
     freq_hz = 10
-    bcm_dcb_test()
+    bia_dcb_test()
 
-    common.quick_start_bcm(freq_hz)
+    common.quick_start_bia(freq_hz)
     time.sleep(capture_time)
-    common.watch_shell.quick_stop('bcm', 'bcm')
-    common.dcb_cfg('d', 'bcm')
+    common.watch_shell.quick_stop('bia', 'bia')
+    common.dcb_cfg('d', 'bia')
 
-    f_path = common.rename_stream_file(common.bcm_stream_file_name, '_BCM_stream{}hz_test.csv'.format(freq_hz))
+    f_path = common.rename_stream_file(common.bia_stream_file_name, '_bia_stream{}hz_test.csv'.format(freq_hz))
 
-    err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'BCM', 1, freq_hz)
-    common.test_logger.info('BCM {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
+    err_status, err_str, results_dict = qa_utils.check_stream_data(f_path, 'bia', 1, freq_hz)
+    common.test_logger.info('bia {}Hz Stream Test Results: {}'.format(freq_hz, results_dict))
     if err_status:
-        common.test_logger.error('*** BCM {}Hz Stream Test - FAIL ***'.format(freq_hz))
+        common.test_logger.error('*** bia {}Hz Stream Test - FAIL ***'.format(freq_hz))
         raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
 
 
-def bcm_dcb_repeatability_test():
+def bia_dcb_repeatability_test():
     """
     Repeat the DCB Stream test for 10 iteration
     :return:
     """
     for _ in range(10):
-        bcm_dcb_stream_test()
+        bia_dcb_stream_test()
 
 
 if __name__ == '__main__':

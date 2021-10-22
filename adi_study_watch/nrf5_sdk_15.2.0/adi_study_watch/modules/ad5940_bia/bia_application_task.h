@@ -125,6 +125,36 @@ typedef struct
 #define APPCTRL_RUNNING        4      /**< Is application running? */
 #endif
 
+#ifdef BIA_DCFG_ENABLE
+
+#define MAX_DEFAULT_DCFG_REGISTER_NUM_BIA     80
+#define MAX_USER_CONFIG_REGISTER_NUM_BIA      20
+#define MAX_DCFG_COMBINED_BIA 4
+
+typedef enum {
+  BIA_DCFG_STATUS_OK = 0,
+  BIA_DCFG_STATUS_NULL_PTR,
+  BIA_DCFG_STATUS_ERR,
+} BIA_DCFG_STATUS_t;
+
+/* Register addresses to be configured as macros */
+#define BIA_SEQUENCER_CONFIGURATION_REGISTER                                                  0x00002004
+#define BIA_FIFO_THRESHOLD_REGISTER                                                           0x000021e0
+#define BIA_FIFO_CONFIGURATION_REGISTER                                                       0x000021D8
+#define BIA_FIFO_SRC_CONFIGURATION_REGISTER                                                   0x00002008
+#define BIA_WAVEFORM_GENERATOR_FREQUENCY_REGISTER                                             0x00002030
+#define BIA_WAVEFORM_GENERATOR_AMPLITUDE_REGISTER                                             0x0000203c
+#define BIA_WAVEFORM_GENERATOR_OFFSET_REGISTER                                                0x00002038
+#define BIA_WAVEFORM_GENERATOR_PHASE_REGISTER                                                 0x00002034
+#define BIA_WAVEFORM_GENERATOR_CONFIGURATION_REGISTER                                         0x00002014                                                                                           
+#define BIA_ADC_OUTPUT_FILTER_CONFIGURATION_REGISTER                                          0x00002044
+#define BIA_DFT_CONFIGURATION_REGISTER                                                        0x000020D0
+
+#define BIA_WG_SINE_FREQUENCY_WORD_MASK                                                       0xFFFFFF
+extern uint8_t bia_load_dcfg;
+extern uint64_t default_dcfg_bia[];
+#endif
+
 AD5940Err AppBIAGetCfg(void *pCfg);
 AD5940Err AppBIAInit(uint32_t *pBuffer, uint32_t BufferSize);
 AD5940Err AppBIACtrl(int32_t BcmCtrl, void *pPara);
@@ -142,4 +172,12 @@ bool bia_get_dcb_present_flag(void);
 #ifdef BCM_ALGO
 BCM_ALG_RETURN_CODE_t bcm_algo_init();
 #endif
+#ifdef BIA_DCFG_ENABLE
+BIA_DCFG_STATUS_t write_bia_init_1();
+BIA_DCFG_STATUS_t write_bia_init_2();
+BIA_DCFG_STATUS_t write_bia_seqcfg();
+BIA_DCFG_STATUS_t write_bia_seqmeasurement();
+void load_bia_default_dcfg_config(uint64_t *cfg);
+#endif
+
 #endif // __ADPD4000_TASK__H

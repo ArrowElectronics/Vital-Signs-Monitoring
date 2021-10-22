@@ -23,9 +23,11 @@ class data_definition_generator():
                     ctypes.c_uint8:     "uint8_t",
                     ctypes.c_uint16:    "uint16_t",
                     ctypes.c_uint32:    "uint32_t",
+                    ctypes.c_uint64:    "uint64_t",
                     ctypes.c_int8:      "int8_t",
                     ctypes.c_int16:     "int16_t",
                     ctypes.c_int32:     "int32_t",
+                    ctypes.c_int64:     "int64_t",
                     ctypes.c_float:     "float"
                     }
 

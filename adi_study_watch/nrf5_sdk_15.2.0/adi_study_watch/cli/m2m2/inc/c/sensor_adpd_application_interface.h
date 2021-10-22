@@ -377,6 +377,15 @@ typedef struct _m2m2_adpd_agc_cntrl_t {
   m2m2_adpd_agc_cntrl_data_t  ops[0]; 
 } m2m2_adpd_agc_cntrl_t;
 
+typedef struct _m2m2_sensor_adpd_static_agc_stream_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  uint32_t  timestamp; 
+  uint16_t  mts[6]; 
+  uint16_t  setting[10]; 
+} m2m2_sensor_adpd_static_agc_stream_t;
+
 typedef struct _adpd_ext_data_stream_t {
   uint8_t  command; 
   uint8_t  status; 

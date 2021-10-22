@@ -3040,6 +3040,556 @@ class syncppg_plot(plot):
             # fstream.close()
         return
 
+class tempr3_plot(plot):
+    selection_name = "rtempr3"
+    name = "Temperature3 slot C Data Plot"
+    temperature_name = "TEMPERATURE"
+    temperature1_key = "TEMPERATURE(in Degree Celsius)"
+    temperature2_key = "Resistance measured(in 100s of ohm)"
+    temperature1_series_name = "Temperature1 Data"
+    temperature2_series_name = "Temperature2 Data"
+    stream_addr = M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM3
+    enable_csv_logs = 0
+    fname = "TempAppStream3.csv"
+    fstream = None
+    update_pkt_loss('rtempr3', False)
+
+    def __del__(self):
+        if self.fstream:
+            self.fstream.close()
+
+    def setup(self):
+        self.add_subplot(subplot_name=self.temperature1_key,
+                         row=1,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Value",
+                         yunit="LSBs",
+                         data_series={self.temperature1_key:
+                                          {"format":
+                                               {"name": self.temperature1_series_name,
+                                                "colour": "g"},
+                                           "data": np.zeros(20),
+                                           }
+                                      })
+        self.add_subplot(subplot_name=self.temperature2_key,
+                         row=2,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Value",
+                         yunit="LSBs",
+                         data_series={self.temperature2_key:
+                                          {"format":
+                                               {"name": self.temperature2_series_name,
+                                                "colour": "r"},
+                                           "data": np.zeros(20),
+                                           }
+                                      })
+
+    def update(self, data_list):
+        # Function that's called to update the plot. Should return a dictionary with each subplot's data
+        new_data_temperature1 = []
+        new_data_temperature2 = []
+
+        for data in data_list:
+            # Peek at the header to find out what kind of data we have
+            pkt = m2m2_packet(0, temperature_app_stream_t())
+            pkt.unpack(data)
+            self.check_seq_num(pkt.payload.sequence_num, 'rtempr3')
+
+            R1 = 39.0
+            R0 = 47.0
+            VDD = 2.5
+            fullScale = 65535
+            B = 4025
+            T0 = 25 + 273.16
+
+            '''vAdc = (VDD/fullScale)*pkt.payload.nTemperature1
+            alpha = float(R1/R0)
+            alpha = alpha*(vAdc/(VDD-vAdc))
+            temp1 =  B*T0/(B + math.log(alpha)*T0)-273.15
+
+
+            vAdc = (VDD/fullScale)*pkt.payload.nTemperature2
+            alpha = float(R1/R0)
+            alpha = alpha*(vAdc/(VDD-vAdc))
+            temp2 =  B*T0/(B + math.log(alpha)*T0)-273.15
+
+            new_data_temperature1.append(temp1)
+            new_data_temperature2.append(temp2)'''
+            new_data_temperature1.append(pkt.payload.nTemperature1 / 1000.0)
+            new_data_temperature2.append(pkt.payload.nTemperature2)
+
+            if self.enable_csv_logs:
+                # fstream = open(self.fname, "a")
+                self.fstream.write('{},{},{}\n'.format(pkt.payload.nTS, ((pkt.payload.nTemperature1) / 1000.0),
+                                                       pkt.payload.nTemperature2))
+                # fstream.close()
+
+            if len(new_data_temperature1) == 0 and len(new_data_temperature2) == 0:
+                return None
+
+        return {self.temperature1_key: [{
+            "series_name": self.temperature1_key,
+            "series_data": new_data_temperature1},
+        ],
+            self.temperature2_key: [{
+                "series_name": self.temperature2_key,
+                "series_data": new_data_temperature2},
+            ]
+        }
+
+    def save_csv_option(self, option):
+        self.enable_csv_logs = option
+        if self.enable_csv_logs:
+            print "creating."
+            self.fstream = open(self.fname, "w+")
+            self.fstream.write('TimeStamp, Temperature,Resistance measured(in 100s of ohm)\n')
+            # fstream.close()
+        return
+
+class tempr4_plot(plot):
+    selection_name = "rtempr4"
+    name = "Temperature4 slot D Data Plot"
+    temperature_name = "TEMPERATURE"
+    temperature1_key = "TEMPERATURE(in Degree Celsius)"
+    temperature2_key = "Resistance measured(in 100s of ohm)"
+    temperature1_series_name = "Temperature1 Data"
+    temperature2_series_name = "Temperature2 Data"
+    stream_addr = M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM
+    enable_csv_logs = 0
+    fname = "TempAppStream4.csv"
+    fstream = None
+    update_pkt_loss('rtempr4', False)
+
+    def __del__(self):
+        if self.fstream:
+            self.fstream.close()
+
+    def setup(self):
+        self.add_subplot(subplot_name=self.temperature1_key,
+                         row=1,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Value",
+                         yunit="LSBs",
+                         data_series={self.temperature1_key:
+                                          {"format":
+                                               {"name": self.temperature1_series_name,
+                                                "colour": "g"},
+                                           "data": np.zeros(20),
+                                           }
+                                      })
+        self.add_subplot(subplot_name=self.temperature2_key,
+                         row=2,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Value",
+                         yunit="LSBs",
+                         data_series={self.temperature2_key:
+                                          {"format":
+                                               {"name": self.temperature2_series_name,
+                                                "colour": "r"},
+                                           "data": np.zeros(20),
+                                           }
+                                      })
+
+    def update(self, data_list):
+        # Function that's called to update the plot. Should return a dictionary with each subplot's data
+        new_data_temperature1 = []
+        new_data_temperature2 = []
+
+        for data in data_list:
+            # Peek at the header to find out what kind of data we have
+            pkt = m2m2_packet(0, temperature_app_stream_t())
+            pkt.unpack(data)
+            self.check_seq_num(pkt.payload.sequence_num, 'rtempr4')
+
+            R1 = 39.0
+            R0 = 47.0
+            VDD = 2.5
+            fullScale = 65535
+            B = 4025
+            T0 = 25 + 273.16
+
+            '''vAdc = (VDD/fullScale)*pkt.payload.nTemperature1
+            alpha = float(R1/R0)
+            alpha = alpha*(vAdc/(VDD-vAdc))
+            temp1 =  B*T0/(B + math.log(alpha)*T0)-273.15
+
+
+            vAdc = (VDD/fullScale)*pkt.payload.nTemperature2
+            alpha = float(R1/R0)
+            alpha = alpha*(vAdc/(VDD-vAdc))
+            temp2 =  B*T0/(B + math.log(alpha)*T0)-273.15
+
+            new_data_temperature1.append(temp1)
+            new_data_temperature2.append(temp2)'''
+            new_data_temperature1.append(pkt.payload.nTemperature1 / 1000.0)
+            new_data_temperature2.append(pkt.payload.nTemperature2)
+
+            if self.enable_csv_logs:
+                # fstream = open(self.fname, "a")
+                self.fstream.write('{},{},{}\n'.format(pkt.payload.nTS, ((pkt.payload.nTemperature1) / 1000.0),
+                                                       pkt.payload.nTemperature2))
+                # fstream.close()
+
+            if len(new_data_temperature1) == 0 and len(new_data_temperature2) == 0:
+                return None
+
+        return {self.temperature1_key: [{
+            "series_name": self.temperature1_key,
+            "series_data": new_data_temperature1},
+        ],
+            self.temperature2_key: [{
+                "series_name": self.temperature2_key,
+                "series_data": new_data_temperature2},
+            ]
+        }
+
+    def save_csv_option(self, option):
+        self.enable_csv_logs = option
+        if self.enable_csv_logs:
+            print "creating."
+            self.fstream = open(self.fname, "w+")
+            self.fstream.write('TimeStamp, Temperature,Resistance measured(in 100s of ohm)\n')
+            # fstream.close()
+        return
+
+class tempr10_plot(plot):
+    selection_name = "rtempr10"
+    name = "Temperature10 slot J Data Plot"
+    temperature_name = "TEMPERATURE"
+    temperature1_key = "TEMPERATURE(in Degree Celsius)"
+    temperature2_key = "Resistance measured(in 100s of ohm)"
+    temperature1_series_name = "Temperature1 Data"
+    temperature2_series_name = "Temperature2 Data"
+    stream_addr = M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM10
+    enable_csv_logs = 0
+    fname = "TempAppStream10.csv"
+    fstream = None
+    update_pkt_loss('rtempr10', False)
+
+    def __del__(self):
+        if self.fstream:
+            self.fstream.close()
+
+    def setup(self):
+        self.add_subplot(subplot_name=self.temperature1_key,
+                         row=1,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Value",
+                         yunit="LSBs",
+                         data_series={self.temperature1_key:
+                                          {"format":
+                                               {"name": self.temperature1_series_name,
+                                                "colour": "g"},
+                                           "data": np.zeros(20),
+                                           }
+                                      })
+        self.add_subplot(subplot_name=self.temperature2_key,
+                         row=2,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Value",
+                         yunit="LSBs",
+                         data_series={self.temperature2_key:
+                                          {"format":
+                                               {"name": self.temperature2_series_name,
+                                                "colour": "r"},
+                                           "data": np.zeros(20),
+                                           }
+                                      })
+
+    def update(self, data_list):
+        # Function that's called to update the plot. Should return a dictionary with each subplot's data
+        new_data_temperature1 = []
+        new_data_temperature2 = []
+
+        for data in data_list:
+            # Peek at the header to find out what kind of data we have
+            pkt = m2m2_packet(0, temperature_app_stream_t())
+            pkt.unpack(data)
+            self.check_seq_num(pkt.payload.sequence_num, 'rtempr10')
+
+            R1 = 39.0
+            R0 = 47.0
+            VDD = 2.5
+            fullScale = 65535
+            B = 4025
+            T0 = 25 + 273.16
+
+            '''vAdc = (VDD/fullScale)*pkt.payload.nTemperature1
+            alpha = float(R1/R0)
+            alpha = alpha*(vAdc/(VDD-vAdc))
+            temp1 =  B*T0/(B + math.log(alpha)*T0)-273.15
+
+
+            vAdc = (VDD/fullScale)*pkt.payload.nTemperature2
+            alpha = float(R1/R0)
+            alpha = alpha*(vAdc/(VDD-vAdc))
+            temp2 =  B*T0/(B + math.log(alpha)*T0)-273.15
+
+            new_data_temperature1.append(temp1)
+            new_data_temperature2.append(temp2)'''
+            new_data_temperature1.append(pkt.payload.nTemperature1 / 1000.0)
+            new_data_temperature2.append(pkt.payload.nTemperature2)
+
+            if self.enable_csv_logs:
+                # fstream = open(self.fname, "a")
+                self.fstream.write('{},{},{}\n'.format(pkt.payload.nTS, ((pkt.payload.nTemperature1) / 1000.0),
+                                                       pkt.payload.nTemperature2))
+                # fstream.close()
+
+            if len(new_data_temperature1) == 0 and len(new_data_temperature2) == 0:
+                return None
+
+        return {self.temperature1_key: [{
+            "series_name": self.temperature1_key,
+            "series_data": new_data_temperature1},
+        ],
+            self.temperature2_key: [{
+                "series_name": self.temperature2_key,
+                "series_data": new_data_temperature2},
+            ]
+        }
+
+    def save_csv_option(self, option):
+        self.enable_csv_logs = option
+        if self.enable_csv_logs:
+            print "creating."
+            self.fstream = open(self.fname, "w+")
+            self.fstream.write('TimeStamp, Temperature,Resistance measured(in 100s of ohm)\n')
+            # fstream.close()
+        return
+
+class tempr11_plot(plot):
+    selection_name = "rtempr11"
+    name = "Temperature11 slot K Data Plot"
+    temperature_name = "TEMPERATURE"
+    temperature1_key = "TEMPERATURE(in Degree Celsius)"
+    temperature2_key = "Resistance measured(in 100s of ohm)"
+    temperature1_series_name = "Temperature1 Data"
+    temperature2_series_name = "Temperature2 Data"
+    stream_addr = M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM11
+    enable_csv_logs = 0
+    fname = "TempAppStream11.csv"
+    fstream = None
+    update_pkt_loss('rtempr11', False)
+
+    def __del__(self):
+        if self.fstream:
+            self.fstream.close()
+
+    def setup(self):
+        self.add_subplot(subplot_name=self.temperature1_key,
+                         row=1,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Value",
+                         yunit="LSBs",
+                         data_series={self.temperature1_key:
+                                          {"format":
+                                               {"name": self.temperature1_series_name,
+                                                "colour": "g"},
+                                           "data": np.zeros(20),
+                                           }
+                                      })
+        self.add_subplot(subplot_name=self.temperature2_key,
+                         row=2,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Value",
+                         yunit="LSBs",
+                         data_series={self.temperature2_key:
+                                          {"format":
+                                               {"name": self.temperature2_series_name,
+                                                "colour": "r"},
+                                           "data": np.zeros(20),
+                                           }
+                                      })
+
+    def update(self, data_list):
+        # Function that's called to update the plot. Should return a dictionary with each subplot's data
+        new_data_temperature1 = []
+        new_data_temperature2 = []
+
+        for data in data_list:
+            # Peek at the header to find out what kind of data we have
+            pkt = m2m2_packet(0, temperature_app_stream_t())
+            pkt.unpack(data)
+            self.check_seq_num(pkt.payload.sequence_num, 'rtempr11')
+
+            R1 = 39.0
+            R0 = 47.0
+            VDD = 2.5
+            fullScale = 65535
+            B = 4025
+            T0 = 25 + 273.16
+
+            '''vAdc = (VDD/fullScale)*pkt.payload.nTemperature1
+            alpha = float(R1/R0)
+            alpha = alpha*(vAdc/(VDD-vAdc))
+            temp1 =  B*T0/(B + math.log(alpha)*T0)-273.15
+
+
+            vAdc = (VDD/fullScale)*pkt.payload.nTemperature2
+            alpha = float(R1/R0)
+            alpha = alpha*(vAdc/(VDD-vAdc))
+            temp2 =  B*T0/(B + math.log(alpha)*T0)-273.15
+
+            new_data_temperature1.append(temp1)
+            new_data_temperature2.append(temp2)'''
+            new_data_temperature1.append(pkt.payload.nTemperature1 / 1000.0)
+            new_data_temperature2.append(pkt.payload.nTemperature2)
+
+            if self.enable_csv_logs:
+                # fstream = open(self.fname, "a")
+                self.fstream.write('{},{},{}\n'.format(pkt.payload.nTS, ((pkt.payload.nTemperature1) / 1000.0),
+                                                       pkt.payload.nTemperature2))
+                # fstream.close()
+
+            if len(new_data_temperature1) == 0 and len(new_data_temperature2) == 0:
+                return None
+
+        return {self.temperature1_key: [{
+            "series_name": self.temperature1_key,
+            "series_data": new_data_temperature1},
+        ],
+            self.temperature2_key: [{
+                "series_name": self.temperature2_key,
+                "series_data": new_data_temperature2},
+            ]
+        }
+
+    def save_csv_option(self, option):
+        self.enable_csv_logs = option
+        if self.enable_csv_logs:
+            print "creating."
+            self.fstream = open(self.fname, "w+")
+            self.fstream.write('TimeStamp, Temperature,Resistance measured(in 100s of ohm)\n')
+            # fstream.close()
+        return
+
+class tempr12_plot(plot):
+    selection_name = "rtempr12"
+    name = "Temperature12 slot L Data Plot"
+    temperature_name = "TEMPERATURE"
+    temperature1_key = "TEMPERATURE(in Degree Celsius)"
+    temperature2_key = "Resistance measured(in 100s of ohm)"
+    temperature1_series_name = "Temperature1 Data"
+    temperature2_series_name = "Temperature2 Data"
+    stream_addr = M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM12
+    enable_csv_logs = 0
+    fname = "TempAppStream12.csv"
+    fstream = None
+    update_pkt_loss('rtempr12', False)
+
+    def __del__(self):
+        if self.fstream:
+            self.fstream.close()
+
+    def setup(self):
+        self.add_subplot(subplot_name=self.temperature1_key,
+                         row=1,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Value",
+                         yunit="LSBs",
+                         data_series={self.temperature1_key:
+                                          {"format":
+                                               {"name": self.temperature1_series_name,
+                                                "colour": "g"},
+                                           "data": np.zeros(20),
+                                           }
+                                      })
+        self.add_subplot(subplot_name=self.temperature2_key,
+                         row=2,
+                         col=1,
+                         xlabel="Time",
+                         xunit="Samples",
+                         ylabel="Value",
+                         yunit="LSBs",
+                         data_series={self.temperature2_key:
+                                          {"format":
+                                               {"name": self.temperature2_series_name,
+                                                "colour": "r"},
+                                           "data": np.zeros(20),
+                                           }
+                                      })
+
+    def update(self, data_list):
+        # Function that's called to update the plot. Should return a dictionary with each subplot's data
+        new_data_temperature1 = []
+        new_data_temperature2 = []
+
+        for data in data_list:
+            # Peek at the header to find out what kind of data we have
+            pkt = m2m2_packet(0, temperature_app_stream_t())
+            pkt.unpack(data)
+            self.check_seq_num(pkt.payload.sequence_num, 'rtempr12')
+
+            R1 = 39.0
+            R0 = 47.0
+            VDD = 2.5
+            fullScale = 65535
+            B = 4025
+            T0 = 25 + 273.16
+
+            '''vAdc = (VDD/fullScale)*pkt.payload.nTemperature1
+            alpha = float(R1/R0)
+            alpha = alpha*(vAdc/(VDD-vAdc))
+            temp1 =  B*T0/(B + math.log(alpha)*T0)-273.15
+
+
+            vAdc = (VDD/fullScale)*pkt.payload.nTemperature2
+            alpha = float(R1/R0)
+            alpha = alpha*(vAdc/(VDD-vAdc))
+            temp2 =  B*T0/(B + math.log(alpha)*T0)-273.15
+
+            new_data_temperature1.append(temp1)
+            new_data_temperature2.append(temp2)'''
+            new_data_temperature1.append(pkt.payload.nTemperature1 / 1000.0)
+            new_data_temperature2.append(pkt.payload.nTemperature2)
+
+            if self.enable_csv_logs:
+                # fstream = open(self.fname, "a")
+                self.fstream.write('{},{},{}\n'.format(pkt.payload.nTS, ((pkt.payload.nTemperature1) / 1000.0),
+                                                       pkt.payload.nTemperature2))
+                # fstream.close()
+
+            if len(new_data_temperature1) == 0 and len(new_data_temperature2) == 0:
+                return None
+
+        return {self.temperature1_key: [{
+            "series_name": self.temperature1_key,
+            "series_data": new_data_temperature1},
+        ],
+            self.temperature2_key: [{
+                "series_name": self.temperature2_key,
+                "series_data": new_data_temperature2},
+            ]
+        }
+
+    def save_csv_option(self, option):
+        self.enable_csv_logs = option
+        if self.enable_csv_logs:
+            print "creating."
+            self.fstream = open(self.fname, "w+")
+            self.fstream.write('TimeStamp, Temperature,Resistance measured(in 100s of ohm)\n')
+            # fstream.close()
+        return
+
 class temperature_plot(plot):
     selection_name = "rtemperature"
     name = "Temperature Data Plot"
@@ -3102,7 +3652,7 @@ class temperature_plot(plot):
             R1 = 39.0
             R0 = 47.0
             VDD = 2.5
-            fullScale = 65636
+            fullScale = 65535
             B = 4025
             T0 = 25 + 273.16
 
@@ -3119,12 +3669,12 @@ class temperature_plot(plot):
 
             new_data_temperature1.append(temp1)
             new_data_temperature2.append(temp2)'''
-            new_data_temperature1.append(pkt.payload.nTemperature1/10.0)
+            new_data_temperature1.append(pkt.payload.nTemperature1/1000.0)
             new_data_temperature2.append(pkt.payload.nTemperature2)
 
             if self.enable_csv_logs:
                 # fstream = open(self.fname, "a")
-                self.fstream.write ('{},{},{}\n'.format(pkt.payload.nTS,((pkt.payload.nTemperature1)/10.0),pkt.payload.nTemperature2))
+                self.fstream.write ('{},{},{}\n'.format(pkt.payload.nTS,((pkt.payload.nTemperature1)/1000.0),pkt.payload.nTemperature2))
                 # fstream.close()
 
             if len(new_data_temperature1) == 0 and len(new_data_temperature2) == 0:
@@ -3149,6 +3699,7 @@ class temperature_plot(plot):
             # fstream.close()
         return
 
+class bia_plot(plot):
     selection_name = "rbia"
     name = "BIA Data Plot"
     fname = "BiaAppStream.csv"

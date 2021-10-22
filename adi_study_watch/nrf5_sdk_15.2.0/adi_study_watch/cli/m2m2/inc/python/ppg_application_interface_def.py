@@ -139,7 +139,7 @@ class ppg_app_set_lcfg_resp_t(Structure):
               ("status", c_ubyte),
               ]
 
-class ppg_app_agc_info_t(Structure):
+class ppg_app_dynamic_agc_stream_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),

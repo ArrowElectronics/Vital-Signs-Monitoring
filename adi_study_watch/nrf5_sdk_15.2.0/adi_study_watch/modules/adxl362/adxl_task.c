@@ -181,7 +181,7 @@ static void adxl_timer_start(void);
 static void adxl_timer_stop(void);
 static void adxl_timeout_handler(void * p_context);
 void start_adxl_app_timer();
-static user0_config_app_timing_params_t adxl_app_timings = {0};
+user0_config_app_timing_params_t adxl_app_timings = {0};
 #endif
 
 /**

@@ -114,6 +114,10 @@ typedef nrfx_rtc_config_t   nrf_drv_rtc_config_t;
 #define nrf_drv_rtc_counter_get         nrfx_rtc_counter_get
 /** @brief Macro for forwarding the new implementation. */
 #define nrf_drv_rtc_counter_clear       nrfx_rtc_counter_clear
+/** @brief Macro for forwarding the new implementation. */
+#define nrf_drv_rtc_int_is_enabled      nrf_rtc_int_is_enabled
+/** @brief Macro for forwarding the new implementation. */
+#define nrf_drv_rtc_event_pending       nrf_rtc_event_pending
 
 /** @brief Macro for forwarding the new implementation. */
 #define nrf_drv_rtc_task_address_get    nrfx_rtc_task_address_get

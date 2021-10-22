@@ -7,7 +7,7 @@ class CLIMap(cli.CLI):
         super().__init__(signaller, testing)
         # self.watch_shell = watch_shell_obj
         self.plot_dict = {'adxl': False, 'ecg': False, 'ppg': False, 'eda': False, 'temp': False, 'ped': False,
-                          'bcm': False, 'sqi': False, 'adpd1': False, 'adpd2': False, 'adpd3': False, 'adpd4': False,
+                          'bia': False, 'sqi': False, 'adpd1': False, 'adpd2': False, 'adpd3': False, 'adpd4': False,
                           'adpd5': False, 'adpd6': False, 'adpd7': False, 'adpd8': False, 'adpd9': False,
                           'adpd10': False, 'adpd11': False, 'adpd12': False, 'sync_ppg': False}
 
@@ -27,7 +27,7 @@ class CLIMap(cli.CLI):
         err_stat = self.check_err_stat(pkt, 65)
         return err_stat, sys_info_dict
 
-    def get_version(self):
+    def get_version_cli(self):
         pkt = self.do_get_version('pm')
         fw_ver_dict = {'major': pkt['payload']['major_version'], 'minor': pkt['payload']['minor_version'],
                        'patch': pkt['payload']['patch_version'],
@@ -49,6 +49,7 @@ class CLIMap(cli.CLI):
         if not fs:
             self.do_csv_log('{} start'.format(stream))
             if sensor == 'ppg':
+                self.do_sub("sync_ppg add")
                 self.do_csv_log('sync_ppg start')
             self.do_sub('{} add'.format(stream))
             if plot:
@@ -62,6 +63,7 @@ class CLIMap(cli.CLI):
             self.do_sub('{} remove'.format(stream))
             self.do_csv_log('{} stop'.format(stream))
             if sensor == 'ppg':
+                self.do_sub("sync_ppg remove")
                 self.do_csv_log('sync_ppg stop')
             self.do_sensor('{} stop'.format(sensor))
 

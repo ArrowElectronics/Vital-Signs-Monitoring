@@ -332,6 +332,13 @@ class m2m2_adpd_agc_cntrl_t(Structure):
               ("num_ops", c_uint8),
               ("ops", m2m2_adpd_agc_cntrl_data_t * 0),
               ]
+class m2m2_sensor_adpd_static_agc_stream_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_data_stream_hdr_t),
+              ("timestamp", c_uint32),
+              ("mts", c_uint16 * 6),
+              ("setting", c_uint16 * 10),
+              ]    
 
 #Not using _m2m2_app_data_stream_hdr_t because data type for sequence_num is different
 class adpd_ext_data_stream_t(Structure):

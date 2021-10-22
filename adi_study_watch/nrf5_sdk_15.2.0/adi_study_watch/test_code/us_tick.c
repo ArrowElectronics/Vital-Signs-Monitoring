@@ -58,7 +58,7 @@ typedef enum
   E_AD5940_ADPD_ADXL_RUNNING,
 }E_AD5940_ADPD_ADXL_STATUS_t;
 
-#if defined(PROFILE_TIME_ENABLED) || defined(BLE_NUS_PROFILE_TIME_ENABLED)
+#if defined(PROFILE_TIME_ENABLED) || defined(BLE_NUS_PROFILE_TIME_ENABLED) || defined(MEASURE_BLE_ADV_TIME)
 
 
 const nrfx_timer_t TIMER_INC_MICRO_SEC = NRFX_TIMER_INSTANCE(4);
@@ -233,8 +233,8 @@ uint32_t gaExtTriggerTicks[TRIGGER_FREQ_STEPS] = {666667,320000,160000,80000,400
 
 /*!
  ***********************************************************************************
- *@brief      Maps the ADPD frequency(ODR) to index in the gaExtTriggerFreq look up 
-              table. This is required to compare the frequency indices of other 
+ *@brief      Maps the ADPD frequency(ODR) to index in the gaExtTriggerFreq look up
+              table. This is required to compare the frequency indices of other
               sensor streams running which is used to configure the timer interrupt.
  *@param      nOdr: ODR of the ADPD to which index needs to be returned
  *@return     Returns the index corresponds to the frequency/nOdr requested
@@ -256,7 +256,7 @@ uint8_t map_adpd_freq_to_index(uint16_t nOdr)
 /*!
  ************************************************************************************
  *@brief      Maps the ADXL frequency(ODR) index to the frequency index supported by
-              the ADXL362. This is required to compare the frequency indices of other 
+              the ADXL362. This is required to compare the frequency indices of other
               sensor streams running which is used to configure the timer interrupt.
  *@param      nOdrIndex: ODR index of the ADXL
  *@return     Returns the supported adxl frequency index for the ODR index requested
@@ -337,7 +337,7 @@ void ext_trigger_timer_event_handler(nrf_timer_event_t event_type, void* p_conte
                           gnAd5940TimeCurVal =  get_sensor_time_stamp();
                           /* Increment isr count */
                           gn_ad5940_isr_cnt++;
-#ifdef EXTERNAL_TRIGGER_EDA							
+#ifdef EXTERNAL_TRIGGER_EDA
                           if(ecg_start_req== 1){
                             /*Wake up the ecg task to read the samples from FIFO*/
                             adi_osal_SemPost(ecg_task_evt_sem);
@@ -347,11 +347,11 @@ void ext_trigger_timer_event_handler(nrf_timer_event_t event_type, void* p_conte
                             adi_osal_SemPost(eda_task_evt_sem);
                           }
 #else
-                          adi_osal_SemPost(ecg_task_evt_sem);						   
-#endif					   	   
+                          adi_osal_SemPost(ecg_task_evt_sem);
+#endif
                         }
                        }
-                     }                 
+                     }
                     break;
               case E_AD5940_ADXL_RUNNING:
                     gad5940TriggerTimerCnt++;
@@ -392,10 +392,10 @@ void ext_trigger_timer_event_handler(nrf_timer_event_t event_type, void* p_conte
                           gnAd5940TimeCurVal =  get_sensor_time_stamp();
                           /* Increment isr count */
                           gn_ad5940_isr_cnt++;
-                          adi_osal_SemPost(ecg_task_evt_sem);						   	   
+                          adi_osal_SemPost(ecg_task_evt_sem);
                         }
                        }
-                     }                 
+                     }
                     break;
               case E_AD5940_ADPD_RUNNING:
                     gad5940TriggerTimerCnt++;
@@ -436,10 +436,10 @@ void ext_trigger_timer_event_handler(nrf_timer_event_t event_type, void* p_conte
                           gnAd5940TimeCurVal =  get_sensor_time_stamp();
                           /* Increment isr count */
                           gn_ad5940_isr_cnt++;
-                          adi_osal_SemPost(ecg_task_evt_sem);						   	   
+                          adi_osal_SemPost(ecg_task_evt_sem);
                         }
                        }
-                     }                 
+                     }
                     break;
               case E_AD5940_ADPD_ADXL_RUNNING:
                     gad5940TriggerTimerCnt++;
@@ -485,10 +485,10 @@ void ext_trigger_timer_event_handler(nrf_timer_event_t event_type, void* p_conte
                           gnAd5940TimeCurVal =  get_sensor_time_stamp();
                           /* Increment isr count */
                           gn_ad5940_isr_cnt++;
-                          adi_osal_SemPost(ecg_task_evt_sem);						   	   
+                          adi_osal_SemPost(ecg_task_evt_sem);
                         }
                        }
-                     }                 
+                     }
                     break;
               default:
                     break;
@@ -505,7 +505,7 @@ void ext_trigger_timer_event_handler(nrf_timer_event_t event_type, void* p_conte
 /*!
  ********************************************************************************
  *@brief      Enables the timer with period based on the nOdrIndex requested.
-              After this timer handler get triggered based on the period 
+              After this timer handler get triggered based on the period
               configured and is used for triggering pulses to different sensors.
  *@param      uint8_t nOdrIndex: ODR index with which timer has to be configured
  *@return     None
@@ -704,8 +704,8 @@ void disable_trigger_timer(uint8_t nOdrIndex)
  ********************************************************************************
  *@brief      Enables triggering ADXL sensor with ODR based on nOdrIndex.
               If timer is not running, it starts timer with ODR requested.
-              If timer is running at higher frequency, it adjusts the decimation 
-              factor for adxl stream, otherwise it restart the timer with new 
+              If timer is running at higher frequency, it adjusts the decimation
+              factor for adxl stream, otherwise it restart the timer with new
               frequency requested and adjust other stream's decimation factor.
               It also configures the GPIO pin required to trigger the sensor.
  *@param      uint8_t nOdrIndex: ODR index with which ADXL has to be triggered
@@ -741,7 +741,7 @@ void enable_adxl_ext_trigger(uint8_t nOdrIndex)
 /*!
  ********************************************************************************
  *@brief      Disables triggering ADXL sensor with frequency based on nOdrIndex.
-              nOdr parameter used in stopping/restarting the timer with new 
+              nOdr parameter used in stopping/restarting the timer with new
               configurations depending upon other sensors enabled.
               It also disables the GPIO pin required to trigger the sensor.
  *@param      uint8_t nOdrIndex: ODR index with which ADXL has to be disabled
@@ -760,7 +760,7 @@ void disable_adxl_ext_trigger(uint8_t nOdrIndex)
 /*!
  ********************************************************************************
  *@brief      Configures teh ADXL trigger frequency with nFreq.
-              It disables the adxl with older trigger frequency and restarts 
+              It disables the adxl with older trigger frequency and restarts
               with new frequency nFreq.
  *@param      uint8_t nFreq: Frequency with which ADXL has to be triggered
  *@return     None
@@ -791,8 +791,8 @@ void set_adxl_trigger_freq(uint8_t nFreq)
  ********************************************************************************
  *@brief      Enables triggering ADPD sensor with frequency based on nOdr.
               If timer is not running, it starts timer with ODR requested.
-              If timer is running at higher frequency, it adjusts the decimation 
-              factor for adpd stream, otherwise it restart the timer with new 
+              If timer is running at higher frequency, it adjusts the decimation
+              factor for adpd stream, otherwise it restart the timer with new
               nOdr requested and adjust other stream's decimation factor.
               It also configures the GPIO pin required to trigger the sensor.
  *@param      uint8_t nOdr: ODR with which ADPD has to be triggered
@@ -824,8 +824,8 @@ void enable_adpd_ext_trigger(uint16_t nOdr)
 
 /*!
  ********************************************************************************
- *@brief      Function to update the ADPD/ADXL trigger frequency at run time for 
-              PPG application. This will be called from Library through callback 
+ *@brief      Function to update the ADPD/ADXL trigger frequency at run time for
+              PPG application. This will be called from Library through callback
               PpgAdpd400xSetModeCB().
  *@param      uint8_t nOdr: ODR with which ADPD has to be triggered
  *@return     None
@@ -844,8 +844,8 @@ void ppg_adjust_adpd_ext_trigger(uint16_t nOdr)
       else
       {
         gAdpdDecFactor = gaExtTriggerFreq[gExtTriggerFreqIndex]/gaExtTriggerFreq[nOdrIndex];
-        gAdxlDecFactor = gaExtTriggerFreq[gExtTriggerFreqIndex]/gaExtTriggerFreq[gAdxlFreqIndex]; 
-        gAd5940DecFactor = gaExtTriggerFreq[gExtTriggerFreqIndex]/gaExtTriggerFreq[gAd5940FreqIndex];         
+        gAdxlDecFactor = gaExtTriggerFreq[gExtTriggerFreqIndex]/gaExtTriggerFreq[gAdxlFreqIndex];
+        gAd5940DecFactor = gaExtTriggerFreq[gExtTriggerFreqIndex]/gaExtTriggerFreq[gAd5940FreqIndex];
       }
    }
 }
@@ -853,7 +853,7 @@ void ppg_adjust_adpd_ext_trigger(uint16_t nOdr)
 /*!
  ********************************************************************************
  *@brief      Disables triggering ADPD sensor with frequency based on nOdr.
-              nOdr parameter used in stopping/restarting the timer with new 
+              nOdr parameter used in stopping/restarting the timer with new
               configurations depending upon other sensors enabled.
               It also disables the GPIO pin required to trigger the sensor.
  *@param      uint8_t nOdr: ODR with which ADPD has to be disabled
@@ -874,8 +874,8 @@ void disable_adpd_ext_trigger(uint16_t nOdr)
  ********************************************************************************
  *@brief      Enables triggering AD5940 sensor with frequency based on nOdr.
               If timer is not running, it starts timer with ODR requested.
-              If timer is running at higher frequency, it adjusts the decimation 
-              factor for AD5940 stream, otherwise it restart the timer with new 
+              If timer is running at higher frequency, it adjusts the decimation
+              factor for AD5940 stream, otherwise it restart the timer with new
               nOdr requested and adjust other stream's decimation factor.
               It also configures the GPIO pin required to trigger the sensor.
  *@param      uint8_t nOdr: ODR with which AD5940 has to be triggered
@@ -887,7 +887,7 @@ void enable_ad5940_ext_trigger(uint16_t nOdr)
     enable_ad5940_trigger_pin();
     reset_ad5940_trigger_signal(0); /* set the trigger signal low*/
     nOdrIndex = map_adpd_freq_to_index(nOdr);
-#ifdef EXTERNAL_TRIGGER_EDA		
+#ifdef EXTERNAL_TRIGGER_EDA
     NRF_LOG_INFO("ODR=%d,ODR Index=%d",nOdr,nOdrIndex);
     if(ecg_start_req== 1){
       if((nOdrIndex == 0)||(nOdrIndex == 1)){
@@ -896,7 +896,7 @@ void enable_ad5940_ext_trigger(uint16_t nOdr)
      }
      else if(eda_start_req == 1){
         if(nOdrIndex > 4){
-          return; /* eda doesnt support greater than 30 Hz*/ 
+          return; /* eda doesnt support greater than 30 Hz*/
         }
      }
 #endif
@@ -923,7 +923,7 @@ void enable_ad5940_ext_trigger(uint16_t nOdr)
 /*!
  ********************************************************************************
  *@brief      Disables triggering AD5940 sensor with frequency based on nOdr.
-              nOdr parameter used in stopping/restarting the timer with new 
+              nOdr parameter used in stopping/restarting the timer with new
               configurations depending upon other sensors enabled.
               It also disables the GPIO pin required to trigger the sensor.
  *@param      uint8_t nOdr: ODR with which AD5940 has to be disabled
@@ -934,7 +934,7 @@ void disable_ad5940_ext_trigger(uint16_t nOdr)
     uint8_t nOdrIndex;
     nOdrIndex = map_adpd_freq_to_index(nOdr);
     disable_trigger_timer(nOdrIndex);
-    gAd5940Running = 0;	
+    gAd5940Running = 0;
     disable_ad5940_trigger_pin();
 }
 

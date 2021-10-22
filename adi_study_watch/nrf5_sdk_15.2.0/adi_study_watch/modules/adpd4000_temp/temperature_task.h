@@ -54,6 +54,15 @@
 #include <adpd4000_dcfg.h>
 #include <app_cfg.h>
 
+/*! structure to hold slot information for a temperature stream*/
+typedef struct
+{
+  uint16_t num_subs;  /*! number of subscriber for a slot */
+  uint16_t seq_num;   /*! sequence number of a packet */
+  uint16_t tempr;     /*! temperature measured in a slot */
+  uint32_t res;       /*! resistance measured in a slot */
+}tempr_slot_info_t;
+
 void temperature_app_task_init(void);
 void send_message_temperature_app_task(m2m2_hdr_t *p_pkt);
 #endif // __TEMPERATURE_APP_TASK__H

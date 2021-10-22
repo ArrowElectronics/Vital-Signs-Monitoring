@@ -11,7 +11,8 @@ from utils import qa_utils, meas_check
 
 # Module Variables **********************
 stream_file_name = 'adpd6Stream.csv'
-capture_time = 120
+capture_time = 60
+data_dict = {"G": [], "R": [], "IR": [], "B": []}
 
 
 # ***************************************
@@ -88,7 +89,8 @@ def adpd_stream_test(freq_hz=50, agc_state=0):
     # Single LED Stream Tests
     for led in led_list:
         common.dcb_cfg('d', 'adpd')
-        adpd_led_dcb = 'adpd_{}_dcb.dcfg'.format(led.lower())
+        # adpd_led_dcb = 'adpd_{}_dcb.dcfg'.format(led.lower())
+        adpd_led_dcb = "uc_5_dcb.dcfg"
         qa_utils.write_dcb('adpd', adpd_led_dcb, 'ADPD Stream Test')
         f_name = common.quick_start_adpd(samp_freq_hz=freq_hz, agc_state=agc_state, led=led, skip_load_cfg=False)
         time.sleep(capture_time)
@@ -133,7 +135,8 @@ def adpd_fs_stream_test(freq_hz=50, agc_state=0):
     mean_dict = {}
     for i, led in enumerate(led_list):
         common.dcb_cfg('d', 'adpd')
-        adpd_led_dcb = 'adpd_{}_dcb.dcfg'.format(led.lower())
+        # adpd_led_dcb = 'adpd_{}_dcb.dcfg'.format(led.lower())
+        adpd_led_dcb = "uc_5_dcb.dcfg"
         qa_utils.write_dcb('adpd', adpd_led_dcb, 'ADPD Stream Test')
         qa_utils.clear_fs_logs('ADPD')
 
@@ -148,6 +151,14 @@ def adpd_fs_stream_test(freq_hz=50, agc_state=0):
         if err_status:
             common.test_logger.error('*** ADPD FS Stream Test - FAIL ***')
             raise ConditionCheckFailure("\n\n" + '{}'.format(err_str))
+
+        # Mean Calculation
+        ch1_mean = meas_check.calc_mean(adpd_csv_file, 3, row_offset=5)
+        ch2_mean = meas_check.calc_mean(adpd_csv_file, 5, row_offset=5)
+        common.test_logger.info('ADPD Stream Mean | LED:{} |AGC:{} | CH1:{} | CH2:{}'.format(led,
+                                                                                             agc_state,
+                                                                                             ch1_mean,
+                                                                                             ch2_mean))
 
 
 def adpd_fs_stream_download_repeatiablity_test(freq_hz=50, agc_state=0):
@@ -232,10 +243,10 @@ def adpd_agc_test(freq_hz=50):
     err_led_list = []
     err_stat = False
     for k in agc_on_results_dict.keys():
-        if(agc_values[k]["agc_off_min_ch1"] <= agc_off_results_dict[k][0] <= agc_values[k]["agc_off_max_ch1"] and
-                agc_values[k]["agc_off_min_ch2"] <= agc_off_results_dict[k][1] <= agc_values[k]["agc_off_max_ch2"] and
-                agc_values[k]["agc_on_min_ch1"] <= agc_on_results_dict[k][0] <= agc_values[k]["agc_on_max"] and
-                agc_values[k]["agc_on_min_ch2"] <= agc_on_results_dict[k][1] <= agc_values[k]["agc_on_max"]):
+        if(agc_values[k]["agc_off_min_ch1"] < agc_off_results_dict[k][0] < agc_values[k]["agc_off_max_ch1"] and
+                agc_values[k]["agc_off_min_ch2"] < agc_off_results_dict[k][1] < agc_values[k]["agc_off_max_ch2"] and
+                agc_values[k]["agc_on_min_ch1"] < agc_on_results_dict[k][0] < agc_values[k]["agc_on_max"] and
+                agc_values[k]["agc_on_min_ch2"] < agc_on_results_dict[k][1] < agc_values[k]["agc_on_max"]):
                 pass
         else:
             err_led_list.append(k)

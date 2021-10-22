@@ -3,6 +3,7 @@
 // #############################################################################
 #pragma once
 
+#include "common_application_interface.hpp"
 #include "m2m2_core.hpp"
 #include <stdint.h>
 
@@ -20,6 +21,15 @@
 
 struct m2m2_debug_data_t {
   uint8_t  str[127]; 
+};
+
+struct m2m2_app_debug_stream_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  sequence_num; 
+  uint32_t  timestamp; 
+  uint64_t  debuginfo_64[4]; 
+  uint32_t  debuginfo[4]; 
 };
 
 // Reset struct packing outside of this file

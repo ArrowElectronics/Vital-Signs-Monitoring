@@ -9,6 +9,7 @@ import common_application_interface
 
 DCB_BLK_WORD_SZ = (4) #Word size in bytes, for an entry in DCB block
 MAXADPD4000DCBSIZE = (57) #Max size of adpd4000 DCB size in double word length; 57 uint32_t elements in dcfg
+MAXTEMPRLCFGDCBSIZE = (57) #Max size of temperature app lcfg DCB size in double word length; 57 uint32_t elements in dcfg
 MAXADXLDCBSIZE = (25) #Max size of adxl DCB size in double word length; 25 uint32_t elements in dcfg
 MAXPPGDCBSIZE = (56)
 MAXECGDCBSIZE = (4)
@@ -40,6 +41,13 @@ Max ADPD4000 DCB size = MAXADPD4000DCBSIZE * DCB_BLK_WORD_SZ * MAX_ADPD4000_DCB_
 """
 MAX_ADPD4000_DCB_PKTS = (4)
 
+"""
+MAX_TEMPRLCFG_DCB_PKTS is the max no: of pkts which can be send by the tool
+for the read/write/delete DCB M2M2 command
+Max TEMPERATURE LCFG DCB size = MAXTEMPRLCFGDCBSIZE * DCB_BLK_WORD_SZ * MAX_TEMPRLCFG_DCB_PKTS = 57 * 4 * 2 = 456 bytes
+"""
+MAX_TEMPRLCFG_DCB_PKTS = (2)
+
 class M2M2_DCB_COMMAND_ENUM_t(c_uint8):
     __M2M2_DCB_COMMAND_LOWEST = 0x96
     M2M2_DCB_COMMAND_READ_CONFIG_REQ = 0x97
@@ -64,6 +72,15 @@ class m2m2_dcb_cmd_t(Structure):
               ]
 
 class m2m2_dcb_adpd4000_data_t(Structure):
+    fields = [
+              ("command", c_uint8),
+              ("status", c_uint8),
+              ("size", c_uint16),
+              ("num_of_pkts", c_uint16),
+              ("dcbdata", c_uint32 * MAXADPD4000DCBSIZE),
+              ]
+
+class m2m2_dcb_temperature_data_t(Structure):
     fields = [
               ("command", c_uint8),
               ("status", c_uint8),

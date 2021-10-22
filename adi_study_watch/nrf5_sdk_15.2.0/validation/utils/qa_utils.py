@@ -1,10 +1,11 @@
 import os
 import common
 import time
+import csv
 
 # Global Variables
 dev_id_dict = {'ADXL362': 'adxl', 'ADPD4K': 'adpd', 'ADP5360': '',
-               'AD5940': '', 'NAND_FLASH': '', 'AD7156': '', 'ECG': 'ecg', 'EDA': 'eda', 'BCM': 'bcm'}
+               'AD5940': '', 'NAND_FLASH': '', 'AD7156': '', 'ECG': 'ecg', 'EDA': 'eda', 'BIA': 'bia'}
 
 
 def clear_fs_logs(app_name='ADXL'):
@@ -107,8 +108,8 @@ def get_fs_log(app_name='ADXL'):
                     csv_file_name["ecg"] = os.path.join(csv_files_folder, file)
                 elif "eda" in file_name_lower:
                     csv_file_name["eda"] = os.path.join(csv_files_folder, file)
-                elif "bcm" in file_name_lower:
-                    csv_file_name["bcm"] = os.path.join(csv_files_folder, file)
+                elif "bia" in file_name_lower:
+                    csv_file_name["bia"] = os.path.join(csv_files_folder, file)
 
     return log_file_name, csv_file_name
 
@@ -286,7 +287,7 @@ def get_delta_ts_and_fs(ts_data_list, repeat_count, fs_div):
     return delta_ts, fs
 
 
-def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False):
+def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False, freq_tolerance_percentage=None):
     """
     This function performs frequency calculations on stream data csv files
     :param file_path:
@@ -356,12 +357,15 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False)
     delta_ts_sum = 0
     ts_mismatch_count = 0
     ref_delta_ts, ref_fs = get_delta_ts_and_fs(time_data_list, repeat_count, div)
+    compensator = 0
     for i in range(1, loop_iter+1):
         delta_ts = time_data_list[i*repeat_count] - time_data_list[(i*repeat_count)-1]
 
         if not ref_delta_ts and i == 1:
             ref_delta_ts = delta_ts
-            common.test_logger.warning('Median Ref Delta TS calculation Failed. Switching to start index calculation!')
+            compensator = 1
+            common.test_logger.warning(
+                'Median Ref Delta TS calculation Not available. Switching to start index calculation!')
         else:
             if not(0.9 * ref_delta_ts <= delta_ts <= 1.1 * ref_delta_ts):
                 if stream == "adpd" or stream == "ppg" or stream == "syncppg" or stream == "adpd_combined":
@@ -371,14 +375,14 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False)
                         ts_mismatch_count += 1
             else:
                 delta_ts_sum += delta_ts
-    avg_delta_ts = delta_ts_sum/(i-ts_mismatch_count)
+    avg_delta_ts = delta_ts_sum/(i-ts_mismatch_count - compensator)
     if avg_delta_ts > 0:
         avg_fs = repeat_count/(avg_delta_ts/div)
     else:
         avg_fs = 0
     if time_data_list:
         total_time = (time_data_list[-1] - time_data_list[0]) / div
-        expected_num_samples = total_time * avg_fs
+        expected_num_samples = (total_time * avg_fs) + 1
         actual_num_samples = len(time_data_list)
         sample_loss = False
         excess_samples = False
@@ -397,15 +401,19 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False)
                 freq_check_dict["ts_mismatch_count"] != 0:
             common.test_logger.warning("***TS Mismatch {}***".format(freq_check_dict["ts_mismatch_count"]))
 
-        if exp_fs_hz <= 10:
-            freq_value = (exp_fs_hz * 0.9 >= freq_check_dict['avg_fs']) or \
-                         (freq_check_dict['avg_fs'] >= exp_fs_hz * 1.1)
-        elif exp_fs_hz <= 50:
-            freq_value = (exp_fs_hz * 0.95 >= freq_check_dict['avg_fs']) or \
-                         (freq_check_dict['avg_fs'] >= exp_fs_hz * 1.05)
+        if freq_tolerance_percentage:
+            freq_value = (exp_fs_hz * (1 - freq_tolerance_percentage/100) >= freq_check_dict['avg_fs']) or \
+                             (freq_check_dict['avg_fs'] >= exp_fs_hz * (1 + freq_tolerance_percentage/100))
         else:
-            freq_value = (exp_fs_hz * 0.98 >= freq_check_dict['avg_fs']) or \
-                         (freq_check_dict['avg_fs'] >= exp_fs_hz * 1.02)
+            if exp_fs_hz <= 10:
+                freq_value = (exp_fs_hz * 0.9 >= freq_check_dict['avg_fs']) or \
+                             (freq_check_dict['avg_fs'] >= exp_fs_hz * 1.1)
+            elif exp_fs_hz <= 50:
+                freq_value = (exp_fs_hz * 0.95 >= freq_check_dict['avg_fs']) or \
+                             (freq_check_dict['avg_fs'] >= exp_fs_hz * 1.05)
+            else:
+                freq_value = (exp_fs_hz * 0.98 >= freq_check_dict['avg_fs']) or \
+                             (freq_check_dict['avg_fs'] >= exp_fs_hz * 1.02)
 
         if freq_value or \
            freq_check_dict["ts_mismatch_count"] > common.ts_mismatch_tolerance or \
@@ -479,8 +487,8 @@ def dcb_test(dev='ADPD4K', dcb_file='adpd_qa_dcb.dcfg',
         common.watch_shell.do_write_dcb_to_lcfg("ecg")
     elif dev_id == "eda":
         common.watch_shell.do_write_dcb_to_lcfg("eda")
-    elif dev_id == "bcm":
-        common.watch_shell.do_write_dcb_to_lcfg("bcm")
+    elif dev_id == "bia":
+        common.watch_shell.do_write_dcb_to_lcfg("bia")
 
     err_stat, dcb_dir = common.dcb_cfg('r', dev_id)
     if err_stat:
@@ -520,7 +528,7 @@ def check_dcb(dev, dcb_name):
                 if data.strip()[0] != '#':
                     addr = data.split(' ')[0]
                     val = int(data.split(' ')[1].strip(), 16)
-                    if dev_id.lower() == "ecg" or dev_id.lower() == "eda" or dev_id.lower() == "bcm":
+                    if dev_id.lower() == "ecg" or dev_id.lower() == "eda" or dev_id.lower() == "bia":
                         packet = common.watch_shell.do_lcfg("r {} 0x{}".format(dev_id, addr))
                         reg_val_list = packet["payload"]["data"]
                     # elif dev_id.lower() == "eda":
@@ -542,3 +550,12 @@ def check_dcb(dev, dcb_name):
 
 def enable_ecg_without_electrodes_contact():
     common.watch_shell.do_lcfg("w ecg 0x3:0x0")
+
+
+def adpd_reg_dump(file_name="adpd_reg_dump.csv", start_addr=0, end_addr=631):
+    with open(file_name, "w+", newline="") as reg_dump:
+        csv_writer = csv.writer(reg_dump)
+        csv_writer.writerow(["Address", "Value"])
+        for addr in range(start_addr, end_addr+1):
+            pkt = common.watch_shell.do_reg('r adpd {}'.format(hex(addr)))
+            csv_writer.writerow(pkt['payload']['data'][0])

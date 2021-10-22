@@ -118,7 +118,7 @@ class ppg_app_set_lcfg_resp_t(Structure):
               (None, common_application_interface._m2m2_app_common_cmd_t),
               ]
 
-class ppg_app_agc_info_t(Structure):
+class ppg_app_dynamic_agc_stream_t(Structure):
     fields = [
               (None, common_application_interface._m2m2_app_data_stream_hdr_t),
               ("timestamp", c_uint32),

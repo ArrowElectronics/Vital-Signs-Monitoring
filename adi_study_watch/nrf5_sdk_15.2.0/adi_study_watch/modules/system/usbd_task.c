@@ -74,6 +74,7 @@
 
 #include "ad7156_dcfg.h"
 #include "adpd4000_dcfg.h"
+#include <tempr_lcfg.h>
 #include "adxl_dcfg.h"
 #include "dcb_general_block.h"
 #include "lt_app_lcfg_block.h"
@@ -419,6 +420,9 @@ void dcb_block_status_update() {
   lt_app_lcfg_update_dcb_present_flag();
 #endif
   adpd4000_update_dcb_present_flag();
+#ifdef ENABLE_TEMPERATURE_APP
+  tempr_update_dcb_present_flag();
+#endif
   adxl_update_dcb_present_flag();
 #ifdef ENABLE_PPG_APP
   ppg_update_dcb_present_flag();
@@ -1059,6 +1063,16 @@ static void usbd_user_ev_handler(app_usbd_event_type_t event) {
 #ifdef HIBERNATE_MD_EN
     hibernate_md_set(HIB_MD_USB_DISCONNECT_EVT);
     hibernate_mode_entry();
+#endif
+#ifdef CUST4_SM
+    /**
+    * Register the event received
+    * Find out USB unintentional disconnection: check if previously it was USB_PORT_OPENED
+    */
+    if(gb_usb_status == USB_PORT_OPENED)
+    {
+      set_user0_config_app_event(EVENT_USB_DISCONNECT_UNEXPECTED);
+    }
 #endif
     gb_usb_status = USB_DISCONNECTED;
     gb_force_stream_stop = true;

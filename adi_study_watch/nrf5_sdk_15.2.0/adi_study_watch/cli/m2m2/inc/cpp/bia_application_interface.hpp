@@ -34,6 +34,12 @@ enum M2M2_BIA_APP_CMD_ENUM_t:uint8_t {
   M2M2_APP_COMMON_CMD_DCB_TIMING_INFO_REQ = 76,
   M2M2_APP_COMMON_CMD_DCB_TIMING_INFO_RESP = 77,
   M2M2_BCM_APP_CMD_ALGO_STREAM_RESP = 78,
+  M2M2_BIA_APP_CMD_LOAD_DCFG_REQ = 79,
+  M2M2_BIA_APP_CMD_LOAD_DCFG_RESP = 80,
+  M2M2_BIA_APP_COMMON_CMD_WRITE_DCFG_REQ = 81,
+  M2M2_BIA_APP_COMMON_CMD_WRITE_DCFG_RESP = 82,
+  M2M2_BIA_APP_COMMON_CMD_READ_DCFG_REQ = 83,
+  M2M2_BIA_APP_COMMON_CMD_READ_DCFG_RESP = 84,
 };
 static_assert(sizeof(M2M2_BIA_APP_CMD_ENUM_t) == 1, "Enum 'M2M2_BIA_APP_CMD_ENUM_t' has an incorrect size!");
 
@@ -91,6 +97,18 @@ struct bia_app_lcfg_op_hdr_t {
   uint8_t  num_ops; 
   bia_app_lcfg_op_t  ops[1]; // NOTE: THIS FIELD IS INTENDED TO BE OF VARIABLE LENGTH! 
         // NOTE: Use offsetof(bia_app_lcfg_op_hdr_t, ops) instead of sizeof(bia_app_lcfg_op_hdr_t)
+};
+
+struct bia_app_dcfg_op_t {
+  uint32_t  field;
+  uint32_t  value;
+};
+
+struct bia_app_dcfg_op_hdr_t {
+  uint8_t  command;
+  uint8_t  status;
+  uint8_t  num_ops;
+  bia_app_dcfg_op_t  ops[0];
 };
 
 struct bia_data_set_t {

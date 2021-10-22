@@ -247,6 +247,17 @@ $ diff $PATH/nRF5_SDK_15.2.0_9412b96/nRF5_SDK_15.2.0_9412b96/integration/nrfx/le
 
 ```
 
+3. Change to nrf_drv_rtc.h file:
+
+```c
+diff --git a/nrf5_sdk_15.2.0/integration/nrfx/legacy/nrf_drv_rtc.h b/nrf5_sdk_15.2.0/integration/nrfx/legacy/nrf_drv_rtc.h
+index 7224ece2..4eef181a 100644
++/** @brief Macro for forwarding the new implementation. */
++#define nrf_drv_rtc_int_is_enabled      nrf_rtc_int_is_enabled
++/** @brief Macro for forwarding the new implementation. */
++#define nrf_drv_rtc_event_pending       nrf_rtc_event_pending
+```
+
 ### Watch Bring Up Guide
 
 How to bring up the Watch using Jlink debugger and loading the code from SES IDE is explained in nrf5_sdk_15.2.0/adi_study_watch/doc/ADI_VSM_Watch_IV_Bringup_Guide.pdf

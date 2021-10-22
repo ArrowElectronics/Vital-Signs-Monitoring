@@ -145,14 +145,14 @@ typedef struct _ppg_app_set_lcfg_resp_t {
   uint8_t  status; 
 } ppg_app_set_lcfg_resp_t;
 
-typedef struct _ppg_app_agc_info_t {
+typedef struct _ppg_app_dynamic_agc_stream_t {
   uint8_t  command; 
   uint8_t  status; 
   uint16_t  sequence_num; 
   uint32_t  timestamp; 
   uint16_t  mts[6]; 
   uint16_t  setting[10]; 
-} ppg_app_agc_info_t;
+} ppg_app_dynamic_agc_stream_t;
 
 typedef struct _hrv_data_set_t {
   uint16_t  timestamp; 

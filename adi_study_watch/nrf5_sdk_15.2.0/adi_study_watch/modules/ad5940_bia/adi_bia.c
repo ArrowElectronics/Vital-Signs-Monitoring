@@ -171,7 +171,9 @@ static AD5940Err AppBIASeqCfgGen(void)
 
   /* Start sequence generator here */
   AD5940_SEQGenCtrl(bTRUE);
-
+#ifdef BIA_DCFG_ENABLE
+  write_bia_seqcfg();
+#else
   /* analog front end configuration */
   aferef_cfg.HpBandgapEn = bTRUE;
   aferef_cfg.Hp1V1BuffEn = bTRUE;
@@ -211,6 +213,7 @@ static AD5940Err AppBIASeqCfgGen(void)
   hs_loop.WgCfg.GainCalEn = bFALSE;
   hs_loop.WgCfg.OffsetCalEn = bFALSE;
 
+   /*CAUTION:This sweep need to be proper handled in dcfg*/
    /* If sweep enabled, perform sweep operation */
   if(AppBIACfg.SweepCfg.SweepEn == bTRUE) {
     AppBIACfg.SweepCfg.SweepIndex = 0;
@@ -282,7 +285,7 @@ static AD5940Err AppBIASeqCfgGen(void)
                 AFECTRL_SINC2NOTCH, bTRUE);
   /* GP6->endSeq, GP5 -> AD8233=OFF, GP1->RLD=OFF */
   AD5940_SEQGpioCtrlS(0);
-
+#endif
   /* Sequence end. */
   /* Add one external command to disable sequencer for
    * initialization sequence because we only want it to run one time. */
@@ -333,6 +336,9 @@ static AD5940Err AppBIASeqMeasureGen(void) {
 
   /* Start sequence generator here */
   AD5940_SEQGenCtrl(bTRUE);
+#ifdef BIA_DCFG_ENABLE
+  write_bia_seqmeasurement();
+#else
   /* GP6->endSeq, GP5 -> AD8233=OFF, GP1->RLD=OFF */
   AD5940_SEQGpioCtrlS(AGPIO_Pin6);
 
@@ -377,6 +383,7 @@ static AD5940Err AppBIASeqMeasureGen(void) {
   AD5940_SEQGpioCtrlS(0);
   /* Goto hibernate */
   AD5940_EnterSleepS();
+#endif
   /* Sequence end. */
   error = AD5940_SEQGenFetchSeq(&pSeqCmd, &SeqLen);
   /* Stop sequencer generator */
@@ -478,6 +485,9 @@ AD5940Err AppBIAInit(uint32_t *pBuffer, uint32_t BufferSize) {
   tempreg &= 0xFFE7;
   tempreg |= 0x0008;
   AD5940_AGPIOSet(tempreg);
+#ifdef BIA_DCFG_ENABLE
+   write_bia_init_1();
+#else
   /* Configure sequencer and stop it */
   /* 2kB SRAM is used for sequencer, others for data FIFO */
   seq_cfg.SeqMemSize = SEQMEMSIZE_2KB;
@@ -487,7 +497,7 @@ AD5940Err AppBIAInit(uint32_t *pBuffer, uint32_t BufferSize) {
   seq_cfg.SeqEnable = bFALSE;
   seq_cfg.SeqWrTimer = 0;
   AD5940_SEQCfg(&seq_cfg);
-
+#endif
   /* Do RTIA calibration */
   if((AppBIACfg.ReDoRtiaCal == bTRUE) || \
       AppBIACfg.BIAInited == bFALSE)  /* Do calibration on the first initialization */
@@ -495,6 +505,9 @@ AD5940Err AppBIAInit(uint32_t *pBuffer, uint32_t BufferSize) {
     AppBIARtiaCal();
     AppBIACfg.ReDoRtiaCal = bFALSE;
   }
+#ifdef BIA_DCFG_ENABLE
+   write_bia_init_2();
+#else
   /* Reconfigure FIFO */
   /* Disable FIFO firstly */
   AD5940_FIFOCtrlS(FIFOSRC_DFT, bFALSE);
@@ -509,6 +522,7 @@ AD5940Err AppBIAInit(uint32_t *pBuffer, uint32_t BufferSize) {
   fifo_cfg.FIFOThresh = AppBIACfg.FifoThresh;
   AD5940_FIFOCfg(&fifo_cfg);
   AD5940_INTCClrFlag(AFEINTSRC_ALLINT);
+#endif
   /* Start sequence generator */
   /* Initialize sequencer generator */
   if((AppBIACfg.BIAInited == bFALSE)||\
@@ -711,11 +725,13 @@ void AD5940BIAStructInit(void) {
   pBIACfg->SeqStartAddr = 0;
   pBIACfg->MaxSeqLen = 512; /** @todo add checker in function */
   pBIACfg->RcalVal = 10000.0;
+#ifndef BIA_DCFG_ENABLE
   if(!bia_user_applied_dft_num) {
     pBIACfg->DftNum = DFTNUM_8192;
   } else {
     bia_user_applied_dft_num = 0;
   }
+#endif
   /* Never stop until you stop it mannually by AppBIACtrl() function */
   pBIACfg->NumOfData = -1;
 
@@ -726,7 +742,9 @@ void AD5940BIAStructInit(void) {
   } else {
     bia_user_applied_odr = 0;
   }
+
   pBIACfg->FifoThresh = 4;      /* 4 */
+
   pBIACfg->ADCSinc3Osr = ADCSINC3OSR_2;
 }
 
@@ -745,11 +763,20 @@ void ad5940_bia_start(void){
 
   /* clear AD5940 soft buffer */
   ClearDataBufferAd5940();
+  
   /* default parameters setting */
   AD5940PlatformCfg();
   /* BIA Initialization */
   /* Configure your parameters in this function */
   AD5940BIAStructInit();
+
+#ifdef BIA_DCFG_ENABLE
+      /* Loading default if load command is not issued */ 
+  if(bia_load_dcfg == 1) {
+    load_bia_default_dcfg_config(&default_dcfg_bia[0]);
+   }
+#endif//BIA_DCFG_ENABLE
+
 
   /* Initialize BIA application. Provide a buffer, which is used to store sequencer commands */
   AppBIAInit(AppBuff, APPBUFF_SIZE);

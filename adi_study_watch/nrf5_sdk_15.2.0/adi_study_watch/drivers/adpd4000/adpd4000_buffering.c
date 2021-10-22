@@ -63,6 +63,10 @@ extern uint16_t decimation_info[SLOT_NUM];    //!< Buffer storing decimation of 
 extern uint32_t gnLcmValue;                   //!< Hold LCM value
 extern adpd400xDrv_slot_t gsSlot[SLOT_NUM];   //!< Slot information
 extern uint8_t gnAdpdFifoWaterMark;
+#ifdef ENABLE_DEBUG_STREAM
+extern uint8_t g_adpdOffset;
+extern uint32_t g_adpd_debugInfo[20];
+#endif
 /*------------------------- Public Function Prototypes -----------------------*/
 
 /*------------------------- Private Variables --------------------------------*/
@@ -234,6 +238,13 @@ uint8_t adpd4000_read_data_to_buffer(uint16_t *p_slot_sz, uint16_t *p_max_slot, 
   } else {
     sample_interval = (uint16_t) (ODR * RTC_TICKS_PER_MILLI_SEC);
   }
+#ifdef ENABLE_DEBUG_STREAM
+  g_adpdOffset = 0;
+  g_adpd_debugInfo[g_adpdOffset++] = gnAdpdFifoWaterMark;
+  g_adpd_debugInfo[g_adpdOffset++] = sample_interval;
+  g_adpd_debugInfo[g_adpdOffset++] = prev_ADPD_ts;
+  g_adpd_debugInfo[g_adpdOffset++] = gADPD4000_dready_ts;
+#endif
   //NRF_LOG_INFO("*********gADPD4000_dready_ts=%d,prev_ADPD_ts=%d, nsamples_in_fifo=%d\
   // Sample interval inside firmware=%d*******",gADPD4000_dready_ts,
   // prev_ADPD_ts,nsamples_in_fifo,sample_interval);

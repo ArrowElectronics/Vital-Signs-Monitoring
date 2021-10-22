@@ -84,17 +84,25 @@ char *month_str[] = {
     "Dec"
 };
 
-static uint32_t current_time=0; //holds current system time in secs resolution
-static int32_t  current_timezone=0; //holds current system timezone in secs resolution
+static uint32_t current_time = 0; //holds current system time in secs resolution
+static int32_t  current_timezone = 0; //holds current system timezone in secs resolution
 static uint32_t microsecond = 0;
-static uint64_t gs_current_time=0; //holds current system time in 32kHz resolution
-
+static uint64_t gs_current_time = 0; //holds current system time in 32kHz resolution
+#ifdef ENABLE_DEBUG_STREAM
+#define M2M2_DEBUG_INFO_64_SIZE   4
+#define DEBUG_INFO_64_SIZE    M2M2_DEBUG_INFO_64_SIZE + 6 // 6 here to avoid overflow   
+static uint64_t gs_rtc_roll_over_handle_counter = 0; //number of time RTC roll over handled during the RTC ISR block
+uint8_t g_adpd_ts_flag_set = 0;
+uint8_t g_adpd_rtc_info_buffer_index = 0;
+uint64_t g_adpd_rtc_info[DEBUG_INFO_64_SIZE];
+#endif
 /**
  * @brief RTC instance
  */
 static nrf_drv_rtc_t const m_rtc = NRF_DRV_RTC_INSTANCE(2);
 
 #ifdef CUST4_SM
+#include "user0_config_app_task.h"
 /* Variable to be used, to continue raising compare interrupts, since more
  * compares are required to reach the requested RTC wakeup timeout
  */
@@ -150,6 +158,8 @@ static void rtc_handler(nrf_drv_rtc_int_type_t int_type)
       /*Reached the compare value requested*/
       else
       {
+        //Register the event received
+        set_user0_config_app_event(EVENT_RTC_TIMER_INTERRUPT);
         rtc_timestamp_store(320);
         NVIC_SystemReset();
       }
@@ -261,11 +271,35 @@ void rtc_timestamp_set(uint32_t timestamp)
 uint32_t get_sensor_time_stamp(void)
 {
     uint64_t rtc_cnt;
-    uint64_t time_ticks;
+    uint64_t time_ticks = 0;
+#ifdef ENABLE_DEBUG_STREAM
+    uint64_t rtc_cnt_capture;
+#endif
     rtc_cnt = nrf_drv_rtc_counter_get(&m_rtc);
+#ifdef ENABLE_DEBUG_STREAM
+    rtc_cnt_capture = rtc_cnt;
+#endif     
     time_ticks = gs_current_time + rtc_cnt + (current_timezone << 15);
+    /* condition here to handle the RTC overflow in case of RTC ISR is not served at this time due to priority*/
+    if (nrf_drv_rtc_int_is_enabled(m_rtc.p_reg,NRF_RTC_INT_OVERFLOW_MASK) &&
+        nrf_drv_rtc_event_pending(m_rtc.p_reg, NRF_RTC_EVENT_OVERFLOW)) {
+#ifdef ENABLE_DEBUG_STREAM
+      gs_rtc_roll_over_handle_counter++;
+#endif      
+      time_ticks += (1<<24); //increment it by number of 32Khz ticks elapsed in 24 bit wide register
+    }
     rtc_cnt = time_ticks % NUMBER_OF_TICKS_FOR_24_HOUR;
     rtc_cnt = (rtc_cnt * 1000) >> 10;
+#ifdef ENABLE_DEBUG_STREAM
+    if(g_adpd_ts_flag_set) {
+      g_adpd_ts_flag_set = 0;
+      g_adpd_rtc_info_buffer_index = 0;
+      g_adpd_rtc_info[g_adpd_rtc_info_buffer_index++] = rtc_cnt_capture;
+      g_adpd_rtc_info[g_adpd_rtc_info_buffer_index++] = time_ticks;
+      g_adpd_rtc_info[g_adpd_rtc_info_buffer_index++] = rtc_cnt;
+      g_adpd_rtc_info[g_adpd_rtc_info_buffer_index++] = gs_rtc_roll_over_handle_counter;
+    }
+#endif
     return ((uint32_t)rtc_cnt);
 }
 

@@ -23,6 +23,12 @@ class M2M2_EDA_APP_CMD_ENUM_t(c_ubyte):
     M2M2_EDA_APP_CMD_BASELINE_IMP_SET_RESP = 0x4D
     M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_REQ = 0x4E
     M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_RESP = 0x4F
+    M2M2_EDA_APP_CMD_LOAD_DCFG_REQ = 0x50
+    M2M2_EDA_APP_CMD_LOAD_DCFG_RESP = 0x51
+    M2M2_APP_COMMON_CMD_WRITE_DCFG_REQ = 0x52
+    M2M2_APP_COMMON_CMD_WRITE_DCFG_RESP = 0x53
+    M2M2_APP_COMMON_CMD_READ_DCFG_REQ = 0x54
+    M2M2_APP_COMMON_CMD_READ_DCFG_RESP = 0x55
 
 class M2M2_SENSOR_EDA_NSAMPLES_ENUM_t(c_ubyte):
     M2M2_SENSOR_EDA_NSAMPLES = 0x6
@@ -55,6 +61,24 @@ def eda_app_lcfg_op_hdr_t(array_size):
               ("ops", eda_app_lcfg_op_t * array_size),
               ]
   return eda_app_lcfg_op_hdr_t_internal()
+
+class eda_app_dcfg_op_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("field", c_ulong),
+              ("value", c_ulong),
+              ]
+
+def eda_app_dcfg_op_hdr_t(array_size):
+  class eda_app_dcfg_op_hdr_t_internal(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("num_ops", c_ubyte),
+              ("ops", eda_app_dcfg_op_t * array_size),
+              ]
+  return eda_app_dcfg_op_hdr_t_internal()
 
 class eda_data_set_t(Structure):
     _pack_ = 1

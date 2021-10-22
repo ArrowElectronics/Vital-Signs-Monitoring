@@ -56,7 +56,7 @@ NRF_LOG_MODULE_REGISTER();
 static volatile bool g_adpd4000_dcb_present = false;
 static uint32_t g_current_dcb[MAX_ADPD4000_DCB_PKTS*MAXADPD4000DCBSIZE] = {'\0'};
 #endif
-extern uint32_t  gnTemperature_Slot;
+extern uint32_t  g_therm_slot_en_bit_mask;
 extern uint32_t Ppg_Slot;
 extern uint32_t gn_led_slot_g;
 extern uint32_t gn_led_slot_r;
@@ -124,13 +124,9 @@ const uint32_t general_dcfg_4000_g[] = {
 #else
     0x00210000,
 #endif
-#ifdef SLOT_SELECT
-    0x00220083,//GPIO0 - output inverted, GPIO3 - output normal
-#else
-    0x00220003,
-#endif
+    0x00220083, //GPIO0 - Output Inverted, GPIO2 - Output Normal
     0x00230302,
-    0x00240001,
+    0x00240000, //GPIO2 - Output Logic = 0
     0x00100000, //opmode
     };
 
@@ -209,10 +205,10 @@ const uint32_t ecg_dcfg_4000[] = {
     0x000000E6, //1
     0x00000700, //2
     0x00000000, //3
-    0x0000E281, //4 //This setting is for DVT1
+    0x0000E2C1, //4 //This setting is for DVT1
     0x00000000, //5
     0x00000000, //6
-    0x00000104, //7
+    0x00000102, //7
     0x00001000, //8
     0x00000210, //9 //DEFAULT
     0x00000003, //10
@@ -310,11 +306,11 @@ const uint32_t dcfg_org_4000_g[] = {
     0x000E0000,
     0x000F0006,
     0x00148000,
-    0x00202022, //IN5 and IN6 floats during sleep  //0x00202222,
+    0x00200022, //IN5+IN6 & IN7+IN8 floating during sleep
     0x00210004, //IN5/IN6 configured as a differential pair  //0x00210000
-    0x00220083,  //0x00220003
+    0x00220083, //GPIO0 - Output Inverted, GPIO2 - Output Normal
     0x00230302,
-    0x00240001,
+    0x00240000, //GPIO2 - Output Logic = 0
     0x01310000, // DATA2_B
     0x01510000, // DATA2_C
     0x01710000, // DATA2_D
@@ -325,12 +321,12 @@ const uint32_t dcfg_org_4000_g[] = {
 // Slots config
 /// Timeslot A - Sleep float mode ECG with multiple charge tranfers
 /// IN5 and IN6 as differential pair
-  0x01004000,  //  CH2 Enabled, Input resistor 500 ohms 0000, 6.25k ohms 0400
+  0x01000000,  //  CH2 Disabled, Input resistor 500 ohms 0000, 6.25k ohms 0400
   0x010100E6,  //  skip preconditioning, No bpf
   0x01020700,  // IN5&IN6 differential pair to CH 1
   0x01030000,  //
-  0x0104E281,  // TIA gain, E280 200k, E281 100k //This setting is for DVT1
-  0x01070104,  // number of pulses
+  0x0104E2C1,  // TIA gain, 2C0 200k, 2C1 100k, Vref = 0.88V  //This setting is for DVT1
+  0x01070102,  // number of pulses = 2
   0x01081000,  // float mode, min period
   0x010A0003, // Int width
   0x010B000D, // Integrator timing offset
@@ -825,6 +821,7 @@ void patch_dvt2_adpd4100_reg()
 {
   //Slot A
   Adpd400xDrvRegWrite(0x010B, 0x01A0);//INTEG_OS_A
+  Adpd400xDrvRegWrite(0x0104, 0x02C1);//AFE_TRIM_A
   //Slot D
   Adpd400xDrvRegWrite(0x0161, 0x40DA);//TS_PATH_D
   Adpd400xDrvRegWrite(0x0164, 0x0281);//AFE_TRIM_D
@@ -1050,7 +1047,7 @@ ADPD4000_DCFG_STATUS_t get_adpd4k_dcfg(uint16_t slot_id, uint16_t app_id, uint8_
 
    /* set signal size = 0 for slots that are enabled but not in use */
    idx = (GENERAL_DCFG_SIZE + SLOT_DCFG_SIZE*(index+1));
-   uint8_t reg_base = 0;
+   uint16_t reg_base = 0;
    for(i = 0; i <= slot_id ;i++)
    {
      for(j = 0; j < gNumUsedSlots; j++)
@@ -1075,7 +1072,7 @@ ADPD4000_DCFG_STATUS_t get_adpd4k_dcfg(uint16_t slot_id, uint16_t app_id, uint8_
   //set Temp. Slot
   if(app_id == 2)
   {
-    gnTemperature_Slot = (1 << slot_id);
+    g_therm_slot_en_bit_mask = (1 << slot_id) | ( 1 << (slot_id+1));
     check_temp_slot_set = true;
   }
 
@@ -1307,9 +1304,9 @@ void adpd4000_update_dcb_present_flag(void)
 void DG2502_SW_control_ADPD4000(uint8_t sw_enable)
 {
     if(sw_enable)
-        Adpd400xDrvRegWrite(0x24, 1);//4K_SW_EN_1V8
+        Adpd400xDrvRegWrite(ADPD400x_REG_GPIO23, 1);//4K_SW_EN_1V8
     else
-        Adpd400xDrvRegWrite(0x24,0);//4K_SW_EN_1V8
+        Adpd400xDrvRegWrite(ADPD400x_REG_GPIO23,0);//4K_SW_EN_1V8
 }
 
 ////////////////////////////////////////////////////////

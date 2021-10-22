@@ -52,6 +52,7 @@
 #include "agc.h"
 #include "adpd4000_dcfg.h"
 #include "sensor_adpd_application_interface.h"
+#include "user0_config_app_task.h"
 #include <math.h>
 #define MODULE ("Agc.c")
 
@@ -140,6 +141,9 @@ uint16_t gAFE_Trim[SLOT_NUM] = {0};
 uint8_t gNum_led_drivers[SLOT_NUM] = {0};
 agc_data_avg_t avg_data, gain_factor;
 
+#ifdef CUST4_SM
+uint16_t agc_up_threshold,agc_low_threshold;
+#endif
 #ifdef TEST_AGC
 uint16_t gAFE_Trim_init[SLOT_NUM] = {0};
 uint16_t gInteg_offset[SLOT_NUM] = {0};
@@ -151,6 +155,9 @@ void set_led_current(uint16_t *current);
 void do_average (agc_data_avg_t *avg_data);
 void calculate_DC0(agc_DC0_cal_t *DC0_cal);
 void set_TIA_gain(uint16_t *slot_ch1_i, uint16_t *slot_ch2_i);
+#ifdef CUST4_SM
+uint16_t get_Max_Led_Current(uint16_t led_current,uint8_t num_drivers);
+#endif
 
 /************************************************************************/
 /* ----// LED Driver Current Max Limit //----
@@ -164,9 +171,7 @@ void set_TIA_gain(uint16_t *slot_ch1_i, uint16_t *slot_ch2_i);
 * ----// ------------------------------// ----
 */
 
-/* NOTE: Below Integrator offset value to be updated - for now keeping default
-   values at each TIA gain for each of the wavelengths */
-
+#ifdef VSM_MBOARD
 /* 
   Integrator offset at different TIA gains for each of the wavelengths,
   to align zero-crossing of BPF ouput response with integerator sequence
@@ -175,40 +180,41 @@ void set_TIA_gain(uint16_t *slot_ch1_i, uint16_t *slot_ch2_i);
 
 /* Red LED - Integrator offset register val for {phase-1, phase2} chip */
 const uint16_t r_integ_offset_reg_val[NUM_TIA_GAINS][2] = {
-  {0x1010, 0x0210}, /* 16500ns at 200k */
-  {0x1010, 0x0210}, /* 16500ns at 100k */
-  {0x1010, 0x0210}, /* 16500ns at 50k */
-  {0x1010, 0x0210}, /* 16500ns at 25k */
-  {0x1010, 0x0210} /* 16500ns at 12.5k */
+  {0x0D10, 0x020D}, /* 16406.25ns at 200k */
+  {0x0110, 0x0201}, /* 16031.25ns at 100k */
+  {0x1B0F, 0x01FB}, /* 15843.75ns at 50k */
+  {0x180F, 0x01F8}, /* 15750ns at 25k */
+  {0x160F, 0x01F6} /* 15687.5ns at 12.5k */
 };
 
 /* IR LED - Integrator offset register val for {phase-1, phase2} chip */
 const uint16_t ir_integ_offset_reg_val[NUM_TIA_GAINS][2] = {
   {0x1010, 0x0210}, /* 16500ns at 200k */
-  {0x1010, 0x0210}, /* 16500ns at 100k */
-  {0x1010, 0x0210}, /* 16500ns at 50k */
-  {0x1010, 0x0210}, /* 16500ns at 25k */
-  {0x1010, 0x0210} /* 16500ns at 12.5k */ 
+  {0x0410, 0x0204}, /* 16125ns at 100k */
+  {0x1E0F, 0x01FE}, /* 15937.5ns at 50k */
+  {0x1B0F, 0x01FB}, /* 15843.75ns at 25k */
+  {0x190F, 0x01F9} /* 15781.25ns at 12.5k */ 
 };
 
 /* Green LED - Integrator offset register val for {phase-1, phase2} chip */
 const uint16_t g_integ_offset_reg_val[NUM_TIA_GAINS][2] = {
-  {0x1010, 0x0210}, /* 16500ns at 200k */
-  {0x1010, 0x0210}, /* 16500ns at 100k */
-  {0x1010, 0x0210}, /* 16500ns at 50k */
-  {0x1010, 0x0210}, /* 16500ns at 25k */
-  {0x1010, 0x0210} /* 16500ns at 12.5k */
+  {0x1310, 0x0213}, /* 16593.75ns at 200k */
+  {0x0710, 0x0207}, /* 16218.75ns at 100k */
+  {0x1F0F, 0x01FF}, /* 15968.75ns at 50k */
+  {0x1B0F, 0x01FB}, /* 15843.75ns at 25k */
+  {0x1A0F, 0x01FA} /* 15812.5ns at 12.5k */
 };
 
 /* Blue LED integ. offeset for optimal zero crossing not avail.
 Hence, setting same Integ offset for all the diff. TIA gains */
 const uint16_t b_integ_offset_reg_val[NUM_TIA_GAINS][2] = {
-  {0x1010, 0x0210}, /* 16500ns at 200k */
-  {0x1010, 0x0210}, /* 16500ns at 100k */
-  {0x1010, 0x0210}, /* 16500ns at 50k */
-  {0x1010, 0x0210}, /* 16500ns at 25k */
-  {0x1010, 0x0210} /* 16500ns at 12.5k */
+  {0x1A0F, 0x01FA}, /* 15812.5ns at 200k */
+  {0x1A0F, 0x01FA}, /* 15812.5ns at 100k */
+  {0x1A0F, 0x01FA}, /* 15812.5ns at 50k */
+  {0x1A0F, 0x01FA}, /* 15812.5ns at 25k */
+  {0x1A0F, 0x01FA} /* 15812.5ns at 12.5k */
 };
+#endif
 
 /************************************************************************/
 
@@ -349,6 +355,7 @@ const uint8_t gan_lut_phase1_reg[128] =
 127,
 };
 
+#ifdef VSM_MBOARD
 /*!***************************************************************************
 *
 *  \brief       Setting Integrator offset
@@ -380,6 +387,7 @@ void set_integ_offset(uint8_t slot_id, uint8_t tia_gain_idx)
     Adpd400xDrvRegWrite(ADPD400x_REG_INTEG_OFFSET_A + g_agc_reg_base, b_integ_offset_reg_val[tia_gain_idx][dvt2]);
   }
 }
+#endif
 
 /*!****************************************************************************
 *
@@ -449,12 +457,22 @@ if(gn_agc_active_slots != 0)
     for(int slot = 0; slot <= gHighestSlotActive; slot++){
       if (gn_agc_active_slots & (0x01 << slot))
       {
+#ifdef CUST4_SM
+        if (new_reg_val[slot] > agc_up_threshold) {   //Checking condition for Maximum LED threshold value
+           new_reg_val[slot] = agc_up_threshold;
+        } if (new_reg_val[slot] < agc_low_threshold) {  // Checking condition for Minimum LED threshold value
+           new_reg_val[slot]= agc_low_threshold;
+        }                 
+#endif
         total_led_current = new_reg_val[slot];
         num_drivers = gNum_led_drivers[slot];
         if(num_drivers == 0)
         {
           return;
         }
+#ifdef CUST4_SM
+        total_led_current = get_Max_Led_Current(total_led_current,num_drivers);  //set Maximum LED current if total_led_current is out of the valid range.
+#endif    
         led_curr_per_driver = total_led_current / num_drivers;
         g_agc_reg_base = slot * ADPD400x_SLOT_BASE_ADDR_DIFF;
 
@@ -528,7 +546,9 @@ void set_TIA_gain(uint16_t *slot_ch1_i, uint16_t *slot_ch2_i){
   uint16_t nTIAgain = 0x0000;
   uint16_t nTsCtrl = 0x0000;
   uint8_t nCh2Enable = 0x00;
+#ifdef VSM_MBOARD
   uint8_t nTiaGainIdx = 0x00; /* Find idx of Min(CH1_TIA_GAIN, CH2_TIA_GAIN) */
+#endif
   if(gn_agc_active_slots != 0)
    {
     for(int slot = 0; slot <= gHighestSlotActive; slot++){
@@ -554,6 +574,7 @@ void set_TIA_gain(uint16_t *slot_ch1_i, uint16_t *slot_ch2_i){
           nTIAgain |= gAFE_Trim[slot] & BITM_AFE_TRIM_X_TIA_GAIN_CH2_X;
         }
         Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_agc_reg_base, nTIAgain);
+#ifdef VSM_MBOARD
         if(nCh2Enable)
         {
           /* get idx of lowest gain among ch1 and ch2,
@@ -567,6 +588,7 @@ void set_TIA_gain(uint16_t *slot_ch1_i, uint16_t *slot_ch2_i){
           /* set the integrator offset as per TIA gain */
           set_integ_offset(slot, slot_ch1_i[slot]);
         }
+#endif
 #ifdef TEST_AGC
         /* read the integrator offset */
         Adpd400xDrvRegRead(ADPD400x_REG_INTEG_OFFSET_A + g_agc_reg_base, &gInteg_offset[slot]);
@@ -663,7 +685,9 @@ void agc_init() {
   memset(&gInteg_offset[0], 0x00, sizeof(gInteg_offset));
   memset(&gInteg_offset_init[0], 0x00, sizeof(gInteg_offset_init));
 #endif
-
+#ifdef CUST4_SM
+    get_agc_led_current_threshold_from_user0_config_app_lcfg(&agc_up_threshold,&agc_low_threshold);    
+#endif
 #ifdef ENABLE_PPG_APP
 if(Ppg_Slot != 0)
   {
@@ -699,8 +723,11 @@ if(gn_agc_active_slots != 0){
       nRegValue = nRegValue & (~BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
       nRegValue |= (Init_gain & BITM_AFE_TRIM_X_TIA_GAIN_CH2_X);
       Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_A + g_agc_reg_base, nRegValue);
+
+#ifdef VSM_MBOARD
       /* set the integrator offset as per TIA gain */
       set_integ_offset(slot, Init_gain & BITM_AFE_TRIM_X_TIA_GAIN_CH1_X);/* ch1 and ch2 TIA gain is same */
+#endif
 
 #ifdef TEST_AGC
       /* take backup of TIA gain set during Init */
@@ -1066,3 +1093,32 @@ void get_agc_info(m2m2_adpd_agc_info_t *agc_info)
   agc_info->TIA_ch1_i = TIA_ch1_i[agc_info->led_index-1];
   agc_info->TIA_ch2_i = TIA_ch2_i[agc_info->led_index-1];
 }
+
+#ifdef CUST4_SM
+/*!****************************************************************************
+*
+*  \brief       Get Max LED Driver current if input current value is out of the valid range. 
+*
+*  \param[in]   led_current: this variable to get current led Value
+*
+*  \param[in]   num_drivers: this variable to get number LED drivers
+*
+*  \return      returning Maximum LED current based on LED drivers
+*****************************************************************************/
+
+uint16_t get_Max_Led_Current(uint16_t led_current,uint8_t num_drivers) {
+
+    if(num_drivers > 1)
+    {
+       if(led_current >= MAX_400MA_LED_REG_VAL){
+        led_current = MAX_400MA_LED_REG_VAL;
+      }
+    }
+    else{
+      if(led_current >= MAX_200MA_LED_REG_VAL){
+        led_current = MAX_200MA_LED_REG_VAL;
+      }
+    }
+   return led_current;
+}
+#endif

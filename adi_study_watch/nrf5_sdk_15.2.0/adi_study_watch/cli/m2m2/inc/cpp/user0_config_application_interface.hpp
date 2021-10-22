@@ -27,6 +27,10 @@ enum M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t:uint8_t {
   M2M2_USER0_CONFIG_APP_COMMAND_GET_STATE_RESP = 69,
   M2M2_USER0_CONFIG_APP_COMMAND_ID_OP_REQ = 70,
   M2M2_USER0_CONFIG_APP_COMMAND_ID_OP_RESP = 71,
+  M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_REQ = 72,
+  M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_RESP = 73,
+  M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_REQ = 74,
+  M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_RESP = 75,
 };
 static_assert(sizeof(M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t) == 1, "Enum 'M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t' has an incorrect size!");
 
@@ -51,6 +55,23 @@ enum USER0_CONFIG_APP_STATE_t:uint8_t {
   STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING = 9,
 };
 static_assert(sizeof(USER0_CONFIG_APP_STATE_t) == 1, "Enum 'USER0_CONFIG_APP_STATE_t' has an incorrect size!");
+
+enum USER0_CONFIG_APP_EVENT_t:uint8_t {
+  EVENT_INVALID = 0,
+  EVENT_NAV_BUTTON_RESET = 1,
+  EVENT_WATCH_ON_CRADLE_NAV_BUTTON_RESET = 2,
+  EVENT_BATTERY_DRAINED = 3,
+  EVENT_BLE_DISCONNECT_UNEXPECTED = 4,
+  EVENT_BLE_DISCONNECT_NW_TERMINATED = 5,
+  EVENT_WATCH_OFF_CRADLE_BLE_DISCONNECT_NW_TERMINATED = 6,
+  EVENT_RTC_TIMER_INTERRUPT = 7,
+  EVENT_BLE_ADV_TIMEOUT = 8,
+  EVENT_USB_DISCONNECT_UNEXPECTED = 9,
+  EVENT_BATTERY_FULL = 10,
+  EVENT_FINISH_LOG_TRANSFER = 11,
+  EVENT_WATCH_OFF_CRADLE_BLE_CONNECTION = 12,
+};
+static_assert(sizeof(USER0_CONFIG_APP_EVENT_t) == 1, "Enum 'USER0_CONFIG_APP_EVENT_t' has an incorrect size!");
 
 enum ID_SELECTION_ENUM_t:uint8_t {
   ID_HW_ID = 0,
@@ -95,6 +116,19 @@ struct user0_config_app_id_t {
   ID_SELECTION_ENUM_t  id_sel; 
   ID_OPERATION_MODE_ENUM_t  id_op; 
   uint16_t  id_num; 
+};
+
+struct user0_app_prev_state_event_t {
+  USER0_CONFIG_APP_STATE_t  prev_state; 
+  USER0_CONFIG_APP_EVENT_t  prev_event; 
+  uint32_t  prev_timestamp; 
+};
+
+struct user0_app_prev_state_event_pkt_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  user0_app_prev_state_event_t  prev_st_evt[4]; 
+  uint16_t  intermittent_op_cnt; 
 };
 
 // Reset struct packing outside of this file

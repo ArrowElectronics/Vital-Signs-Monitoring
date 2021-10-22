@@ -76,6 +76,7 @@
 #include <adpd4000_task.h>
 #include "display_app.h"
 #include "manufacture_date.h"
+
 /* System Task Module Log settings */
 #define NRF_LOG_MODULE_NAME System_Task
 
@@ -103,6 +104,7 @@ extern uint32_t ad5940_port_Init(void);
 extern uint32_t ad5940_port_deInit(void);
 extern bool ecg_get_dcb_present_flag(void);
 extern bool eda_get_dcb_present_flag(void);
+extern bool tempr_get_dcb_present_flag(void);
 extern void delete_low_touch_config_file();
 extern void load_default_low_touch_config();
 #ifdef USER0_CONFIG_APP
@@ -135,7 +137,8 @@ m2m2_pm_sys_info_t g_system_info = {
     0x0000,                               // hw_id
     0x0000,                               // bom_id
     0x00,                                 // batch_id
-    0x00000000};                          // date
+    0x00000000,                           // date
+    0x00};                                // board_type
 
 /*Battery-full charge level  */
 #define BATTERY_FULL_CHARGE_LEVEL 99U
@@ -262,6 +265,10 @@ uint8_t ConfigFileName[16] = "USER_CONFIG.LOG";
 
 /* State machine variables for ON/OFF wrist events */
 extern volatile LOW_TOUCH_DETECTION_STATUS_ENUM_t eCurDetection_State;
+
+#if defined(MEASURE_BLE_ADV_TIME) && defined(CUST4_SM)
+static volatile uint32_t gn_ble_ontime;
+#endif
 /*!
   ****************************************************************************
 *    @brief Sends Battery Level Alert Message to the Tool Registered
@@ -712,6 +719,27 @@ void LowTouchErr(void) {
   // Insert display code handling
   send_global_type_value(DIS_LOW_TOUCH_ALARM);//pop up low touch alarm.
   resume_key_and_lt_task();
+#endif
+#ifdef CUST4_SM
+  //Some error occured in Low touch logging
+  USER0_CONFIG_APP_STATE_t read_user0_config_app_state = get_user0_config_app_state();
+  if((read_user0_config_app_state ==
+      STATE_INTERMITTENT_MONITORING_START_LOG) ||
+     (read_user0_config_app_state ==
+     STATE_INTERMITTENT_MONITORING_STOP_LOG))
+  {
+    set_user0_config_app_state(STATE_INTERMITTENT_MONITORING);
+  }
+  if( (read_user0_config_app_state ==
+      STATE_INTERMITTENT_MONITORING_START_LOG) ||
+      (read_user0_config_app_state ==
+      STATE_INTERMITTENT_MONITORING_STOP_LOG) ||
+      (read_user0_config_app_state ==
+      STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING) )
+  {
+    //Turn on BLE
+    turn_on_BLE();
+  }
 #endif
 }
 
@@ -1701,6 +1729,11 @@ static void system_task(void *pArgument) {
           m2m2_pm_sys_info_t *system_info =
               (m2m2_pm_sys_info_t *)&response_mail->data[0];
 
+#ifdef VSM_MBOARD
+         g_system_info.board_type = ADI_PM_BOARD_TYPE_VSM_WATCH;
+#else
+         g_system_info.board_type = ADI_PM_BOARD_TYPE_STUDYWATCH;
+#endif
           /* copy system information from global system info */
           memcpy(
               system_info, (void *)&g_system_info, sizeof(m2m2_pm_sys_info_t));
@@ -2024,10 +2057,14 @@ static void system_task(void *pArgument) {
               adp5360_enable_ldo(ECG_LDO, true);
               DG2502_SW_control_AD8233(req1->sw_enable);
               dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_OK;
+              /* While disabling the switch, EPHYZ LDO needs to be turned OFF
+               via M2M2_PM_SYS_COMMAND_LDO_CNTRL_REQ m2m2 cmd */
+#if 0
               /*Turning LDO off only when we are disabling electrodes*/
               if(req1->sw_enable == 0x00) {
                 adp5360_enable_ldo(ECG_LDO, false);
               }
+#endif
             }
             else {
               /*TODO a better enum can be created to explain this error*/
@@ -2053,10 +2090,14 @@ static void system_task(void *pArgument) {
               adp5360_enable_ldo(ECG_LDO, true);
               DG2502_SW_control_AD5940(req1->sw_enable);
               dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_OK;
+              /* While disabling the switch, EPHYZ LDO needs to be turned OFF
+                via M2M2_PM_SYS_COMMAND_LDO_CNTRL_REQ m2m2 cmd */
+#if 0
               /*Turning LDO off only when we are disabling electrodes*/
               if(req1->sw_enable == 0x00) {
                 adp5360_enable_ldo(ECG_LDO, false);
               }
+#endif
             }
             else {
               /*TODO a better enum can be created to explain this error*/
@@ -2064,7 +2105,14 @@ static void system_task(void *pArgument) {
             }
             break;
           case M2M2_PM_SYS_DG2502_4K_SW:
+            if(req1->sw_enable == 0x01)
+            {
+              /* Turn ON EPHYZ LDO before enabling electrode switch for ADPDD4K */
+              adp5360_enable_ldo(ECG_LDO, true);
+            }
             DG2502_SW_control_ADPD4000(req1->sw_enable);
+            /* While disabling the switch, EPHYZ LDO needs to be turned OFF
+               via M2M2_PM_SYS_COMMAND_LDO_CNTRL_REQ m2m2 cmd */
             dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_OK;
             break;
           default:
@@ -2780,7 +2828,10 @@ static void system_task(void *pArgument) {
           resp->dcb_blk_array[ADI_DCB_USER0_BLOCK_IDX] =
               user0_blk_get_dcb_present_flag();
 #endif
-
+#ifdef ENABLE_TEMPERATURE_APP
+          resp->dcb_blk_array[ADI_DCB_TEMPERATURE_BLOCK_IDX] =
+              tempr_get_dcb_present_flag();
+#endif
           /*Send the response*/
           response_mail->dest = pkt->src;
           response_mail->src = pkt->dest;
@@ -2970,6 +3021,9 @@ static void system_task(void *pArgument) {
             {
               //Turn on BLE
               turn_on_BLE();
+#if defined(MEASURE_BLE_ADV_TIME) && defined(CUST4_SM)
+              gn_ble_ontime = get_micro_sec();
+#endif
             }
 #endif
 #ifdef DCB

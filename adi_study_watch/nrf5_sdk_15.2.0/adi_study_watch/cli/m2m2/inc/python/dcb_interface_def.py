@@ -7,6 +7,7 @@ from m2m2_core_def import *
 DCB_BLK_WORD_SZ = (4)
 MAXAD7156DCBSIZE = (20)
 MAXADPD4000DCBSIZE = (57)
+MAXTEMPRLCFGDCBSIZE = (57)
 MAXADXLDCBSIZE = (25)
 MAXBIADCBSIZE = (18)
 MAXECGDCBSIZE = (4)
@@ -16,6 +17,7 @@ MAXLTAPPLCFGDCBSIZE = (5)
 MAXPPGDCBSIZE = (56)
 MAXUSER0BLKDCBSIZE = (19)
 MAX_ADPD4000_DCB_PKTS = (4)
+MAX_TEMPRLCFG_DCB_PKTS = (2)
 MAX_GEN_BLK_DCB_PKTS = (18)
 
 class M2M2_DCB_COMMAND_ENUM_t(c_ubyte):
@@ -63,6 +65,16 @@ class m2m2_dcb_cmd_t(Structure):
               ]
 
 class m2m2_dcb_adpd4000_data_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("size", c_ushort),
+              ("num_of_pkts", c_ushort),
+              ("dcbdata", c_ulong * 57),
+              ]
+
+class m2m2_dcb_temperature_data_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("command", c_ubyte),

@@ -8,3 +8,7 @@ This file contains the newly added test commands in CLI2.
 6. ltAppTuning modified to add new LT mode 3 -> LT_APP_INTERMITTENT_TRIGGER
 7. exp_id
 8. hw_id
+
+Added from PERSEUS-895:
+9. clear_user0_prev_state_event
+10. get_user0_prev_state_event

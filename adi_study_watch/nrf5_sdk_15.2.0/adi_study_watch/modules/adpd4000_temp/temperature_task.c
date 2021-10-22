@@ -51,7 +51,7 @@ volatile uint8_t gb_adpd_raw_start_temp = 1; /* Flag to handle whether ADPD sens
 #ifdef EVTBOARD
 #include <temperature_task.h>
 #include "adpd400x_reg.h"
-
+#include <tempr_lcfg.h>
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
@@ -80,7 +80,13 @@ typedef struct _app_routing_table_entry_t {
 }app_routing_table_entry_t;
 
 /*------------------------------ Public Variable -----------------------------*/
-uint32_t  gnTemperature_Slot;
+/*! structure to hold the lcfg which is currently being used
+    It could be the default lcfg or from the temperature lcfg dcb */
+temperature_lcfg_t active_temperature_lcfg = {0}; 
+
+/*! structure to store temperature slots info*/
+tempr_slot_info_t tempr_slot_info[SLOT_NUM];
+
 #ifdef DEBUG_PKT
 uint32_t g_temp_pkt_cnt = 0;
 #endif
@@ -97,9 +103,11 @@ extern g_state_t g_state;
 extern slot_led_reg_t led_reg;
 extern uint8_t gsOneTimeValueWhenReadAdpdData;
 extern uint32_t gsTempSampleCount;
+extern adpd400xDrv_slot_t gsSlot[SLOT_NUM];
 extern uint16_t g_adpd_odr;
+extern const temperature_lcfg_t tempr_default_lcfg;
 /*------------------------------ Public Function Prototype ------------------ */
-extern void temperatureAppData (uint32_t *pData);
+extern void temperatureAppData (uint32_t *pData, uint8_t slot_index);
 extern uint16_t get_adpd_odr();
 extern void enable_ext_syncmode();
 extern void disable_ext_syncmode();
@@ -154,6 +162,25 @@ uint16_t gsTemperatureStarts;
 /* Variables for storing the adpd4k value for thermistor and cal-resistor slots */
 static uint32_t gsThermValue = 0, gsCalResValue = 0;
 
+/*
+  Each bit of this variable inidcates the presence/absence of thermistor in a given slot
+  0th bit - slot A; 1st bit - slot B and so on till slot L
+  1 - Thermistor is connected to the slot
+  0 - No thermistor is connected the slot 
+*/
+uint32_t g_therm_slot_en_bit_mask = 0;
+
+/* Variable to indicate the last thermistor slot selected */
+uint8_t g_last_thermistor_slot_index = 0;
+
+/* Array to store the thermistor's ADC values read from ADPD4K */
+static uint32_t thermistor_adc_val[SLOT_NUM];
+
+/* Variable to count the number of samples from ADPD4K */
+uint32_t num_thermistor_samples = 0;
+
+extern adpd400xDrv_slot_t gsSlot[SLOT_NUM];
+
 /*------------------------ Private Function Prototype -----------------------*/
 static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *temperature_app_status(m2m2_hdr_t *p_pkt);
@@ -168,7 +195,15 @@ app_routing_table_entry_t temperature_app_routing_table[] = {
   {M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ, temperature_app_stream_config},
   {M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_REQ, temperature_app_stream_config},
   {M2M2_APP_COMMON_CMD_SENSOR_STATUS_QUERY_REQ, temperature_app_status},
-  {M2M2_SENSOR_COMMON_CMD_GET_DCFG_REQ, adpd_app_get_dcfg}
+  {M2M2_SENSOR_COMMON_CMD_GET_DCFG_REQ, adpd_app_get_dcfg},
+  {M2M2_APP_COMMON_CMD_READ_LCFG_REQ, temperature_app_lcfg_access},
+  {M2M2_APP_COMMON_CMD_WRITE_LCFG_REQ, temperature_app_lcfg_access},
+#ifdef DCB
+    {M2M2_APP_COMMON_CMD_SET_LCFG_REQ, tempr_app_set_dcb_lcfg},
+    {M2M2_DCB_COMMAND_READ_CONFIG_REQ, tempr_dcb_command_read_config},
+    {M2M2_DCB_COMMAND_WRITE_CONFIG_REQ, tempr_dcb_command_write_config},
+    {M2M2_DCB_COMMAND_ERASE_CONFIG_REQ, tempr_dcb_command_delete_config},
+#endif
 };
 
 #ifdef USER0_CONFIG_APP
@@ -180,8 +215,32 @@ static void temp_timer_start(void);
 static void temp_timer_stop(void);
 static void temp_timeout_handler(void * p_context);
 void start_temp_app_timer();
-static user0_config_app_timing_params_t temp_app_timings = {0};
+user0_config_app_timing_params_t temp_app_timings = {0};
 #endif
+
+
+/*!***********************************************************************************
+* \brief      Get the slot index of the last thermistor/cal resistor slot enabled
+*             This will be used to identify one complete cycle of ADC measurement for
+*             different thermistors connected to ADPD4K
+*
+* \param[in]  None
+*
+* \return     returns slot index of the last thermistor/cal resistor slot enabled
+**************************************************************************************/
+uint8_t get_last_thermistor_slot_index_enabled(void)
+{
+  uint8_t i = 0;
+  for( i=(SLOT_NUM-1); i>=0; i--)
+  {
+    if(active_temperature_lcfg.slots_selected & ( 1 << i))
+    {
+        return i;
+    }
+
+  }
+}
+
 /*!****************************************************************************
  * \brief Get ADPD4k DCFG
  *
@@ -257,6 +316,8 @@ static m2m2_hdr_t *adpd_app_get_dcfg(m2m2_hdr_t *p_pkt) {
 * \return     p_resp_pkt: Pointer to the output response m2m2 packet structure
 */
 static m2m2_hdr_t *temperature_app_status(m2m2_hdr_t *p_pkt) {
+  /* Declare a pointer to access the input packet payload */
+  PYLD_CST(p_pkt, m2m2_app_common_status_t, p_in_payload);
   /* Declare and malloc a response packet */
   PKT_MALLOC(p_resp_pkt, m2m2_app_common_status_t, 0);
   if(NULL != p_resp_pkt)
@@ -272,8 +333,10 @@ static m2m2_hdr_t *temperature_app_status(m2m2_hdr_t *p_pkt) {
     } else {
       p_resp_payload->status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
     }
-    p_resp_payload->stream = M2M2_ADDR_MED_TEMPERATURE_STREAM;
-    p_resp_payload->num_subscribers = gsTemperatureSubscribers;
+    uint8_t slot_num;
+    slot_num = p_in_payload->stream - M2M2_ADDR_MED_TEMPERATURE_STREAM1;    
+    p_resp_payload->stream = p_in_payload->stream;
+    p_resp_payload->num_subscribers = tempr_slot_info[slot_num].num_subs;
     p_resp_payload->num_start_reqs = gsTemperatureStarts;
     p_resp_pkt->src = p_pkt->dest;
     p_resp_pkt->dest = p_pkt->src;
@@ -295,7 +358,7 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
   /*Keeping nRetCode as success by default, to handle else part
     of if(!temp_app_timings.delayed_start) */
   int16_t nRetCode = ADPD400xDrv_SUCCESS;
-
+  uint8_t slot_num;
   /* Declare a pointer to access the input packet payload */
   PYLD_CST(p_pkt, m2m2_app_common_sub_op_t, p_in_payload);
   /* Declare and malloc a response packet */
@@ -363,7 +426,13 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
         g_state.num_starts = 1;
         gb_adpd_raw_start_temp = 0;
         gsTemperatureStarts = 1;
+        num_thermistor_samples = 0;
+        g_last_thermistor_slot_index = get_last_thermistor_slot_index_enabled();
+#ifdef CUST4_SM
+        gsTempSampleCount = (gsSlot[ADPD400xDrv_SLOTD].odr - 1);
+#else
         gsTempSampleCount = 0;
+#endif
         status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
       }
       else
@@ -377,7 +446,11 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       gsTemperatureStarts++;
       if(gsTemperatureStarts == 1)
       {
+#ifdef CUST4_SM
+      gsTempSampleCount = (gsSlot[ADPD400xDrv_SLOTD].odr - 1);
+#else
       gsTempSampleCount = 0;
+#endif
       status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
 #ifdef USER0_CONFIG_APP
       get_temp_app_timings_from_user0_config_app_lcfg(&temp_app_timings.start_time,\
@@ -475,33 +548,73 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       /* reset pkt sequence no. only during 1st sub request */
       gsTemperatureSeqNum = 0;
     }
+
+    if(p_in_payload->stream == M2M2_ADDR_MED_TEMPERATURE_STREAM || p_in_payload->stream == M2M2_ADDR_MED_TEMPERATURE_STREAM4)
+    {
+        slot_num = E_THERMISTOR_SLOT_D;
+        post_office_setup_subscriber(
+            M2M2_ADDR_MED_TEMPERATURE, M2M2_ADDR_MED_TEMPERATURE_STREAM, p_pkt->src, true);
+
+    }
+    else
+    {
+        slot_num = p_in_payload->stream - M2M2_ADDR_MED_TEMPERATURE_STREAM1;
+        post_office_setup_subscriber(
+            M2M2_ADDR_MED_TEMPERATURE, p_in_payload->stream, p_pkt->src, true);
+    }
+    
+    tempr_slot_info[slot_num].num_subs++;
+    if (tempr_slot_info[slot_num].num_subs == 1)
+      tempr_slot_info[slot_num].seq_num = 0;
+
 #ifdef SLOT_SELECT
     if(check_temp_slot_set == false)
     {
-      gnTemperature_Slot = 0x08; /* slot-D */
+      g_therm_slot_en_bit_mask = 0x18; /* slot-D & E */
     }
     else
     {
     check_temp_slot_set = false;
     }
 #else
-      gnTemperature_Slot = 0x08; /* slot-D */
+      g_therm_slot_en_bit_mask = active_temperature_lcfg.slots_selected;
 #endif
     /* post_office_setup_subscriber(M2M2_ADDR_SENSOR_ADPD, M2M2_ADDR_SENSOR_ADPD_STREAM, p_pkt->src, true); */
-    post_office_setup_subscriber(M2M2_ADDR_MED_TEMPERATURE,M2M2_ADDR_MED_TEMPERATURE_STREAM, p_pkt->src, true);
+//    post_office_setup_subscriber(M2M2_ADDR_MED_TEMPERATURE,M2M2_ADDR_MED_TEMPERATURE_STREAM, p_pkt->src, true);
     status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
     command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;
     break;
   case M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_REQ:
     if (gsTemperatureSubscribers <= 1) {
       gsTemperatureSubscribers = 0;
-      gnTemperature_Slot = 0;
-      status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
+      g_therm_slot_en_bit_mask = 0;
+//      status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
     } else {
       gsTemperatureSubscribers--;
+//      status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
+    }
+
+    if(p_in_payload->stream == M2M2_ADDR_MED_TEMPERATURE_STREAM || p_in_payload->stream == M2M2_ADDR_MED_TEMPERATURE_STREAM4)
+    {
+        slot_num = E_THERMISTOR_SLOT_D;
+        post_office_setup_subscriber(M2M2_ADDR_MED_TEMPERATURE, M2M2_ADDR_MED_TEMPERATURE_STREAM, p_pkt->src, false);
+    }
+    else
+    {
+        slot_num = p_in_payload->stream - M2M2_ADDR_MED_TEMPERATURE_STREAM1;    
+        post_office_setup_subscriber(M2M2_ADDR_MED_TEMPERATURE, p_in_payload->stream, p_pkt->src, false);
+    }
+
+    if (tempr_slot_info[slot_num].num_subs <= 1)
+    {
+      tempr_slot_info[slot_num].num_subs = 0;
+      status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
+    }
+    else
+    {
+      tempr_slot_info[slot_num].num_subs--;
       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
     }
-    post_office_setup_subscriber(M2M2_ADDR_MED_TEMPERATURE, M2M2_ADDR_MED_TEMPERATURE_STREAM, p_pkt->src, false);
     command = M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP;
     break;
   default:
@@ -709,7 +822,15 @@ void temperature_app_task_init(void) {
   }
 
   adi_osal_SemCreate(&temperature_app_task_evt_sem, 0);
-  post_office_add_mailbox(M2M2_ADDR_MED_TEMPERATURE, M2M2_ADDR_MED_TEMPERATURE_STREAM);
+  
+  for (uint8_t slot_num = 0; slot_num < SLOT_NUM; slot_num++) {
+    if( slot_num == E_THERMISTOR_SLOT_D)
+        post_office_add_mailbox(M2M2_ADDR_MED_TEMPERATURE, M2M2_ADDR_MED_TEMPERATURE_STREAM);
+    else
+        post_office_add_mailbox(M2M2_ADDR_MED_TEMPERATURE,
+            (M2M2_ADDR_ENUM_t)(M2M2_ADDR_MED_TEMPERATURE_STREAM1 + slot_num));
+  }
+
 }
 
  /* Temperature sensor sampling period in terms of os ticks;
@@ -729,6 +850,18 @@ static void temperature_app_task(void *pArgument) {
 #ifdef USER0_CONFIG_APP
   temp_timer_init();
 #endif
+
+  /*load the lcfg structure from dcb if present else copy the default lcfg*/
+  if (tempr_get_dcb_present_flag() == true) {
+    /*! dcb present, so read the lcfg from dcb and load the lcfg structure */
+    load_tempr_lcfg_from_dcb();
+  }
+  else
+  {
+    /*! dcb not present, so load the lcfg structure with default values */
+    memcpy((uint8_t *)&active_temperature_lcfg,(uint8_t *)&tempr_default_lcfg,sizeof(active_temperature_lcfg));
+  }
+
   while (1)
   {
       m2m2_hdr_t *p_in_pkt = NULL;
@@ -756,7 +889,7 @@ static void temperature_app_task(void *pArgument) {
   }
 }
 
-/*!****************************************************************************
+/*!*****************************************************************************************
 * \brief  Calculates the temperature value from the input data
 *
 * \param[in]  pTherm: pointer to the ADPD4K value obtained from thermistor slot
@@ -764,7 +897,58 @@ static void temperature_app_task(void *pArgument) {
 *
 * \return if SUCCESS : nTempResult - Temperature value computed
 *         if FAILURE : -1
-*/
+*******************************************************************************************/
+#if 1
+uint32_t getTemperature(uint8_t slot_index, uint8_t lut_index)
+{
+  uint32_t thermistor_val = 0, cal_res_val = 0;
+  cal_res_val = thermistor_adc_val[E_CAL_RES_SLOT_E] - ADC_DARK_OFFSET;
+  thermistor_val = thermistor_adc_val[slot_index] - ADC_DARK_OFFSET;
+  /* Calculate the pulse volatge applied to cal-resistor and thermistor in nV */
+  gsPulseVtg = (CAL_RESISTANCE * (ADC_RESOLUTION * cal_res_val));
+  gsPulseVtg = gsPulseVtg/ADC_RESOLUTION;
+  /*  Resistance in ohm as vtg is in nV and current is in nA */
+  gsResistance = (gsPulseVtg / thermistor_val);
+
+  uint8_t loopCnt = 0;
+  uint32_t nDiffRes = 0, nDeltaResPerDegree = 0, nDeltaRes = 0,nTempResult = 0;
+  
+  while(loopCnt<LUT_STEP_CNT)
+  {
+    if(gsResistance <= active_temperature_lcfg.T_I_curve_LUT[lut_index][LUT_STEP_CNT-1])
+    {
+        /* return max_temperature_value that is 20*5 = 100 */
+        return((LUT_STEP_CNT-1)*LUT_STEP_SIZE);
+    }
+    else if(gsResistance >= active_temperature_lcfg.T_I_curve_LUT[lut_index][0])
+    {
+         /* return the min temperature value that is zero */
+        return(0);
+    }
+    else
+    {
+        /* calculate temperature value here */
+        if(gsResistance < active_temperature_lcfg.T_I_curve_LUT[lut_index][loopCnt])
+        {
+          loopCnt++;
+        }
+        else
+        {
+          /* The highest Temperature range it belongs to */
+          nTempResult = loopCnt * LUT_STEP_SIZE;
+          /*Fine tune the Temperature value*/
+          nDiffRes = active_temperature_lcfg.T_I_curve_LUT[lut_index][loopCnt-1] - active_temperature_lcfg.T_I_curve_LUT[lut_index][loopCnt];  /* Find the temperature difference in this resistance block */
+          nDeltaResPerDegree = nDiffRes/LUT_STEP_SIZE;
+          nDeltaRes = (uint32_t) gsResistance - active_temperature_lcfg.T_I_curve_LUT[lut_index][loopCnt];
+          nTempResult = (nTempResult * TEMPERATURE_SCALING_FACTOR) - ((nDeltaRes * TEMPERATURE_SCALING_FACTOR)/nDeltaResPerDegree); /* Fine tuned the temperature value */
+          if(nTempResult >= TEMPERATURE_MAX_VALUE)
+            nTempResult = TEMPERATURE_MAX_VALUE;
+          return(nTempResult);
+        }
+    }
+  }
+}
+#else
 uint32_t getTemperature(uint32_t *pTherm, uint32_t *pRefVal)
 {
 
@@ -829,6 +1013,7 @@ return -1;
   }
 #endif /*LUT_METHOD */
 }
+#endif
 
 /*!****************************************************************************
 * \brief  Computes the temperature data and does the data packetization
@@ -836,7 +1021,7 @@ return -1;
 * \param[in]  None
 *
 * \return     None
-*/
+*******************************************************************************/
 void fetch_temperature_data()
 {
   m2m2_hdr_t *p_pkt = NULL;
@@ -849,48 +1034,78 @@ void fetch_temperature_data()
 #endif //USER0_CONFIG_APP
   if(gsTemperatureSubscribers > 0)
   {
-    resp_temperature.command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
-    resp_temperature.sequence_num = gsTemperatureSeqNum++;
-    resp_temperature.status = M2M2_APP_COMMON_STATUS_OK;
-    resp_temperature.nTS = get_sensor_time_stamp();
-    resp_temperature.nTemperature2 = (uint16_t)(gsResistance/100);  /*Resistance measured in 100's of ohms*/
-    resp_temperature.nTemperature1 = getTemperature(&gsThermValue,&gsCalResValue);
-    adi_osal_EnterCriticalRegion();
-    p_pkt = post_office_create_msg(sizeof(temperature_app_stream_t) + M2M2_HEADER_SZ);
-    if(p_pkt != NULL)
+    uint8_t lut_index = 0;
+    for(uint8_t s_index = 0; s_index < SLOT_NUM; s_index++)
     {
+      if((active_temperature_lcfg.slots_selected & (1 << s_index)) && s_index != E_CAL_RES_SLOT_E)
+      {
+        if(tempr_slot_info[s_index].num_subs != 0) /* Check if the stream is subscribed*/
+        {
+          resp_temperature.command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
+          resp_temperature.sequence_num = tempr_slot_info[s_index].seq_num++;
+          resp_temperature.status = M2M2_APP_COMMON_STATUS_OK;
+          resp_temperature.nTS = get_sensor_time_stamp();
+          tempr_slot_info[s_index].res = gsResistance;
+          resp_temperature.nTemperature1 = getTemperature(s_index,lut_index);
+          tempr_slot_info[s_index].tempr = resp_temperature.nTemperature1;
+          resp_temperature.nTemperature2 = (uint16_t)(gsResistance/100);  /*Resistance measured in 100's of ohms*/
+          adi_osal_EnterCriticalRegion();
+          lut_index++;
+          p_pkt = post_office_create_msg(sizeof(temperature_app_stream_t) + M2M2_HEADER_SZ);
+          if(p_pkt != NULL)
+          {
 #ifdef DEBUG_PKT
-    g_temp_pkt_cnt++;
+            g_temp_pkt_cnt++;
 #endif
-    p_pkt->src = M2M2_ADDR_MED_TEMPERATURE;
-    p_pkt->dest = M2M2_ADDR_MED_TEMPERATURE_STREAM;
-    p_pkt->length = M2M2_HEADER_SZ + sizeof(temperature_app_stream_t);
-    memcpy(&p_pkt->data[0], &resp_temperature,  sizeof(temperature_app_stream_t));
+            p_pkt->src = M2M2_ADDR_MED_TEMPERATURE;
+      
+            /*for slot D, keep the legacy stream ID*/
+            if(s_index == E_THERMISTOR_SLOT_D)
+              p_pkt->dest = M2M2_ADDR_MED_TEMPERATURE_STREAM;
+            else
+              p_pkt->dest = M2M2_ADDR_MED_TEMPERATURE_STREAM1 + s_index;
+
+            p_pkt->length = M2M2_HEADER_SZ + sizeof(temperature_app_stream_t);
+            memcpy(&p_pkt->data[0], &resp_temperature,  sizeof(temperature_app_stream_t));
 #ifdef DEBUG_PKT
-    post_office_msg_cnt(p_pkt);
+            post_office_msg_cnt(p_pkt);
 #endif
-    post_office_send(p_pkt,&err);
-    p_pkt = NULL;
+            post_office_send(p_pkt,&err);
+            p_pkt = NULL;
+          }
+          adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
+        }
+      }
     }
-    adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
   }
 #ifdef USER0_CONFIG_APP
   }
 #endif//USER0_CONFIG_APP
 }
 
-/*!****************************************************************************
-* \brief  updates the adpd4k data from Thermistor and cal-resistor slots
-*         to the global static varaibles used for computing temperature value
+/*!*******************************************************************************
+* \brief      Updates the adpd4k data from Thermistor and cal-resistor slots
+*             to the global static array used for computing temperature value
 *
-* \param[in]  None
+* \param[in]  pData : pointer to the 32bit ADPD4K data from a slot
+*
+* \param[in]  slot_index : indicates the slot to which the data belongs to
 *
 * \return     None
-*/
-void temperatureAppData (uint32_t *pData) {
-    gsThermValue = pData[0];
-    gsCalResValue = pData[1];
-    adi_osal_SemPost(temperature_app_task_evt_sem);
+**********************************************************************************/
+void temperatureAppData (uint32_t *pData, uint8_t slot_index) {
+
+  if((active_temperature_lcfg.slots_selected & (1 << slot_index)))
+    thermistor_adc_val[slot_index] = *pData;
+  /* when the last thermistor's data is read from ADPD4K,trigger temperature app */
+  if(slot_index == g_last_thermistor_slot_index)
+  {
+      if(num_thermistor_samples++ >= gsSlot[E_CAL_RES_SLOT_E].odr * active_temperature_lcfg.sample_period)
+      {
+          num_thermistor_samples = 0;
+          adi_osal_SemPost(temperature_app_task_evt_sem);
+      }
+  }
 }
 #endif
 #endif//ENABLE_TEMPERATURE_APP

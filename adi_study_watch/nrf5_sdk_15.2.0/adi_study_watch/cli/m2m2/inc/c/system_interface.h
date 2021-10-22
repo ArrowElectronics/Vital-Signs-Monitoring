@@ -237,6 +237,8 @@ typedef enum ADI_PM_BOARD_TYPE_t {
   ADI_PM_BOARD_TYPE_ADPD107_CHEST_STRAP = 2,
   ADI_PM_BOARD_TYPE_ADPD185_WATCH = 3,
   ADI_PM_BOARD_TYPE_ADPD188_WATCH = 4,
+  ADI_PM_BOARD_TYPE_STUDYWATCH = 5,
+  ADI_PM_BOARD_TYPE_VSM_WATCH = 6, /* VSM_MB_SB */
 } ADI_PM_BOARD_TYPE_t;
 STATIC_ASSERT_PROJ(sizeof(ADI_PM_BOARD_TYPE_t) == 1, INCORRECT_SIZE_ADI_PM_BOARD_TYPE_t);
 
@@ -267,7 +269,7 @@ typedef struct _m2m2_pm_sys_info_t {
   uint16_t  bom_id; 
   uint8_t  batch_id; 
   uint32_t  date; 
-  ADI_PM_BOARD_TYPE_t  board_type; 
+  ADI_PM_BOARD_TYPE_t board_type; 
 } m2m2_pm_sys_info_t;
 
 typedef struct _m2m2_pm_sys_date_time_req_t {

@@ -20,6 +20,13 @@ class M2M2_BIA_APP_CMD_ENUM_t(c_ubyte):
     M2M2_APP_COMMON_CMD_DCB_TIMING_INFO_REQ = 0x4C
     M2M2_APP_COMMON_CMD_DCB_TIMING_INFO_RESP = 0x4D
     M2M2_BCM_APP_CMD_ALGO_STREAM_RESP = 0x4E
+    M2M2_BIA_APP_CMD_LOAD_DCFG_REQ = 0x4F
+    M2M2_BIA_APP_CMD_LOAD_DCFG_RESP = 0x50
+    M2M2_BIA_APP_COMMON_CMD_WRITE_DCFG_REQ = 0x51
+    M2M2_BIA_APP_COMMON_CMD_WRITE_DCFG_RESP = 0x52
+    M2M2_BIA_APP_COMMON_CMD_READ_DCFG_REQ = 0x53
+    M2M2_BIA_APP_COMMON_CMD_READ_DCFG_RESP = 0x54
+
 
 class M2M2_SENSOR_BIA_NSAMPLES_ENUM_t(c_ubyte):
     M2M2_SENSOR_BIA_NSAMPLES = 0x4
@@ -61,6 +68,24 @@ class bia_app_lcfg_op_t(Structure):
               ("field", c_ubyte),
               ("value", c_float),
               ]
+
+class bia_app_dcfg_op_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("field", c_ulong),
+              ("value", c_ulong),
+              ]
+
+def bia_app_dcfg_op_hdr_t(array_size):
+  class bia_app_dcfg_op_hdr_t_internal(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("num_ops", c_ubyte),
+              ("ops", bia_app_dcfg_op_t * array_size),
+              ]
+  return bia_app_dcfg_op_hdr_t_internal()
 
 class bia_app_dcb_lcfg_t(Structure):
     _pack_ = 1

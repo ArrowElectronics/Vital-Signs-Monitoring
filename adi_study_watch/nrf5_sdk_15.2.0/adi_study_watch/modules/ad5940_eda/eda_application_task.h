@@ -19,7 +19,6 @@ Analog Devices Software License Agreement.
 #include "stdio.h"
 #include "string.h"
 #include "math.h"
-#include "eda_application_interface.h"
 #include "task_includes.h"
 #include "post_office.h"
 #include "ad5940.h"
@@ -138,20 +137,53 @@ typedef struct
 }AppEDACfg_Type;
 
 /* Common application control message */
-#define APPCTRL_START          0      /**< Start the measurement by starting Wakeup Timer */
-#define APPCTRL_STOPNOW        1      /**< Stop immediately by stop Wakeup Timer*/
-#define APPCTRL_STOPSYNC       2      /**< Stop the measurement when interrupt occured */
-#define APPCTRL_SHUTDOWN       3      /**< Note: shutdown here means turn off everything and put AFE to hibernate mode. The word 'SHUT DOWN' is only used here. */
-#define APPCTRL_RUNNING        4      /**< Is application running? */
+#define APPCTRL_START                     0      /**< Start the measurement by starting Wakeup Timer */
+#define APPCTRL_STOPNOW                   1      /**< Stop immediately by stop Wakeup Timer*/
+#define APPCTRL_STOPSYNC                  2      /**< Stop the measurement when interrupt occured */
+#define APPCTRL_SHUTDOWN                  3      /**< Note: shutdown here means turn off everything and put AFE to hibernate mode. The word 'SHUT DOWN' is only used here. */
+#define APPCTRL_RUNNING                   4      /**< Is application running? */
 
-#define EDACTRL_MEASVOLT       100    /**< Measure Exciation voltage now */
-#define EDACTRL_GETRTIAMAG     101    /**< Get the rtia magnitude for current measured data */
+#define EDACTRL_MEASVOLT                  100    /**< Measure Exciation voltage now */
+#define EDACTRL_GETRTIAMAG                101    /**< Get the rtia magnitude for current measured data */
 
-#define EDACTRL_RSTBASE        102    /**< Reset base line of EDA result. */
-#define EDACTRL_SETBASE        103    /**< Set base line of EDA result */
-#define EDACTRL_GETAVR         104    /**< Get average value of all measured impedance */
-#define EDACTRL_STATUS         105    /**< Get if EDA is running. */
-#define MAX_NUM_OF_FFT_POINTS 4
+#define EDACTRL_RSTBASE                   102    /**< Reset base line of EDA result. */
+#define EDACTRL_SETBASE                   103    /**< Set base line of EDA result */
+#define EDACTRL_GETAVR                    104    /**< Get average value of all measured impedance */
+#define EDACTRL_STATUS                    105    /**< Get if EDA is running. */
+
+/* application related macros */
+#define MAX_NUM_OF_FFT_POINTS             4
+
+#ifdef EDA_DCFG_ENABLE
+
+#define MAX_DEFAULT_DCFG_REGISTER_NUM     150
+#define MAX_USER_CONFIG_REGISTER_NUM      20
+#define SAVE_PATCH_CURRENT_VOLTAGE_SETTINGS_START_INDEX 3
+
+#define SEQMEASRMT_LOOP_DEFAULT_REGISTERS_SIZE 6
+#define SEQMEASRMT_LOOP_TOTAL_REGISTERS_SIZE 10
+
+/* Register addresses to be configured as macros */
+#define FIFO_CONFIGURATION_REGISTER                                                       0x000021D8
+#define FIFO_SRC_CONFIGURATION_REGISTER                                                   0x00002008
+#define INTERRUPT_CONTROLLER_SELECT_ZERO_REGISTER                                         0x00003008
+#define INTERRUPT_CONTROLLER_SELECT_ONE_REGISTER                                          0x0000300C
+#define LOW_POWER_DAC_CONFIGURATION_REGISTER                                              0x00002128
+#define ADC_PGA_GAIN_CONFIGURATION_REGISTER                                               0x000021A8
+#define FILTER_CONFIGURATION_REGISTER                                                     0x00002044
+#define DFT_CONFIGURATION_REGISTER                                                        0x000020D0
+#define GPIO_CONTROL_CONFIGURATION_REGISTER                                               0x00002054
+#define LOW_POWER_TIA_CONFIGURATION_REGISTER                                              0x000020EC
+#define POWER_DOWN_CONFIGURATION_REGISTER                                                 0x00002114
+
+typedef enum {
+  AD5940_DCFG_STATUS_OK = 0,
+  AD5940_DCFG_STATUS_NULL_PTR,
+  AD5940_DCFG_STATUS_ERR,
+} AD5940_DCFG_STATUS_t;
+
+#define MAX_DCFG_COMBINED 3
+#endif
 
 /* Error message */
 #define EDAERR_ERROR            AD5940ERR_APPERROR    /**< General error */
@@ -177,7 +209,15 @@ AD5940Err AppEDADataProcess(int32_t * const pData, uint32_t *pDataCount);
 void ad5940_eda_start(void);
 AD5940Err AppEDASeqCfgGen(void) ;
 AD5940Err AppEDASeqMeasureGen(void);
-uint32_t EDARtiaAutoScaling(
-    fImpCar_Type *const pImpedance, uint32_t uiDataCount);
+uint32_t EDARtiaAutoScaling(fImpCar_Type *const pImpedance, uint32_t uiDataCount);
+
+#ifdef EDA_DCFG_ENABLE
+void load_ad5940_default_config(uint64_t *cfg);
+AD5940_DCFG_STATUS_t write_ad5940_init();
+AD5940_DCFG_STATUS_t write_ad5940_seqcfg();
+AD5940_DCFG_STATUS_t write_ad5940_seqmeasurement();
+uint8_t mapaddrind(uint32_t *address);
+uint8_t mapuserind(uint8_t *userind);
+#endif//EDA_DCFG_ENABLE
 
 #endif

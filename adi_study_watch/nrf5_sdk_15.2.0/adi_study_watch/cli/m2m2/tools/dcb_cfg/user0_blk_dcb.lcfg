@@ -26,20 +26,20 @@
 000249F0    #hex value; USER0_CONFIG_LCFG_SIGNAL_THRESHOLD = 0x12      #AD threshold for determining light intensity and TIA gain with static AGC - 4byte, Setting range: 1-(2^(14-1)*127), Increment: 1, Unit: LSB
 
 ##########################
-#EDA_Start_delay = 6 secs - this is the eda application inherent start delay
+#EDA_start_delay = 8 secs - this is the eda application inherent start delay
 #Some considerations for making Temp as block1 log, EDA, ADPD, ADXL as block2 log for intermittent operation:
 # -USER0_CONFIG_LCFG_EDA_START_TIME = USER0_CONFIG_LCFG_TEMP_START_TIME + USER0_CONFIG_LCFG_TEMP_TON
-# -USER0_CONFIG_LCFG_EDA_TON = EDA tON required + EDA_Start_delay + 1
+# -USER0_CONFIG_LCFG_EDA_TON = EDA tON required + EDA_start_delay
 # 
-# -USER0_CONFIG_LCFG_ADPD_START_TIME = USER0_CONFIG_LCFG_TEMP_START_TIME + USER0_CONFIG_LCFG_TEMP_TON + EDA_Start_delay + 1
+# -USER0_CONFIG_LCFG_ADPD_START_TIME = USER0_CONFIG_LCFG_TEMP_START_TIME + USER0_CONFIG_LCFG_TEMP_TON + EDA_start_delay
 # -USER0_CONFIG_LCFG_ADPD_TON = ADPD tON required
 #
 # -Same as ADPD for ADXL
 #
 #Eg 1: if temp.start_time = 1, temp.tON=10
-#eda.start_time is to be after temp, eda.tON required=20sec, then USER0_CONFIG_LCFG_EDA_START_TIME = 11, USER0_CONFIG_LCFG_EDA_TON = 27
-#adpd.start_time is to be after temp, adpd.tON required=20sec, then USER0_CONFIG_LCFG_ADPD_START_TIME = 18, USER0_CONFIG_LCFG_ADPD_TON = 20
+#eda.start_time is to be after temp, eda.tON required=20sec, then USER0_CONFIG_LCFG_EDA_START_TIME = 11, USER0_CONFIG_LCFG_EDA_TON = 28
+#adpd.start_time is to be after temp, adpd.tON required=20sec, then USER0_CONFIG_LCFG_ADPD_START_TIME = 19, USER0_CONFIG_LCFG_ADPD_TON = 20
 #Eg 2: if temp.start_time = 1, temp.tON=10
-#eda.start_time is to be after temp,  eda.tON required=60sec, then USER0_CONFIG_LCFG_EDA_START_TIME = 11, USER0_CONFIG_LCFG_EDA_TON = 67
-#adpd.start_time is to be after temp, adpd.tON required=60sec, then USER0_CONFIG_LCFG_ADPD_START_TIME = 18, USER0_CONFIG_LCFG_ADPD_TON = 60
+#eda.start_time is to be after temp,  eda.tON required=60sec, then USER0_CONFIG_LCFG_EDA_START_TIME = 11, USER0_CONFIG_LCFG_EDA_TON = 68
+#adpd.start_time is to be after temp, adpd.tON required=60sec, then USER0_CONFIG_LCFG_ADPD_START_TIME = 19, USER0_CONFIG_LCFG_ADPD_TON = 60
 ##########################

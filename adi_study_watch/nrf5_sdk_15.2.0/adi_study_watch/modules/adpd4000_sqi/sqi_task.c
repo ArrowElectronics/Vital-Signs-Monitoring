@@ -431,6 +431,7 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
     else if (g_state_sqi.nStreamStartCount == 1)
     {
         ret_code = SqiAlgReset();
+        gnSQI_Slot = 0;
         g_state_sqi.nStreamStartCount = 0;
         g_state_sqi.nSQIODR = 0;
         g_state_sqi.nRequiredSamples = 0;
@@ -463,7 +464,6 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
     if (g_state_sqi.nSubscriberCount <= 1)
     {
       sqi_event = 0;
-      gnSQI_Slot = 0;
       g_state_sqi.nSubscriberCount = 0;
       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
     }

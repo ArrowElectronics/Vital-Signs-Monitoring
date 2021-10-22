@@ -74,6 +74,9 @@ extern uint8_t measurement_cycle_completed;
 extern uint8_t init_flag;
 extern uint32_t ResistorForBaseline;
 extern uint32_t AppBuff[APPBUFF_SIZE];
+#ifdef EDA_DCFG_ENABLE
+extern uint8_t eda_load_applied_dcfg;
+#endif
 #ifndef EXTERNAL_TRIGGER_EDA
 uint32_t ad5940_port_Init(void);
 #endif
@@ -229,6 +232,9 @@ AD5940Err AppEDASeqCfgGen(void) {
   SWMatrixCfg_Type sw_cfg;
 
   AD5940_SEQGenCtrl(bTRUE);
+#ifdef EDA_DCFG_ENABLE
+  write_ad5940_seqcfg();
+#else
   /* Sequence starts here */
   AD5940_SEQGpioCtrlS(AGPIO_Pin6 | AGPIO_Pin1);
   AD5940_StructInit(&aferef_cfg, sizeof(aferef_cfg));
@@ -276,6 +282,7 @@ AD5940Err AppEDASeqCfgGen(void) {
   /* Note: the DAC update rate is decided by register DACON.RATE */
   hsdac_cfg.HsDacUpdateRate = AppEDACfg.DacUpdateRate;
   AD5940_HSDacCfgS(&hsdac_cfg);
+#endif //EDA_DCFG_ENABLE
   /* GP6->endSeq, GP5 -> AD8233=OFF, GP1->RLD=OFF */
   AD5940_SEQGpioCtrlS(0);
   /* Sequence end. */
@@ -366,7 +373,9 @@ AD5940Err AppEDASeqMeasureGen(void) {
   LPAmpCfg_Type lpamp_cfg;
   /* Start sequence generator here */
   AD5940_SEQGenCtrl(bTRUE);
-
+#ifdef EDA_DCFG_ENABLE
+  write_ad5940_seqmeasurement();
+#else
   /* Stage I: Initialization */
 #ifdef EXTERNAL_TRIGGER_EDA	
   /* GP6->endSeq, GP5 -> AD8233=OFF, GP1->RLD=OFF */
@@ -491,7 +500,9 @@ AD5940Err AppEDASeqMeasureGen(void) {
   /* Go to hibernate */
   AD5940_EnterSleepS(); /* we cannot enter ad5940 to sleep state while taking measurements */
   /* Sequence end. */
-#endif  
+#endif
+#endif // EDA_DCFG_ENABLE
+
   /* Stop sequencer generator */
   AD5940_SEQGenCtrl(bFALSE);
   error = AD5940_SEQGenFetchSeq(&pSeqCmd, &SeqLen);
@@ -589,6 +600,9 @@ AD5940Err AppEDAInit(uint32_t *pBuffer, uint32_t BufferSize) {
   /* Wakeup AFE by read register, read 10 times at most */
   if (AD5940_WakeUp(10) > 10)
     return AD5940ERR_WAKEUP;
+
+#ifndef EDA_DCFG_ENABLE
+
   /*For now keeping the external trigger code as it is till it gets in working mode */
 #ifdef EXTERNAL_TRIGGER_EDA	
   uint32_t tempreg;
@@ -617,6 +631,8 @@ AD5940Err AppEDAInit(uint32_t *pBuffer, uint32_t BufferSize) {
   seq_cfg.SeqEnable = bFALSE;
   seq_cfg.SeqWrTimer = 0;
   AD5940_SEQCfg(&seq_cfg);
+#endif //EDA_DCFG_ENABLE
+
 #ifdef PROFILE_TIME_ENABLED
   uint32_t eda_rtia_cal_start_time = get_micro_sec();
 #endif
@@ -723,6 +739,8 @@ void AD5940EDAStructInit(void) {
   } else {
     eda_user_applied_rtia_cal = 0;
   }
+
+#ifndef EDA_DCFG_ENABLE
   if (!eda_user_applied_dftnum) {
     /* DFNUM_16 = 2 */
     AppEDACfg.DftNum = DFTNUM_16;
@@ -737,6 +755,7 @@ void AD5940EDAStructInit(void) {
       AppEDACfg.DftNum = DFTNUM_8;
     }
   }
+#endif
   /* Set excitation voltage to 0.75 times of full range */
   pCfg->SinAmplitude = 1100 * 3 / 4;
   pCfg->SinFreq = 100.0f;
@@ -774,6 +793,10 @@ static AD5940Err AD5940PlatformCfg(void) {
   AD5940_HWReset();
   /* Platform configuration */
   AD5940_Initialize();
+#ifdef EDA_DCFG_ENABLE
+  /* load dcfg here for test */
+  write_ad5940_init();
+#else
   /* Step1. Configure clock */
   clk_cfg.ADCClkDiv = ADCCLKDIV_1;
   clk_cfg.ADCCLkSrc = ADCCLKSRC_HFOSC;
@@ -840,6 +863,8 @@ static AD5940Err AD5940PlatformCfg(void) {
 
   /* Enable AFE to enter sleep mode. */
   AD5940_SleepKeyCtrlS(SLPKEY_UNLOCK);
+#endif //EDA_DCFG_ENABLE
+
   /* Measure LFOSC frequency */
   /**@note Calibrate LFOSC using system clock. The system clock accuracy
    * decides measurment accuracy. Use XTAL to get better result. */
@@ -1102,7 +1127,9 @@ AD5940Err AppEDADataProcess(int32_t *const pData, uint32_t *pDataCount) {
   return AD5940ERR_OK;
 }
 
-
+#ifdef EDA_DCFG_ENABLE
+extern uint64_t default_dcfg_eda[];
+#endif
 /*!
  ****************************************************************************
  *@brief      AD5940 EDA App initialization
@@ -1126,6 +1153,14 @@ void ad5940_eda_start(void)
 #endif
   DG2502_SW_control_ADPD4000(false);
 */
+
+#ifdef EDA_DCFG_ENABLE
+      if(eda_load_applied_dcfg == 1) {
+        /*Have to use it at properly,both rtia and eda calls this if we keep here*/
+        load_ad5940_default_config(&default_dcfg_eda[0]);
+       }
+#endif//EDA_DCFG_ENABLE
+
 if(init_flag == 1){
   InitCfg();
 }
@@ -1135,7 +1170,7 @@ if(init_flag == 1){
 
    /* Configure your parameters in this function */
   AD5940EDAStructInit();
-  AppEDAInit(AppBuff, APPBUFF_SIZE);    /* Initialize BIA application. Provide a buffer, which is used to store sequencer commands */
+  AppEDAInit(AppBuff, APPBUFF_SIZE);    /* Initialize EDA application. Provide a buffer, which is used to store sequencer commands */
 #ifdef EXTERNAL_TRIGGER_EDA	  
   enable_ad5940_ext_trigger(AppEDACfg.EDAODR);
 #endif

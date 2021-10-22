@@ -242,7 +242,7 @@ int main(void)
     twi0_mutex_enable();
 #endif
 
-#ifdef PROFILE_TIME_ENABLED
+#if defined(PROFILE_TIME_ENABLED) || defined(MEASURE_BLE_ADV_TIME)
    us_timer_init();
 #endif
 

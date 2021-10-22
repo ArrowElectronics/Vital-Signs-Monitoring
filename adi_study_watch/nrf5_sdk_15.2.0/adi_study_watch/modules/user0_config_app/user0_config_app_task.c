@@ -91,11 +91,26 @@ static uint8_t gnUser0ConfigInitFlag = 0;
 
 #ifdef CUST4_SM
 #include "usbd_task.h"
-//Changes to make sure that the variable is not cleared to zero after Watch reset
+/**
+* Variable to hold the current state of the state machine
+* Changes to make sure that the variable is not cleared to zero after Watch reset
+*/
 volatile USER0_CONFIG_APP_STATE_t gnUser0ConfigAppState __attribute__((section(".non_init")));
+
+/**
+* Varibale to hold the previous state and previous event registered in the firmware
+* Changes to make sure that the variable is not cleared to zero after Watch reset
+*/
+#define PREV_ST_EVT_BUFF_CNT 0x4
+
+volatile user0_app_prev_state_event_t gUser0AppPrevStateEventTs[PREV_ST_EVT_BUFF_CNT] __attribute__((section(".non_init")));
+volatile uint8_t prev_st_evt_buff_ind __attribute__((section(".non_init")));
 
 //Debug variable to count no: of times intermittent logging is done
 volatile uint16_t gn_intermittent_op_count __attribute__((section(".non_init")));
+
+extern volatile bool gnGpioPowerOn;
+extern volatile bool gnWatchReset;
 #endif
 
 static uint16_t user_applied_agc_up_th;
@@ -132,6 +147,8 @@ static m2m2_hdr_t *user0_battery_level_alert_handler(m2m2_hdr_t *p_pkt);
 
 static m2m2_hdr_t *user0_config_app_lcfg_access(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *user0_config_app_get_set_state(m2m2_hdr_t *p_pkt);
+static m2m2_hdr_t *user0_config_app_get_prev_st_evt_req(m2m2_hdr_t *p_pkt);
+static m2m2_hdr_t *user0_config_app_clear_prev_st_evt_req(m2m2_hdr_t *p_pkt);
 #ifdef DCB
 static m2m2_hdr_t *user0_blk_dcb_command_read_config(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *user0_blk_dcb_command_write_config(m2m2_hdr_t *p_pkt);
@@ -161,6 +178,8 @@ app_routing_table_entry_t user0_config_app_routing_table[] = {
     {M2M2_USER0_CONFIG_APP_COMMAND_SET_STATE_REQ, user0_config_app_get_set_state},
     {M2M2_USER0_CONFIG_APP_COMMAND_GET_STATE_REQ, user0_config_app_get_set_state},
     {M2M2_PM_SYS_BATTERY_LEVEL_ALERT, user0_battery_level_alert_handler},
+    {M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_REQ, user0_config_app_get_prev_st_evt_req},
+    {M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_REQ, user0_config_app_clear_prev_st_evt_req},
 #endif
 #ifdef DCB
     {M2M2_DCB_COMMAND_READ_CONFIG_REQ, user0_blk_dcb_command_read_config},
@@ -295,7 +314,7 @@ static void init_user0_config_app_lcfg() {
  * @param    value: Value to be written
  * @retval   USER0_CONFIG_ERROR_CODE_t
  *****************************************************************************/
-USER0_CONFIG_ERROR_CODE_t user0_config_app_write_lcfg(uint8_t field, uint16_t value) {
+USER0_CONFIG_ERROR_CODE_t user0_config_app_write_lcfg(uint8_t field, uint32_t value) {
   if (field < USER0_CONFIG_LCFG_MAX) {
     switch (field) {
     case USER0_CONFIG_LCFG_AGC_UP_TH:
@@ -399,7 +418,7 @@ USER0_CONFIG_ERROR_CODE_t user0_config_app_write_lcfg(uint8_t field, uint16_t va
  * @param    value: Returned value corresponding LCFG value
  * @retval   USER0_CONFIG_ERROR_CODE_t
  *****************************************************************************/
-USER0_CONFIG_ERROR_CODE_t user0_config_app_read_lcfg(uint8_t index, uint16_t *value) {
+USER0_CONFIG_ERROR_CODE_t user0_config_app_read_lcfg(uint8_t index, uint32_t *value) {
   if (index < USER0_CONFIG_LCFG_MAX) {
     switch (index) {
     case USER0_CONFIG_LCFG_AGC_UP_TH:
@@ -480,7 +499,7 @@ static m2m2_hdr_t *user0_config_app_lcfg_access(m2m2_hdr_t *p_pkt) {
       p_in_payload->num_ops * sizeof(p_in_payload->ops[0]));
   if (NULL != p_resp_pkt) {
     PYLD_CST(p_resp_pkt, user0_config_app_lcfg_op_hdr_t, p_resp_payload);
-    uint16_t reg_data = 0;
+    uint32_t reg_data = 0;
 
     switch (p_in_payload->command) {
     case M2M2_APP_COMMON_CMD_READ_LCFG_REQ:
@@ -591,6 +610,8 @@ static m2m2_hdr_t *user0_battery_level_alert_handler(m2m2_hdr_t *p_pkt)
                    (STATE_INTERMITTENT_MONITORING_STOP_LOG != read_user0_config_app_state)  )*/
           if((STATE_CHARGING_BATTERY == read_user0_config_app_state))
           {
+            //Register the event received
+            set_user0_config_app_event(EVENT_BATTERY_FULL);
             set_user0_config_app_state(STATE_ADMIT_STANDBY);
           }
           break;
@@ -603,12 +624,18 @@ static m2m2_hdr_t *user0_battery_level_alert_handler(m2m2_hdr_t *p_pkt)
                         read_user0_config_app_state) ||
              (STATE_START_MONITORING ==
                         read_user0_config_app_state) )
+          {
+            set_user0_config_app_event(EVENT_BATTERY_DRAINED);
             set_user0_config_app_state(STATE_OUT_OF_BATTERY_STATE_BEFORE_START_MONITORING);
+          }
           else if( (STATE_SLEEP == read_user0_config_app_state)  ||
                    (STATE_INTERMITTENT_MONITORING == read_user0_config_app_state) ||
                    (STATE_INTERMITTENT_MONITORING_START_LOG == read_user0_config_app_state)||
                    (STATE_INTERMITTENT_MONITORING_STOP_LOG == read_user0_config_app_state)  )
+          {
+            set_user0_config_app_event(EVENT_BATTERY_DRAINED);
             set_user0_config_app_state(STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING);
+          }
           break;
     case M2M2_PM_SYS_STATUS_BATTERY_LEVEL_LOW:
           NRF_LOG_INFO("User0 config app received Battery Level Low");
@@ -639,7 +666,7 @@ USER0_CONFIG_APP_STATE_t get_user0_config_app_state()
 
 /*!
  ****************************************************************************
- * @brief  Sets the curent state of user0 config app
+ * @brief  Sets the current state of user0 config app
  *         gnUser0ConfigAppState variable gets changed as user0 config app runs
  * @param  state: variable of type USER0_CONFIG_APP_STATE_t, to set
  *                gnUser0ConfigAppState with
@@ -666,6 +693,92 @@ void set_user0_config_app_state(USER0_CONFIG_APP_STATE_t state)
     }
   }
   gnUser0ConfigAppState = state;
+}
+
+/*!
+ ****************************************************************************
+ * @brief  Clear the gUser0AppPrevStateEventTs variable maintained by
+ *         by user0 config app
+ * @param  None
+ * @retval None
+ ******************************************************************************/
+void clear_user0_config_app_event()
+{
+  //Clear the previous state-event structure
+  memset((uint8_t*)&gUser0AppPrevStateEventTs, 0, sizeof(gUser0AppPrevStateEventTs));
+  prev_st_evt_buff_ind = 0;
+}
+
+/*!
+ ****************************************************************************
+ * @brief  Sets the event received by user0 config app
+ *         gUser0AppPrevStateEventTs variable gets changed as user0 config app runs
+ * @param  event: variable of type USER0_CONFIG_APP_EVENT_t, to set
+ *                gUser0AppPrevStateEventTs with
+ * @retval None
+ ******************************************************************************/
+void set_user0_config_app_event(USER0_CONFIG_APP_EVENT_t event)
+{
+  gUser0AppPrevStateEventTs[prev_st_evt_buff_ind].prev_state = get_user0_config_app_state();
+  gUser0AppPrevStateEventTs[prev_st_evt_buff_ind].prev_event = event;
+  gUser0AppPrevStateEventTs[prev_st_evt_buff_ind].prev_timestamp = get_sensor_time_stamp();
+  prev_st_evt_buff_ind++;
+  prev_st_evt_buff_ind = prev_st_evt_buff_ind % PREV_ST_EVT_BUFF_CNT;
+}
+
+/*!
+ ****************************************************************************
+ *@brief      m2m2 command to get the previous state and previous event
+              registered in the firmware.
+ *@param      pPkt: pointer to the packet structure
+ *@return     m2m2_hdr_t * type pointer
+ *****************************************************************************/
+static m2m2_hdr_t *user0_config_app_get_prev_st_evt_req(m2m2_hdr_t *p_pkt) {
+  M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
+  PYLD_CST(p_pkt, user0_app_prev_state_event_pkt_t, p_in_payload);
+  /* Allocate a response packet with space for the correct number of operations
+   */
+  PKT_MALLOC(p_resp_pkt, user0_app_prev_state_event_pkt_t,0);
+  if (NULL != p_resp_pkt) {
+    PYLD_CST(p_resp_pkt, user0_app_prev_state_event_pkt_t, p_resp_payload);
+
+    p_resp_pkt->dest = p_pkt->src;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_payload->command =
+          (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_RESP;
+    p_resp_payload->status = M2M2_USER0_CONFIG_APP_STATUS_OK;
+    memcpy((uint8_t *)&p_resp_payload->prev_st_evt, (uint8_t*)&gUser0AppPrevStateEventTs, sizeof(gUser0AppPrevStateEventTs));
+    p_resp_payload->intermittent_op_cnt = gn_intermittent_op_count;
+  }
+  return p_resp_pkt;
+}
+
+/*!
+ ****************************************************************************
+ *@brief      m2m2 command to clear the previous state and previous event
+              structure maintained in the firmware.
+ *@param      pPkt: pointer to the packet structure
+ *@return     m2m2_hdr_t * type pointer
+ *****************************************************************************/
+static m2m2_hdr_t *user0_config_app_clear_prev_st_evt_req(m2m2_hdr_t *p_pkt) {
+  M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
+  PYLD_CST(p_pkt, m2m2_user0_config_app_cmd_t, p_in_payload);
+  /* Allocate a response packet with space for the correct number of operations
+   */
+  PKT_MALLOC(p_resp_pkt, m2m2_user0_config_app_cmd_t,0);
+  if (NULL != p_resp_pkt) {
+    PYLD_CST(p_resp_pkt, m2m2_user0_config_app_cmd_t, p_resp_payload);
+
+    clear_user0_config_app_event();
+    gn_intermittent_op_count = 0;
+
+    p_resp_pkt->dest = p_pkt->src;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_payload->command =
+          (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_RESP;
+    p_resp_payload->status = M2M2_USER0_CONFIG_APP_STATUS_OK;
+  }
+  return p_resp_pkt;
 }
 
 /*!
@@ -872,6 +985,22 @@ static void user0_config_app(void *arg) {
   read_user0_config_app_state = get_user0_config_app_state();
   USBD_CONN_STATUS_t usbd_conn_status = usbd_get_cradle_disconnection_status();
 
+  /* After Watch reset, handle the GPIO triggered Watch power ON OR
+    handle the Watch reset with NAV button press condition */
+  if( (gnGpioPowerOn == true) || ( gnWatchReset == true ) )
+  {
+    //Clear the flag
+    (gnGpioPowerOn == true) ? (gnGpioPowerOn = false) :
+                              (gnWatchReset = false);
+
+    //Register the event received
+    USBD_CONN_STATUS_t usbd_conn_status = usbd_get_cradle_disconnection_status();
+    if(usbd_conn_status == USBD_CONNECTED)
+      set_user0_config_app_event(EVENT_WATCH_ON_CRADLE_NAV_BUTTON_RESET);
+    else
+      set_user0_config_app_event(EVENT_NAV_BUTTON_RESET);
+  }
+
   /*After Watch reset, find previous state and set current state*/
 
   if((read_user0_config_app_state == STATE_ADMIT_STANDBY) ||
@@ -921,10 +1050,15 @@ static void user0_config_app(void *arg) {
   }
 
   /* Force the current state to STATE_ADMIT_STANDBY incase of any unknown state */
-  else if( (read_user0_config_app_state != STATE_ADMIT_STANDBY) &&
+  if( (read_user0_config_app_state != STATE_ADMIT_STANDBY) &&
       (read_user0_config_app_state > STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING) )
   {
     user0_config_app_enter_state_admit_standby();
+    //Clear the previous state-event structure
+    memset((uint8_t*)&gUser0AppPrevStateEventTs, 0, sizeof(gUser0AppPrevStateEventTs));
+    prev_st_evt_buff_ind = 0;
+    //Clear the event
+    set_user0_config_app_event(EVENT_INVALID);
   }
 #endif
 
@@ -1198,6 +1332,23 @@ void get_adpd_app_timings_from_user0_config_app_lcfg(uint16_t *start_time, \
   *start_time = user0_config_app_lcfg.adpd_start_time;
   *tON = user0_config_app_lcfg.adpd_tON;
   *tOFF = user0_config_app_lcfg.adpd_tOFF;
+}
+
+/*!
+ ****************************************************************************
+ * @brief  Function to get AGC Current threshold from user0 config app lcfg
+ *         (default fw/DCB)
+ * @param  agc_up_threshold  : Maximum led current value
+ *         agc_low_threshold : Minimum led current value
+ *
+ * @return None
+ *
+ ****************************************************************************/
+void get_agc_led_current_threshold_from_user0_config_app_lcfg(uint16_t *agc_up_threshold, \
+              uint16_t *agc_low_threshold)
+{
+  *agc_up_threshold = user0_config_app_lcfg.agc_up_th;
+  *agc_low_threshold = user0_config_app_lcfg.agc_low_th;
 }
 
 /*!

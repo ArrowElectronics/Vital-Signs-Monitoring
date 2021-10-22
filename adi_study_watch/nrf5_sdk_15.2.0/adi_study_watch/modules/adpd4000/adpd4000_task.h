@@ -84,6 +84,31 @@ typedef struct _g_state_t {
   packetizer_t  sl_pktizer2[SLOT_NUM];
 } g_state_t;
 
+
+typedef struct Adpd400xAgcStruct {
+  uint32_t  timestamp;
+  uint16_t  mts[6];
+  uint16_t  setting[10];
+} AGCState_t;
+
+/*Enum for AGC stream info - setting[0] field*/
+typedef enum {
+  ADPD400x_AGCLOG_STATIC_AGC_INVALID = 0,//!<Invalid State
+  ADPD400x_AGCLOG_STATIC_AGC_FIRST_CAL = 7,//!< Indicates Initial staticAGC calibration settings applied
+  ADPD400x_AGCLOG_STATIC_AGC_RECAL = 8//!< Indicates staticAGC Re-calibration settings applied
+} ADPD400x_AGCLOG_state_t;
+
+/*! \struct g_state_agc ""
+    State structure for static AGC data stream */
+typedef struct _g_state_agc {
+  uint16_t  num_subs;
+  uint16_t data_pkt_seq_num;
+  uint16_t skip_samples;
+  uint32_t active_slots;
+  ADPD400x_AGCLOG_state_t agc_log_state;
+  packetizer_t  agc_pktizer;
+} g_state_agc;
+
 typedef struct _led_reg_t {
   uint16_t reg_pow12;
   uint16_t reg_pow34;

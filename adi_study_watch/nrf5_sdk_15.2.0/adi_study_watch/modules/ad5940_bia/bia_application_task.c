@@ -91,6 +91,137 @@ NRF_LOG_MODULE_REGISTER();
 
 extern uint32_t AppBuff[APPBUFF_SIZE];
 
+#ifdef BIA_DCFG_ENABLE
+
+uint8_t bia_load_dcfg=1;
+volatile uint8_t bia_user_applied_dcfg = 0;
+
+uint64_t g_current_dcfg_bia[MAX_DEFAULT_DCFG_REGISTER_NUM_BIA];
+uint32_t g_user_bia_config_dcfg[MAX_USER_CONFIG_REGISTER_NUM_BIA];
+uint8_t g_user_bia_indexes[MAX_USER_CONFIG_REGISTER_NUM_BIA];
+
+uint8_t g_bia_num_ind_settings=0;
+
+
+// Register numbering used here starts from 0
+typedef enum BIA_DCFG_REGISTERS_ENUM_t{
+
+  BIA_SEQUENCER_CONFIG = 4,
+  BIA_COMMAND_FIFO_CONFIG = 9,// Command FIFO Mode and Size allowed 
+  BIA_FIFO_THRESHOLD_CONFIG = 10,
+  BIA_DATA_FIFO_SOURCE_CONFIG = 11,// This Index is saved after reconfiguring FIFO,source of FIFO
+  BIA_HIGH_SPEED_RTIA_CONFIG  = 19,
+  BIA_WAVEGEN_FREQUENCY_CONFIG = 26, 
+  BIA_WAVEGEN_AMPLITUDE_CONFIG = 27,
+  BIA_WAVEGEN_OFFSET_CONFIG    = 28, 
+  BIA_WAVEGEN_PHASE_CONFIG     = 29,
+  BIA_WAVEGEN_CONFIG           = 30,
+  BIA_ADC_PGA_GAIN             = 36,
+  BIA_ADC_OUTPUT_FILTER_CONFIG = 43,
+  BIA_DFT_CONFIG               = 44,
+  BIA_DCFG_MAX_CONFIG          = 76,
+}BIA_DCFG_REGISTERS_ENUM;
+
+typedef enum BIA_USER_DCFG_REGISTERS_ENUM_t{
+  /* list of indexes to be given to user */
+  BIA_USER_SEQCFG_REG_COMMAND_SEQUENCER_CONFIG = 0,
+  BIA_USER_SEQCFG_REG_COMMAND_FIFO_CONFIG = 1,
+  BIA_USER_SEQCFG_REG_FIFO_THRESHOLD_CONFIG = 2,
+  BIA_USER_SEQCFG_REG_FIFO_SOURCE_CONFIG = 3,
+  BIA_USER_SEQCFG_REG_WAVEGEN_FREQUENCY_CONFIG = 4,
+  BIA_USER_SEQCFG_REG_WAVEGEN_AMPLITUDE_CONFIG = 5,
+  BIA_USER_SEQCFG_REG_WAVEGEN_OFFSET_CONFIG = 6,
+  BIA_USER_SEQCFG_REG_WAVEGEN_PHASE_CONFIG = 7,
+  BIA_USER_SEQCFG_REG_WAVEGEN_CONFIG = 8,
+  BIA_USER_SEQCFG_REG_ADC_OUTPUT_FILTER_CONFIG = 9,
+  BIA_USER_SEQCFG_REG_DFT_CONFIG = 10,
+  BIA_MAX_USER_SEQCFG = 11,
+}BIA_USER_DCFG_REGISTERS_ENUM;
+
+uint64_t default_dcfg_bia[] = {
+    /*Start of Init_1*/
+    0x0000200800000000, /* Disabling fifo before changing memory configuration */ 
+    0x000021d800000489, /* Command and Data control register setting */
+    0x0000200400000000, /* Disable Sequencer */
+    0x0000206400000000, /* Clear Sequencer Count and CRC */
+    0x0000200400000000, /* Disable sequencer */ 
+    0x0000200800004800, /* Restore FIFO configuration */
+    0xFFFFFFFFFFFFFFFF,
+    /*Start of Init_2*/
+    0x0000200800004000, /* Keeping FIFO source DFT and disabling FIFO */ 
+    0x0000200800000000, /* Disabling FIFO */
+    0x000021d800000489, /* FIFO memory Configuartion */
+    0x000021e000040000, /* Setting FIFO Threshold */
+    0x0000200800004800, /* Keeping FIFO Source and enabling it */
+    0x00003004ffffffff, /* Clearing all Interrupts */
+    0xFFFFFFFFFFFFFFFF,
+    /*Start of sequencer configuration*/                         
+    0x0000200000190e40, /* Enable High Power Referenec Voltage */
+    0x0000218000000037, /* Power Buffer Configurations */
+    0x0000205000000000, /* Enabling Low power Reference */
+    0x000020100000000e, /* High speed DAC configuration */
+    0x000020fc00000000, /* High Speed TIA configuration */
+    0x000020f000000201, /* High Speed Rtia configuration */
+    0x000020f8000000fd, /* DE0 High Speed TIA Resistors Configuration */
+    0x0000215000000000, /* D switch matrix configuration */
+    0x0000215800006000, /* P switch matrix configuration */
+    0x0000215400000c00, /* N switch matrix configuration */
+    0x0000215c00000100, /* T switch matrix configuration */
+    0x0000200c00010000, /* Switch Matrix configuration */
+    0x0000203000333333, /* Waveform Generator, Sinusoid Frequency Control Word */
+    0x0000203c000007ff, /* Waveform Generator, Sinusoid Amplitude configuration */
+    0x0000203800000000, /* Waveform Generator, Sinusoid Offset */
+    0x0000203400000000, /* Waveform Generator, Sinusoid Phase Offset */
+    0x0000201400000004, /* Waveform Generator Configuration */
+    0x0000212800000001, /* Low Power DAC configuration */
+    0x000021200001f68b, /* Low Power DAC output data configuration */
+    0x000021240000003e, /* Low Power DAC switch control register */
+    0x000020ec00004000, /* Low Power TIA Configuration */
+    0x000020e4000033e0, /* Low Power TIA Switch Configuration */
+    0x000021a800000101, /* ADC Configuration Register */
+    0x000020440000e011, /* ADC Output Filter Configuration */
+    0x0000200000190e40, /* AFE Configuration */
+    0x000020a800000000, /* ADC Mincheck value */
+    0x000020ac00000000, /* ADC Hysterisis value */
+    0x000020b000000000, /* ADC Maxvalue check */
+    0x000020b400000000, /* ADC Maximum hysterisis value */
+    0x000020440000e011, /* ADC Output Filter Configuration */
+    0x000020d0001000b1, /* DFT Number ,Hanning Window Configuration*/
+    0x000021c400000000, /* Statistics Number Configuration */ 
+    0x0000200000194e40, /* AFE Configuration */
+    0x0000205400000000, /* GPIO Configuration from Sequencer */
+    0xFFFFFFFFFFFFFFFF, /*end of sequencer configuration*/
+    /*START OF MEASURE */
+    0x0000205400000040, /*  GPIO Configuration from Sequencer */
+    0xeeeeeeee00000fa0, /*  static Delay */
+    0x0000215000000010, /*  Switch Matrix Full Configuration D */
+    0x0000215800000400, /*  P switch matrix configuration */
+    0x0000215400000002, /*  N switch matrix configuration */
+    0x0000215c00000102, /*  T switch matrix configuration */
+    0x0000200c00010000, /*  Switch Matrix configuration */
+    0x000021a800000101, /*  ADC Configuration Register */  
+    0x0000200000194ec0, /*  AFE Configuration */  
+    0xeeeeeeee00000320, /*  static Delay */
+    0x000020000019cfc0, /*  AFE Configuration */ 
+    0xeeeeeeee0005007d, /*  WaitClks Setting */
+    0x0000200000190e40, /*  AFE Configuration */ 
+    0x000021a800000607, /*  ADC Configuration Register */ 
+    0x0000200000194ec0, /*  AFE Configuration */
+    0xeeeeeeee00000320, /*  static Delay */
+    0x000020000019cfc0, /*  AFE Configuration */ 
+    0xeeeeeeee0005007d, /*  WaitClks Setting */
+    0x0000200000190e40, /*  AFE Configuration */ 
+    0x0000215000000000, /*  Switch Matrix Full Configuration D */  
+    0x0000215800006000, /*  P switch matrix configuration */  
+    0x0000215400000c00, /*  N switch matrix configuration */
+    0x0000215c00000100, /*  T switch matrix configuration */
+    0x0000200c00010000, /*  Switch Matrix configuration */
+    0x0000205400000000, /*  GPIO Configuration from Sequencer */
+    0x0000211c00000000, /*  Sequencer Trigger Sleep */
+    0x0000211c00000001, /*  Sequencer Trigger Sleep */
+    0xFFFFFFFFFFFFFFFF, /*  End of Sequencer Measurement */
+};
+#endif
 const char GIT_BIA_VERSION[] = "TEST BIA_VERSION STRING";
 const uint8_t GIT_BIA_VERSION_LEN = sizeof(GIT_BIA_VERSION);
 static void packetize_bia_raw_data(bia_packetizer_t *p_pktizer);
@@ -105,6 +236,10 @@ static m2m2_hdr_t *bia_app_set_cal(m2m2_hdr_t *p_pkt);
 static M2M2_SENSOR_BIA_SWEEP_FREQ_INDEX_ENUM_t GetBIASweepFrequencyIndex(float frequency);
 #ifdef DEBUG_DCB
 static m2m2_hdr_t *adi_dcb_fds_stat(m2m2_hdr_t *p_pkt);
+#endif
+#ifdef BIA_DCFG_ENABLE
+void load_bia_default_dcfg_config(uint64_t *cfg);
+static m2m2_hdr_t *bia_app_dcfg_reg_update(m2m2_hdr_t *p_pkt);
 #endif
 static void fetch_bia_data(void);
 static void sensor_bia_task(void *pArgument);
@@ -218,22 +353,26 @@ static void InitCfg()
   AppBIACfg.NumOfData = -1;
   AppBIACfg.RcalVal = 10000.0; /* 10kOhm */
 
+  
   if(!user_applied_bia_pwr_mod) {
     AppBIACfg.PwrMod = AFEPWR_LP;
   } else {
     user_applied_bia_pwr_mod = 0;
   }
+#ifndef BIA_DCFG_ENABLE
   if(!user_applied_bia_hsrtia_sel) {
     AppBIACfg.HstiaRtiaSel = HSTIARTIA_1K;
   } else {
     user_applied_bia_hsrtia_sel = 0;
   }
+#endif
   AppBIACfg.CtiaSel = 16;
   AppBIACfg.ExcitBufGain = EXCITBUFGAIN_2;
   AppBIACfg.HsDacGain = HSDACGAIN_1;
   AppBIACfg.HsDacUpdateRate = 7;
   AppBIACfg.DacVoltPP = 800.0;
 
+#ifndef BIA_DCFG_ENABLE
   if(!user_applied_sin_freq) {
    AppBIACfg.SinFreq = 50000.0; /* 50kHz */
   } else {
@@ -244,10 +383,13 @@ static void InitCfg()
   } else {
     user_applied_pga_gain = 0;
   }
+#endif
+
   AppBIACfg.ADCSinc3Osr = ADCSINC3OSR_2;
   AppBIACfg.ADCSinc2Osr = ADCSINC2OSR_22;
-
+#ifndef BIA_DCFG_ENABLE
   AppBIACfg.DftNum = DFTNUM_8192;
+#endif
   AppBIACfg.DftSrc = DFTSRC_SINC3;
   AppBIACfg.HanWinEn = bTRUE;
 
@@ -288,6 +430,11 @@ app_routing_table_entry_t bia_app_routing_table[] = {
   {M2M2_APP_COMMON_CMD_GET_VERSION_REQ, bia_app_get_version},
   {M2M2_BIA_APP_CMD_SET_DFT_NUM_REQ, bia_app_dft_num_set},
   {M2M2_BIA_APP_CMD_SET_HS_RTIA_CAL_REQ, bia_app_set_cal},
+#ifdef BIA_DCFG_ENABLE    
+  {M2M2_BIA_APP_CMD_LOAD_DCFG_REQ, bia_app_stream_config},
+  {M2M2_BIA_APP_COMMON_CMD_WRITE_DCFG_REQ, bia_app_dcfg_reg_update},
+  {M2M2_BIA_APP_COMMON_CMD_READ_DCFG_REQ, bia_app_dcfg_reg_update},
+#endif  
 #ifdef DEBUG_DCB
   {M2M2_DCB_COMMAND_FDS_STATUS_REQ, adi_dcb_fds_stat},
 #endif
@@ -844,6 +991,25 @@ static m2m2_hdr_t *bia_app_stream_config(m2m2_hdr_t *p_pkt) {
     post_office_setup_subscriber(M2M2_ADDR_MED_BIA, M2M2_ADDR_BCM_ALGO_STREAM, p_pkt->src, false);
     command = M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP;
     break;
+
+#ifdef BIA_DCFG_ENABLE
+  case M2M2_BIA_APP_CMD_LOAD_DCFG_REQ:
+
+    if (!g_state_bia.num_starts) {
+        user_applied_bia_hsrtia_sel = 0;
+        user_applied_sin_freq = 0;
+        user_applied_pga_gain = 0;
+        bia_user_applied_dft_num = 0;
+        load_bia_default_dcfg_config(&default_dcfg_bia[0]);
+        status = M2M2_APP_COMMON_STATUS_OK;
+      } else {
+        status = M2M2_APP_COMMON_STATUS_ERROR;
+      }
+    /* clear flag to not load global array again if its loaded from load req*/
+    bia_load_dcfg = 0;
+    command = M2M2_BIA_APP_CMD_LOAD_DCFG_RESP;
+    break;
+#endif
   default:
     /* Something has gone horribly wrong. */
     post_office_consume_msg(p_resp_pkt);
@@ -949,6 +1115,430 @@ static m2m2_hdr_t *bia_app_decimation(m2m2_hdr_t *p_pkt) {
   return p_resp_pkt;
 }
 
+#ifdef BIA_DCFG_ENABLE
+
+
+/**
+      @brief    Map user Index 
+      @param    User Index
+      @retval   DCFG Array Index
+*/
+uint8_t bia_mapuserind(uint8_t *userind)  {
+  uint8_t array_ind=0;
+    switch(*userind)  {
+     case BIA_USER_SEQCFG_REG_COMMAND_SEQUENCER_CONFIG:
+      array_ind = BIA_SEQUENCER_CONFIG;
+      break;
+     case BIA_USER_SEQCFG_REG_COMMAND_FIFO_CONFIG:
+      array_ind = BIA_COMMAND_FIFO_CONFIG;
+      break;
+     case BIA_USER_SEQCFG_REG_FIFO_THRESHOLD_CONFIG:
+      array_ind = BIA_FIFO_THRESHOLD_CONFIG;
+      break;
+     case BIA_USER_SEQCFG_REG_FIFO_SOURCE_CONFIG:
+      array_ind = BIA_DATA_FIFO_SOURCE_CONFIG;
+      break;
+     case BIA_USER_SEQCFG_REG_WAVEGEN_FREQUENCY_CONFIG:
+      array_ind = BIA_WAVEGEN_FREQUENCY_CONFIG;
+      break;
+     case BIA_USER_SEQCFG_REG_WAVEGEN_AMPLITUDE_CONFIG:
+      array_ind = BIA_WAVEGEN_AMPLITUDE_CONFIG;
+      break;
+     case BIA_USER_SEQCFG_REG_WAVEGEN_OFFSET_CONFIG:
+      array_ind = BIA_WAVEGEN_OFFSET_CONFIG;
+      break;
+     case BIA_USER_SEQCFG_REG_WAVEGEN_PHASE_CONFIG:
+      array_ind = BIA_WAVEGEN_PHASE_CONFIG;
+      break;
+     case BIA_USER_SEQCFG_REG_WAVEGEN_CONFIG:
+      array_ind = BIA_WAVEGEN_CONFIG;
+      break; 
+     case BIA_USER_SEQCFG_REG_ADC_OUTPUT_FILTER_CONFIG:
+      array_ind = BIA_ADC_OUTPUT_FILTER_CONFIG;
+      break;
+     case BIA_USER_SEQCFG_REG_DFT_CONFIG:
+      array_ind = BIA_DFT_CONFIG;
+      break;
+     default:
+      array_ind = BIA_DCFG_MAX_CONFIG;
+      break;
+    }
+    return array_ind;
+}
+
+/**
+      @brief    Map Adress to User Index 
+      @param    Register Address
+      @retval   User Array Index
+*/
+static uint8_t bia_mapaddrind(uint32_t *address)  {
+  uint8_t user_ind=0;
+    switch(*address)  {
+     case BIA_SEQUENCER_CONFIGURATION_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_COMMAND_SEQUENCER_CONFIG;
+      break;
+     case BIA_FIFO_THRESHOLD_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_FIFO_THRESHOLD_CONFIG;
+      break;
+     case BIA_FIFO_CONFIGURATION_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_COMMAND_FIFO_CONFIG;
+      break;
+     case BIA_FIFO_SRC_CONFIGURATION_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_FIFO_SOURCE_CONFIG;
+      break;
+     case BIA_WAVEFORM_GENERATOR_FREQUENCY_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_WAVEGEN_FREQUENCY_CONFIG;
+      break;
+     case BIA_WAVEFORM_GENERATOR_AMPLITUDE_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_WAVEGEN_AMPLITUDE_CONFIG;
+      break;
+     case BIA_WAVEFORM_GENERATOR_OFFSET_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_WAVEGEN_OFFSET_CONFIG;
+      break;
+     case BIA_WAVEFORM_GENERATOR_PHASE_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_WAVEGEN_PHASE_CONFIG;
+      break;
+     case BIA_WAVEFORM_GENERATOR_CONFIGURATION_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_WAVEGEN_CONFIG;
+      break;
+     case BIA_ADC_OUTPUT_FILTER_CONFIGURATION_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_ADC_OUTPUT_FILTER_CONFIG;
+      break;
+     case BIA_DFT_CONFIGURATION_REGISTER:
+      user_ind = BIA_USER_SEQCFG_REG_DFT_CONFIG;
+      break;
+     default:
+       user_ind = BIA_MAX_USER_SEQCFG;
+      break;
+    }
+    return user_ind;
+}
+
+/*!
+ ****************************************************************************
+ *@brief      BIA Dcfg read/write
+ *@param      pPkt: pointer to the packet structure
+ *@return     m2m2_hdr_t
+ ******************************************************************************/
+static m2m2_hdr_t *bia_app_dcfg_reg_update(m2m2_hdr_t *p_pkt) {
+  M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
+  PYLD_CST(p_pkt, bia_app_dcfg_op_hdr_t, p_in_payload);
+  /* Allocate a response packet with space for the correct number of operations
+   */
+  PKT_MALLOC(p_resp_pkt, bia_app_dcfg_op_hdr_t,p_in_payload->num_ops * sizeof(p_in_payload->ops[0]));
+  if (NULL != p_resp_pkt) {
+    PYLD_CST(p_resp_pkt, bia_app_dcfg_op_hdr_t, p_resp_payload);
+
+    switch (p_in_payload->command) {
+     static uint8_t dcfg_position=0;
+     static uint8_t array_ind=0;
+    case M2M2_BIA_APP_COMMON_CMD_WRITE_DCFG_REQ:
+      /* Copy register addresses, value pairs */
+      for (int i = 0; i < p_in_payload->num_ops; i++) {
+        uint32_t addr = (uint32_t)p_in_payload->ops[i].field;
+        /* Map Address of register to user index */
+        dcfg_position = bia_mapaddrind(&addr);
+        if(dcfg_position < BIA_MAX_USER_SEQCFG){
+          g_user_bia_config_dcfg[dcfg_position] = p_in_payload->ops[i].value;
+          g_user_bia_indexes[i] = dcfg_position;
+          status = M2M2_APP_COMMON_STATUS_OK;
+        }else {
+          status = M2M2_APP_COMMON_STATUS_ERROR;
+        }
+        /* number of user settings */
+        g_bia_num_ind_settings = p_in_payload->num_ops;
+        p_resp_payload->ops[i].field = p_in_payload->ops[i].field;
+        p_resp_payload->ops[i].value = p_in_payload->ops[i].value;
+      }
+      /* Update write flag */
+      bia_user_applied_dcfg = 1;
+      p_resp_payload->command = (M2M2_APP_COMMON_CMD_ENUM_t) M2M2_BIA_APP_COMMON_CMD_WRITE_DCFG_RESP;
+     break;
+    case M2M2_BIA_APP_COMMON_CMD_READ_DCFG_REQ:
+      /* Copy register addresses, value pairs */
+      for (int i = 0; i < p_in_payload->num_ops; i++) {
+        uint32_t addr = (uint32_t)p_in_payload->ops[i].field; 
+        dcfg_position = bia_mapaddrind(&addr);
+        /* find index to set */
+        array_ind = bia_mapuserind(&dcfg_position);
+        if(array_ind < BIA_DCFG_MAX_CONFIG) {
+          status = M2M2_APP_COMMON_STATUS_OK;
+        }
+        else  {
+          status = M2M2_APP_COMMON_STATUS_ERROR;
+        }
+        p_resp_payload->ops[i].field = p_in_payload->ops[i].field;
+       p_resp_payload->ops[i].value = g_current_dcfg_bia[array_ind];
+      }
+      p_resp_payload->command = (M2M2_APP_COMMON_CMD_ENUM_t) M2M2_BIA_APP_COMMON_CMD_READ_DCFG_RESP;
+     break;
+    default:
+      /* Something has gone horribly wrong. */
+      post_office_consume_msg(p_resp_pkt);
+      return NULL;
+    }
+    p_resp_pkt->dest = p_pkt->src;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_payload->num_ops = p_in_payload->num_ops;
+    p_resp_payload->status = status;
+  }
+  return p_resp_pkt;
+}
+/**
+      @brief    Load bia  lcfg configuration to working dcfg array
+      @param    None
+      @retval   None
+*/
+void bia_load_lcfg_params(void){
+
+  /* This Function is called after Initcfg so other parameters already initialized */
+  if(user_applied_bia_hsrtia_sel) {
+    g_current_dcfg_bia[BIA_HIGH_SPEED_RTIA_CONFIG] &= ~(BITM_AFE_HSRTIACON_RTIACON);
+    g_current_dcfg_bia[BIA_HIGH_SPEED_RTIA_CONFIG] |= ((AppBIACfg.HstiaRtiaSel << BITP_AFE_HSRTIACON_RTIACON ) & (BITM_AFE_HSRTIACON_RTIACON));
+    user_applied_bia_hsrtia_sel = 0;
+  } else {
+    AppBIACfg.HstiaRtiaSel = (uint32_t) ( g_current_dcfg_bia[BIA_HIGH_SPEED_RTIA_CONFIG] & BITM_AFE_HSRTIACON_RTIACON);
+    AppBIACfg.HstiaRtiaSel >>= BITP_AFE_HSRTIACON_RTIACON; 
+  }
+
+  if(user_applied_sin_freq) {
+
+    /*  Frequency of data need to be enabled once sweep feature is brought in */
+    //AppBIACfg.FreqofData = AppBIACfg.SinFreq;
+    g_current_dcfg_bia[BIA_WAVEGEN_FREQUENCY_CONFIG] &= ~(BIA_WG_SINE_FREQUENCY_WORD_MASK);
+    g_current_dcfg_bia[BIA_WAVEGEN_FREQUENCY_CONFIG] |= AD5940_WGFreqWordCal(AppBIACfg.SinFreq, AppBIACfg.SysClkFreq);
+    user_applied_sin_freq = 0;
+  } else {
+    /* Recalculate sine frequency from frequency word register and system clock */
+      float temp_sinfreqword = (float)( g_current_dcfg_bia[BIA_WAVEGEN_FREQUENCY_CONFIG] & BIA_WG_SINE_FREQUENCY_WORD_MASK);
+      temp_sinfreqword /= (1LL<<30); 
+      AppBIACfg.SinFreq = (float)( AppBIACfg.SysClkFreq * temp_sinfreqword);
+  }
+  
+  if(user_applied_pga_gain) {
+    g_current_dcfg_bia[BIA_ADC_PGA_GAIN] &= ~(BITM_AFE_ADCCON_GNPGA);
+    g_current_dcfg_bia[BIA_ADC_PGA_GAIN] |= ((AppBIACfg.ADCPgaGain << BITP_AFE_ADCCON_GNPGA ) & (BITM_AFE_ADCCON_GNPGA));
+    user_applied_pga_gain = 0;    
+  } else {
+    AppBIACfg.ADCPgaGain = (uint32_t) ( g_current_dcfg_bia[BIA_ADC_PGA_GAIN] & BITM_AFE_ADCCON_GNPGA);
+    AppBIACfg.ADCPgaGain >>= BITP_AFE_ADCCON_GNPGA;
+  }
+
+  if(bia_user_applied_dft_num){
+    g_current_dcfg_bia[BIA_DFT_CONFIG] &= ~(BITM_AFE_DFTCON_DFTNUM);
+    g_current_dcfg_bia[BIA_DFT_CONFIG] |= ((AppBIACfg.DftNum << BITP_AFE_DFTCON_DFTNUM ) & (BITM_AFE_DFTCON_DFTNUM) );
+    bia_user_applied_dft_num = 0;
+  }
+  else {
+    AppBIACfg.DftNum = (uint32_t) ( g_current_dcfg_bia[BIA_DFT_CONFIG] & BITM_AFE_DFTCON_DFTNUM);
+    AppBIACfg.DftNum >>= BITP_AFE_DFTCON_DFTNUM; 
+  }
+  
+  AppBIACfg.FifoThresh = (uint32_t)(g_current_dcfg_bia[BIA_FIFO_THRESHOLD_CONFIG] &  BITM_AFE_DATAFIFOTHRES_HIGHTHRES);
+  AppBIACfg.FifoThresh >>= BITP_AFE_DATAFIFOTHRES_HIGHTHRES;
+}
+
+/**
+      @brief    Load bia default dcfg configuration to working array
+      @param    Pointer to configuration array
+      @retval   None
+*/
+void load_bia_default_dcfg_config(uint64_t *cfg) {
+    uint16_t i = 0, j = 0,array_ind=0;
+
+    if (cfg == 0) {
+        return;
+    }
+    for (i = 0; i < MAX_DCFG_COMBINED_BIA; i++) {
+      while (1) {
+        g_current_dcfg_bia[j] = default_dcfg_bia[j]; 
+         /* Demarker between DCFG's used to differentiate different register module settings */
+        if (cfg[j++] == 0xFFFFFFFFFFFFFFFF) {
+          break;
+        }
+      }
+    }
+    if((bia_user_applied_dcfg == 0x01))
+    {
+      for(i=0;i < g_bia_num_ind_settings;i++){
+        uint8_t dcfg_position = g_user_bia_indexes[i];
+        if(dcfg_position < BIA_MAX_USER_SEQCFG){
+          /* find index to set */
+           array_ind = bia_mapuserind(&dcfg_position);
+           /* clear lower 32 bits which is field */
+           g_current_dcfg_bia[array_ind] &= 0xFFFFFFFF00000000;
+           /* lower 32 bits to set data bits */
+           g_current_dcfg_bia[array_ind] |= g_user_bia_config_dcfg[dcfg_position];
+         }
+       }
+         /* clearing dcfg flag for next use */
+        bia_user_applied_dcfg = 0;
+    }
+    bia_load_lcfg_params();
+
+}
+
+/**
+* @brief    Write a bia_init_1_dcfg to ad5940
+* @param    p_dcfg - pointer to Dcfg array
+* @retval   Status
+*/
+BIA_DCFG_STATUS_t write_bia_init_1_dcfg(uint64_t *p_dcfg) {
+  uint32_t reg_addr;
+  uint32_t reg_data;
+
+  if (p_dcfg == NULL) {
+    return BIA_DCFG_STATUS_NULL_PTR;
+  }
+ 
+  for (int i = 0;p_dcfg[i]!= 0xFFFFFFFFFFFFFFFF; i++) {
+
+    reg_addr = (uint32_t) (p_dcfg[i] >> 32);
+    reg_data = (uint32_t)(p_dcfg[i]);
+
+    AD5940_WriteReg(reg_addr, reg_data);
+  }
+  return BIA_DCFG_STATUS_OK;
+}
+
+/**
+* @brief    Write Bia Default Init_1 configuration
+* @param    void
+* @retval   Status
+*/
+BIA_DCFG_STATUS_t write_bia_init_1()
+{
+  if (write_bia_init_1_dcfg(&g_current_dcfg_bia[0]) != BIA_DCFG_STATUS_OK) {
+      return BIA_DCFG_STATUS_ERR;
+  }
+}
+
+/**
+* @brief    Write a bia_init_2_dcfg to ad5940
+* @param    p_dcfg - pointer to Dcfg array
+* @retval   Status
+*/
+BIA_DCFG_STATUS_t write_bia_init_2_dcfg(uint64_t *p_dcfg) {
+  uint32_t reg_addr;
+  uint32_t reg_data;
+
+  if (p_dcfg == NULL) {
+    return BIA_DCFG_STATUS_NULL_PTR;
+  }
+ 
+  for (int i = 0;p_dcfg[i]!= 0xFFFFFFFFFFFFFFFF; i++) {
+
+    reg_addr = (uint32_t) (p_dcfg[i] >> 32);
+    reg_data = (uint32_t)(p_dcfg[i]);
+
+    AD5940_WriteReg(reg_addr, reg_data);
+  }
+  return BIA_DCFG_STATUS_OK;
+}
+
+/**
+* @brief    Write Bia Default Init_2 configuration
+* @param    void
+* @retval   Status
+*/
+BIA_DCFG_STATUS_t write_bia_init_2()
+{
+  uint16_t i = 0;
+  while (g_current_dcfg_bia[i++] != 0xFFFFFFFFFFFFFFFF);
+  if (write_bia_init_2_dcfg(&g_current_dcfg_bia[i]) != BIA_DCFG_STATUS_OK) {
+      return BIA_DCFG_STATUS_ERR;
+  }
+}
+
+
+/**
+* @brief    Write a sequencercfg bia_dcfg to ad5940
+* @param    p_dcfg - pointer to Dcfg array
+* @retval   Status
+*/
+BIA_DCFG_STATUS_t write_bia_seqcfg_dcfg(uint64_t *p_dcfg) {
+  uint32_t reg_addr;
+  uint32_t reg_data;
+
+  if (p_dcfg == NULL) {
+    return BIA_DCFG_STATUS_NULL_PTR;
+  }
+ 
+  for (int i = 0;p_dcfg[i]!= 0xFFFFFFFFFFFFFFFF; i++) {
+    reg_addr = (uint32_t) (p_dcfg[i] >> 32);
+    reg_data = (uint32_t)(p_dcfg[i]);
+
+    AD5940_WriteReg(reg_addr, reg_data);
+  }
+  return BIA_DCFG_STATUS_OK;
+}
+
+/**
+* @brief    Write bia SequencerCfg dcfg  configuration to ad5940
+* @param    void
+* @retval   Status
+*/
+BIA_DCFG_STATUS_t write_bia_seqcfg()
+{
+  uint16_t i = 0;
+  while (g_current_dcfg_bia[i++] != 0xFFFFFFFFFFFFFFFF);
+  while (g_current_dcfg_bia[i++] != 0xFFFFFFFFFFFFFFFF);
+  if (write_bia_seqcfg_dcfg(&g_current_dcfg_bia[i]) != BIA_DCFG_STATUS_OK) {
+      return BIA_DCFG_STATUS_ERR;
+  }
+
+}
+
+/**
+* @brief    Write a bia sequencer measurement dcfg to ad5940
+* @param    p_dcfg - pointer to Dcfg array
+* @retval   Status
+*/
+BIA_DCFG_STATUS_t write_bia_seqmeasurement_dcfg(uint64_t *p_dcfg) {
+  uint32_t reg_addr;
+  uint32_t reg_data;
+
+  if (p_dcfg == NULL) {
+    return BIA_DCFG_STATUS_NULL_PTR;
+  }
+ 
+  for (int i = 0;p_dcfg[i]!= 0xFFFFFFFFFFFFFFFF; i++) {
+    if((uint32_t) (p_dcfg[i] >> 32) == 0xEEEEEEEE){
+
+      AD5940_SEQGenInsert((uint32_t)(p_dcfg[i]));
+
+    }
+    else {
+
+      reg_addr = (uint32_t) (p_dcfg[i] >> 32);
+      reg_data = (uint32_t)(p_dcfg[i]);
+      AD5940_WriteReg(reg_addr, reg_data);
+
+    }
+  }
+  return BIA_DCFG_STATUS_OK;
+}
+
+
+/**
+* @brief    Write bia Sequencer measurement dcfg configuration to ad5940
+* @param    void
+* @retval   Status
+*/
+BIA_DCFG_STATUS_t write_bia_seqmeasurement()
+{
+  uint16_t i = 0;
+  while (g_current_dcfg_bia[i++] != 0xFFFFFFFFFFFFFFFF);
+  while (g_current_dcfg_bia[i++] != 0xFFFFFFFFFFFFFFFF);
+  while (g_current_dcfg_bia[i++] != 0xFFFFFFFFFFFFFFFF);
+
+  if (write_bia_seqmeasurement_dcfg(&g_current_dcfg_bia[i]) != BIA_DCFG_STATUS_OK) {
+      return BIA_DCFG_STATUS_ERR;
+  }
+
+}
+
+#endif
 /*!
   ****************************************************************************
  * @brief  Bcm App Initialization
@@ -971,7 +1561,7 @@ BIA_ERROR_CODE_t BiaAppInit() {
 */
    /* Initialization of application parameters */
   InitCfg();
-
+   
    /* start bia initialization */
    ad5940_bia_start();
    gBiaAppInitFlag = true;
@@ -998,6 +1588,10 @@ BIA_ERROR_CODE_t BiaAppDeInit() {
   /* Interrupts de init */
   ad5940_port_deInit();
   gBiaAppInitFlag = false;
+#ifdef BIA_DCFG_ENABLE
+  /*resetting default load flag*/
+  bia_load_dcfg = 1;
+#endif//BIA_DCFG_ENABLE
   /* de init ldo power */
   adp5360_enable_ldo(ECG_LDO,false);
   return BIA_SUCCESS;

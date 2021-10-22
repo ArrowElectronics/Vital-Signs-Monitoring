@@ -82,6 +82,9 @@
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
+#ifdef CUST4_SM
+volatile bool gnGpioPowerOn __attribute__((section(".non_init")));
+#endif
 
 extern uint8_t dvt2; //whether dvt2 or not
 bool gb_ecgldo_enable = false;
@@ -308,6 +311,9 @@ void exit_sleep_status(void)
 
 static void power_on(void)
 {
+#ifdef CUST4_SM
+    gnGpioPowerOn = true;
+#endif
     rtc_timestamp_store(320);
     NVIC_SystemReset();
 }

@@ -848,6 +848,7 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
      {
       /* Adpd400xDetectObjectOffInit(); */
       if ((gAdpd400x_lcfg->featureSelect & DYNAMIC_AGC_EN) != 0) {
+       Adpd400xMDPeriodicCheckStart();
        Adpd400xMDCheckMotionInit();
       }
 

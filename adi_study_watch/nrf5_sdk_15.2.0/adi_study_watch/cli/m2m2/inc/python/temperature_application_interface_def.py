@@ -21,3 +21,18 @@ class temperature_app_stream_t(Structure):
               ("nTemperature2", c_ushort),
               ]
 
+class temperature_app_dcb_lcfg_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ]
+
+class temperature_app_lcfg_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("field", c_ubyte),
+              ("value", c_ulong*21),
+              ]

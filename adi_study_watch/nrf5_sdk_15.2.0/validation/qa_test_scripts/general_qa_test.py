@@ -15,7 +15,7 @@ def fw_version_test():
 
     :return:
     """
-    err_stat, fw_ver_info_dict = common.watch_shell.get_version()
+    err_stat, fw_ver_info_dict = common.watch_shell.get_version_cli()
     # date_str = datetime.now().strftime("%Y-%m-%d")
     if not err_stat:
         ver_info_str = 'Firmware Version: V{}.{}.{}  |  Build Date: {}'.format(fw_ver_info_dict['major'],

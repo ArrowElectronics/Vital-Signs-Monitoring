@@ -104,11 +104,14 @@ float magnitude, phase;
 static int32_t SignalData[MAX_NUM_OF_FFT_POINTS] = {0}, eda_counter = 0;
 uint8_t measurement_cycle_completed = 0;
 uint8_t init_flag;
+#ifdef EDA_DCFG_ENABLE 
+uint8_t eda_load_applied_dcfg=1;
+#endif
 extern AD5940_APP_ENUM_t gnAd5940App;
 extern volatile uint8_t gnAd5940DataReady;
 extern uint8_t gnAd5940TimeIrqSet;
 extern uint8_t gnAd5940TimeIrqSet1;
-
+uint8_t rtia_cal_flag=0;
 g_state_eda_t g_state_eda;
 volatile bool gEdaAppInitFlag = false;
 #ifdef EXTERNAL_TRIGGER_EDA
@@ -121,6 +124,55 @@ volatile int16_t eda_user_applied_rtia_cal = 0;
 volatile int16_t eda_user_applied_baseline_imp = 0;
 
 uint8_t rtia_cal_completed = 0;
+
+#ifdef EDA_DCFG_ENABLE
+volatile uint8_t eda_user_applied_dcfg = 0;
+
+uint64_t g_current_dcfg_ad5940[MAX_DEFAULT_DCFG_REGISTER_NUM];
+
+uint32_t g_user_config_eda_dcfg[MAX_USER_CONFIG_REGISTER_NUM];
+uint8_t g_user_indexes[MAX_USER_CONFIG_REGISTER_NUM];
+uint8_t num_ind_settings=0;
+
+// Register numbering used here starts from 0
+typedef enum DCFG_REGISTERS_ENUM_t{
+  DATA_FIFO_CONFIG = 6,// Data FIFO Mode and Size allowed 
+  DATA_FIFO_SOURCE_CONFIG = 8,// This Index is saved after reconfiguring FIFO,source of FIFO
+  INTERRUPT_CONTROLLER_SELECT_1 = 9,// Sources for Interrupts to occur
+  INTERRUPT_CONTROLLER_SELECT_0 = 10,// Sources for Interrupts to occur
+  COMMAND_FIFO_CONFIG = 19,// Command FIFO Mode and Size allowed 
+  INIT_DCFG_END = 22,              // Last register write for Init Part
+  LOW_POWER_DAC_CONFIG = 27,
+  ADC_PGA_GAIN_CONFIG = 43,
+  SEQCFG_REG_AFE_DFTCON_1 = 49, // ADC Filter, Notch and Sinc filter settings   
+  DFT_CON_CONFIG = 50,// DFT Number and Hanning Window setting allowed
+  SEQCFG_END = 54,      // Last register write for Sequencer CFG
+  GPIO_CONTROL_CONFIG = 55,
+  LOW_POWER_DAC_VOLTAGE_CONFIG = 56,
+  LOW_POWER_TIA_CONFIG = 59,
+  POWER_DOWN_HS_LOOP_CONFIG = 65,
+  MEASURE_SEQCFG_END = 91,      // Last register write for Measurement Sequencer CFG
+  EDA_DCFG_MAX_CONFIG = 100
+}DCFG_REGISTERS_ENUM;
+
+typedef enum USER_DCFG_REGISTERS_ENUM_t{
+  /* list of indexes to be given to user */
+  USER_SEQCFG_REG_AFE_DFTCON_1 = 0,
+  USER_SEQCFG_REG_INTERRUPT_CONTROLLER_0 = 1,
+  USER_SEQCFG_REG_INTERRUPT_CONTROLLER_1 = 2,
+  USER_SEQCFG_REG_DATA_FIFO_CONFIG = 3,
+  USER_SEQCFG_REG_COMMAND_FIFO_CONFIG = 4,
+  USER_SEQCFG_REG_ADC_PGA_GAIN_CONFIG = 5,
+  USER_SEQCFG_REG_DFT_CON_CONFIG = 6,
+  USER_SEQCFG_REG_GPIO_CONTROL_CONFIG = 7,
+  USER_SEQCFG_REG_LOW_POWER_DAC_VOLTAGE_CONFIG = 8,
+  USER_SEQCFG_REG_HS_LOOP_CONFIG = 9,
+  USER_SEQCFG_REG_FIFO_SOURCE_CONFIG = 10,
+  USER_SEQCFG_REG_LOW_POWER_DAC_CONFIG = 11,
+  MAX_USER_SEQCFG=12,
+}USER_DCFG_REGISTERS_ENUM;
+#endif //EDA_DCFG_ENABLE
+
 extern uint32_t AppBuff[APPBUFF_SIZE];
 
 /*Base resistor used for measurements is 20kOhm*/
@@ -175,6 +227,9 @@ static m2m2_hdr_t *eda_app_get_version(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_app_decimation(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_app_dynamic_scaling(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_app_dft_num_set(m2m2_hdr_t *p_pkt);
+#ifdef EDA_DCFG_ENABLE
+static m2m2_hdr_t *eda_app_dcfg_reg_update(m2m2_hdr_t *p_pkt);
+#endif //EDA_DCFG_ENABLE
 static m2m2_hdr_t *eda_app_baseline_imp_set(m2m2_hdr_t *p_pkt);
 #ifdef DEBUG_EDA
 static m2m2_hdr_t *eda_app_debug_info(m2m2_hdr_t *p_pkt);
@@ -189,6 +244,7 @@ static m2m2_hdr_t *eda_dcb_command_delete_config(m2m2_hdr_t *p_pkt);
 #ifdef AD5940_REG_ACCESS
 static m2m2_hdr_t *ad5940_app_reg_access(m2m2_hdr_t *p_pkt);
 #endif
+
 static void fetch_eda_data(void);
 static void sensor_eda_task(void *pArgument);
 void Enable_ephyz_power(void);
@@ -219,6 +275,11 @@ app_routing_table_entry_t eda_app_routing_table[] = {
     {M2M2_SENSOR_COMMON_CMD_GET_STREAM_DEC_FACTOR_REQ, eda_app_decimation},
     {M2M2_SENSOR_COMMON_CMD_SET_STREAM_DEC_FACTOR_REQ, eda_app_decimation},
     {M2M2_APP_COMMON_CMD_GET_VERSION_REQ, eda_app_get_version},
+#ifdef EDA_DCFG_ENABLE    
+    {M2M2_EDA_APP_CMD_LOAD_DCFG_REQ, eda_app_stream_config},
+    {M2M2_APP_COMMON_CMD_WRITE_DCFG_REQ, eda_app_dcfg_reg_update},
+    {M2M2_APP_COMMON_CMD_READ_DCFG_REQ, eda_app_dcfg_reg_update},
+#endif
     {M2M2_EDA_APP_CMD_DYNAMIC_SCALE_REQ, eda_app_dynamic_scaling},
     {M2M2_EDA_APP_CMD_RTIA_CAL_REQ, eda_app_perform_rtia_calibration},
 #ifdef DEBUG_EDA
@@ -243,6 +304,112 @@ app_routing_table_entry_t eda_app_routing_table[] = {
   (sizeof(eda_app_routing_table) / sizeof(eda_app_routing_table[0]))
 
 ADI_OSAL_QUEUE_HANDLE eda_task_msg_queue = NULL;
+
+#ifdef EDA_DCFG_ENABLE
+uint64_t default_dcfg_eda[] = {
+    /* clock configuration */
+    0x00000A0C0000CB14, /* Oscilator key enable */
+    0x00000A1000000003, /* High frequency clock oscilator and Low frequency clock oscilator enable  */
+    0x00000410000002E9, /*  Enable ACLK during clock changing */
+    0x000020BC00000034, /*  Keep Highfrequency oscillator for 16MHZ */
+    0x00000410000002C9, /*  Disable ACLK  */
+    /*  FIFO configuration  */
+    0x0000200800000000, /*  Disable FIFO  */
+    0x000021D800000480, /*  FIFO mode and 4kb FIFO size */
+    0x000021E000020000, /* Data FIFO Threshold  to 2 */
+    0x0000200800008000, /*  Disable FIFO and keep DFT as source of FIFO */
+    /*  Interrupt Controller Configuration  */
+    0x0000300CFFFFFFFF, /* Interrupt Controller Select 1 , enabling all Interrupt sources.  */
+    0x0000300802000000, /* Interrupt Controller Select 0 , enabling fifo threshold source */
+    0x00003004FFFFFFFF, /* Masking all Interrupt sources for fresh Interrupts to occur  */
+    /*  gpio configuration  */
+    0x0000000000002AB8, /* GPIO Functionality register  */
+    0x000000040000007B, /* Output pins Configuration and electrode pin3 enable  */
+    0x0000000C00000004, /*  Input pins Configuration  */
+    /*  Unlock Sequencer Trigger Sleep Register to allow sequencer to go to sleep when needed */
+    0x00002118000A47E5,
+    /*  Below 3 register writes is just kept to not alter enum numbers of usesr config  */
+    0x000000040000007B, // Repeating above,
+    0x0000000800000000, // as we moved electrode switching to 
+    0x0000001800000000, // sequencer
+    0x000021D800000489, /* Command FIFO Memory mode selected and 2KB size choosen */
+    0x0000200400000000, /* Clear sequencer configuartion  */
+    0x0000206400000000, /* Clear sequencer command count and CRC Count  */
+    0xFFFFFFFFFFFFFFFF,
+    0x0000205400000042, /* Output of GP0CON register is sent to GPIO's */ /* to check why its done */
+    0x0000200000080020, /* High speed DAC enable is '1' */
+    0x0000218000000037, /* Enable ADC 1.8V reference buffer, enables buffer current limit, High speed 1.8v reference buffer, enables 1.11 high speed common buffer, ADC 1.11v low power reference buffer of ADC */ 
+    0x0000205000000003, /* Low power reference powered down,powers down the low power 2.5v buffer. */
+    0x0000212800000003, /* Enable low power DAC writes, Low power DAC powered off */
+    0x0000212000000000, /* clear low power DAC  */
+    0x0000212400000020, /* Low power DAC switches over ride */
+    0x000020EC00000003, /* Reduces PA and TIA current by half,Increase amplifier output stage current to quickly charge external capacitor load. */
+    0x000020E400000000, /* Clear Low power TIA switch configuration */
+    0x0000203000333333, /* Sinusoid generator frequency control word */
+    0x0000203C000005ff, /* Sine amplitude number */
+    0x0000203800000000, /*  waveform generator sine offset */
+    0x0000203400000000, /* Sinusoidal phase offset */
+    0x0000201400000004, /* Sine wave setting */
+    0x0000200000080020, /* High speed DAC enable is '1' */
+    0x0000215000000000, /* Switch matrix configuration D switch setting */
+    0x0000215800000044, /* Switch matrix configuration P switch setting */
+    0x0000215400000000, /* Switch matrix configuration N switch setting */
+    0x0000215C00000041, /* Switch matrix configuration T switch setting */
+    0x0000200C00010000, /* Switch control configuration */
+    0x000021A800000814, /* ADC configuration register P node of excitation amplifier,N node of excitation amplifier,Gain configuration */
+    0x0000204400004011, /* ADC filter configuration, ADC sample rate,Notch filter, Sinc2 filter config */
+    0x000020A800000000, /* clear ADC minimum value threshold register */
+    0x000020AC00000000, /* clear ADC minimum Hysterisis value register */
+    0x000020B000000000, /* clear ADC maximum value register */
+    0x000020B400000000, /* clear ADC maximum Hysterisis value register  */
+    0x0000204400004091, /* ADC output filters configuration register */
+    0x000020D000000021, /* Hanning window enable,DFT number setting */
+    0x000021C400000000, /* clearing Statistics control module configuration register */
+    0x000021F0000001f0, /* Repeat ADC conversion control register */
+    0x000020100000000e, /*  High speed DAC configuration */    
+    0xFFFFFFFFFFFFFFFF,/* demarker for dcfg 2 */
+    0x0000205400000048,/* Output of GP0CON register is sent to GPIO's */
+    0x0000212800000041, /* Enables Low power DAC writes, waveform generator as low power DAC source */
+    0x0000212000020000,/* Low power DAC output data register */
+    0x0000212400000036, /* Low power DAC switch control , switch control DAC */
+    0x000020EC00005280,/* TIA Gain setting,TIA Rf setting*/
+    0x000020E4000023E0, /* Low power TIA switch configuration */
+    0x0000205000000000, /* Clear low power reference control register */
+    0x0000200000080020, /* Interrupt control select register 0 , Interrupt enabled 1*/
+    0x0000210C000C59D6,/* Low power mode AFE Control lock register */
+    0x0000211000000001, /* Low power mode Clock select register system clock as 32Khz */ 
+    0x0000211400000103, /* Low power mode Configuration register , high speed reference, high speed power oscillator, power down analog ldo */
+    0x0000200000084020, /* high speed reference disable,waveform generator enabled,analog ldo buffer current limiting disabled */
+    0xEEEEEEEE00000140,/* seqwait  configuration */
+    0x000020000008C020,/*high speed reference disable,waveform generator enabled,analog ldo buffer current limiting disabled, high speed ref dac enable */
+    0xBBBBBBBBBBBBBBBB, /* end of sequencer measurement init */
+    0x00002114000001F0, /* high speed common mode buffer to 1.11v,high speed reference buffer 1.8v, power down analog ldo */ 
+    0xEEEEEEEE00000004,/* seqwait  configuration */
+    0x00002114000001F8,/* set bit high for repititive ADC conversions,high speed common mode buffer to 1.11v,high speed reference buffer 1.8v, power down analog ldo */ 
+    0xEEEEEEEE00000000, /* Seq NOP */
+    0x00002114000001F4,/* repititive ADC conversions,1.11 high speed common buffer enabled,high speed 1.82v reference buffer, power down analog ldo */
+    0xEEEEEEEE00000000, /* Seq NOP */
+    0x0000211400000103,/*power down high speed reference, high speed power oscilator, power down ldo */
+    0xEEEEEEEE00000044, /* seqwait  configuration */
+    0x0000211400000102,/* high speed power oscilator, power down ldo  */
+    0xEEEEEEEE00000015, /* seqwait  configuration */
+    0x0000211000000000,/* start of sequencer measurement deinit, here clock is disabled */
+    0x0000200000080020,/* high speed reference disable,analog ldo buffer current limiting disabled */
+    0x000020EC00001003,/* Clear TIA Gain setting,TIA Rf setting*/
+    0x000020E400000000,/* Clear Low power TIA switch configuration settings  */
+    0x0000205000000003,/* low power reference powered down,powers down low power 2.5v buffer */
+    0x0000212800000043,/* enables low power dac writes,low power dac powered off,low power dac source waveform generator */
+    0x0000212000020000,/* low power dac voltage setting */
+    0x0000212400000020,/* Low power DAC switch control , switch control DAC */
+    0x0000205400000000, /* clear sync to GPIO's */
+    0x0000211C00000000,/* trigger sleep by sequencer, '0' is enter to sleep */
+    0x0000211C00000001,/* trigger sleep by sequencer, '1' is enter to sleep */  
+    0xFFFFFFFFFFFFFFFF, /* demarker of dcfg 3 */
+
+};
+
+#endif // EDA_DCFG_ENABLE
+
 
 #ifdef USER0_CONFIG_APP
 #include "user0_config_app_task.h"
@@ -785,6 +952,9 @@ static m2m2_hdr_t *eda_app_perform_rtia_calibration(m2m2_hdr_t *p_pkt) {
     /* Initilaize eda app configuration */
     InitCfg();
 
+    /* set flag rtia cal is on */
+    rtia_cal_flag = 1;
+
     AppEDACfg.RtiaAutoScaleMin = p_in_payload->minscale;
     AppEDACfg.RtiaAutoScaleMax = p_in_payload->maxscale;
     AppEDACfg.LptiaRtiaSel = p_in_payload->lowpowerrtia;
@@ -813,6 +983,9 @@ static m2m2_hdr_t *eda_app_perform_rtia_calibration(m2m2_hdr_t *p_pkt) {
     }
 
     p_resp_payload->num_calibrated_values = num_cal_points;
+    
+     /* clear flag rtia cal is on */
+    rtia_cal_flag = 0;
 
     /* LDO power off */
     adp5360_enable_ldo(ECG_LDO, false);
@@ -1002,6 +1175,7 @@ static m2m2_hdr_t *eda_app_stream_config(m2m2_hdr_t *p_pkt) {
   int32_t nRetCode = EDA_SUCCESS;
   PYLD_CST(p_pkt, m2m2_app_common_sub_op_t, p_in_payload);
   PKT_MALLOC(p_resp_pkt, m2m2_app_common_sub_op_t, 0);
+
   if (NULL != p_resp_pkt) {
     /* Declare a pointer to the response packet payload */
     PYLD_CST(p_resp_pkt, m2m2_app_common_sub_op_t, p_resp_payload);
@@ -1088,6 +1262,21 @@ static m2m2_hdr_t *eda_app_stream_config(m2m2_hdr_t *p_pkt) {
       command = M2M2_APP_COMMON_CMD_STREAM_STOP_RESP;
       break;
 
+#ifdef EDA_DCFG_ENABLE
+    case M2M2_EDA_APP_CMD_LOAD_DCFG_REQ:{
+        if (!g_state_eda.num_starts) {
+            eda_user_applied_dftnum = 0;
+            load_ad5940_default_config(&default_dcfg_eda[0]);
+            status = M2M2_APP_COMMON_STATUS_OK;
+          } else {
+            status = M2M2_APP_COMMON_STATUS_ERROR;
+          }
+        /* clear flag to not load global array again if its loaded from load req*/
+        eda_load_applied_dcfg = 0;
+        command = M2M2_EDA_APP_CMD_LOAD_DCFG_RESP;
+    }
+    break;
+#endif //EDA_DCFG_ENABLE
     case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
       g_state_eda.num_subs++;
       if(g_state_eda.num_subs == 1)
@@ -1157,6 +1346,10 @@ EDA_ERROR_CODE_t EDAAppDeInit() {
   gEdaAppInitFlag = false;
   /* de initing for next use */
   init_flag=0;
+#ifdef EDA_DCFG_ENABLE
+  /* set flag for reset */
+  eda_load_applied_dcfg = 1;
+#endif
 
   /* de init power */
   adp5360_enable_ldo(ECG_LDO, false);
@@ -1339,6 +1532,80 @@ static m2m2_hdr_t *eda_app_reg_access(m2m2_hdr_t *p_pkt) {
   return p_resp_pkt;
 }
 
+#ifdef EDA_DCFG_ENABLE
+/*!
+ ****************************************************************************
+ *@brief      Eda Dcfg read/write
+ *@param      pPkt: pointer to the packet structure
+ *@return     m2m2_hdr_t
+ ******************************************************************************/
+static m2m2_hdr_t *eda_app_dcfg_reg_update(m2m2_hdr_t *p_pkt) {
+  M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
+  PYLD_CST(p_pkt, eda_app_dcfg_op_hdr_t, p_in_payload);
+  /* Allocate a response packet with space for the correct number of operations
+   */
+  PKT_MALLOC(p_resp_pkt, eda_app_dcfg_op_hdr_t,p_in_payload->num_ops * sizeof(p_in_payload->ops[0]));
+  if (NULL != p_resp_pkt) {
+    PYLD_CST(p_resp_pkt, eda_app_dcfg_op_hdr_t, p_resp_payload);
+
+    switch (p_in_payload->command) {
+     static uint8_t dcfg_position=0;
+     static uint8_t array_ind=0;
+    case M2M2_APP_COMMON_CMD_WRITE_DCFG_REQ:
+      /* Copy register addresses, value pairs */
+      for (int i = 0; i < p_in_payload->num_ops; i++) {
+        uint32_t addr = (uint32_t)p_in_payload->ops[i].field;
+        /* Map Address of register to user index */
+        dcfg_position = mapaddrind(&addr);
+        if(dcfg_position < MAX_USER_SEQCFG){
+          g_user_config_eda_dcfg[dcfg_position] = p_in_payload->ops[i].value;
+          g_user_indexes[i] = dcfg_position;
+          status = M2M2_APP_COMMON_STATUS_OK;
+        }else {
+          status = M2M2_APP_COMMON_STATUS_ERROR;
+        }
+        /* number of user settings */
+        num_ind_settings = p_in_payload->num_ops;
+        p_resp_payload->ops[i].field = p_in_payload->ops[i].field;
+        p_resp_payload->ops[i].value = p_in_payload->ops[i].value;
+      }
+      /* Update write flag */
+      eda_user_applied_dcfg = 1;
+      p_resp_payload->command = (M2M2_APP_COMMON_CMD_ENUM_t) M2M2_APP_COMMON_CMD_WRITE_DCFG_RESP;
+     break;
+    case M2M2_APP_COMMON_CMD_READ_DCFG_REQ:
+      /* Copy register addresses, value pairs */
+      for (int i = 0; i < p_in_payload->num_ops; i++) {
+        uint32_t addr = (uint32_t)p_in_payload->ops[i].field; 
+        dcfg_position = mapaddrind(&addr);
+
+        /* find index to set */
+        array_ind = mapuserind(&dcfg_position);
+        if(array_ind < EDA_DCFG_MAX_CONFIG) {
+          status = M2M2_APP_COMMON_STATUS_OK;
+        }
+        else  {
+          status = M2M2_APP_COMMON_STATUS_ERROR;
+        }
+        p_resp_payload->ops[i].field = p_in_payload->ops[i].field;
+        p_resp_payload->ops[i].value = g_current_dcfg_ad5940[array_ind];
+      }
+      p_resp_payload->command = (M2M2_APP_COMMON_CMD_ENUM_t) M2M2_APP_COMMON_CMD_READ_DCFG_RESP;
+     break;
+    default:
+      /* Something has gone horribly wrong. */
+      post_office_consume_msg(p_resp_pkt);
+      return NULL;
+    }
+    p_resp_pkt->dest = p_pkt->src;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_payload->num_ops = p_in_payload->num_ops;
+    p_resp_payload->status = status;
+  }
+  return p_resp_pkt;
+}
+#endif
+
 #ifdef DEBUG_EDA
 extern uint32_t eda_load_time_diff;
 static m2m2_hdr_t *eda_app_debug_info(m2m2_hdr_t *p_pkt) {
@@ -1408,7 +1675,360 @@ static m2m2_hdr_t *eda_app_decimation(m2m2_hdr_t *p_pkt) {
   return p_resp_pkt;
 }
 
+#ifdef EDA_DCFG_ENABLE
+/**
+      @brief    Map user Index 
+      @param    User Index to map to Global array Index
+      @retval   Array Index
+*/
+uint8_t mapuserind(uint8_t *userind)  {
+  uint8_t array_ind=0;
+    switch(*userind)  {
+     case USER_SEQCFG_REG_AFE_DFTCON_1:
+      array_ind = SEQCFG_REG_AFE_DFTCON_1;
+      break;
+     case USER_SEQCFG_REG_INTERRUPT_CONTROLLER_0:
+      array_ind = INTERRUPT_CONTROLLER_SELECT_0;
+      break;
+     case USER_SEQCFG_REG_INTERRUPT_CONTROLLER_1:
+      array_ind = INTERRUPT_CONTROLLER_SELECT_1;
+      break;
+     case USER_SEQCFG_REG_DATA_FIFO_CONFIG:
+      array_ind = DATA_FIFO_CONFIG;
+      break;
+     case USER_SEQCFG_REG_COMMAND_FIFO_CONFIG:
+      array_ind = COMMAND_FIFO_CONFIG;
+      break;
+     case USER_SEQCFG_REG_ADC_PGA_GAIN_CONFIG:
+      array_ind = ADC_PGA_GAIN_CONFIG;
+      break;
+     case USER_SEQCFG_REG_DFT_CON_CONFIG:
+      array_ind = DFT_CON_CONFIG;
+      break;
+     case USER_SEQCFG_REG_GPIO_CONTROL_CONFIG:
+      array_ind = GPIO_CONTROL_CONFIG;
+      break;
+     case USER_SEQCFG_REG_LOW_POWER_DAC_VOLTAGE_CONFIG:
+      array_ind = LOW_POWER_DAC_VOLTAGE_CONFIG;
+      break;
+     case USER_SEQCFG_REG_HS_LOOP_CONFIG:
+      array_ind = POWER_DOWN_HS_LOOP_CONFIG;
+      break;
+     case USER_SEQCFG_REG_FIFO_SOURCE_CONFIG:
+      array_ind = DATA_FIFO_SOURCE_CONFIG;
+      break;
+  // case USER_SEQCFG_REG_LOW_POWER_DAC_CONFIG:
+ //  array_ind = LOW_POWER_DAC_CONFIG;
+ //  break;
+     default:
+      array_ind = EDA_DCFG_MAX_CONFIG;
+      break;
+    }
+    return array_ind;
+}
 
+/**
+      @brief    Map Adress to User Index 
+      @param    User Index to map to Global array Index
+      @retval   Array Index
+*/
+uint8_t mapaddrind(uint32_t *address)  {
+  uint8_t user_ind=0;
+    switch(*address)  {
+     case FIFO_CONFIGURATION_REGISTER:
+      user_ind = USER_SEQCFG_REG_COMMAND_FIFO_CONFIG;
+      break;
+     case FIFO_SRC_CONFIGURATION_REGISTER:
+      user_ind = USER_SEQCFG_REG_FIFO_SOURCE_CONFIG;
+      break;
+     case INTERRUPT_CONTROLLER_SELECT_ZERO_REGISTER:
+      user_ind = USER_SEQCFG_REG_INTERRUPT_CONTROLLER_0;
+      break;
+     case INTERRUPT_CONTROLLER_SELECT_ONE_REGISTER:
+      user_ind = USER_SEQCFG_REG_INTERRUPT_CONTROLLER_1;
+      break;
+     case ADC_PGA_GAIN_CONFIGURATION_REGISTER:
+      user_ind = USER_SEQCFG_REG_ADC_PGA_GAIN_CONFIG;
+      break;
+     case FILTER_CONFIGURATION_REGISTER:
+      user_ind = USER_SEQCFG_REG_AFE_DFTCON_1;
+      break;
+     case DFT_CONFIGURATION_REGISTER:
+      user_ind = USER_SEQCFG_REG_DFT_CON_CONFIG;
+      break;
+     case GPIO_CONTROL_CONFIGURATION_REGISTER:
+      user_ind = USER_SEQCFG_REG_GPIO_CONTROL_CONFIG;
+      break;
+     case LOW_POWER_TIA_CONFIGURATION_REGISTER:
+      user_ind = USER_SEQCFG_REG_LOW_POWER_DAC_VOLTAGE_CONFIG;
+      break;
+     case POWER_DOWN_CONFIGURATION_REGISTER:
+      user_ind = USER_SEQCFG_REG_HS_LOOP_CONFIG;
+      break;
+    // case LOW_POWER_DAC_CONFIGURATION_REGISTER:
+    //  user_ind = USER_SEQCFG_REG_LOW_POWER_DAC_CONFIG;
+    //  break;
+     default:
+      user_ind = MAX_USER_SEQCFG;
+      break;
+    }
+    return user_ind;
+}
+
+/**
+      @brief    Get DFT Number from register setting
+      @param    None
+      @retval   DFT Number Set
+*/
+uint32_t get_dftnumber_dcfg(){
+
+  uint32_t dft_num = (uint32_t)(g_current_dcfg_ad5940[DFT_CON_CONFIG]);
+  dft_num = (dft_num & 0x000000F0);
+  dft_num = (dft_num >> 4);
+  return dft_num;
+
+}
+/**
+      @brief    Load AD5940 default configuration to working array
+      @param    Pointer to configuration array
+      @retval   None
+*/
+void load_ad5940_default_config(uint64_t *cfg) {
+    uint16_t i = 0, j = 0,array_ind=0;
+
+    if (cfg == 0) {
+        return;
+    }
+    for (i = 0; i < MAX_DCFG_COMBINED; i++) {
+      while (1) {
+        g_current_dcfg_ad5940[j] = cfg[j]; 
+         /* Demarker between DCFG's used to differentiate different register module settings */
+        if (cfg[j++] == 0xFFFFFFFFFFFFFFFF) {
+          break;
+        }
+      }
+    }
+    if((eda_user_applied_dcfg == 0x01) && (rtia_cal_flag != 1))
+    {
+      for(i=0;i < num_ind_settings;i++){
+        uint8_t dcfg_position = g_user_indexes[i];
+        /* not supporting 11th index of user config */
+        if(dcfg_position < MAX_USER_SEQCFG){
+          /* find index to set */
+           array_ind = mapuserind(&dcfg_position);
+           /* clear lower 32 bits which is field */
+           g_current_dcfg_ad5940[array_ind] &= 0xFFFFFFFF00000000;
+           /* Or lower 32 bits to set data bits */
+           g_current_dcfg_ad5940[array_ind] |= g_user_config_eda_dcfg[dcfg_position];
+         }
+       }
+         /* clearing dcfg flag for next use */
+        eda_user_applied_dcfg = 0;
+    }
+    if(rtia_cal_flag != 1){
+      if(eda_user_applied_dftnum){
+        g_current_dcfg_ad5940[DFT_CON_CONFIG] &= ~(BITM_AFE_DFTCON_DFTNUM);
+        g_current_dcfg_ad5940[DFT_CON_CONFIG] |= ((AppEDACfg.DftNum << BITP_AFE_DFTCON_DFTNUM ) & (BITM_AFE_DFTCON_DFTNUM) );
+        eda_user_applied_dftnum = 0;
+      }
+      else {
+      AppEDACfg.DftNum = get_dftnumber_dcfg();
+      }
+    }
+}
+
+
+
+/**
+* @brief    To check status of low / high frequency system clock if enabled
+* @param    uint32_t addr : 32 bit address 
+            uint32_t data : 32 bit data 
+* @retval   None
+*/
+void check_system_clock_status(uint32_t addr, uint32_t data){
+  if( (data & BITM_ALLON_OSCCON_HFOSCEN) == BITM_ALLON_OSCCON_HFOSCEN)
+    while((AD5940_ReadReg(REG_ALLON_OSCCON)&BITM_ALLON_OSCCON_HFOSCOK) == 0); /* Wait for clock ready */   
+  if( (data & BITM_ALLON_OSCCON_LFOSCEN) == BITM_ALLON_OSCCON_LFOSCEN)
+    while((AD5940_ReadReg(REG_ALLON_OSCCON)&BITM_ALLON_OSCCON_LFOSCOK) == 0); /* Wait for clock ready */
+}
+
+/**
+* @brief    To check status of high frequency system clock if enabled, 
+            based on 16MHz/32MHz clock selection 
+* @param    None
+* @retval   None
+*/
+void check_high_freq_clock_config_status(){
+     while((AD5940_ReadReg(REG_ALLON_OSCCON)&BITM_ALLON_OSCCON_HFOSCOK) == 0); /* Wait for clock ready */  
+}
+
+
+/**
+* @brief    Write a dcfg to ad5940
+* @param    p_dcfg - pointer to Dcfg array
+* @retval   Status
+*/
+AD5940_DCFG_STATUS_t write_eda_init(uint64_t *p_dcfg) {
+  uint32_t reg_addr;
+  uint32_t reg_data;
+
+  if (p_dcfg == NULL) {
+    return AD5940_DCFG_STATUS_NULL_PTR;
+  }
+ 
+  for (int i = 0;p_dcfg[i]!= 0xFFFFFFFFFFFFFFFF; i++) {
+    reg_addr = (uint32_t) (p_dcfg[i] >> 32);
+    reg_data = (uint32_t)(p_dcfg[i]);
+
+    AD5940_WriteReg(reg_addr, reg_data);
+   if(reg_addr == REG_ALLON_OSCCON) {
+      check_system_clock_status(reg_addr,reg_data);
+    }
+    else if(reg_addr == REG_AFE_HPOSCCON){
+      check_high_freq_clock_config_status();
+    }
+  }
+  return AD5940_DCFG_STATUS_OK;
+}
+
+
+/**
+* @brief    Write AD5940 Default configuration
+* @param    void
+* @retval   Status
+*/
+AD5940_DCFG_STATUS_t write_ad5940_init()
+{
+  if (write_eda_init(&g_current_dcfg_ad5940[0]) != AD5940_DCFG_STATUS_OK) {
+      return AD5940_DCFG_STATUS_ERR;
+  }
+}
+
+
+/**
+* @brief    Write a sequencercfg dcfg to ad5940
+* @param    p_dcfg - pointer to Dcfg array
+* @retval   Status
+*/
+AD5940_DCFG_STATUS_t write_eda_seqcfg_dcfg(uint64_t *p_dcfg) {
+  uint32_t reg_addr;
+  uint32_t reg_data;
+
+  if (p_dcfg == NULL) {
+    return AD5940_DCFG_STATUS_NULL_PTR;
+  }
+ 
+  for (int i = 0;p_dcfg[i]!= 0xFFFFFFFFFFFFFFFF; i++) {
+    reg_addr = (uint32_t) (p_dcfg[i] >> 32);
+    reg_data = (uint32_t)(p_dcfg[i]);
+
+    AD5940_WriteReg(reg_addr, reg_data);
+  }
+  return AD5940_DCFG_STATUS_OK;
+}
+
+/**
+* @brief    Write AD5940 SequencerCfg  configuration
+* @param    void
+* @retval   Status
+*/
+AD5940_DCFG_STATUS_t write_ad5940_seqcfg()
+{
+  uint16_t i = 0;
+  while (g_current_dcfg_ad5940[i++] != 0xFFFFFFFFFFFFFFFF);
+  if (write_eda_seqcfg_dcfg(&g_current_dcfg_ad5940[i]) != AD5940_DCFG_STATUS_OK) {
+      return AD5940_DCFG_STATUS_ERR;
+  }
+
+}
+
+/**
+* @brief    Write a sequencer measurement loop dcfg to ad5940
+* @param    p_dcfg - pointer to Dcfg array
+* @retval    None
+*/
+void write_eda_seqmeasurementloop_dcfg(uint64_t *p_dcfg) {
+  uint32_t reg_addr;
+  uint32_t reg_data;      
+  uint32_t loop_count =  (1 << (AppEDACfg.DftNum + 2)),loop_index = 0;
+  while (loop_index < loop_count){   
+    for (int i = 0;i < (SEQMEASRMT_LOOP_TOTAL_REGISTERS_SIZE-2); i++) {
+    
+       if((loop_index == (loop_count-1)) && (i==(SEQMEASRMT_LOOP_TOTAL_REGISTERS_SIZE-4))) {    
+         return;
+       }
+     
+       if((uint32_t) (p_dcfg[i] >> 32) == 0xEEEEEEEE){
+         AD5940_SEQGenInsert((uint32_t)(p_dcfg[i]));
+       }
+       else{
+         reg_addr = (uint32_t) (p_dcfg[i] >> 32);
+         reg_data = (uint32_t)(p_dcfg[i]);
+         AD5940_WriteReg(reg_addr, reg_data);
+       }    
+    }
+     loop_index++;
+  }
+}
+
+/**
+* @brief    Write a sequencer measurement dcfg to ad5940
+* @param    p_dcfg - pointer to Dcfg array
+* @retval   Status
+*/
+AD5940_DCFG_STATUS_t write_eda_seqmeasurement_dcfg(uint64_t *p_dcfg) {
+  uint32_t reg_addr;
+  uint32_t reg_data;
+
+  if (p_dcfg == NULL) {
+    return AD5940_DCFG_STATUS_NULL_PTR;
+  }
+ 
+  for (int i = 0;p_dcfg[i]!= 0xFFFFFFFFFFFFFFFF; i++) {
+    
+    if(p_dcfg[i] == 0xBBBBBBBBBBBBBBBB){
+      /*start of loop indication*/
+       i = i+1;
+       write_eda_seqmeasurementloop_dcfg(p_dcfg+i);
+       i = i + (SEQMEASRMT_LOOP_TOTAL_REGISTERS_SIZE-2);
+    }
+
+    if((uint32_t) (p_dcfg[i] >> 32) == 0xEEEEEEEE){
+
+      AD5940_SEQGenInsert((uint32_t)(p_dcfg[i]));
+    }
+    else
+    {
+      reg_addr = (uint32_t) (p_dcfg[i] >> 32);
+      reg_data = (uint32_t)(p_dcfg[i]);
+      AD5940_WriteReg(reg_addr, reg_data);
+    }
+    /* Sequencer saves index of voltage current settings to patch whichever required */ 
+    if(i==SAVE_PATCH_CURRENT_VOLTAGE_SETTINGS_START_INDEX) {
+      AD5940_SEQGenFetchSeq(NULL, &AppEDACfg.SeqPatchInfo.SRAMAddr);
+    }
+  }
+  return AD5940_DCFG_STATUS_OK;
+}
+
+
+/**
+* @brief    Write AD5940 Sequencer measurement  configuration
+* @param    void
+* @retval   Status
+*/
+AD5940_DCFG_STATUS_t write_ad5940_seqmeasurement()
+{
+  uint16_t i = 0;
+  while (g_current_dcfg_ad5940[i++] != 0xFFFFFFFFFFFFFFFF);
+  while (g_current_dcfg_ad5940[i++] != 0xFFFFFFFFFFFFFFFF);
+
+  if (write_eda_seqmeasurement_dcfg(&g_current_dcfg_ad5940[i]) != AD5940_DCFG_STATUS_OK) {
+      return AD5940_DCFG_STATUS_ERR;
+  }
+
+}
+#endif //EDA_DCFG_ENABLE
 
 
 #ifdef AD5940_REG_ACCESS

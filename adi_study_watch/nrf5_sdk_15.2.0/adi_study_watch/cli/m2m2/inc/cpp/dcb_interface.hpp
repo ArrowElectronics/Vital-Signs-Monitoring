@@ -21,6 +21,7 @@
 #define DCB_BLK_WORD_SZ	4
 #define MAXAD7156DCBSIZE	20
 #define MAXADPD4000DCBSIZE	57
+#define MAXTEMPRLCFGDCBSIZE	57
 #define MAXADXLDCBSIZE	25
 #define MAXBIADCBSIZE	18
 #define MAXECGDCBSIZE	4
@@ -30,6 +31,7 @@
 #define MAXPPGDCBSIZE	56
 #define MAXUSER0BLKDCBSIZE	19
 #define MAX_ADPD4000_DCB_PKTS	4
+#define MAX_TEMPRLCFG_DCB_PKTS	2
 #define MAX_GEN_BLK_DCB_PKTS	18
 
 enum M2M2_DCB_COMMAND_ENUM_t:uint8_t {
@@ -86,6 +88,14 @@ struct m2m2_dcb_adpd4000_data_t {
   uint16_t  size; 
   uint16_t  num_of_pkts; 
   uint32_t  dcbdata[57]; 
+};
+
+struct m2m2_dcb_temperature_data_t {
+  uint8_t  command;
+  uint8_t  status;
+  uint16_t  size;
+  uint16_t  num_of_pkts;
+  uint32_t  dcbdata[57];
 };
 
 struct m2m2_dcb_adxl_data_t {

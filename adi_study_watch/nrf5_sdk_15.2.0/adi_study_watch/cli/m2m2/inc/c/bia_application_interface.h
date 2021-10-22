@@ -38,6 +38,12 @@ typedef enum M2M2_BIA_APP_CMD_ENUM_t {
   M2M2_APP_COMMON_CMD_DCB_TIMING_INFO_REQ = 76,
   M2M2_APP_COMMON_CMD_DCB_TIMING_INFO_RESP = 77,
   M2M2_BCM_APP_CMD_ALGO_STREAM_RESP = 78,
+  M2M2_BIA_APP_CMD_LOAD_DCFG_REQ = 79,
+  M2M2_BIA_APP_CMD_LOAD_DCFG_RESP = 80,
+  M2M2_BIA_APP_COMMON_CMD_WRITE_DCFG_REQ = 81,
+  M2M2_BIA_APP_COMMON_CMD_WRITE_DCFG_RESP = 82,
+  M2M2_BIA_APP_COMMON_CMD_READ_DCFG_REQ = 83,
+  M2M2_BIA_APP_COMMON_CMD_READ_DCFG_RESP = 84,
 } M2M2_BIA_APP_CMD_ENUM_t;
 STATIC_ASSERT_PROJ(sizeof(M2M2_BIA_APP_CMD_ENUM_t) == 1, INCORRECT_SIZE_M2M2_BIA_APP_CMD_ENUM_t);
 
@@ -95,6 +101,18 @@ typedef struct _bia_app_lcfg_op_hdr_t {
   uint8_t  num_ops; 
   bia_app_lcfg_op_t  ops[0]; 
 } bia_app_lcfg_op_hdr_t;
+
+typedef struct _bia_app_dcfg_op_t {
+  uint32_t  field;
+  uint32_t  value;
+} bia_app_dcfg_op_t;
+
+typedef struct _bia_app_dcfg_op_hdr_t {
+  uint8_t  command;
+  uint8_t  status;
+  uint8_t  num_ops;
+  bia_app_dcfg_op_t  ops[0];
+} bia_app_dcfg_op_hdr_t;
 
 typedef struct _bia_data_set_t {
   uint32_t  timestamp; 

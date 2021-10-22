@@ -23,7 +23,8 @@ from m2m2_core_def import *
 application_name_map = {
 "adxl":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADXL, 'help':"The ADXL device."},
 "ppg":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, 'help':"The PPG heart rate service."},
-"agc":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, 'help':"The AGC service."},
+"dynamic_agc":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, 'help':"The AGC service."},
+"static_agc":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, 'help':"The static AGC service."},
 "syncppg":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SYNC_ADPD_ADXL, 'help':"The sync PPG data stream service."},
 "eda":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, 'help':"The EDA service."},
 "ecg":{'address':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_ECG, 'help':"The ECG service."},
@@ -61,9 +62,22 @@ stream_name_map = {
 "reda":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA_STREAM, 'help':"Raw EDA data."},
 "recg":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_ECG, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_ECG_STREAM, 'help':"Raw ECG data."},
 "rbia":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA_STREAM, 'help':"Raw BIA data."},
-"ragc":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_AGC_STREAM, 'help':"PPG AGC data."},
+"rdynamic_agc":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_DYNAMIC_AGC_STREAM, 'help':"PPG AGC data."},
+"rstatic_agc":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_SENSOR_ADPD4000, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_STATIC_AGC_STREAM, 'help':"ADPD static AGC data."},
 "radp":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_BATT_STREAM, 'help':"ADP5350 Battery data."},
 "rtemperature":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM, 'help':"Raw Temperature data."},
+"rtempr1":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM1, 'help':"Raw Temperature data slot1"},
+"rtempr2":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM2, 'help':"Raw Temperature data slot2"},
+"rtempr3":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM3, 'help':"Raw Temperature data slot3"},
+"rtempr4":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM, 'help':"Raw Temperature data slot4"},
+"rtempr5":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM5, 'help':"Raw Temperature data slot5"},
+"rtempr6":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM6, 'help':"Raw Temperature data slot6"},
+"rtempr7":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM7, 'help':"Raw Temperature data slot7"},
+"rtempr8":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM8, 'help':"Raw Temperature data slot8"},
+"rtempr9":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM9, 'help':"Raw Temperature data slot9"},
+"rtempr10":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM10, 'help':"Raw Temperature data slot10"},
+"rtempr11":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM11, 'help':"Raw Temperature data slot11"},
+"rtempr12":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_TEMPERATURE_STREAM12, 'help':"Raw Temperature data slot12"},
 "rped":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PED, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PED_STREAM, 'help':"Raw Pedometer data."},
 "rsqi":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SQI, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_SQI_STREAM, 'help':"Raw SQI data."},
 "rhrv":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_PPG, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_HRV_STREAM, 'help':"PPG HRV data."},
@@ -71,7 +85,8 @@ stream_name_map = {
 "rbcm":{'application':M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_BIA, 'stream':M2M2_ADDR_ENUM_t.M2M2_ADDR_BCM_ALGO_STREAM, 'help':"BCM Algo data."},
 }
 
-pkt_loss_dict = {'recg': False, 'rppg': False, 'radxl': False, 'rtemperature': False, 'reda': False, 'rsyncppg': False, 'radpd': False, 'rad7156': False}
+pkt_loss_dict = {'recg': False, 'rppg': False, 'radxl': False, 'rtemperature': False, 'reda': False, 'rsyncppg': False, 'radpd': False, 'rad7156': False,
+                 'rtempr3': False,'rtempr4': False,'rtempr10': False,'rtempr11': False,'rtempr12': False,}
 
 def init_pkt_loss_dict():
     global pkt_loss_dict

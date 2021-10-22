@@ -72,6 +72,9 @@ ADI_OSAL_THREAD_HANDLE key_task_handler;
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 #endif
+#ifdef CUST4_SM
+volatile bool gnWatchReset __attribute__((section(".non_init")));
+#endif
 
 #define KEY_USER_MAX (2)  //!< Maximum number of key handlers can be registered
 
@@ -250,6 +253,9 @@ void key_detect_thread(void * arg)
                           /* failure */
                           NRF_LOG_INFO("Error file close");
                         }
+#endif
+#ifdef CUST4_SM
+                        gnWatchReset = true;
 #endif
                         rtc_timestamp_store(320);
                         NVIC_SystemReset();

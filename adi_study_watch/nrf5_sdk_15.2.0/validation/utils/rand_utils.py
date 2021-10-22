@@ -84,7 +84,7 @@ def ppg_fs_sub_add(freq=None):
     common.watch_shell.do_calibrate_clock(common.adpd_clk_calib)
     common.watch_shell.do_set_ppg_lcfg("5")
     common.watch_shell.do_fs_sub("ppg add")
-    common.watch_shell.do_fs_sub("sync_ppg add")
+    # common.watch_shell.do_fs_sub("sync_ppg add")
 
 
 def ppg_sensor_start():
@@ -148,7 +148,7 @@ def ppg_stream_stop():
 
 def ppg_fs_sub_remove():
     common.watch_shell.do_fs_sub("ppg remove")
-    common.watch_shell.do_fs_sub("sync_ppg remove")
+    # common.watch_shell.do_fs_sub("sync_ppg remove")
 
 
 def ppg_sensor_stop():

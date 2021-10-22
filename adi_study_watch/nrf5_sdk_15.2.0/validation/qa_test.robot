@@ -247,45 +247,45 @@ ECG Repeatability Sweep Test
     [Tags]  AD5940_TEST    FULL_REGRESSION
     ecg_repeatability_sweep_test
 
-BCM DCB Test
+BIA DCB Test
     [Documentation]
     [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
-    bcm_dcb_test
+    bia_dcb_test
 
-BCM DCB Stream Test
+BIA DCB Stream Test
     [Documentation]
     [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
-    bcm_dcb_stream_test
+    bia_dcb_stream_test
 
-BCM DCB Repeatability Test
+BIA DCB Repeatability Test
     [Documentation]
     [Tags]  AD5940_TEST   FULL_REGRESSION
-    bcm_dcb_repeatability_test
+    bia_dcb_repeatability_test
 
-BCM Stream Test
+BIA Stream Test
     [Documentation]
     [Tags]  AD5940_TEST    SANITY_TEST    ROUTINE_TEST    FULL_REGRESSION
-    bcm_stream_test
+    bia_stream_test
 
-BCM FS Stream Test
+BIA FS Stream Test
     [Documentation]
     [Tags]  AD5940_TEST   FS_TEST   ROUTINE_TEST    FULL_REGRESSION
-    bcm_fs_stream_test
+    bia_fs_stream_test
 
-BCM Frequency Sweep Test
+BIA Frequency Sweep Test
     [Documentation]
     [Tags]  AD5940_TEST    ROUTINE_TEST    FULL_REGRESSION
-    bcm_freq_sweep_test
+    bia_freq_sweep_test
 
-BCM FS Frequency Sweep Test
+BIA FS Frequency Sweep Test
     [Documentation]
     [Tags]  AD5940_TEST   FS_TEST    ROUTINE_TEST    FULL_REGRESSION
-    bcm_fs_freq_sweep_test
+    bia_fs_freq_sweep_test
 
-BCM Repeatability Sweep Test
+BIA Repeatability Sweep Test
     [Documentation]
     [Tags]  AD5940_TEST    FULL_REGRESSION
-    bcm_repeatability_sweep_test
+    bia_repeatability_sweep_test
 
 
 

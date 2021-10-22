@@ -14,6 +14,10 @@ class M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t(c_uint8):
     M2M2_USER0_CONFIG_APP_COMMAND_GET_STATE_RESP = 0x45
     M2M2_USER0_CONFIG_APP_COMMAND_ID_OP_REQ = 0x46
     M2M2_USER0_CONFIG_APP_COMMAND_ID_OP_RESP = 0x47
+    M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_REQ = 0x48
+    M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_RESP = 0x49
+    M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_REQ = 0x4A
+    M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_RESP = 0x4B
 
 class M2M2_USER0_CONFIG_APP_STATUS_ENUM_t(c_uint8):
     _M2M2_USER0_CONFIG_APP_STATUS_LOWEST = 0x40
@@ -32,6 +36,21 @@ class USER0_CONFIG_APP_STATE_t(c_uint8):
     STATE_CHARGING_BATTERY = 0x7
     STATE_OUT_OF_BATTERY_STATE_BEFORE_START_MONITORING = 0x8
     STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING = 0x9
+
+class USER0_CONFIG_APP_EVENT_t(c_uint8):
+    EVENT_INVALID = 0x0
+    EVENT_NAV_BUTTON_RESET = 0x1
+    EVENT_WATCH_ON_CRADLE_NAV_BUTTON_RESET = 0x2
+    EVENT_BATTERY_DRAINED = 0x3
+    EVENT_BLE_DISCONNECT_UNEXPECTED = 0x4
+    EVENT_BLE_DISCONNECT_NW_TERMINATED = 0x5
+    EVENT_WATCH_OFF_CRADLE_BLE_DISCONNECT_NW_TERMINATED = 0x6
+    EVENT_RTC_TIMER_INTERRUPT = 0x7
+    EVENT_BLE_ADV_TIMEOUT = 0x8
+    EVENT_USB_DISCONNECT_UNEXPECTED = 0x9
+    EVENT_BATTERY_FULL = 0xA
+    EVENT_FINISH_LOG_TRANSFER = 0xB
+    EVENT_WATCH_OFF_CRADLE_BLE_CONNECTION = 0xC
 
 class m2m2_user0_config_app_cmd_t(Structure):
     fields = [
@@ -76,4 +95,19 @@ class user0_config_app_id_t(Structure):
         ("id_sel", ID_SELECTION_ENUM_t),
         ("id_op", ID_OPERATION_MODE_ENUM_t),
         ("id_num", c_uint16),
+    ]
+
+class user0_app_prev_state_event_t(Structure):
+    fields = [
+        ("prev_state", USER0_CONFIG_APP_STATE_t),
+        ("prev_event", USER0_CONFIG_APP_EVENT_t),
+        ("prev_timestamp", c_uint32),
+    ]
+
+class user0_app_prev_state_event_pkt_t(Structure):
+    fields = [
+        ("command", c_uint8),
+        ("status", c_uint8),
+        ("prev_st_evt", user0_app_prev_state_event_t * 4),
+        ("intermittent_op_cnt", c_uint16),
     ]

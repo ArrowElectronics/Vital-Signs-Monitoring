@@ -210,6 +210,7 @@ ADPDLIB_ERROR_CODE_t Adpd400xLibGetHr(LibResultX_t *result,
   * @retval none.
   */
 void Adpd400xLibGetAgcState(AGCStat_t* agcInfo) {
+  gAdpd400xAGCStatInfo.setting[6] = log2(gAdpd400x_lcfg->targetSlots);
   memcpy(agcInfo, &gAdpd400xAGCStatInfo, sizeof(AGCStat_t));
   gAdpd400xAGCStatInfo.setting[0] = 0;    // Reset State
 }

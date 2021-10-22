@@ -55,7 +55,7 @@ matlab_eng = None
 pcb_name_default = 'A1H1'
 shared_drive_path = r'\\wilmnas4\Local Programs\FDWatch_TestData\Data_Testsetup\DVT1_Test_Results'
 ecg_stream_file_name = 'ecg.csv'
-bcm_stream_file_name = "bcm.csv"
+bia_stream_file_name = "bia.csv"
 ppg_stream_file_name = 'ppg.csv'
 syncppg_stream_file_name = 'sync_ppg.csv'
 adxl_stream_file_name = 'adxl.csv'
@@ -72,6 +72,7 @@ save_plots = False
 DVT_version = None
 adpd_clk_calib = None
 cm = None  # CLI Map
+ble_mac_addr = None
 # **********************************************************************
 
 # ********************* Configure Logging ******************************
@@ -169,14 +170,14 @@ def quick_start_ecg(samp_freq_hz=100):
     watch_shell.quick_start('ecg', 'ecg')
 
 
-def quick_start_bcm(samp_freq_hz=100):
+def quick_start_bia(samp_freq_hz=100):
     """
 
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_lcfg('w bcm 0:{}'.format(hex(samp_freq_hz)))
-    watch_shell.quick_start('bcm', 'bcm')
+    watch_shell.do_lcfg('w bia 0:{}'.format(hex(samp_freq_hz)))
+    watch_shell.quick_start('bia', 'bia')
 
 
 def set_ecg_stream_freq(samp_freq_hz=100):
@@ -195,6 +196,10 @@ def set_eda_stream_freq(samp_freq_hz=4):
     :return:
     """
     watch_shell.do_lcfg('w eda 0:{}'.format(hex(samp_freq_hz)))
+    if samp_freq_hz <= 16:
+        watch_shell.do_lcfg("w eda 0x2:0x2")
+    else:
+        watch_shell.do_lcfg("w eda 0x2:0x1")
 
 
 def quick_start_eda(samp_freq_hz=4):
@@ -203,7 +208,8 @@ def quick_start_eda(samp_freq_hz=4):
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_lcfg('w eda 0:{}'.format(hex(samp_freq_hz)))
+    if samp_freq_hz:
+        set_eda_stream_freq(samp_freq_hz)
     watch_shell.quick_start('eda', 'eda')
 
 
@@ -213,7 +219,8 @@ def quick_start_eda_fs(samp_freq_hz=4):
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_lcfg('w eda 0:{}'.format(hex(samp_freq_hz)))
+    if samp_freq_hz:
+        set_eda_stream_freq(samp_freq_hz)
     watch_shell.quick_start("eda", "eda", fs=True)
     watch_shell.do_start_logging("")
 
@@ -223,19 +230,19 @@ def quick_stop_eda_fs():
     watch_shell.do_stop_logging("")
 
 
-def quick_start_bcm_fs(samp_freq_hz=4):
+def quick_start_bia_fs(samp_freq_hz=4):
     """
 
     :param samp_freq_hz:
     :return:
     """
-    watch_shell.do_lcfg('w bcm 0:{}'.format(hex(samp_freq_hz)))
-    watch_shell.quick_start("bcm", "bcm", fs=True)
+    watch_shell.do_lcfg('w bia 0:{}'.format(hex(samp_freq_hz)))
+    watch_shell.quick_start("bia", "bia", fs=True)
     watch_shell.do_start_logging("")
 
 
-def quick_stop_bcm_fs():
-    watch_shell.quick_stop("bcm", "bcm", fs=True)
+def quick_stop_bia_fs():
+    watch_shell.quick_stop("bia", "bia", fs=True)
     watch_shell.do_stop_logging("")
 
 
@@ -271,7 +278,7 @@ def quick_start_adpd_fs(samp_freq_hz=50, agc_state=0, led='G', skip_load_cfg=Fal
                 'MWL': {'adpd_cfg': '5', 'clk_calib': adpd_clk_calib, 'sub': '10', 'agc_ctrl_id': '5'}}
     led = led.upper()
     if not skip_load_cfg:
-        watch_shell.do_load_adpd_cfg(cfg_dict[led]['adpd_cfg'])
+        watch_shell.do_load_adpd_cfg("1")
         watch_shell.do_calibrate_clock(cfg_dict[led]['clk_calib'])
     if agc_state:
         watch_shell.do_enable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
@@ -319,7 +326,7 @@ def config_adpd_stream(samp_freq_hz=50, agc_state=0, led='G', skip_load_cfg=Fals
                 'MWL': {'adpd_cfg': '5', 'clk_calib': adpd_clk_calib, 'sub': '10', 'agc_ctrl_id': '5'}}
     led = led.upper()
     if not skip_load_cfg:
-        watch_shell.do_load_adpd_cfg(cfg_dict[led]['adpd_cfg'])
+        watch_shell.do_load_adpd_cfg("1")
         watch_shell.do_calibrate_clock(cfg_dict[led]['clk_calib'])
     if agc_state:
         watch_shell.do_enable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
@@ -396,7 +403,7 @@ def quick_start_adpd(samp_freq_hz=50, agc_state=0, led='G', skip_load_cfg=False)
                 'B': {'adpd_cfg': '4', 'clk_calib': adpd_clk_calib, 'sub': '9', 'agc_ctrl_id': '4'}}
     led = led.upper()
     if not skip_load_cfg:
-        watch_shell.do_load_adpd_cfg(cfg_dict[led]['adpd_cfg'])
+        watch_shell.do_load_adpd_cfg("1")
         watch_shell.do_calibrate_clock(cfg_dict[led]['clk_calib'])
     if agc_state:
         watch_shell.do_enable_agc('{}'.format(cfg_dict[led]['agc_ctrl_id']))
@@ -521,14 +528,14 @@ def dcb_cfg(mode='w', dev='adxl', file_name=''):
             raise RuntimeError("DCB Config file not found!\n{}".format(os.path.join(dcb_cfg_dir, file_name)))
     elif mode == 'r':
         pkt = watch_shell.do_read_dcb('{}'.format(dev))
-        if dev in ["ecg", "eda", "bcm"]:
+        if dev in ["ecg", "eda", "bia"]:
             file_name = r".\dcb_cfg\{}_dcb_get.lcfg".format(dev)
         else:
             file_name = r".\dcb_cfg\{}_dcb_get.dcfg".format(dev)
         with open(file_name, "w") as fs:
             if dev == "adpd":
                 for pkt_element in pkt:
-                    for index, data in enumerate(pkt_element["payload"]["dcb_data"]):
+                    for index, data in enumerate(pkt_element["payload"]["data"]):
                         if index == 0 and type(data[0]) is int:
                             convert_2_hex = True
                         else:
@@ -539,7 +546,7 @@ def dcb_cfg(mode='w', dev='adxl', file_name=''):
                         fs.write("\n")
                         err_stat = watch_shell.check_err_stat(pkt_element)
             else:
-                for index, data in enumerate(pkt["payload"]["dcb_data"]):
+                for index, data in enumerate(pkt["payload"]["data"]):
                     if index == 0 and type(data[0]) is int:
                         convert_2_hex = True
                     else:
@@ -631,9 +638,9 @@ def read_station_cfg():
     :return:
     """
     # Default values
-    cfg_dict = {'arduino_port': 'COM7', 'watch_port': 'COM13',
+    cfg_dict = {'arduino_port': 'COM7', 'watch_port': 'COM13', 'watch_port_ble': 'COM7',
                 'fg_instr_addr': 'USB0::0x0957::0x2C07::MY52802639::0::INSTR',
-                'sm_instr_addr': 'GPIB0::23::INSTR', 'watch_port_type': 'USB'}
+                'sm_instr_addr': 'GPIB0::23::INSTR', 'watch_port_type': 'USB', 'ble_mac': '6B-28-88-26-52-C3'}
     station_cfg_path = os.path.join(os.getenv('APPDATA'), 'watch_test.yaml')
     if os.path.exists(station_cfg_path) and os.path.isfile(station_cfg_path):
         with open(station_cfg_path, 'r') as f_ref:
@@ -642,7 +649,26 @@ def read_station_cfg():
         with open(station_cfg_path, 'w') as f_ref:
             yaml.dump(cfg_dict, f_ref)
 
-    global arduino_port, watch_port, fg_instr_addr, sm_instr_addr, watch_port_type
+    missing_keys = []
+    global arduino_port, watch_port, watch_port_ble, fg_instr_addr, sm_instr_addr, watch_port_type, ble_mac_addr
+    if 'watch_port_ble' not in cfg_dict.keys():
+        missing_keys.append("watch_port_ble")
+        watch_port_ble = ""
+    else:
+        watch_port_ble = cfg_dict['watch_port_ble']
+    if 'ble_mac' not in cfg_dict.keys():
+        missing_keys.append("ble_mac")
+        ble_mac_addr = ""
+    else:
+        ble_mac_addr = cfg_dict['ble_mac']
+    if len(missing_keys) != 0:
+        test_logger.warning("Please add the {} values in the {} file".format(" and ".join(missing_keys),
+                                                                             os.path.join(os.getenv('APPDATA'),
+                                                                                          'watch_test.yaml')))
+        # raise ConditionCheckFailure("Please add the {} values in the {} file"
+        #                             "".format(" and ".join(missing_keys), os.path.join(os.getenv('APPDATA'),
+        #                                                                                'watch_test.yaml')))
+
     arduino_port = cfg_dict['arduino_port']
     watch_port = cfg_dict['watch_port']
     fg_instr_addr = cfg_dict['fg_instr_addr']
@@ -687,7 +713,7 @@ def init_matlab_engine():
     return matlab_eng
 
 
-def initialize_setup(ts_tolerance=0, com_port="NA"):
+def initialize_setup(ts_tolerance=0, com_port="NA", ble_mac="NA"):
     """
     This function runs necessary steps to initialize the test setup
     - Connects to Arduino and initializes arduino global variable
@@ -703,10 +729,14 @@ def initialize_setup(ts_tolerance=0, com_port="NA"):
     if com_port != "NA" and "COM" in com_port:
         global watch_port
         watch_port = com_port
+    if ble_mac != "NA":
+        global ble_mac_addr
+        ble_mac_addr = ble_mac
     if watch_port_type == 'USB':
         watch_shell_obj.do_connect_usb('{}'.format(watch_port))
     else:
-        watch_shell_obj.do_connect_ble('{}'.format(watch_port))
+        # watch_shell_obj.do_connect_ble('{}'.format(watch_port))
+        watch_shell_obj.do_connect_ble('{} {}'.format(watch_port, ble_mac_addr))
     # cm = CLIMap(watch_shell_obj)
     # Creating Test Rport Directory
     err_stat, sys_info_dict = watch_shell_obj.get_system_info()
@@ -717,7 +747,7 @@ def initialize_setup(ts_tolerance=0, com_port="NA"):
         pcb_name = easygui.enterbox('PCB Number:', 'Enter PCB Number')
     test_report_dir = init_test_report_dir(pcb_name)
     test_logger.info('Test Results Directory: {}'.format(test_report_dir))
-    err_stat, fw_ver_info_dict = watch_shell_obj.get_version()
+    err_stat, fw_ver_info_dict = watch_shell_obj.get_version_cli()
     if not err_stat:
         ver_info_str = 'Firmware Version: V{}.{}.{}  |  Build Info: {}'.format(fw_ver_info_dict['major'],
                                                                                fw_ver_info_dict['minor'],

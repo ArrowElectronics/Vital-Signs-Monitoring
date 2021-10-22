@@ -251,11 +251,15 @@ static file_routing_table_entry file_routing_table[] = {
   {M2M2_ADDR_SENSOR_ADPD4000,       M2M2_ADDR_SENSOR_ADPD_STREAM7,        M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_SENSOR_ADPD4000,       M2M2_ADDR_SENSOR_ADPD_STREAM8,        M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_SENSOR_ADPD4000,       M2M2_ADDR_SENSOR_ADPD_STREAM9,        M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_SENSOR_ADPD4000,       M2M2_ADDR_SYS_STATIC_AGC_STREAM,      M2M2_FILE_SYS_UNSUBSCRIBED},
+#ifdef ENABLE_DEBUG_STREAM
+  {M2M2_ADDR_SENSOR_ADPD4000,       M2M2_ADDR_SYS_DBG_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
+#endif
   {M2M2_ADDR_SENSOR_ADXL,           M2M2_ADDR_SENSOR_ADXL_STREAM,         M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_SENSOR_AD7156,         M2M2_ADDR_SENSOR_AD7156_STREAM,       M2M2_FILE_SYS_UNSUBSCRIBED},
 #ifdef ENABLE_PPG_APP
   {M2M2_ADDR_MED_PPG,               M2M2_ADDR_MED_PPG_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
-  {M2M2_ADDR_MED_PPG,               M2M2_ADDR_SYS_AGC_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_PPG,               M2M2_ADDR_SYS_DYNAMIC_AGC_STREAM,     M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_MED_PPG,               M2M2_ADDR_SYS_HRV_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_MED_SYNC_ADPD_ADXL,    M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM,  M2M2_FILE_SYS_UNSUBSCRIBED},
 #endif
@@ -270,6 +274,18 @@ static file_routing_table_entry file_routing_table[] = {
 #endif
 #ifdef ENABLE_TEMPERATURE_APP
   {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM1,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM2,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM3,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM4,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM5,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM6,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM7,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM8,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM9,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM10,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM11,     M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_MED_TEMPERATURE,       M2M2_ADDR_MED_TEMPERATURE_STREAM12,     M2M2_FILE_SYS_UNSUBSCRIBED},
 #endif
 #ifdef ENABLE_BIA_APP
   {M2M2_ADDR_MED_BIA,               M2M2_ADDR_MED_BIA_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
@@ -3168,13 +3184,13 @@ void file_system_task(void *pArgument) {
               nPageNumber = retransmit_req->page_number + nPageRollOver;
               nPageChunkNumber = retransmit_req->page_chunk_number + 1;// Get absolute chunk number
               fs_stream.fs_err_status = fs_hal_read_pageoffset(fs_stream.file_path, &fs_stream.file_buff[0], &fs_stream.fs_buffer_size, &nfilesize,nPageNumber,&fs_stream.current_page_number,&nNextPageNumber);
-              nMaxchunkNumber = fs_stream.fs_buffer_size/ sizeof(resp->page_chunk_bytes); 
+              nMaxchunkNumber = fs_stream.fs_buffer_size/ sizeof(resp->page_chunk_bytes);
               if((retransmit_req->retransmit_type == M2M2_FILE_SYS_PAGE_CHUNK_LOST) && (fs_stream.fs_err_status == FS_STATUS_OK)){
                if(nPageChunkNumber == nMaxchunkNumber){
                //need to read next page and first chunk
                 nPageChunkNumber = 1;
                 fs_stream.fs_err_status = fs_hal_read_pageoffset(fs_stream.file_path, &fs_stream.file_buff[0], &fs_stream.fs_buffer_size, &nfilesize,nNextPageNumber,&fs_stream.current_page_number,&nNextPageNumber);
-                nMaxchunkNumber = fs_stream.fs_buffer_size/ sizeof(resp->page_chunk_bytes); 
+                nMaxchunkNumber = fs_stream.fs_buffer_size/ sizeof(resp->page_chunk_bytes);
                }else{
                  nPageChunkNumber++;
                }
@@ -3182,21 +3198,21 @@ void file_system_task(void *pArgument) {
               if(fs_stream.fs_err_status == FS_STATUS_OK) {
                 resp->status = M2M2_FILE_SYS_STATUS_OK;
                 fs_stream.processed_data_len =  (nPageChunkNumber - 1) * sizeof(resp->page_chunk_bytes);
-                fs_stream.data_chunk_len =  fs_stream.fs_buffer_size;            
+                fs_stream.data_chunk_len =  fs_stream.fs_buffer_size;
                 if (fs_stream.data_chunk_len > sizeof(resp->page_chunk_bytes)) {
                   fs_stream.data_chunk_len = sizeof(resp->page_chunk_bytes);
                 }
                 memset(&resp->page_chunk_bytes[0], 0, MEMBER_SIZE(m2m2_file_sys_download_log_stream_t, page_chunk_bytes));
                 memcpy(&resp->page_chunk_bytes[0], &fs_stream.file_buff[fs_stream.processed_data_len],fs_stream.data_chunk_len);
                 if(nPageChunkNumber < nMaxchunkNumber) {
-                  fs_stream.data_chunk_len =  sizeof(resp->page_chunk_bytes); 
+                  fs_stream.data_chunk_len =  sizeof(resp->page_chunk_bytes);
                 }else if(nPageChunkNumber == nMaxchunkNumber) {
                   fs_stream.data_chunk_len  = fs_stream.fs_buffer_size - (sizeof(resp->page_chunk_bytes) * nMaxchunkNumber);
                   if(fs_stream.data_chunk_len == 0) {
                     fs_stream.data_chunk_len = sizeof(resp->page_chunk_bytes);
                   }
                 }else{
-                  fs_stream.data_chunk_len = 0;	
+                  fs_stream.data_chunk_len = 0;
                   resp->status = M2M2_FILE_SYS_STATUS_ERROR;
                 }
                 if(resp->status != M2M2_FILE_SYS_STATUS_ERROR){
@@ -3207,7 +3223,7 @@ void file_system_task(void *pArgument) {
                 response_mail->checksum =  0;
                 resp->crc16 = crc16_compute((uint8_t *)response_mail,CRC_COMPUTE_LENGTH(fs_stream.data_chunk_len),NULL);
               } else {
-                 fs_stream.data_chunk_len = 0;	
+                 fs_stream.data_chunk_len = 0;
                 resp->status = M2M2_FILE_SYS_STATUS_ERROR;
               }
             }
@@ -3259,7 +3275,16 @@ void file_system_task(void *pArgument) {
           nTick = MCU_HAL_GetTick();
 #endif
          if ((FileSrc != M2M2_ADDR_UNDEFINED) && (file_hdr_wr_progress != true)) {
-          TempStatus = fs_hal_write_packet_stream(pkt);
+#ifdef ENABLE_DEBUG_STREAM
+          // Debug stream will capture ADPD TS info , to save space in NAND flash avoid saving ADPD stream
+          if(pkt->src != M2M2_ADDR_SENSOR_ADPD_STREAM6){ 
+#endif
+            TempStatus = fs_hal_write_packet_stream(pkt);
+#ifdef ENABLE_DEBUG_STREAM
+          }else{
+            TempStatus = M2M2_APP_COMMON_STATUS_OK;
+          }
+#endif
           /* Increase total packet count */
           if(index != -1) {
             file_misd_packet_table[index].totalpacketcount++;
@@ -3374,6 +3399,13 @@ void file_system_task(void *pArgument) {
             fs_stream_state = ADI_FS_STREAM_STOPPED;
             timeout = ADI_OSAL_TIMEOUT_FOREVER;
             revert_fs_prio();
+#ifdef CUST4_SM
+            if(get_user0_config_app_state() == STATE_END_MONITORING)
+            {
+              //Register event received
+              set_user0_config_app_event(EVENT_FINISH_LOG_TRANSFER);
+            }
+#endif
 #ifdef PROFILE_TIME_ENABLED
           /* avg cal*/
           usb_avg_tx_time = usb_avg_tx_time / num_bytes_transferred;

@@ -340,6 +340,10 @@ static uint8_t sub_add_cnt = 0;
 static uint8_t tx_pkt_send_now = 0;
 
 #ifdef CUST4_SM
+#ifdef MEASURE_BLE_ADV_TIME
+static volatile uint32_t gn_ble_adv_dur_endtime;
+#endif
+
 /*Variables updated for debugging, BLE Turned On/Off state*/
 uint8_t gn_turn_on = false;
 uint8_t gn_turn_off = false;
@@ -1275,12 +1279,17 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt) {
   case BLE_ADV_EVT_FAST:
     break;
   case BLE_ADV_EVT_IDLE:
+#if defined(MEASURE_BLE_ADV_TIME) && defined(CUST4_SM)
+    gn_ble_adv_dur_endtime = get_micro_sec();
+#endif
 #ifdef CUST4_SM
     //Check curr state and do re-adv only for intermittent state
     if((get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING)
        && (gb_ble_status == BLE_DISCONNECTED))
     {
       NRF_LOG_INFO("Advertising timeout, entering sleep state.")
+      //Register the event received
+      set_user0_config_app_event(EVENT_BLE_ADV_TIMEOUT);
       user0_config_app_enter_state_sleep();
     }
     else if((gb_ble_status == BLE_DISCONNECTED))
@@ -1356,6 +1365,9 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
      else if( (get_user0_config_app_state() == STATE_ADMIT_STANDBY) &&
               (usbd_get_cradle_disconnection_status() == USBD_DISCONNECTED) )
      {
+        /* Register the event received - Remove Band from cradle and network
+        system connects band via BLE */
+        set_user0_config_app_event(EVENT_WATCH_OFF_CRADLE_BLE_CONNECTION);
         user0_config_app_enter_state_start_monitoring();
      }
 #endif
@@ -1392,25 +1404,39 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
     gsErrResources = 0;
     adi_osal_ThreadResumeFromISR(gh_ble_services_sensor_task_handler);
 #ifdef CUST4_SM
-     //Unexpected BLE disconnection, when in STATE_ADMIT_STANDBY
-     /*Do nothing*/
-     //Central gave BLE disconnection, when in STATE_ADMIT_STANDBY
-     /*Do nothing*/
+    //Register the event received
+    if( p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION )
+    {
+      USBD_CONN_STATUS_t usbd_conn_status = usbd_get_cradle_disconnection_status();
+      if(usbd_conn_status == USBD_DISCONNECTED)
+        set_user0_config_app_event(EVENT_WATCH_OFF_CRADLE_BLE_DISCONNECT_NW_TERMINATED);
+      else
+        set_user0_config_app_event(EVENT_BLE_DISCONNECT_NW_TERMINATED);
+    }
+    else
+    {
+      set_user0_config_app_event(EVENT_BLE_DISCONNECT_UNEXPECTED);
+    }
 
-     /*Unexpected BLE disconnection, when in STATE_START_MONITORING,
-     STATE_INTERMITTENT_MONITORING*/
-     /*Stay in same state*/
-     //p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_CONNECTION_TIMEOUT
+    //Unexpected BLE disconnection, when in STATE_ADMIT_STANDBY
+    /*Do nothing*/
+    //Central gave BLE disconnection, when in STATE_ADMIT_STANDBY
+    /*Do nothing*/
+
+    /*Unexpected BLE disconnection, when in STATE_START_MONITORING,
+    STATE_INTERMITTENT_MONITORING*/
+    /*Stay in same state*/
+    //p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_CONNECTION_TIMEOUT
 
 
-     /*Central gave BLE disconnection, when in STATE_START_MONITORING or
-     STATE_INTERMITTENT_MONITORING */
-     if( p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION
-     && (get_user0_config_app_state() == STATE_START_MONITORING
-     || get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING) )
-     {
-        user0_config_app_enter_state_sleep();
-     }
+    /*Central gave BLE disconnection, when in STATE_START_MONITORING or
+    STATE_INTERMITTENT_MONITORING */
+    if( p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION
+    && (get_user0_config_app_state() == STATE_START_MONITORING
+    || get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING) )
+    {
+       user0_config_app_enter_state_sleep();
+    }
 
 #endif
     break;
