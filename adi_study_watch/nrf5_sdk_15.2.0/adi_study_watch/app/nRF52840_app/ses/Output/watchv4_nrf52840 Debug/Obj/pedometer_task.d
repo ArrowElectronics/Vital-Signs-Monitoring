@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/pedometer_task.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adxl362_pedo\pedometer_task.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adxl362_pedo\pedometer_task.c \
  ..\..\..\cli\m2m2\inc\c/pedometer_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/common_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \

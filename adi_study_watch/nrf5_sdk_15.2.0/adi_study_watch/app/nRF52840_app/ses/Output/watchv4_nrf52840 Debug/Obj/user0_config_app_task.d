@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/user0_config_app_task.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\user0_config_app_task.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\user0_config_app_task.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\user0_config_app_task.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\user0_config_app_task.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
@@ -102,7 +102,7 @@ Output/watchv4_nrf52840\ Debug/Obj/user0_config_app_task.o: \
  ..\..\..\modules\system/adi_dcb_config.h \
  ..\..\..\..\components\libraries\fds/fds.h \
  ..\..\..\modules\system/fds_drv.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\dcb_user0_block.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\dcb_user0_block.h \
  ..\..\..\modules\ad7156_lt/dcb_general_block.h \
  ..\..\..\drivers\display/lcd_driver.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \

@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/hal_gpio.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\hal\hal_gpio.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\hal\hal_gpio.c \
  ..\..\..\..\components\boards/boards.h \
  ..\..\..\..\modules\nrfx\hal/nrf_gpio.h ..\..\..\..\modules\nrfx/nrfx.h \
  ..\..\..\..\integration\nrfx/nrfx_config.h \
@@ -50,7 +50,7 @@ Output/watchv4_nrf52840\ Debug/Obj/hal_gpio.o: \
  ..\..\..\..\components\softdevice\s140\headers/nrf_sd_def.h \
  ..\..\..\..\modules\nrfx/drivers/nrfx_errors.h \
  ..\..\..\..\components\boards/pca10056.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\hal\hw_if_config.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\hal\hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
  ..\..\..\..\modules\nrfx\drivers\include/nrfx_twim.h \
  ..\..\..\..\modules\nrfx/hal/nrf_twim.h \

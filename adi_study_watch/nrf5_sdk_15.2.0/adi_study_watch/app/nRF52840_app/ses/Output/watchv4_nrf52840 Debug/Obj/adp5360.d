@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/adp5360.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\adp5360.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\adp5360.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\adp5360.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\adp5360.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -104,7 +104,7 @@ Output/watchv4_nrf52840\ Debug/Obj/adp5360.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_gpio.h \
  ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \
  ..\..\..\hal/hal_twi0.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\low_voltage_protect.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\low_voltage_protect.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \

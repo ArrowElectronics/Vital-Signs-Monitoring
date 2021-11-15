@@ -1,9 +1,9 @@
 Output/watchv4_nrf52840\ Debug/Obj/light_fs.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\lfs\light_fs.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\lfs\light_fs.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\lfs\nand_functions.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\lfs\light_fs.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\lfs\light_fs.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\lfs\nand_functions.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\lfs\nand_cmd.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\lfs\nand_cmd.h \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
@@ -99,7 +99,7 @@ Output/watchv4_nrf52840\ Debug/Obj/light_fs.o: \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
  ..\..\..\cli\m2m2\inc\c/file_system_interface.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\lfs\file_system_utils.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\lfs\file_system_utils.h \
  ..\..\..\modules\system/post_office.h ..\..\..\modules\system/includes.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdarg.h \
  ..\..\..\app\nRF52840_app/app_cfg.h \

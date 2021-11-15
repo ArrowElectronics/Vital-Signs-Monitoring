@@ -120,9 +120,9 @@ const uint32_t general_dcfg_4000_g[] = {
     0x00202222,
 #endif
 #ifdef SLOT_SELECT
-    0x00210004,//IN7 and IN8 configured as a differential pair
+    0x00210014,//IN7 and IN8 configured as a differential pair
 #else
-    0x00210000,
+    0x00210010,
 #endif
     0x00220083, //GPIO0 - Output Inverted, GPIO2 - Output Normal
     0x00230302,
@@ -162,7 +162,7 @@ const uint32_t temp_cal_dcfg_4000[] = {
     0x00000000, //0
     0x000041DA, //1
     0x00000030, //2
-    0x00005A40, //3
+    0x00005A4F, //3
     0x0000E281, //4 //This setting is for DVT1
     0x00000000, //5
     0x00000000, //6
@@ -183,7 +183,7 @@ const uint32_t temp_thermistor_dcfg_4000[] = {
     0x00000000, //0
     0x000041DA, //1
     0x00000010, //2
-    0x00005A40, //3
+    0x00005A4F, //3
     0x0000E281, //4 //This setting is for DVT1
     0x00000000, //5
     0x00000000, //6
@@ -204,7 +204,7 @@ const uint32_t ecg_dcfg_4000[] = {
     0x00000000, //0
     0x000000E6, //1
     0x00000700, //2
-    0x00000000, //3
+    0x000000C0, //3 //VC2 active state = GND
     0x0000E2C1, //4 //This setting is for DVT1
     0x00000000, //5
     0x00000000, //6
@@ -307,7 +307,7 @@ const uint32_t dcfg_org_4000_g[] = {
     0x000F0006,
     0x00148000,
     0x00200022, //IN5+IN6 & IN7+IN8 floating during sleep
-    0x00210004, //IN5/IN6 configured as a differential pair  //0x00210000
+    0x00210014, //IN5/IN6 configured as a differential pair  //0x00210000
     0x00220083, //GPIO0 - Output Inverted, GPIO2 - Output Normal
     0x00230302,
     0x00240000, //GPIO2 - Output Logic = 0
@@ -324,7 +324,7 @@ const uint32_t dcfg_org_4000_g[] = {
   0x01000000,  //  CH2 Disabled, Input resistor 500 ohms 0000, 6.25k ohms 0400
   0x010100E6,  //  skip preconditioning, No bpf
   0x01020700,  // IN5&IN6 differential pair to CH 1
-  0x01030000,  //
+  0x010300C0,  // VC2 active state = GND
   0x0104E2C1,  // TIA gain, 2C0 200k, 2C1 100k, Vref = 0.88V  //This setting is for DVT1
   0x01070102,  // number of pulses = 2
   0x01081000,  // float mode, min period
@@ -387,7 +387,7 @@ const uint32_t dcfg_org_4000_g[] = {
     0x01600000,   /*INPUT_RESISTOR set ot 500 ohm*/
     0x016141DA,   /*pre conditioning period of 8us, TIA+INT+BPF+ADC signal path selected for Slot A */
     0x01620010,   /*IN3 connected to CH1 of slot A*/
-    0x01635A40,   /*Pre condition with TIA V_ref,VC2_pulse changes between active state and alternate state,
+    0x01635A4F,   /*Pre condition with TIA V_ref,VC2_pulse changes between active state and alternate state,
                     VC2_Active = V-ref and VC2_alternate = V_ref + 250mV*/
     0x0164E281,   /* R_int = 400K, R_tia_c h1 = 100k, TIA_Vref = 0.8855  V, Vref_pulse = 0.8855 V; No v-ref pulsing */ //This setting is for DVT1
     0x01650000,
@@ -409,7 +409,7 @@ const uint32_t dcfg_org_4000_g[] = {
     0x01800000,   /*INPUT_RESISTOR set ot 500 ohm*/
     0x018141DA,   /*pre conditioning period of 8us, TIA+INT+BPF+ADC signal path selected for Slot B */
     0x01820030,   /*IN4 connected to CH1 of slot B*/
-    0x01835A40,   /*Pre condition with TIA V_ref,VC2_pulse changes between active state and alternate state,
+    0x01835A4F,   /*Pre condition with TIA V_ref,VC2_pulse changes between active state and alternate state,
                     VC2_Active = V-ref and VC2_alternate = V_ref + 250mV*/
     0x0184E281,   /* R_int = 400K, R_tia_c h1 = 100k, TIA_Vref = 0.8855  V, Vref_pulse = 0.8855 V; No v-ref pulsing */ //This setting is for DVT1
     0x01850000,
@@ -445,7 +445,7 @@ const uint32_t dcfg_org_4000_r[] = {
     0x000F0006,
     0x00148000,
     0x00202222,
-    0x00210000,
+    0x00210010,
     0x00220003,
     0x00230302,
     0x00240001,
@@ -490,7 +490,7 @@ const uint32_t dcfg_org_4000_ir[] = {
     0x000F0006,
     0x00148000,
     0x00202222,
-    0x00210000,
+    0x00210010,
     0x00220003,
     0x00230302,
     0x00240001,
@@ -542,7 +542,7 @@ const uint32_t dcfg_org_4000_b[] = {
     0x000F0006,
     0x00148000,
     0x00202222,
-    0x00210000,
+    0x00210010,
     0x00220003,
     0x00230302,
     0x00240001,
@@ -600,7 +600,7 @@ const uint32_t dcfg_4000_temperature[] = {
     0x01600000,   /*INPUT_RESISTOR set ot 500 ohm*/
     0x016141DA,   /*pre conditioning period of 8us, TIA+INT+BPF+ADC signal path selected for Slot A */
     0x01620010,   /*IN3 connected to CH1 of slot A*/
-    0x01635A40,   /*Pre condition with TIA V_ref,VC2_pulse changes between active state and alternate state,
+    0x01635A4F,   /*Pre condition with TIA V_ref,VC2_pulse changes between active state and alternate state,
                     VC2_Active = V-ref and VC2_alternate = V_ref + 250mV*/
     0x01640281,   /* R_int = 400K, R_tia_c h1 = 100k, TIA_Vref = 0.8855  V, Vref_pulse = 0.8855 V; No v-ref pulsing */
     0x01650000,
@@ -621,7 +621,7 @@ const uint32_t dcfg_4000_temperature[] = {
     0x01800000,   /*INPUT_RESISTOR set ot 500 ohm*/
     0x018141DA,   /*pre conditioning period of 8us, TIA+INT+BPF+ADC signal path selected for Slot B */
     0x01820030,   /*IN4 connected to CH1 of slot B*/
-    0x01835A40,   /*Pre condition with TIA V_ref,VC2_pulse changes between active state and alternate state,
+    0x01835A4F,   /*Pre condition with TIA V_ref,VC2_pulse changes between active state and alternate state,
                     VC2_Active = V-ref and VC2_alternate = V_ref + 250mV*/
     0x01840281,   /* R_int = 400K, R_tia_c h1 = 100k, TIA_Vref = 0.8855  V, Vref_pulse = 0.8855 V; No v-ref pulsing */
     0x01850000,
@@ -653,7 +653,7 @@ const uint32_t dcfg_org_4000_g[] = {
     0x000F0006,
     0x00148000,
     0x00202222,
-    0x00210000,
+    0x00210010,
     0x00220003,
     0x00230302,
     0x00240001,
@@ -696,7 +696,7 @@ const uint32_t dcfg_org_4000_g_r_ir_b[] = {
     0x000F0006,
     0x00148000,
     0x00202222,
-    0x00210000,
+    0x00210010,
     0x00220003,
     0x00230302,
     0x00240001,

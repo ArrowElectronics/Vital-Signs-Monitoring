@@ -1,0 +1,22 @@
+#Temperature-Imepdance LUT values for thermistor
+00056D10	# Impedance of thermistor  at 0 degree Celsius
+000425B8	# Impedance of thermistor  at 5 degree Celsius
+000331F8	# Impedance of thermistor  at 10 degree Celsius
+00027AC4	# Impedance of thermistor  at 15 degree Celsius
+0001F018	# Impedance of thermistor  at 20 degree Celsius
+000186A0	# Impedance of thermistor  at 25 degree Celsius
+0001357E	# Impedance of thermistor  at 30 degree Celsius
+0000F6CC	# Impedance of thermistor  at 35 degree Celsius
+0000C5F8	# Impedance of thermistor  at 40 degree Celsius
+00009FC4	# Impedance of thermistor  at 45 degree Celsius
+000081A6	# Impedance of thermistor  at 50 degree Celsius
+000069D2	# Impedance of thermistor  at 55 degree Celsius
+000056CC	# Impedance of thermistor  at 60 degree Celsius
+00004790	# Impedance of thermistor  at 65 degree Celsius
+00003B4C	# Impedance of thermistor  at 70 degree Celsius
+00003160	# Impedance of thermistor  at 75 degree Celsius
+00002954	# Impedance of thermistor  at 80 degree Celsius
+000022B7	# Impedance of thermistor  at 85 degree Celsius
+00001D4C	# Impedance of thermistor  at 90 degree Celsius
+000018D5	# Impedance of thermistor  at 95 degree Celsius
+00001522	# Impedance of thermistor  at 100 degree Celsius

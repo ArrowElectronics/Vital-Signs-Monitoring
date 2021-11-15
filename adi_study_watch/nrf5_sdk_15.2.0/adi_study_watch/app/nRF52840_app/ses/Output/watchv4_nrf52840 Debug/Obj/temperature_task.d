@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/temperature_task.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_temp\temperature_task.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_temp\temperature_task.c \
  ..\..\..\modules\adpd4000/adpd4000_task.h \
  ..\..\..\cli\m2m2\inc\c/sensor_adpd_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/common_application_interface.h \
@@ -98,6 +98,10 @@ Output/watchv4_nrf52840\ Debug/Obj/temperature_task.o: \
  ..\..\..\modules\adpd4000_temp/temperature_task.h \
  ..\..\..\cli\m2m2\inc\c/temperature_application_interface.h \
  ..\..\..\drivers\adpd4000/adpd400x_reg.h \
+ ..\..\..\modules\adpd4000_temp/tempr_lcfg.h \
+ ..\..\..\modules\system/adi_dcb_config.h \
+ ..\..\..\..\components\libraries\fds/fds.h \
+ ..\..\..\modules\system/fds_drv.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  ..\..\..\..\components\libraries\util/sdk_os.h \

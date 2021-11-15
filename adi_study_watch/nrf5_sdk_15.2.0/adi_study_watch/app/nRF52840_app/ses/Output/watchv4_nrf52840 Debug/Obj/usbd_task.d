@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/usbd_task.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\system\usbd_task.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\usbd_task.c \
  ..\..\..\cli\m2m2\inc\c/common_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
@@ -160,7 +160,13 @@ Output/watchv4_nrf52840\ Debug/Obj/usbd_task.o: \
  ..\..\..\..\components\libraries\atomic/nrf_atomic.h \
  ..\..\..\drivers\ad7156/ad7156_dcfg.h \
  ..\..\..\drivers\adpd4000/adpd4000_dcfg.h \
- ..\..\..\drivers\adxl362/adxl_dcfg.h \
+ ..\..\..\modules\adpd4000_temp/tempr_lcfg.h \
+ ..\..\..\modules\adpd4000_temp/temperature_task.h \
+ ..\..\..\cli\m2m2\inc\c/temperature_application_interface.h \
+ ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \
+ ..\..\..\modules\system/adi_dcb_config.h \
+ ..\..\..\..\components\libraries\fds/fds.h \
+ ..\..\..\modules\system/fds_drv.h ..\..\..\drivers\adxl362/adxl_dcfg.h \
  ..\..\..\modules\ad7156_lt/dcb_general_block.h \
  ..\..\..\modules\ad7156_lt/lt_app_lcfg_block.h \
  ..\..\..\modules\ad7156_lt/low_touch_task.h \
@@ -168,18 +174,18 @@ Output/watchv4_nrf52840\ Debug/Obj/usbd_task.o: \
  ..\..\..\modules\user0_config_app/user0_config_app_task.h \
  ..\..\..\cli\m2m2\inc\c/user0_config_application_interface.h \
  ..\..\..\modules\adpd4000_ppg/mw_ppg.h \
- ..\..\..\modules\adpd4000_ppg/adpd400x_lib_common.h \
+ ..\..\..\algo\ppg_loop1_algo/adpd400x_lib_common.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib.h \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_ctrl_internal.h \
  ..\..\..\..\components\libraries\log/nrf_log_backend_interface.h \
  ..\..\..\..\components\libraries\memobj/nrf_memobj.h \
  ..\..\..\..\components\libraries\balloc/nrf_balloc.h \
- ..\..\..\modules\adpd4000_ppg/adpd_err_code.h \
+ ..\..\..\algo\ppg_loop1_algo/adpd_err_code.h \
  ..\..\..\drivers\adpd4000/adpd400x_reg.h \
  ..\..\..\..\external\freertos\source\include/semphr.h \
  ..\..\..\..\external\freertos\source\include/queue.h \
  ..\..\..\test_code/us_tick.h \
  ..\..\..\..\modules\nrfx\drivers\include/nrfx_timer.h \
  ..\..\..\..\modules\nrfx/hal/nrf_timer.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\system\fds_drv.h
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\fds_drv.h

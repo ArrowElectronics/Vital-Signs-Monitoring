@@ -752,16 +752,21 @@ uint8_t ADPDLibPostPulseDecreaseAdjust(uint16_t *npulse,uint8_t *oripulse,
 {
   uint16_t in_pulse = *oripulse;
   uint32_t NewSignalLevel;
-  if((*nsamplerate > gAdpd400xOptmVal.sampleRate) && (gDVT2)) {
-       gUserDcLevelPerPulse = (*dc_level/(*oripulse)); 
-       NewSignalLevel = (*oripulse * 2) * (gUserDcLevelPerPulse * 1.1);
+  if(gDVT2 == 1){
+    if((*nsamplerate > gAdpd400xOptmVal.sampleRate) && (*oripulse < (gAdpd400x_lcfg->maxPulseNum/2))) {
+         gUserDcLevelPerPulse = (*dc_level/(*oripulse)); 
+         NewSignalLevel = (*oripulse * 2) * (gUserDcLevelPerPulse * 1.1);
 
-     if (NewSignalLevel <= MAX_SIGNAL_LEVEL_FOR_PULSE_ADJ)  {
-      *nsamplerate >>= 1;         // half sampling rate
-      *ndecimation >>= 1;         // half decimation
-      *npulse = *oripulse * 2;               // double the current pulses
-     }
+       if (NewSignalLevel <= MAX_SIGNAL_LEVEL_FOR_PULSE_ADJ)  {
+        *nsamplerate >>= 1;         // half sampling rate
+        *ndecimation >>= 1;         // half decimation
+        *npulse = *oripulse * 2;               // double the current pulses
+       }
+    }
   }
+  if(*npulse > gAdpd400x_lcfg->maxPulseNum) {
+     *npulse = gAdpd400x_lcfg->maxPulseNum;
+  } 
 
   if ((*npulse & 0x1) == 1) // make it even number
     *npulse -= 1;
@@ -861,21 +866,22 @@ uint8_t ADPDLibPostPulseIncreaseAdjust(uint16_t *newpulse,
 uint32_t NewSignalLevel; 
 uint16_t NewSampleRate; 
     // calculate pulse contribution from original pulse and dc signal
-   gUserDcLevelPerPulse = (*dc_level/(*oripulse));
-   NewSignalLevel = *newpulse * (((gUserDcLevelPerPulse * 1.1) * gAdpd400x_lcfg->targetDcPercent)/100);  //gUserDcLevelPerPulse + 10% Margin
-   
-   if (NewSignalLevel > MAX_SIGNAL_LEVEL_FOR_PULSE_ADJ){
-       NewSampleRate = *nsamplerate * 2;
-    if ((NewSampleRate <= gAdpd400x_lcfg->maxSamplingRate) && (gDVT2)) {// sampleRate >= max
-      *nsamplerate  = NewSampleRate;         // double sampling rate
-      *ndecimation *= 2;         // double decimation
-      *newpulse = *oripulse/2;        // halve pulses   
-#ifdef TEST_AGC_PULSE
-      gSignalFlag = 1;
-#endif 
-    }
-    else {
-      return IERR_FAIL; /* return a code to indicate that the newpulse is too high */
+  gUserDcLevelPerPulse = (*dc_level/(*oripulse));
+  NewSignalLevel = *newpulse * (((gUserDcLevelPerPulse * 1.1) * gAdpd400x_lcfg->targetDcPercent)/100);  //gUserDcLevelPerPulse + 10% Margin
+  if(gDVT2 == 1){ 
+     if (NewSignalLevel > MAX_SIGNAL_LEVEL_FOR_PULSE_ADJ){
+         NewSampleRate = *nsamplerate * 2;
+      if (NewSampleRate <= gAdpd400x_lcfg->maxSamplingRate) {// sampleRate >= max
+        *nsamplerate  = NewSampleRate;         // double sampling rate
+        *ndecimation *= 2;         // double decimation
+        *newpulse = *oripulse/2;        // halve pulses   
+  #ifdef TEST_AGC_PULSE
+        gSignalFlag = 1;
+  #endif 
+      }
+      else {
+        return IERR_FAIL; /* return a code to indicate that the newpulse is too high */
+      }
     }
   }
   if((*newpulse * (gUserDcLevelPerPulse * 1.1)) > MAX_SIGNAL_LEVEL_FOR_PULSE_ADJ){

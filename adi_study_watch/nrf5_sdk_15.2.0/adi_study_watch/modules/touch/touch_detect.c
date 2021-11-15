@@ -14,9 +14,7 @@
 #include "app_error.h"
 #include "sdk_common.h"
 #include "ad7156.h"
-#ifdef LOW_TOUCH_FEATURE
 #include "low_touch_task.h"
-#endif
 #include "lcd_driver.h"
 
 #include "nrf_log.h"
@@ -210,7 +208,7 @@ void touch_detect_thread(void * arg)
     static uint8_t last_touch_down_value = 0;
     static uint16_t touch_down_cnt = 0;*/
     UNUSED_PARAMETER(arg);
-    
+
     adi_osal_SemCreate(&touch_detect_task_evt_sem, 0);
 #ifdef ENABLE_TOP_TOUCH
     top_touch_init();

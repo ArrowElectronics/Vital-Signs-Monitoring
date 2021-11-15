@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/adpd4000_dcfg.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\adpd4000_dcfg.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\adpd4000_dcfg.c \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \

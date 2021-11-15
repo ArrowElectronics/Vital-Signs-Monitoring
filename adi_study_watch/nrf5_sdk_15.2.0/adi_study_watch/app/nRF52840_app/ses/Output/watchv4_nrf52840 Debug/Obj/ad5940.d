@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/ad5940.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad5940\ad5940.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad5940\ad5940.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad5940\ad5940.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad5940\ad5940.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/math.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \

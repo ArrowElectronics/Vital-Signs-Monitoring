@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/main_freertos.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\main_freertos.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\main_freertos.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\..\external\freertos\source\include/FreeRTOS.h \
@@ -149,8 +149,8 @@ Output/watchv4_nrf52840\ Debug/Obj/main_freertos.o: \
  ..\..\..\..\components\libraries\log/nrf_log_types.h \
  ..\display/display_app.h ..\..\..\drivers\button/key_detect.h \
  ..\..\..\modules\ad5940_eda/eda_application_task.h \
- ..\..\..\cli\m2m2\inc\c/eda_application_interface.h \
  ..\..\..\modules\ad5940_eda/app_eda.h \
+ ..\..\..\cli\m2m2\inc\c/eda_application_interface.h \
  ..\..\..\modules\ad5940_bia/bia_application_task.h \
  ..\..\..\cli\m2m2\inc\c/bia_application_interface.h \
  ..\..\..\modules\ad5940_bia/app_bia.h \

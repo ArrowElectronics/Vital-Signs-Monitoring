@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/app_usbd.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd.c \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -27,7 +27,7 @@ Output/watchv4_nrf52840\ Debug/Obj/app_usbd.o: \
  ..\..\..\..\modules\nrfx\mdk/compiler_abstraction.h \
  ..\..\..\..\components\libraries\util/sdk_macros.h \
  ..\..\..\..\components\libraries\util/nrf_assert.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd.h \
  ..\..\..\..\components\drivers_nrf\usbd/nrf_drv_usbd.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
  ..\..\..\..\modules\nrfx\hal/nrf_usbd.h ..\..\..\..\modules\nrfx/nrfx.h \
@@ -56,12 +56,12 @@ Output/watchv4_nrf52840\ Debug/Obj/app_usbd.o: \
  ..\..\..\..\components\softdevice\s140\headers/nrf_sd_def.h \
  ..\..\..\..\modules\nrfx/drivers/nrfx_errors.h \
  ..\..\..\..\components\drivers_nrf\usbd/nrf_drv_usbd_errata.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_types.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_request.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_descriptor.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_langid.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_class_base.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_core.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_types.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_request.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_descriptor.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_langid.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_class_base.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_core.h \
  ..\..\..\..\modules\nrfx\hal/nrf_power.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_clock.h \
  ..\..\..\..\modules\nrfx\drivers\include/nrfx_clock.h \

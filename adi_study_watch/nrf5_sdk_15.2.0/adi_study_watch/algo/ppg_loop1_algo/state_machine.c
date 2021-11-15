@@ -225,6 +225,10 @@ INT_ERROR_CODE_t Adpd400xStateMachineInit() {
 
   /* set initial LED*/
   uint8_t nPulseVal = gAdpd400x_lcfg->initialLedPulse & BITM_COUNTS_A_NUM_REPEAT_A;
+  if(nPulseVal > gAdpd400x_lcfg->maxPulseNum)
+    nPulseVal = gAdpd400x_lcfg->maxPulseNum; 
+  if((nPulseVal & 0x1) == 1) /* make even pulse */
+      nPulseVal -= 1;
   AdpdDrvRegRead(ADPD400x_REG_COUNTS_A + g_reg_base, &nPulseRegVal);
   nPulseRegVal = (nPulseRegVal & (~BITM_COUNTS_A_NUM_REPEAT_A)) | nPulseVal;
   AdpdDrvRegWrite(ADPD400x_REG_COUNTS_A + g_reg_base, nPulseRegVal);

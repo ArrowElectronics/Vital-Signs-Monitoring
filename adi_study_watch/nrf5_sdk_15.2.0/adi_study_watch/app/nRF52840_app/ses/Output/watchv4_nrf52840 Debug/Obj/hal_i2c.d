@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/hal_i2c.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\hal\hal_i2c.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\hal\hal_i2c.c \
  ..\..\..\..\components\boards/boards.h \
  ..\..\..\..\modules\nrfx\hal/nrf_gpio.h ..\..\..\..\modules\nrfx/nrfx.h \
  ..\..\..\..\integration\nrfx/nrfx_config.h \
@@ -71,7 +71,7 @@ Output/watchv4_nrf52840\ Debug/Obj/hal_i2c.o: \
  ..\..\..\..\external\freertos\source\include/list.h \
  ..\..\..\..\external\freertos\source\include/timers.h \
  ..\..\..\..\external\freertos\source\include/task.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\hal\hw_if_config.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\hal\hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
  ..\..\..\..\modules\nrfx\drivers\include/nrfx_twim.h \
  ..\..\..\..\modules\nrfx/hal/nrf_twim.h \

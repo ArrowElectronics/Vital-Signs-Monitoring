@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/dcb_user0_block.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\dcb_user0_block.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\dcb_user0_block.c \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
@@ -55,7 +55,7 @@ Output/watchv4_nrf52840\ Debug/Obj/dcb_user0_block.o: \
  ..\..\..\modules\system/adi_dcb_config.h \
  ..\..\..\..\components\libraries\fds/fds.h \
  ..\..\..\modules\system/fds_drv.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\dcb_user0_block.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\dcb_user0_block.h \
  ..\..\..\modules\system/printf.h ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
  ..\..\..\..\modules\nrfx/nrfx.h \
@@ -102,5 +102,5 @@ Output/watchv4_nrf52840\ Debug/Obj/dcb_user0_block.o: \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
  ..\..\..\cli\m2m2\inc\c/file_system_interface.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\user0_config_app_task.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\user0_config_app\user0_config_app_task.h \
  ..\..\..\cli\m2m2\inc\c/user0_config_application_interface.h

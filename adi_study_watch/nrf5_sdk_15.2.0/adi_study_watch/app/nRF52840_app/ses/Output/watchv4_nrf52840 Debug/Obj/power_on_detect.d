@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/power_on_detect.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_on_detect.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_on_detect.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_on_detect.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_on_detect.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\configurations/watch_board_pcba_pin_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_timer.h \

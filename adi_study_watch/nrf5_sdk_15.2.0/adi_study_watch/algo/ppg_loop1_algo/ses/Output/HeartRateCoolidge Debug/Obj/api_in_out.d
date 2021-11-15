@@ -1,5 +1,5 @@
 Output/HeartRateCoolidge\ Debug/Obj/api_in_out.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\api_in_out.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\api_in_out.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/math.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
@@ -9,7 +9,7 @@ Output/HeartRateCoolidge\ Debug/Obj/api_in_out.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/sys/time.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/inttypes.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib.h \
  ..\..\..\app\nrf52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
@@ -41,11 +41,11 @@ Output/HeartRateCoolidge\ Debug/Obj/api_in_out.o: \
  ..\..\..\..\components\libraries\log/nrf_log_backend_interface.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  ..\..\..\..\components\libraries\util/nordic_common.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\heart_rate_internal.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\heart_rate_internal.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/errno.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\timers.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\logging.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd_err_code.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib_common.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\timers.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\logging.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd_err_code.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib_common.h \
  ..\..\..\drivers\adpd4000/adpd400x_reg.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h

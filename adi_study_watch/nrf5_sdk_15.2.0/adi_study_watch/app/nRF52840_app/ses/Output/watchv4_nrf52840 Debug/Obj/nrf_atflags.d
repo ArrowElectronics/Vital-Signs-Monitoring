@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/nrf_atflags.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\atomic_flags\nrf_atflags.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\atomic_flags\nrf_atflags.c \
  ..\..\..\..\modules\nrfx\mdk/nrf.h \
  ..\..\..\..\modules\nrfx\mdk/nrf52840.h \
  ..\..\..\..\components\toolchain\cmsis\include/core_cm4.h \
@@ -28,4 +28,4 @@ Output/watchv4_nrf52840\ Debug/Obj/nrf_atflags.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stddef.h \
  ..\..\..\..\components\libraries\util/sdk_macros.h \
  ..\..\..\..\components\libraries\util/nrf_assert.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\atomic_flags\nrf_atflags.h
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\atomic_flags\nrf_atflags.h

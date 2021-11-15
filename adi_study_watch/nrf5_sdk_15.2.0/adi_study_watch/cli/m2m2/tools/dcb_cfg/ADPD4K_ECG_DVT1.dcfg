@@ -1,0 +1,32 @@
+#ADPD410x ECG Measurement - GEN4 Watch
+0009 0080  # 32MHz trim
+000B 02F2  # 1MHz trim
+000D 0D05  # Sampling rate, 0D05 for 300 Hz, 2710 for 100Hz, 09C4 for 400 Hz
+000F 0006  # 1MHz osc
+0010 0000  # Timeslots A
+0020 0002  # Float input 3&4, 5&6, 7&8 during sleep
+0022 0083  # gpio0 out invert, gpio2 output normal
+0023 0002  # gpio0 int x
+0024 0001  # GPIO2 = output logic 1 #Electrode Switch enabled
+0014 8000  # FIFO to int x
+0021 000C  # IN5/IN6, IN7/IN8 differential pair
+
+# Slots config
+### Timeslot A - Sleep float mode ECG with multiple charge tranfers###
+### IN5 and IN6 as differential pair                               ###
+0100 0000  # Input resistor 500 ohms 0000, 6.25k ohms 0400
+0101 00E6  # skip preconditioning, No bpf
+0102 0700  # IN5&IN6 differential pair to CH 1
+0103 00C0  # VC2 active state = GND
+0104 E2C1  # TIA gain, 2C0 200k, 2C1 100k, Vref = 0.88V
+0105 0000  # LEDs off
+0106 0000  # LEDs off
+0107 0102  # 2 pulses
+0108 1000  # float mode, min period
+010A 0003  # Int width 
+010B 000D  # Integrator timing offset = 13us
+010C 0210  # Mod pulse width, mod offset 16us  
+010D 0000  # No Chop
+010E 0000
+010F 0000
+0110 0003  # 3 bytes sig

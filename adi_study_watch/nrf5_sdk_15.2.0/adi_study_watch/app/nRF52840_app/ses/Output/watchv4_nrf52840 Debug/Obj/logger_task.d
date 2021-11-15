@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/logger_task.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\system\logger_task.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\logger_task.c \
  ..\..\..\..\components\libraries\util/nordic_common.h \
  ..\..\..\..\modules\nrfx\mdk/nrf.h \
  ..\..\..\..\modules\nrfx\mdk/nrf52840.h \

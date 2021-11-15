@@ -686,6 +686,7 @@ void get_file_misd_packet_debug_info(m2m2_file_sys_debug_info_resp_t *debug_info
   NRF_LOG_INFO("bytes proc=%d",debug_info->bytes_read);
 }
 
+#ifdef FORMAT_DEBUG_INFO_CMD
 /*!
   ***************************************************************************************************
     @brief            get fs format debug info
@@ -710,6 +711,7 @@ void get_fs_format_debug_info(m2m2_file_sys_format_debug_info_resp_t *debug_info
     debug_info->toc_mem_erased_flag = tmp_fs_format_debug_info.toc_mem_erased_flag;
     debug_info->succesfull_erase_flag = tmp_fs_format_debug_info.succesfull_erase_flag;
   }
+#endif
 
 /*!
   ****************************************************************************
@@ -2979,11 +2981,15 @@ void file_system_task(void *pArgument) {
         response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_format_debug_info_resp_t));
         if(response_mail != NULL) {
           m2m2_file_sys_format_debug_info_resp_t *resp_payload = (m2m2_file_sys_format_debug_info_resp_t *)&response_mail->data[0];
-          resp_payload->command = M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_RESP;
           response_mail->src = pkt->dest;
-          response_mail->dest = pkt->src;
-          resp_payload->status = M2M2_FILE_SYS_STATUS_OK;
+          response_mail->dest = pkt->src;    
+#ifdef FORMAT_DEBUG_INFO_CMD
           get_fs_format_debug_info(resp_payload);
+#else
+          memset(resp_payload, 0, sizeof(m2m2_file_sys_format_debug_info_resp_t));/* debug info values set to 0, if macro not enabled */
+#endif
+          resp_payload->status = M2M2_FILE_SYS_STATUS_OK;
+          resp_payload->command = M2M2_FILE_SYS_CMD_GET_FS_FORMAT_INFO_RESP;
           /* send response packet */
           post_office_send(response_mail, &err);
         }

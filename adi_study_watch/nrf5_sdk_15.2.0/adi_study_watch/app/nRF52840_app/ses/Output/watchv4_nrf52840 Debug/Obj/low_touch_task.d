@@ -1,14 +1,16 @@
 Output/watchv4_nrf52840\ Debug/Obj/low_touch_task.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\low_touch_task.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\low_touch_task.h \
- ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\low_touch_task.c \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdlib.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
+ ..\..\..\drivers\ad7156/ad7156.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\low_touch_task.h \
+ ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
  ..\..\..\app\nRF52840_app/Common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
  ..\..\..\..\modules\nrfx/nrfx.h \
@@ -84,7 +86,6 @@ Output/watchv4_nrf52840\ Debug/Obj/low_touch_task.o: \
  ..\..\..\cli\m2m2\inc\c/common_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
  ..\..\..\cli\m2m2\inc\c/file_system_interface.h \
- ..\..\..\drivers\ad7156/ad7156.h \
  ..\..\..\..\components\libraries\timer/app_timer.h \
  ..\..\..\..\components\libraries\util/app_error.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_gpiote.h \
@@ -100,7 +101,6 @@ Output/watchv4_nrf52840\ Debug/Obj/low_touch_task.o: \
  ..\..\..\..\components\libraries\util/sdk_macros.h \
  ..\..\..\..\components\libraries\log/nrf_log_backend_interface.h \
  ..\..\..\..\components\libraries\memobj/nrf_memobj.h \
- C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdlib.h \
  ..\..\..\..\components\libraries\balloc/nrf_balloc.h \
  ..\..\..\..\components\libraries\log/nrf_log_instance.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
@@ -122,8 +122,8 @@ Output/watchv4_nrf52840\ Debug/Obj/low_touch_task.o: \
  ..\..\..\modules\system/adi_dcb_config.h \
  ..\..\..\..\components\libraries\fds/fds.h \
  ..\..\..\modules\system/fds_drv.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\dcb_general_block.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\lt_app_lcfg_block.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\dcb_general_block.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\lt_app_lcfg_block.h \
  ..\..\..\modules\user0_config_app/user0_config_app_task.h \
  ..\..\..\cli\m2m2\inc\c/user0_config_application_interface.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \

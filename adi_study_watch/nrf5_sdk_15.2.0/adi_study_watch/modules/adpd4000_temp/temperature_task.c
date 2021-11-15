@@ -444,6 +444,7 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       g_state.num_starts++;
       gb_adpd_raw_start_temp = 0;
       gsTemperatureStarts++;
+      g_last_thermistor_slot_index = get_last_thermistor_slot_index_enabled();
       if(gsTemperatureStarts == 1)
       {
 #ifdef CUST4_SM

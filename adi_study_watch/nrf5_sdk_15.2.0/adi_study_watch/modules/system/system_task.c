@@ -2994,9 +2994,13 @@ static void system_task(void *pArgument) {
               else if(get_low_touch_trigger_mode3_status())
               {
                 //Send app timer start cmd to start LT logging
+#ifdef ENABLE_EDA_APP
                 start_eda_app_timer();
+#endif
                 start_adxl_app_timer();
+#ifdef ENABLE_TEMPERATURE_APP
                 start_temp_app_timer();
+#endif
                 start_adpd_app_timer();
               }
 #endif

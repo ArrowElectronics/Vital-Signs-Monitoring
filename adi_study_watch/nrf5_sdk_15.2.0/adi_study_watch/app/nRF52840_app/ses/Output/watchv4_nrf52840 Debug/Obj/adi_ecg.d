@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/adi_ecg.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_ecg\adi_ecg.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_ecg\adi_ecg.c \
  ..\..\..\drivers\ad5940/ad5940.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/math.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
@@ -85,7 +85,7 @@ Output/watchv4_nrf52840\ Debug/Obj/adi_ecg.o: \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
  ..\..\..\cli\m2m2\inc\c/file_system_interface.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_ecg\adi_ecg.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_ecg\adi_ecg.h \
  ..\..\..\modules\ad5940_ecg/ecg_task.h \
  ..\..\..\cli\m2m2\inc\c/ecg_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \

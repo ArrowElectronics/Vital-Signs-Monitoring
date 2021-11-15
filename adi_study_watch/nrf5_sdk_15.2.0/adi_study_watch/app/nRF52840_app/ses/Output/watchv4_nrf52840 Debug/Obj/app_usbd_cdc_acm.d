@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/app_usbd_cdc_acm.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\class\cdc\acm\app_usbd_cdc_acm.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\class\cdc\acm\app_usbd_cdc_acm.c \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -27,7 +27,7 @@ Output/watchv4_nrf52840\ Debug/Obj/app_usbd_cdc_acm.o: \
  ..\..\..\..\modules\nrfx\mdk/compiler_abstraction.h \
  ..\..\..\..\components\libraries\util/sdk_macros.h \
  ..\..\..\..\components\libraries\util/nrf_assert.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\class\cdc\acm\app_usbd_cdc_acm.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\class\cdc\acm\app_usbd_cdc_acm.h \
  ..\..\..\..\components\drivers_nrf\usbd/nrf_drv_usbd.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
  ..\..\..\..\modules\nrfx\hal/nrf_usbd.h ..\..\..\..\modules\nrfx/nrfx.h \
@@ -68,7 +68,7 @@ Output/watchv4_nrf52840\ Debug/Obj/app_usbd_cdc_acm.o: \
  ..\..\..\..\components\libraries\usbd\class\cdc/app_usbd_cdc_desc.h \
  ..\..\..\..\components\libraries\usbd\class\cdc/app_usbd_cdc_types.h \
  ..\..\..\..\components\libraries\usbd\class\cdc/app_usbd_cdc_types.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\libraries\usbd\class\cdc\acm\app_usbd_cdc_acm_internal.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\class\cdc\acm\app_usbd_cdc_acm_internal.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/inttypes.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \

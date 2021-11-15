@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/struct_operations.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\struct_operations.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\struct_operations.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
@@ -99,4 +99,4 @@ Output/watchv4_nrf52840\ Debug/Obj/struct_operations.o: \
  ..\..\..\..\components\libraries\balloc/nrf_balloc.h \
  ..\..\..\..\components\libraries\log/nrf_log_instance.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\struct_operations.h
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\struct_operations.h

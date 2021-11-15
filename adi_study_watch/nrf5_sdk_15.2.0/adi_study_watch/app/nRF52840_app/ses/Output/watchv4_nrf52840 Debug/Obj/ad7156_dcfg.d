@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/ad7156_dcfg.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156_dcfg.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156_dcfg.c \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
@@ -52,7 +52,7 @@ Output/watchv4_nrf52840\ Debug/Obj/ad7156_dcfg.o: \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \
  ..\..\..\..\components\libraries\log/nrf_log_types.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156.h \
  ..\..\..\drivers\ad7156/ad7156_dcfg.h ..\..\..\modules\system/printf.h \
  ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \

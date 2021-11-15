@@ -1,9 +1,9 @@
 Output/watchv4_nrf52840\ Debug/Obj/adi_osal_freertos_tls.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\system\osal\free_rtos\src\adi_osal_freertos_tls.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\osal\free_rtos\src\adi_osal_freertos_tls.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdlib.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\system\osal\free_rtos\src\adi_osal.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\system\osal\free_rtos\src\osal_misra.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\osal\free_rtos\src\adi_osal.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\osal\free_rtos\src\osal_misra.h \
  ..\..\..\modules\system\osal\free_rtos\ports/adi_osal_arch.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -45,8 +45,8 @@ Output/watchv4_nrf52840\ Debug/Obj/adi_osal_freertos_tls.o: \
  ..\..\..\..\external\freertos\portable\CMSIS\nrf52/portmacro_cmsis.h \
  ..\..\..\..\components\libraries\util/app_util.h \
  ..\..\..\..\external\freertos\source\include/mpu_wrappers.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\system\osal\free_rtos\src\osal_common.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\system\osal\free_rtos\src\osal_freertos.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\osal\free_rtos\src\osal_common.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\osal\free_rtos\src\osal_freertos.h \
  ..\..\..\..\external\freertos\source\include/task.h \
  ..\..\..\..\external\freertos\source\include/list.h \
  ..\..\..\..\external\freertos\source\include/queue.h \

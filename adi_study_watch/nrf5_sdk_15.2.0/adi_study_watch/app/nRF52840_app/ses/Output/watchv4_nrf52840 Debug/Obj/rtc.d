@@ -1,8 +1,8 @@
 Output/watchv4_nrf52840\ Debug/Obj/rtc.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\rtc\rtc.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\rtc\rtc.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\rtc\rtc.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\rtc\rtc.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\rtc\m_time.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\rtc\m_time.h \
  ..\..\..\hal/adi_calendar.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/time.h \

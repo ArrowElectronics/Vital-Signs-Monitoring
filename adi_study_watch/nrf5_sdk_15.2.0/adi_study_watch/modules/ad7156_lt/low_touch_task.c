@@ -35,10 +35,12 @@
 */
 
 /*---------------------------- Includes --------------------------------------*/
+#include <stdlib.h>
+#include <stdio.h>
+#include "ad7156.h"
 #ifdef LOW_TOUCH_FEATURE
 #include "low_touch_task.h"
 #include "Common.h"
-#include "ad7156.h"
 #include "app_timer.h"
 #include "hw_if_config.h"
 #include "m2m2_core.h"
@@ -54,8 +56,6 @@
 #include <low_touch_application_interface.h>
 #include <math.h>
 #include <post_office.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <task_includes.h>
 #ifdef VSM_MBOARD
 #include "watch_vsm_motherboard_pin_config.h"
@@ -1054,15 +1054,6 @@ void low_touch_task_init(void) {
 
 }
 
-/** @brief Function to enable/disable the bottom touch channel detection in
- * AD7156
- * @param  en - 1 -> enable 0 -> disable
- * @return none
- */
-void bottom_touch_func_set(uint8_t en) {
-  Ad7156_detect_set(AD7156_CHANNEL2, en);
-}
-
 /** @brief Function handler which gets registered to AD7156 OUT2 gpio event
  * @param  value - gpio value which gets detected upon gpio event
  * @return none
@@ -1512,7 +1503,13 @@ static m2m2_hdr_t *gen_blk_dcb_command_delete_config(m2m2_hdr_t *p_pkt) {
   return p_resp_pkt;
 }
 #endif // DCB
+#endif//LOW_TOUCH_FEATURE
 
-
-#endif
-
+/** @brief Function to enable/disable the bottom touch channel detection in
+ * AD7156
+ * @param  en - 1 -> enable 0 -> disable
+ * @return none
+ */
+void bottom_touch_func_set(uint8_t en) {
+  Ad7156_detect_set(AD7156_CHANNEL2, en);
+}

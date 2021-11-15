@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/mem_pool.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\mem_pool\mem_pool.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\mem_pool\mem_pool.c \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
  ..\..\..\modules\system\osal\free_rtos\src/osal_misra.h \
  ..\..\..\modules\system\osal\free_rtos\ports/adi_osal_arch.h \

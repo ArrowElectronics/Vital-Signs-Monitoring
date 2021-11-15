@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/ble_dis.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\ble\ble_services\ble_dis\ble_dis.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\ble\ble_services\ble_dis\ble_dis.c \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -27,7 +27,7 @@ Output/watchv4_nrf52840\ Debug/Obj/ble_dis.o: \
  ..\..\..\..\modules\nrfx\mdk/compiler_abstraction.h \
  ..\..\..\..\components\libraries\util/sdk_macros.h \
  ..\..\..\..\components\libraries\util/nrf_assert.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\ble\ble_services\ble_dis\ble_dis.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\ble\ble_services\ble_dis\ble_dis.h \
  ..\..\..\..\components\ble\common/ble_srv_common.h \
  ..\..\..\..\components\softdevice\s140\headers/ble_types.h \
  ..\..\..\..\components\libraries\util/app_util.h \

@@ -1,5 +1,5 @@
 Output/HeartRateCoolidge\ Debug/Obj/state_machine.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\state_machine.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\state_machine.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/inttypes.h \
@@ -7,7 +7,7 @@ Output/HeartRateCoolidge\ Debug/Obj/state_machine.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/time.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/sys/time.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/math.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib.h \
  ..\..\..\app\nrf52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
@@ -39,15 +39,15 @@ Output/HeartRateCoolidge\ Debug/Obj/state_machine.o: \
  ..\..\..\..\components\libraries\log/nrf_log_backend_interface.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  ..\..\..\..\components\libraries\util/nordic_common.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib_common.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd_err_code.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib_common.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd_err_code.h \
  ..\..\..\drivers\adpd4000/adpd400x_reg.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\heart_rate_internal.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\heart_rate_internal.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/errno.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\timers.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\logging.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\timers.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\logging.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \
  ..\..\..\..\components\libraries\util/app_util.h \

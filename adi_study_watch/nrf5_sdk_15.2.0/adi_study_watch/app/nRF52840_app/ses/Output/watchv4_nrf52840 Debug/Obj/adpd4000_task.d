@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/adpd4000_task.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\adpd4000_task.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\adpd4000_task.c \
  ..\..\..\drivers\adpd4000/adpd4000_buffering.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
@@ -114,7 +114,7 @@ Output/watchv4_nrf52840\ Debug/Obj/adpd4000_task.o: \
  ..\..\..\..\components\libraries\balloc/nrf_balloc.h \
  ..\..\..\..\components\libraries\log/nrf_log_instance.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\agc.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\agc.h \
  ..\..\..\modules\adpd4000_ppg/app_common.h \
  ..\..\..\modules\ad5940_bia/bia_application_task.h \
  ..\..\..\cli\m2m2\inc\c/bia_application_interface.h \
@@ -124,16 +124,17 @@ Output/watchv4_nrf52840\ Debug/Obj/adpd4000_task.o: \
  ..\..\..\modules\ad5940_bia/adi_bcm_algo.h \
  ..\..\..\algo\bcm/adi_vsm_bcm.h \
  ..\..\..\modules\ad5940_eda/eda_application_task.h \
- ..\..\..\cli\m2m2\inc\c/eda_application_interface.h \
  ..\..\..\modules\ad5940_eda/app_eda.h \
+ ..\..\..\cli\m2m2\inc\c/eda_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/ecg_application_interface.h \
  ..\..\..\modules\ad5940_ecg/ecg_task.h \
  ..\..\..\modules\ad5940_ecg/app_ecg.h \
  ..\..\..\modules\adpd4000_sqi/sqi_task.h \
  ..\..\..\cli\m2m2\inc\c/sqi_application_interface.h \
  ..\..\..\modules\adpd4000_ppg/mw_ppg.h \
- ..\..\..\modules\adpd4000_ppg/adpd400x_lib_common.h \
- ..\..\..\modules\adpd4000_ppg/adpd_err_code.h \
+ ..\..\..\algo\ppg_loop1_algo/adpd400x_lib_common.h \
+ ..\..\..\algo\ppg_loop1_algo/adpd400x_lib.h \
+ ..\..\..\algo\ppg_loop1_algo/adpd_err_code.h \
  ..\..\..\modules\adpd4000_ppg/struct_operations.h \
  ..\..\..\drivers\adpd4000/lcm.h ..\..\..\modules\system/adi_dcb_config.h \
  ..\..\..\..\components\libraries\fds/fds.h \

@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/port.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\external\freertos\portable\GCC\nrf52\port.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\external\freertos\portable\GCC\nrf52\port.c \
  ..\..\..\..\external\freertos\source\include/FreeRTOS.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stddef.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \

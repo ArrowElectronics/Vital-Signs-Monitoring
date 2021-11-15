@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/event_groups.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\external\freertos\source\event_groups.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\external\freertos\source\event_groups.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdlib.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  ..\..\..\..\external\freertos\source\include/FreeRTOS.h \

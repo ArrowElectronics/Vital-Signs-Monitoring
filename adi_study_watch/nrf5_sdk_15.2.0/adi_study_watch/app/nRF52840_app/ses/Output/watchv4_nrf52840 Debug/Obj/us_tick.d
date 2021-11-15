@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/us_tick.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\test_code\us_tick.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\test_code\us_tick.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\test_code\us_tick.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\test_code\us_tick.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
  ..\..\..\modules\system\osal\free_rtos\src/osal_misra.h \
  ..\..\..\modules\system\osal\free_rtos\ports/adi_osal_arch.h \

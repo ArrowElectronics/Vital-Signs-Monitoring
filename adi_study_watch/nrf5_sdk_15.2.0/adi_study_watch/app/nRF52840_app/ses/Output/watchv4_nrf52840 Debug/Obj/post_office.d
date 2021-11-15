@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/post_office.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\system\post_office.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\post_office.c \
  ..\..\..\modules\system/post_office.h ..\..\..\modules\system/includes.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdarg.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
@@ -111,8 +111,8 @@ Output/watchv4_nrf52840\ Debug/Obj/post_office.o: \
  ..\..\..\drivers\ad5940/ad5940.h ..\..\..\drivers\ad5940/sensor_ad5940.h \
  ..\..\..\modules\ad5940_ecg/app_ecg.h \
  ..\..\..\modules\ad5940_eda/eda_application_task.h \
- ..\..\..\cli\m2m2\inc\c/eda_application_interface.h \
  ..\..\..\modules\ad5940_eda/app_eda.h \
+ ..\..\..\cli\m2m2\inc\c/eda_application_interface.h \
  ..\..\..\modules\ad5940_bia/bia_application_task.h \
  ..\..\..\cli\m2m2\inc\c/bia_application_interface.h \
  ..\..\..\modules\ad5940_bia/app_bia.h \

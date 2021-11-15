@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/power_manager.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_manager.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_manager.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_manager.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_manager.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
@@ -116,7 +116,7 @@ Output/watchv4_nrf52840\ Debug/Obj/power_manager.o: \
  ..\..\..\..\components\libraries\pwr_mgmt/nrf_pwr_mgmt.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section_iter.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_on_detect.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_on_detect.h \
  ..\..\..\..\modules\nrfx\hal/nrf_rtc.h \
  ..\..\..\drivers\display/lcd_driver.h ..\..\..\drivers\wdt/wdt.h \
  ..\..\..\..\modules\nrfx\hal/nrf_power.h \

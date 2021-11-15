@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/dcb_general_block.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\dcb_general_block.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\dcb_general_block.c \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
@@ -55,7 +55,7 @@ Output/watchv4_nrf52840\ Debug/Obj/dcb_general_block.o: \
  ..\..\..\modules\system/adi_dcb_config.h \
  ..\..\..\..\components\libraries\fds/fds.h \
  ..\..\..\modules\system/fds_drv.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\dcb_general_block.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\dcb_general_block.h \
  ..\..\..\modules\system/printf.h ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
  ..\..\..\..\modules\nrfx/nrfx.h \

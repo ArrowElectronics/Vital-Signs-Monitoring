@@ -831,11 +831,16 @@ FS_STATUS_ENUM_t fs_hal_page_read_test(uint32_t* ppage_num, m2m2_file_sys_page_r
       }
     }
   else{
-    ppage_read_test_info->data_region_status = read_page_data(*ppage_num, (uint8_t *)&ppage_read_test_info->sample_data, num_bytes);  
+#ifdef FS_TEST_BLOCK_READ_DEBUG
+    ppage_read_test_info->data_region_status = read_page_data(*ppage_num, (uint8_t *)&ppage_read_test_info->sample_data, num_bytes);
+#endif
   }
 
+#ifdef FS_TEST_BLOCK_READ_DEBUG
   ppage_read_test_info->ecc_zone_status = read_page_ecc_zone(*ppage_num, &ppage_read_test_info->next_page,\
                                                             &ppage_read_test_info->occupied,&ppage_read_test_info->num_bytes_written);
+#endif
+
   return (ppage_read_test_info->data_region_status | ppage_read_test_info->ecc_zone_status);
 }
 

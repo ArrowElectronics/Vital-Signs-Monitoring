@@ -369,6 +369,9 @@ static uint8_t ACOptSetHighPowerProfile(uint32_t adpdData)  {
   
   //ori_pulse_value = ori_pulse_num >> 8;
   ori_pulse_value = (ori_pulse_num & 0xFF);
+  if(temp16 > gAdpd400x_lcfg->maxPulseNum){// check new pulse is within max pulse
+    temp16 = gAdpd400x_lcfg->maxPulseNum;
+  }
   retVal = ADPDLibPostPulseIncreaseAdjust(&temp16,&ori_pulse_value,&sampleRate,&decimateVal,&dc_level);
    
   if(retVal == IERR_FAIL) {

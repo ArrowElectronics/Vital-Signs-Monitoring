@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/nrf_drv_spi.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\integration\nrfx\legacy\nrf_drv_spi.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\integration\nrfx\legacy\nrf_drv_spi.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\integration\nrfx\legacy\nrf_drv_spi.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\integration\nrfx\legacy\nrf_drv_spi.h \
  ..\..\..\..\modules\nrfx/nrfx.h \
  ..\..\..\..\integration\nrfx/nrfx_config.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \

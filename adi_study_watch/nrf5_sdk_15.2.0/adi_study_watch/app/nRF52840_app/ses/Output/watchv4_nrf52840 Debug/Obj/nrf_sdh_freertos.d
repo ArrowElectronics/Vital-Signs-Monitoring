@@ -1,7 +1,7 @@
 Output/watchv4_nrf52840\ Debug/Obj/nrf_sdh_freertos.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\softdevice\common\nrf_sdh_freertos.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\softdevice\common\nrf_sdh_freertos.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\components\softdevice\common\nrf_sdh.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\softdevice\common\nrf_sdh_freertos.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\softdevice\common\nrf_sdh_freertos.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\softdevice\common\nrf_sdh.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \

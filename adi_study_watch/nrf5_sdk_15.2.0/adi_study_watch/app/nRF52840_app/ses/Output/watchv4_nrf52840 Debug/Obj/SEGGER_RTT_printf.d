@@ -1,7 +1,7 @@
 Output/watchv4_nrf52840\ Debug/Obj/SEGGER_RTT_printf.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\external\segger_rtt\SEGGER_RTT_printf.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\external\segger_rtt\SEGGER_RTT.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\external\segger_rtt\SEGGER_RTT_Conf.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\external\segger_rtt\SEGGER_RTT_printf.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\external\segger_rtt\SEGGER_RTT.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\external\segger_rtt\SEGGER_RTT_Conf.h \
  ..\..\..\..\components\libraries\util/nordic_common.h \
  ..\..\..\..\components\libraries\util/app_util_platform.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \

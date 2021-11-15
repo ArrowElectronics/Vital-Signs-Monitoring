@@ -1,8 +1,8 @@
 Output/watchv4_nrf52840\ Debug/Obj/rtos_test.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\test_code\rtos_test.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\test_code\rtos_test.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\test_code\rtos_test.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\test_code\rtos_test.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\util/sdk_common.h \

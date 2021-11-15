@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/wdt.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\wdt\wdt.c \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\drivers\wdt\wdt.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\wdt\wdt.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\wdt\wdt.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_wdt.h \
  ..\..\..\..\modules\nrfx\drivers\include/nrfx_wdt.h \
  ..\..\..\..\modules\nrfx/nrfx.h \

@@ -1,13 +1,13 @@
 Output/watchv4_nrf52840\ Debug/Obj/sync_data_buffering.o: \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\sync_data_buffering.c \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\sync_data_buffering.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\sync_data_buffering.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\sync_data_buffering.h \
  ..\..\..\utilities\circular_buffer/circular_buffer.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
  ..\..\..\drivers\adxl362/adxl362.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\app_sync.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\app_sync.h \
  ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
  ..\..\..\..\modules\nrfx/nrfx.h \
@@ -85,8 +85,8 @@ Output/watchv4_nrf52840\ Debug/Obj/sync_data_buffering.o: \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
  ..\..\..\cli\m2m2\inc\c/file_system_interface.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\app_common.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\adpd400x_lib_common.h \
+ D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\app_common.h \
+ ..\..\..\algo\ppg_loop1_algo/adpd400x_lib_common.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib.h \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\..\components\libraries\log/nrf_log_types.h \
@@ -101,6 +101,6 @@ Output/watchv4_nrf52840\ Debug/Obj/sync_data_buffering.o: \
  ..\..\..\..\components\libraries\balloc/nrf_balloc.h \
  ..\..\..\..\components\libraries\log/nrf_log_instance.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
- D:\VSM\ Watch\ Code\Vital-Signs-Monitoring\adi_study_watch\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\adpd_err_code.h \
+ ..\..\..\algo\ppg_loop1_algo/adpd_err_code.h \
  ..\..\..\drivers\adpd4000/adpd400x_reg.h \
  ..\..\..\drivers\adpd4000/adpd4000_buffering.h
