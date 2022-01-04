@@ -51,7 +51,8 @@
 #include "us_tick.h"
 #include "nrf_log.h"
 #include "app_timer.h"
-
+#include "adi_adpd_ssm.h"
+#include "adi_adpd_m2m2.h"
 #define HW_SYNC_MAX_WATERMARK   (16)
 
 #define PPG_CHANNELS 2
@@ -62,7 +63,8 @@
 
 #define APP_SYNC_INTERVAL            20 /* 20m sec. Interval */
 /* -------------------------Public variables ---------------------------------*/
-extern g_state_t g_state;
+
+extern tAdiAdpdAppState oAppState;
 #ifdef ENABLE_PPG_APP
 extern volatile uint8_t gn_uc_hr_enable;
 extern volatile uint16_t gnAdxlODR; //ADXL ODR
@@ -73,7 +75,7 @@ extern volatile uint8_t gsOneTimeValueWhenReadAdxlData;
 extern volatile uint8_t gsOneTimeValueWhenReadAdpdData;
 extern uint32_t  Ppg_Slot;
 extern uint16_t gn_uc_hr_slot;
-extern adpd400xDrv_slot_t gsSlot[SLOT_NUM];
+extern tAdiAdpdSSmInst goAdiAdpdSSmInst;
 /* -------------------------Public function prototype ------------------------*/
 void DisplaySyncMode(SynchMode_t eSyncMode);
 
@@ -229,24 +231,24 @@ void SyncClearDataBuffer(){
 void enable_ext_syncmode()
 {
   uint16_t nRegVal;
-  Adpd400xDrvRegRead(0x0026,&nRegVal);
+  adi_adpddrv_RegRead(0x0026,&nRegVal);
   nRegVal = nRegVal | 0x0007;
-  Adpd400xDrvRegWrite(0x0026, nRegVal);  /*!Enable ext-sync mode with GPIO3 pin*/
-  Adpd400xDrvRegRead(0x0022,&nRegVal);
+  adi_adpddrv_RegWrite(0x0026, nRegVal);  /*!Enable ext-sync mode with GPIO3 pin*/
+  adi_adpddrv_RegRead(0x0022,&nRegVal);
   nRegVal = nRegVal | 0x0200;
-  Adpd400xDrvRegWrite(0x0022, nRegVal);  /*! Configure GPIO3 as input pin */
+  adi_adpddrv_RegWrite(0x0022, nRegVal);  /*! Configure GPIO3 as input pin */
 }
 
   /*! Disables the external sync mode on GPIO3 pin*/
 void disable_ext_syncmode()
 {
   uint16_t nRegVal;
-  Adpd400xDrvRegRead(0x0026,&nRegVal);
+  adi_adpddrv_RegRead(0x0026,&nRegVal);
   nRegVal = nRegVal & 0xFFF8;
-  Adpd400xDrvRegWrite(0x0026, nRegVal);   /*! Disable ext sync mode*/
-  Adpd400xDrvRegRead(0x0022,&nRegVal);
+  adi_adpddrv_RegWrite(0x0026, nRegVal);   /*! Disable ext sync mode*/
+  adi_adpddrv_RegRead(0x0022,&nRegVal);
   nRegVal = nRegVal & 0xF1FF;             /*!Clear GPIO_PIN_CFG3 of GPIO_CFG ([11:9] of 0x0022)*/
-  Adpd400xDrvRegWrite(0x0022, nRegVal);   /*! Tristate the GPIO3 input pin */
+  adi_adpddrv_RegWrite(0x0022, nRegVal);   /*! Tristate the GPIO3 input pin */
 }
 
 uint16_t g_adpd_odr =0, g_adxl_odr=0;
@@ -256,17 +258,17 @@ uint16_t get_adpd_odr(void)
     //uint16_t dec_reg_data;
     uint32_t sampleFrq, lfOSC;
     uint16_t adpd_odr;
-    Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &temp16);
+    adi_adpddrv_RegRead(ADPD400x_REG_SYS_CTL, &temp16);
     temp16 &= BITM_SYS_CTL_LFOSC_SEL;
     temp16 >>= BITP_SYS_CTL_LFOSC_SEL;
     if (temp16 == 1)
       lfOSC = 1000000;  // 1M clock
     else
       lfOSC = 32000;    // 32k clock
-    Adpd400xDrvRegRead32B(ADPD400x_REG_TS_FREQ, &sampleFrq);
+    adi_adpddrv_RegRead32B(ADPD400x_REG_TS_FREQ, &sampleFrq);
     adpd_odr = (uint16_t) (lfOSC / sampleFrq);
-    
-//    Adpd400xDrvRegRead(0x01B2, &dec_reg_data);    // TODO: hardcoded for slot F, need to make it generic
+
+//    adi_adpddrv_RegRead(0x01B2, &dec_reg_data);    // TODO: hardcoded for slot F, need to make it generic
 //    adpd_odr = (sampleFrq/(dec_reg_data+1));
     return adpd_odr;
 }
@@ -282,17 +284,17 @@ void HwSyncInit(){
 
     GetAdpdClOutputRate(&samplingRate, &decimateVal, Ppg_Slot);
     gPrevSamplerate = samplingRate;// Initial sample rate for PPG
-    Adpd400xDrvSetParameter(ADPD400x_WATERMARKING, 0, nFifoWatermark);
+  adi_adpdssm_SetParameter(ADPD400x_WATERMARKING, 0, nFifoWatermark);
     /***************************************************************************
      1. GPIO0 set as Inverted O/P, becuase the Host platform configured for
         falling edge IRQ Bit[2:0] as '3'
      2. GPIO1 set as Inverted O/P to trigger the ADXL for Sync. Bit[5:3] as '3'
     ***************************************************************************/
 #ifdef ADPD_TRG_ADXL
-    Adpd400xDrvRegWrite(0x0022, 0x001B);
+    adi_adpddrv_RegWrite(0x0022, 0x001B);
 #else
-    /*! Disable gpio2(to avoid conflicts with triggers from MCU) and enable only gpio1 as output*/
-    Adpd400xDrvRegWrite(0x0022, 0x0003);
+/*! Disable gpio2(to avoid conflicts with triggers from MCU) and enable only gpio1 as output*/
+    adi_adpddrv_RegWrite(0x0022, 0x0003);
 #endif
     /***************************************************************************
       1. Map GPIO0 for INTX. Bit[7:0] as '2'
@@ -306,15 +308,15 @@ void HwSyncInit(){
     {
     regVal = (0x5002 | (((int)log2(slotVal)) << 8));   //get the register value for 0x0023 reg. based on the slot
     }
-    Adpd400xDrvRegWrite(0x0023,regVal); // Output data cycle occured
+    adi_adpddrv_RegWrite(0x0023,regVal); // Output data cycle occured
 #else
-    Adpd400xDrvRegWrite(0x0023,0x5502); // Output data cycle occured
+    adi_adpddrv_RegWrite(0x0023,0x5502); // Output data cycle occured
 #endif
 #else
-    Adpd400xDrvRegWrite(0x0023,0x0002); // gpio0 as interrupt out pin
-
+    adi_adpddrv_RegWrite(0x0023,0x0002); // gpio0 as interrupt out pin
+    
 #endif
-    Adpd400xDrvSlotSetup(slot, 1, 0x04, 3);
+  adi_adpdssm_slotSetup(slot, 1, 0x04 , 3);
 #ifdef SLOT_SELECT
     uint8_t ADPDODR = 50; /* 50Hz */
 #else
@@ -323,7 +325,7 @@ void HwSyncInit(){
     g_accelExists = AdxlDrvOpenDriver(ADPDODR, nFifoWatermark);
 #ifndef ADPD_TRG_ADXL
     enable_ext_syncmode();
-    if (g_state.num_starts == 0)
+    if (oAppState.nNumberOfStart  == 0)
     {
       /*Enable ADPD device triggering only if it is not enabled by any other streams*/
       g_adpd_odr = get_adpd_odr();
@@ -349,13 +351,13 @@ void HwSyncInit(){
 }
 
 void HwSyncDeInit(){
-  Adpd400xDrvRegWrite(0x0023,0x0302); // Enable the INTX & INTY
+  adi_adpddrv_RegWrite(0x0023,0x0302); // Enable the INTX & INTY
   if(!gn_uc_hr_enable)
   {
 #ifndef ADPD_TRG_ADXL
-    if(1 == g_state.num_starts)
+    if(1 == oAppState.nNumberOfStart)
     {
-      Adpd400xDrvRegWrite(0x0022, 0x0003); // Set GPIO0 as INTX
+      adi_adpddrv_RegWrite(0x0022, 0x0003); // Set GPIO0 as INTX
       disable_ext_syncmode();
       g_adpd_odr = get_adpd_odr();
       disable_adpd_ext_trigger(g_adpd_odr);
@@ -466,15 +468,15 @@ uint8_t app_sync_timer_interval()
 {
   uint8_t timer_interval;
   uint8_t slot = gn_uc_hr_slot - 1;
-  if(gsSlot[slot].odr == 0)
+  if(goAdiAdpdSSmInst.oAdpdSlotInst.aSlotInfo[slot].nOutputDataRate == 0)
     return 0;
   //Make timer run at lower ODR
   /* ADPD ODR < ADXL ODR */
-  if(gsSlot[slot].odr < gnAdxlODR){
-    timer_interval = (1000/gsSlot[slot].odr); //interval in ms
+  if(goAdiAdpdSSmInst.oAdpdSlotInst.aSlotInfo[slot].nOutputDataRate < gnAdxlODR){
+    timer_interval = (1000/goAdiAdpdSSmInst.oAdpdSlotInst.aSlotInfo[slot].nOutputDataRate); //interval in ms
   }else{
     if(gnAdxlODR == 0){ // if ADPD alone running for UCHR ,ADXL ODR will be zero here.In that case using ADPD ODR.
-      timer_interval = (1000/gsSlot[slot].odr); //interval in ms
+      timer_interval = (1000/goAdiAdpdSSmInst.oAdpdSlotInst.aSlotInfo[slot].nOutputDataRate); //interval in ms
     }else{
       timer_interval = (1000/gnAdxlODR); //interval in ms
     }
@@ -540,7 +542,7 @@ static void app_sync_timeout_handler(void * p_context)
   CIRC_BUFF_STATUS_t  status = CIRC_BUFF_STATUS_ERROR;
 
   /* ADPD ODR < ADXL ODR */
-  if(gsSlot[gn_uc_hr_slot - 1].odr < gnAdxlODR )
+  if(goAdiAdpdSSmInst.oAdpdSlotInst.aSlotInfo[gn_uc_hr_slot - 1].nOutputDataRate < gnAdxlODR )  
   {
     status = sync_adxl_buff_get(oHwSyncAdxlRawData.nDataValue, &oHwSyncAdxlRawData.nTimeStamp);
     if (status != CIRC_BUFF_STATUS_OK) {
@@ -556,7 +558,7 @@ static void app_sync_timeout_handler(void * p_context)
   }
 
   /* ADPD ODR >= ADXL ODR */
-  else//(gsSlot[gn_uc_hr_slot - 1].odr >= gnAdxlODR )
+  else
   {
     gsOneAdpdDataSetRdy = gsOneAdxlDataSetRdy = 0;
     status = sync_adpd_buff_get(oHwSyncAdpdData.nDataValue, &oHwSyncAdpdData.nTimeStamp);

@@ -50,14 +50,28 @@
 #include "key_detect.h"
 #include "lygl.h"
 #include "image_declare.h"
+#include "low_touch_task.h"
 
 static void display_func(void)
 {
     lcd_background_color_set(COLOR_BLACK);
 
     lygl_draw_image(&bm_power_on_ico,10,72);
-    lygl_dis_string_middle(&lygl_font_32,124,88,COLOR_WHITE,"ANALOG");
-    lygl_dis_string_middle(&lygl_font_32,124,120,COLOR_WHITE,"DEVICES");
+#ifdef CUST4_SM
+    if(get_low_touch_trigger_mode3_status())
+    {
+      lygl_dis_string_middle(&lygl_font_32,104,88,COLOR_WHITE,"NOT FOR");
+      lygl_dis_string_middle(&lygl_font_32,104,120,COLOR_WHITE,"CLINICAL");
+      lygl_dis_string_middle(&lygl_font_32,104,152,COLOR_WHITE,"USE");
+    }
+    else
+    {
+#endif
+      lygl_dis_string_middle(&lygl_font_32,124,88,COLOR_WHITE,"ANALOG");
+      lygl_dis_string_middle(&lygl_font_32,124,120,COLOR_WHITE,"DEVICES");
+#ifdef CUST4_SM
+    }
+#endif
     lcd_display_refresh_all();
 }
 

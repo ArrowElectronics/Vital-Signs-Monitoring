@@ -95,27 +95,27 @@ struct bia_app_lcfg_op_hdr_t {
   uint8_t  command; 
   uint8_t  status; 
   uint8_t  num_ops; 
-  bia_app_lcfg_op_t  ops[1]; // NOTE: THIS FIELD IS INTENDED TO BE OF VARIABLE LENGTH! 
-        // NOTE: Use offsetof(bia_app_lcfg_op_hdr_t, ops) instead of sizeof(bia_app_lcfg_op_hdr_t)
+  bia_app_lcfg_op_t  ops[0];
 };
 
 struct bia_app_dcfg_op_t {
-  uint32_t  field;
-  uint32_t  value;
+  uint32_t  field; 
+  uint32_t  value; 
 };
 
 struct bia_app_dcfg_op_hdr_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  num_ops;
-  bia_app_dcfg_op_t  ops[0];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  num_ops; 
+  bia_app_dcfg_op_t  ops[1]; // NOTE: THIS FIELD IS INTENDED TO BE OF VARIABLE LENGTH! 
+        // NOTE: Use offsetof(bia_app_dcfg_op_hdr_t, ops) instead of sizeof(bia_app_dcfg_op_hdr_t)
 };
 
 struct bia_data_set_t {
   uint32_t  timestamp; 
   int32_t  real; 
   int32_t  img; 
-  M2M2_SENSOR_BIA_SWEEP_FREQ_INDEX_ENUM_t  freq_index; 
+  uint32_t  excitation_freq; 
 };
 
 struct bia_app_stream_t {
@@ -145,7 +145,7 @@ struct bcm_app_algo_out_stream_t {
   float  ffm_estimated; 
   float  bmi; 
   float  fat_percent; 
-  uint32_t time_stamp;
+  uint32_t  time_stamp; 
 };
 
 struct m2m2_dcb_fds_status_info_req_t {

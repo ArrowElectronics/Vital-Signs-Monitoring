@@ -52,6 +52,7 @@
 #include <stdlib.h>
 #include "adpd400x_drv.h"
 #include "adpd400x_reg.h"
+#include "adi_adpd_ssm.h"
 #include "clock_calibration.h"
 #include <hw_if_config.h>
 #include <Common.h>
@@ -115,46 +116,47 @@ void ADPDLib_DataReady(void) {
   *****************************************************************************/
 static void Adpd400xClockCalibrationInit(void) {
   uint16_t temp;
-  /* Read the values from ADPD4100 sensor device before doing calibration */
-  Adpd400xDrvRegRead(ADPD400x_REG_TS_FREQ,    &RegAdpd400x.x0D);
-  Adpd400xDrvRegRead(ADPD400x_REG_TS_FREQH,   &RegAdpd400x.x0E);
-  Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL,    &RegAdpd400x.x0F);
-  Adpd400xDrvRegRead(ADPD400x_REG_OPMODE,     &RegAdpd400x.x10);
-  Adpd400xDrvRegRead(ADPD400x_REG_FIFO_STATUS_BYTES, &RegAdpd400x.x1E);
-  Adpd400xDrvRegRead(ADPD400x_REG_GPIO_CFG,    &RegAdpd400x.x22);
-  Adpd400xDrvRegRead(ADPD400x_REG_GPIO01,     &RegAdpd400x.x23);
-  Adpd400xDrvRegRead(ADPD400x_REG_TS_CTRL_A, &RegAdpd400x.x0100);
-  Adpd400xDrvRegRead(ADPD400x_REG_DATA1_A,  &RegAdpd400x.x0110);
-  Adpd400xDrvRegRead(ADPD400x_REG_DATA2_A,  &RegAdpd400x.x0111);
-  Adpd400xDrvRegRead(ADPD400x_REG_DECIMATE_A, &RegAdpd400x.x0112);
+  // Read the values from sensor device before doing calibration
+  //adi_adpddrv_RegRead(ADPD400x_REG_FIFO_CTL,   &RegAdpd400x.x06);
+  adi_adpddrv_RegRead(ADPD400x_REG_TS_FREQ,    &RegAdpd400x.x0D);
+  adi_adpddrv_RegRead(ADPD400x_REG_TS_FREQH,   &RegAdpd400x.x0E);
+  adi_adpddrv_RegRead(ADPD400x_REG_SYS_CTL,    &RegAdpd400x.x0F);
+  adi_adpddrv_RegRead(ADPD400x_REG_OPMODE,     &RegAdpd400x.x10);
+  adi_adpddrv_RegRead(ADPD400x_REG_FIFO_STATUS_BYTES, &RegAdpd400x.x1E);
+  adi_adpddrv_RegRead(ADPD400x_REG_GPIO_CFG,    &RegAdpd400x.x22);
+  adi_adpddrv_RegRead(ADPD400x_REG_GPIO01,     &RegAdpd400x.x23);
+  adi_adpddrv_RegRead(ADPD400x_REG_TS_CTRL_A, &RegAdpd400x.x0100);
+  adi_adpddrv_RegRead(ADPD400x_REG_DATA1_A,  &RegAdpd400x.x0110);
+  adi_adpddrv_RegRead(ADPD400x_REG_DATA2_A,  &RegAdpd400x.x0111);
+  adi_adpddrv_RegRead(ADPD400x_REG_DECIMATE_A, &RegAdpd400x.x0112);
 
-  Adpd400xDrvGetParameter(ADPD400x_WATERMARKING, 0, &gsFifoWaterMark);
+  adi_adpdssm_GetParameter(ADPD400x_WATERMARKING, 0, &gsFifoWaterMark);
 
-  Adpd400xDrvGetParameter(ADPD400x_HIGHEST_SLOT_NUM, 0,&RegAdpd400x.highslot);
+  adi_adpdssm_GetParameter(ADPD400x_HIGHEST_SLOT_NUM, 0,&RegAdpd400x.highslot);
 
   gsIRQFlag = 0;
-  Adpd400xDrvDataReadyCallback(ADPDLib_DataReady);
+  adi_adpddrv_DataReadyCallback(ADPDLib_DataReady);
 
-  Adpd400xDrvGetParameter(ADPD400x_LATEST_SLOT_DATASIZE, RegAdpd400x.highslot, \
+  adi_adpdssm_GetParameter(ADPD400x_LATEST_SLOT_DATASIZE, RegAdpd400x.highslot, \
                                                 &RegAdpd400x.slotformat);
 
-  Adpd400xDrvGetParameter(ADPD400x_THIS_SLOT_CHANNEL_NUM, RegAdpd400x.highslot,\
+  adi_adpdssm_GetParameter(ADPD400x_THIS_SLOT_CHANNEL_NUM, RegAdpd400x.highslot,\
       &RegAdpd400x.channelnum);
 
-  Adpd400xDrvSlotSetup(0, 1, 0x0002, 1);
-  Adpd400xDrvRegWrite(ADPD400x_REG_OPMODE, 0x0000);     /*! Enable Slot-A alone */
-  Adpd400xDrvRegWrite(ADPD400x_REG_TS_FREQ, 0x09c4);    /*! Set freq. 400Hz */
-  Adpd400xDrvRegWrite(ADPD400x_REG_TS_FREQH, 0x0000);   /*! Set freq. 400Hz */
-  Adpd400xDrvRegWrite(ADPD400x_REG_DECIMATE_A, 0x0000); /*! Decimation as 1 */
-  Adpd400xDrvRegWrite(ADPD400x_REG_TS_CTRL_A, 0x0000);  /*! Disable CH2 */
-  /*! Disable Optional bytes */
-  Adpd400xDrvRegWrite(ADPD400x_REG_FIFO_STATUS_BYTES, 0x0000);
-  Adpd400xDrvRegWrite(ADPD400x_REG_GPIO_CFG, 0x0003);
-  Adpd400xDrvRegWrite(ADPD400x_REG_GPIO01, 0x0302);
-  Adpd400xDrvRegWrite(ADPD400x_REG_INT_STATUS_FIFO, 0x8000); /*! Clear FIFO */
-  Adpd400xDrvGetParameter(ADPD400x_LATEST_SLOT_DATASIZE, RegAdpd400x.highslot, \
+  adi_adpdssm_slotSetup(0, 1, 0x0002, 1);
+  adi_adpddrv_RegWrite(ADPD400x_REG_OPMODE, 0x0000);     // Enable Slot-A alone
+  adi_adpddrv_RegWrite(ADPD400x_REG_TS_FREQ, 0x09c4);    // Set freq. 400Hz
+  adi_adpddrv_RegWrite(ADPD400x_REG_TS_FREQH, 0x0000);   // Set freq. 400Hz
+  adi_adpddrv_RegWrite(ADPD400x_REG_DECIMATE_A, 0x0000); // Decimation as 1
+  adi_adpddrv_RegWrite(ADPD400x_REG_TS_CTRL_A, 0x0000);  // Disable CH2
+  // Disable Optional bytes
+  adi_adpddrv_RegWrite(ADPD400x_REG_FIFO_STATUS_BYTES, 0x0000);
+  adi_adpddrv_RegWrite(ADPD400x_REG_GPIO_CFG, 0x0003);
+  adi_adpddrv_RegWrite(ADPD400x_REG_GPIO01, 0x0302);
+  adi_adpddrv_RegWrite(ADPD400x_REG_INT_STATUS_FIFO, 0x8000); // Clear FIFO
+  adi_adpdssm_GetParameter(ADPD400x_LATEST_SLOT_DATASIZE, RegAdpd400x.highslot, \
                                                 &temp);
-  Adpd400xDrvSetParameter(ADPD400x_WATERMARKING, 0, CAL_WATERMARK);
+  adi_adpdssm_SetParameter(ADPD400x_WATERMARKING, 0, CAL_WATERMARK);
 
 }
 
@@ -167,28 +169,30 @@ static void Adpd400xClockCalibrationInit(void) {
 static void Adpd400xClockCalibrationDeInit() {
   uint16_t temp;
 
-  Adpd400xDrvRegWrite(ADPD400x_REG_TS_FREQ, RegAdpd400x.x0D);
-  Adpd400xDrvRegWrite(ADPD400x_REG_TS_FREQH, RegAdpd400x.x0E);
-  Adpd400xDrvRegWrite(ADPD400x_REG_SYS_CTL, RegAdpd400x.x0F);
-  Adpd400xDrvRegWrite(ADPD400x_REG_OPMODE, RegAdpd400x.x10);
-  Adpd400xDrvRegWrite(ADPD400x_REG_FIFO_STATUS_BYTES, RegAdpd400x.x1E);
-  Adpd400xDrvRegWrite(ADPD400x_REG_GPIO_CFG, RegAdpd400x.x22);
-  Adpd400xDrvRegWrite(ADPD400x_REG_GPIO01, RegAdpd400x.x23);
-  Adpd400xDrvRegWrite(ADPD400x_REG_TS_CTRL_A, RegAdpd400x.x0100);
-  Adpd400xDrvRegWrite(ADPD400x_REG_DATA1_A, RegAdpd400x.x0110);
-  Adpd400xDrvRegWrite(ADPD400x_REG_DATA2_A, RegAdpd400x.x0111);
-  Adpd400xDrvRegWrite(ADPD400x_REG_DECIMATE_A, RegAdpd400x.x0112);
+  //adi_adpddrv_RegWrite(ADPD400x_REG_FIFO_CTL, RegAdpd400x.x06);
+  adi_adpddrv_RegWrite(ADPD400x_REG_TS_FREQ, RegAdpd400x.x0D);
+  adi_adpddrv_RegWrite(ADPD400x_REG_TS_FREQH, RegAdpd400x.x0E);
+  adi_adpddrv_RegWrite(ADPD400x_REG_SYS_CTL, RegAdpd400x.x0F);
+  adi_adpddrv_RegWrite(ADPD400x_REG_OPMODE, RegAdpd400x.x10);
+  adi_adpddrv_RegWrite(ADPD400x_REG_FIFO_STATUS_BYTES, RegAdpd400x.x1E);
+  adi_adpddrv_RegWrite(ADPD400x_REG_GPIO_CFG, RegAdpd400x.x22);
+  adi_adpddrv_RegWrite(ADPD400x_REG_GPIO01, RegAdpd400x.x23);
+  adi_adpddrv_RegWrite(ADPD400x_REG_TS_CTRL_A, RegAdpd400x.x0100);
+  adi_adpddrv_RegWrite(ADPD400x_REG_DATA1_A, RegAdpd400x.x0110);
+  adi_adpddrv_RegWrite(ADPD400x_REG_DATA2_A, RegAdpd400x.x0111);
+  adi_adpddrv_RegWrite(ADPD400x_REG_DECIMATE_A, RegAdpd400x.x0112);
 
-  Adpd400xDrvSlotSetup(RegAdpd400x.highslot, 1, RegAdpd400x.slotformat, \
+  adi_adpdssm_slotSetup(RegAdpd400x.highslot, 1, RegAdpd400x.slotformat, \
                                                        RegAdpd400x.channelnum);
-  Adpd400xDrvGetParameter(ADPD400x_LATEST_SLOT_DATASIZE, RegAdpd400x.highslot, \
+  adi_adpdssm_GetParameter(ADPD400x_LATEST_SLOT_DATASIZE, RegAdpd400x.highslot, \
                                                 &temp);
-  Adpd400xDrvSetParameter(ADPD400x_WATERMARKING, 0, gsFifoWaterMark);
+  adi_adpdssm_SetParameter(ADPD400x_WATERMARKING, 0, gsFifoWaterMark);
 
-  if(dvt2) {
-    Adpd400xDrvRegRead(ADPD400x_REG_OSC1M, &temp);
-    /*! Setting to 1 -> disable */
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC1M, (temp| (BITM_OSC1M_OSC_CAL_DISABLE)));
+  if(dvt2)
+  {
+    adi_adpddrv_RegRead(ADPD400x_REG_OSC1M, &temp);
+    /* Setting to 1 -> disable */
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC1M, (temp| (BITM_OSC1M_OSC_CAL_DISABLE)));
   }
 }
 #endif
@@ -206,19 +210,19 @@ static int8_t CalibrateCL32KClock(void) {
   uint16_t nCaptureTs, nClockRegVal, nClockRegValPre;
   uint16_t trimSlop;
 
-  Adpd400xDrvRegWrite(ADPD400x_REG_GPIO_EXT, 0x50); /*! Enable Timestamp ON */
+  adi_adpddrv_RegWrite(ADPD400x_REG_GPIO_EXT, 0x50); // Enable Timestamp ON
   nClockRegVal = 0x15;
-  Adpd400xDrvRegWrite(ADPD400x_REG_OSC32K, nClockRegVal);
+  adi_adpddrv_RegWrite(ADPD400x_REG_OSC32K, nClockRegVal);
   i = NTRIAL_32K;
   trimSlop = TRIM_SLOP;
   nRateDiff = 30000;   /*! initially set to a large difference value */
 
   while (i-->0) {
-    Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);        /*! Set to Run mode */
-    Adpd400xDrvRegRead(ADPD400x_REG_OSC32K, &nCaptureTs);
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC32K, nCaptureTs|0x8000); /*! Enable Timestamp Capture */
+    adi_adpdssm_setOperationMode(E_ADI_ADPD_MODE_SAMPLE);
+    adi_adpddrv_RegRead(ADPD400x_REG_OSC32K, &nCaptureTs);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC32K, nCaptureTs|0x8000); // Enable Timestamp ON
     GPIO_Clock_Cal_TriggerTS();
-    Adpd400xDrvRegRead32B(ADPD400x_REG_STAMP_L, &nCurrentRate);
+    adi_adpddrv_RegRead32B(ADPD400x_REG_STAMP_L, &nCurrentRate);
     nRateDiffPre = nRateDiff;
     nRateDiff = (nCurrentRate<<1) - 32000;
 
@@ -233,7 +237,7 @@ static int8_t CalibrateCL32KClock(void) {
       } else {
         nClockRegVal += 1;
       }
-      Adpd400xDrvRegWrite(ADPD400x_REG_OSC32K, nClockRegVal);
+      adi_adpddrv_RegWrite(ADPD400x_REG_OSC32K, nClockRegVal);
       continue;
     }
     if (ABS(nRateDiffPre) < ABS(nRateDiff))  /*! if not converge, reduce the slop */
@@ -246,12 +250,12 @@ static int8_t CalibrateCL32KClock(void) {
       nTrimCodeNew = 0x3E;
 
     nClockRegVal = (nClockRegVal & 0xFFC0) | nTrimCodeNew;
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC32K, nClockRegVal);
-    Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC32K, nClockRegVal);
+    adi_adpdssm_setOperationMode(E_ADI_ADPD_MODE_IDLE);
   }
 
-  if (ABS(nRateDiffPre) < ABS(nRateDiff))  {  /*! choose previous */
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC32K, nClockRegValPre);
+  if (ABS(nRateDiffPre) < ABS(nRateDiff))  {  // choose previous
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC32K, nClockRegValPre);
   }
 
   return 0;
@@ -271,18 +275,18 @@ static int8_t CalibrateCL1MClock() {
   uint16_t nClockRegVal;
   uint16_t trimSlop;
 
-  Adpd400xDrvRegWrite(ADPD400x_REG_GPIO_EXT, 0xD0); /*! Enable Timestamp ON */
-  Adpd400xDrvRegRead(ADPD400x_REG_OSC32K, &RegCl.x0c);
-  nClockRegVal = 0x2B2; /*! Initial value */
-  Adpd400xDrvRegWrite(ADPD400x_REG_OSC1M, nClockRegVal);
+  adi_adpddrv_RegWrite(ADPD400x_REG_GPIO_EXT, 0xD0); // Enable Timestamp ON
+  adi_adpddrv_RegRead(ADPD400x_REG_OSC32K, &RegCl.x0c);
+  nClockRegVal = 0x2B2; // Initial value
+  adi_adpddrv_RegWrite(ADPD400x_REG_OSC1M, nClockRegVal);
   i = NTRIAL_1M;
   trimSlop = TRIM_SLOP_1M;
 
   while (i-->0) {
-    Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC32K, 0x8000); /*! Enable Timestamp Captute ON */
+    adi_adpdssm_setOperationMode(E_ADI_ADPD_MODE_SAMPLE);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC32K, 0x8000); // Enable Timestamp Captute ON
     GPIO_Clock_Cal_TriggerTS();
-    Adpd400xDrvRegRead32B(ADPD400x_REG_STAMP_L, &nCurrentRate);
+    adi_adpddrv_RegRead32B(ADPD400x_REG_STAMP_L, &nCurrentRate);
     nRateDiff = 1000000 - (nCurrentRate<<1);
     nTrimCodeNew = nRateDiff / trimSlop;
     nTrimCodeNew = (nClockRegVal & 0x3FF) + nTrimCodeNew;
@@ -292,11 +296,11 @@ static int8_t CalibrateCL1MClock() {
       nTrimCodeNew = 0x3FE;
 
     nClockRegVal = (nClockRegVal & 0xFC00) | nTrimCodeNew;
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC1M, nClockRegVal);
-    Adpd400xDrvRegWrite(0xC, 0x0); /*! Disable Timestamp Captute ON */
-    Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC1M, nClockRegVal);
+    adi_adpddrv_RegWrite(0xC, 0x0); // Disable Timestamp Captute ON
+    adi_adpdssm_setOperationMode(E_ADI_ADPD_MODE_IDLE);
   }
-  Adpd400xDrvRegWrite(ADPD400x_REG_OSC32K, RegCl.x0c);
+  adi_adpddrv_RegWrite(ADPD400x_REG_OSC32K, RegCl.x0c);
 
   return 0;
 }
@@ -319,14 +323,14 @@ static int8_t CalibrateCL1MClock(void) {
   nClockRegVal = 0x2E2; /*! Initial value */
   nTrimCodeNew = 0;     /*! Initial value */
 
-  Adpd400xDrvRegWrite(ADPD400x_REG_OSC1M, nClockRegVal);
+  adi_adpddrv_RegWrite(ADPD400x_REG_OSC1M, nClockRegVal);
 
   i = NTRIAL_1M;
   while (i-->0) {
-    Adpd400xDrvRegWrite(ADPD400x_REG_INT_STATUS_FIFO, 0x8000); /*! Clear FIFO */
-    /*! set GO */
+    adi_adpddrv_RegWrite(ADPD400x_REG_INT_STATUS_FIFO, 0x8000); // Clear FIFO
+    // set GO
     nTemp |= ADPD400x_OP_RUN_MODE;
-    Adpd400xDrvRegWrite(ADPD400x_REG_OPMODE, nTemp);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OPMODE, nTemp);
 
     adi_osal_ThreadGetPrio(NULL, &back_priority );
     adi_osal_ThreadSetPrio(NULL, configMAX_PRIORITIES - 1 );
@@ -340,9 +344,9 @@ static int8_t CalibrateCL1MClock(void) {
         return -1;
     } while (gsIRQFlag == 0);  
     adi_osal_ThreadSetPrio(NULL,back_priority);
-    /*! Set Idle Mode */
-    Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
-    /*! set the IRQ flag to zero */
+    // Set Idle Mode
+    adi_adpdssm_setOperationMode(E_ADI_ADPD_MODE_IDLE);
+    // set the IRQ flag to zero
     gsIRQFlag = 0;
     /*! Calculate the time trial difference */
     nRateDiff = nTimeVal1 - nTimeVal;
@@ -392,7 +396,7 @@ static int8_t CalibrateCL1MClock(void) {
       nTrimCodeNew = 0x3FE;
 
     nClockRegVal = (nClockRegVal & 0xFC00) | nTrimCodeNew;
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC1M, nClockRegVal);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC1M, nClockRegVal);
     if (nCalibrationCompleted)
       break;
   }
@@ -418,18 +422,18 @@ static int8_t CalibrateCL32MClock(void) {
   int32_t nPreCountnDiff;
   int8_t i;
 
-  Adpd400xDrvRegRead(ADPD400x_REG_OSC32M, &nVcoTrim);
+  adi_adpddrv_RegRead(ADPD400x_REG_OSC32M, &nVcoTrim);
 
   for ( i = 0; i < NTRIAL_32M; i++ ) {
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC32M_CAL, 0x8000);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC32M_CAL, 0x8000);
     MCU_HAL_Delay(5);
-    Adpd400xDrvRegRead(ADPD400x_REG_OSC32M_CAL, &nReadReg);
+    adi_adpddrv_RegRead(ADPD400x_REG_OSC32M_CAL, &nReadReg);
     nCur32Mcount = nReadReg & 0x7FFF;
     nCurCountnDiff = ABS((int32_t)(32000 - nCur32Mcount));
     nPreCountnDiff = ABS((int32_t)(32000 - nPre32Mcount));
-    if ((nCurCountnDiff > nPreCountnDiff) && (nPreCountnDiff < 640)) { 
-      Adpd400xDrvRegWrite(ADPD400x_REG_OSC32M, nVcoTrimPre);
-      return 0;   /*! success */
+    if ((nCurCountnDiff > nPreCountnDiff) && (nPreCountnDiff < 640)) { // TODO: set the proper threshold after testing it
+      adi_adpddrv_RegWrite(ADPD400x_REG_OSC32M, nVcoTrimPre);
+      return 0;   // success
     }
     nVcoTrimPre = nVcoTrim;
     if (nCur32Mcount < 32000) {
@@ -437,7 +441,7 @@ static int8_t CalibrateCL32MClock(void) {
     } else {
       nVcoTrim -= ((nCur32Mcount - 32000) >> 8) + 1;
     }
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC32M, nVcoTrim);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC32M, nVcoTrim);
 
     nPre32Mcount = nCur32Mcount;
   }
@@ -459,18 +463,18 @@ static int8_t CalibrateCL1M32MClock(void) {
   int32_t nPreCountnDiff;
   int8_t i;
 
-  Adpd400xDrvRegRead(ADPD400x_REG_OSC32M, &nVcoTrim);
+  adi_adpddrv_RegRead(ADPD400x_REG_OSC32M, &nVcoTrim);
 
   for ( i = 0; i < NTRIAL_32M; i++ ) {
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC32M_CAL, 0x8000);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC32M_CAL, 0x8000);
     MCU_HAL_Delay(5);
-    Adpd400xDrvRegRead(ADPD400x_REG_OSC32M_CAL, &nReadReg);
+    adi_adpddrv_RegRead(ADPD400x_REG_OSC32M_CAL, &nReadReg);
     nCur32Mcount = nReadReg & 0x7FFF;
     nCurCountnDiff = ABS((int32_t)(nCur32Mcount - 4096));
     nPreCountnDiff = ABS((int32_t)(nPre32Mcount - 4096));
-    if ((nCurCountnDiff > nPreCountnDiff) && (nPreCountnDiff < 80)) { 
-      Adpd400xDrvRegWrite(ADPD400x_REG_OSC32M, nVcoTrimPre);
-      return 0;   /*! success */
+    if ((nCurCountnDiff > nPreCountnDiff) && (nPreCountnDiff < 80)) { // TODO: set the proper threshold after testing it
+      adi_adpddrv_RegWrite(ADPD400x_REG_OSC32M, nVcoTrimPre);
+      return 0;   // success
     }
     nVcoTrimPre = nVcoTrim;
     if (nCur32Mcount < 4096) {
@@ -478,8 +482,8 @@ static int8_t CalibrateCL1M32MClock(void) {
     } else {
       nVcoTrim -= ((nCur32Mcount - 4096) >> 5) + 1;
     }
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC32M_CAL, 0x0);
-    Adpd400xDrvRegWrite(ADPD400x_REG_OSC32M, nVcoTrim);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC32M_CAL, 0x0);
+    adi_adpddrv_RegWrite(ADPD400x_REG_OSC32M, nVcoTrim);
 
     nPre32Mcount = nCur32Mcount;
   }
@@ -500,21 +504,21 @@ int8_t AdpdClDoClockCalibration(uint8_t cal_id) {
   int8_t nResult = 0;
   uint16_t nLfOsc;
 
-  Adpd400xDrvRegRead(ADPD400x_REG_GPIO_CFG, &RegCl.x22);
-  Adpd400xDrvRegRead(ADPD400x_REG_GPIO_EXT, &RegCl.x26);
+  adi_adpddrv_RegRead(ADPD400x_REG_GPIO_CFG, &RegCl.x22);
+  adi_adpddrv_RegRead(ADPD400x_REG_GPIO_EXT, &RegCl.x26);
 
-  Adpd400xDrvRegWrite(ADPD400x_REG_GPIO_CFG, 0x8); /*! ADPD4000 GPIO1 in input mode */
+  adi_adpddrv_RegWrite(ADPD400x_REG_GPIO_CFG, 0x8); // ADPD4000 GPIO1 in input mode
 
-  Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &nLfOsc);
+  adi_adpddrv_RegRead(ADPD400x_REG_SYS_CTL, &nLfOsc);
   if(cal_id & 0x1) {
-     Adpd400xDrvRegWrite(ADPD400x_REG_SYS_CTL, (nLfOsc&0xFFF8)|0x1);
+     adi_adpddrv_RegWrite(ADPD400x_REG_SYS_CTL, (nLfOsc&0xFFF8)|0x1);
      nResult = CalibrateCL32KClock();
   } else if(cal_id & 0x2) {
-     Adpd400xDrvRegWrite(ADPD400x_REG_SYS_CTL, (nLfOsc&0xFFF8)|0x6);
+     adi_adpddrv_RegWrite(ADPD400x_REG_SYS_CTL, (nLfOsc&0xFFF8)|0x6);
      nResult = CalibrateCL1MClock();
   }
 
-  Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &nLfOsc);
+  adi_adpddrv_RegRead(ADPD400x_REG_SYS_CTL, &nLfOsc);
   if(cal_id & 0x4) {
      if (nResult == 0) {
         if(nLfOsc & 0x4) {
@@ -525,8 +529,8 @@ int8_t AdpdClDoClockCalibration(uint8_t cal_id) {
      }
   }
 
-  Adpd400xDrvRegWrite(ADPD400x_REG_GPIO_CFG, RegCl.x22);
-  Adpd400xDrvRegWrite(ADPD400x_REG_GPIO_EXT, RegCl.x26);
+  adi_adpddrv_RegWrite(ADPD400x_REG_GPIO_CFG, RegCl.x22);
+  adi_adpddrv_RegWrite(ADPD400x_REG_GPIO_EXT, RegCl.x26);
 
   return nResult;
 }
@@ -536,13 +540,13 @@ int8_t Adpd4000DoClockCalibration(uint8_t cal_id) {
   uint16_t nLfOsc;
   /*! Take the register backup before going to do calibration */
   Adpd400xClockCalibrationInit();
-  /*! Read the Oscillator selection for LOFC */
-  Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &nLfOsc);
+  // Read the Oscilator selection for LOFC
+  adi_adpddrv_RegRead(ADPD400x_REG_SYS_CTL, &nLfOsc);
   if(cal_id & 0x1) {
-     Adpd400xDrvRegWrite(ADPD400x_REG_SYS_CTL, (nLfOsc&0xFFF8)|0x1);
+     adi_adpddrv_RegWrite(ADPD400x_REG_SYS_CTL, (nLfOsc&0xFFF8)|0x1);
      nResult = CalibrateCL32KClock();
   } else if(cal_id & 0x2) {
-     Adpd400xDrvRegWrite(ADPD400x_REG_SYS_CTL, (nLfOsc&0xFFF8)|0x6);
+     adi_adpddrv_RegWrite(ADPD400x_REG_SYS_CTL, (nLfOsc&0xFFF8)|0x6);
      nResult = CalibrateCL1MClock();
   }
 

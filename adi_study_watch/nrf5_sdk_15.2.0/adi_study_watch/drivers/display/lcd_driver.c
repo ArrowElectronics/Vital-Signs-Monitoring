@@ -114,7 +114,7 @@ lcd_dis_out_bit lcd_dis_bit_get(void)
 void lcd_background_color_set(uint8_t value)
 {
     int i,j = 0;
-    uint16_t length,offset = 0;
+    uint16_t length = 0,offset = 0;
     uint8_t *dis_buff = NULL;
     if(DISPLAY_OUT_4BIT == lcd_bit_indicate)
     {
@@ -125,6 +125,9 @@ void lcd_background_color_set(uint8_t value)
     {
         length = LENGTH_SIZE/8*DISPLAY_OUT_1BIT + CMD_OFFSET;
         dis_buff = (uint8_t *)dis_buf_1bit;
+    }
+    else {
+        return;//dis_buff == NULL, hence return
     }
     for(i = 0,offset = 0;i<HIGH_SIZE;i++,offset+=length)
     {
@@ -138,7 +141,7 @@ void lcd_background_color_set(uint8_t value)
 void lcd_background_color_set_section(uint8_t y0,uint8_t y1,uint8_t value)
 {
     int i,j = 0;
-    uint16_t length,offset = 0;
+    uint16_t length = 0,offset = 0;
     uint8_t *dis_buff = NULL;
     if(DISPLAY_OUT_4BIT == lcd_bit_indicate)
     {
@@ -149,6 +152,9 @@ void lcd_background_color_set_section(uint8_t y0,uint8_t y1,uint8_t value)
     {
         length = LENGTH_SIZE/8*DISPLAY_OUT_1BIT + CMD_OFFSET;
         dis_buff = (uint8_t *)dis_buf_1bit;
+    }
+    else {
+        return;//dis_buff == NULL, hence return
     }
     for(i = y0,offset = length*y0;i<y1;i++,offset+=length)
     {
@@ -183,12 +189,18 @@ void lcd_pwm_port_uninit(void)
 {
     nrf_drv_pwm_uninit(&m_pwm1);
 }
+static volatile uint8_t lcd_drv_status = 0;
 static void lcd_spi_event_handler(nrfx_spim_evt_t const * p_event,void *                  p_context)
 {
     if(p_event->type == NRFX_SPIM_EVENT_DONE)
     {
+        lcd_drv_status = 0;
         adi_osal_SemPost( xSpiSem);
     }
+}
+static void lcd_spi_wait_for_sem_post()
+{
+  while(lcd_drv_status);
 }
 void lcd_spi_port_init(void)
 {
@@ -238,7 +250,9 @@ static void lcd_spi_send(uint8_t const * buffer,uint16_t length)
         .rx_length   = 0,
     };
 
+    lcd_spi_wait_for_sem_post();
     lcd_spi_port_init();
+    lcd_drv_status = 1; //In use
     APP_ERROR_CHECK(nrfx_spim_xfer(&spi.u.spim, &spim_xfer_desc, 0));
     adi_osal_SemPend(xSpiSem, ADI_OSAL_TIMEOUT_FOREVER);//move to here prevent the buffer be modified when transmitting.
     lcd_spi_port_uninit();
@@ -355,9 +369,7 @@ void lcd_port_init(void)
 #else
     nrf_gpio_cfg_output(LCD_BL_EN_PIN);
 #endif
-#ifndef CUST4_SM
     lcd_backlight_set(LCD_BACKLIGHT_OFF);
-#endif
 }
 
 void lcd_extcomin_status_set(lcd_reverse_frequency status)

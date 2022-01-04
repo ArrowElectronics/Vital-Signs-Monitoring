@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/usbd_task.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\usbd_task.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\usbd_task.c \
  ..\..\..\cli\m2m2\inc\c/common_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
@@ -65,6 +65,7 @@ Output/watchv4_nrf52840\ Debug/Obj/usbd_task.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
@@ -188,4 +189,4 @@ Output/watchv4_nrf52840\ Debug/Obj/usbd_task.o: \
  ..\..\..\test_code/us_tick.h \
  ..\..\..\..\modules\nrfx\drivers\include/nrfx_timer.h \
  ..\..\..\..\modules\nrfx/hal/nrf_timer.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\fds_drv.h
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\fds_drv.h

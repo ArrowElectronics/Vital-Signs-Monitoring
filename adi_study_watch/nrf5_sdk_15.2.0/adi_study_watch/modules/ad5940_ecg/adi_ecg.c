@@ -420,10 +420,6 @@ static int32_t AD5940PlatformCfg(void)
   LFOSCMeasure_Type LfoscMeasure;
   SeqGpioTrig_Cfg cfg;
 
-  /* Use hardware reset */
-  AD5940_HWReset();
-  /* Platform configuration */
-  AD5940_Initialize();
   /* Step1. Configure clock */
   clk_cfg.ADCClkDiv = ADCCLKDIV_1;
   clk_cfg.ADCCLkSrc = ADCCLKSRC_HFOSC;

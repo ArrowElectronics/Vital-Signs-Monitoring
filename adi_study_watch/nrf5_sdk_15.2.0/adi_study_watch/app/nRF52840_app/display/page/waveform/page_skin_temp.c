@@ -67,8 +67,8 @@ static void display_func(void)
     lcd_background_color_set(COLOR_BACKGROUND);
 
     lygl_dis_string_middle(&lygl_font_32,104,24,COLOR_WHITE,"TEMP");
-    lygl_dis_string_middle(&lygl_font_32,94,165,COLOR_WHITE,"- -");
-    lygl_draw_image(&bm_setting_temp_ico,120,149);
+    lygl_dis_string_middle(&lygl_font_32,94,165,COLOR_WHITE,"--.---");
+    lygl_draw_image(&bm_setting_temp_ico,142,145);
 //    lygl_dis_string_middle(&lygl_font_24,104,185,COLOR_WHITE,"PPG");
 //    lygl_draw_image(&bm_arrows_down_ico,98,195);
 
@@ -154,8 +154,8 @@ static void m2m2_protocol_handle(void * ptr)
         {
             temp_value = (uint32_t)(payload->nTemperature1);
             lygl_send_graph_data(&temp_value,1,TEMP_DATA_VALIDBITS);
-            lygl_draw_rectangle(62,149,120,181,COLOR_BACKGROUND);
-            lygl_dis_decimal_middle(&lygl_font_32,94,165,COLOR_WHITE,payload->nTemperature1,1);/* display decimal*/
+            lygl_draw_rectangle(48,149,138,181,COLOR_BACKGROUND);
+            lygl_dis_decimal_middle(&lygl_font_32,94,165,COLOR_WHITE,payload->nTemperature1,3);/* display decimal*/
             lcd_display_refresh_section(40,181);
         }
     }

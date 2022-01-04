@@ -213,7 +213,8 @@ void battery_temp_detect_task_init(void)
     battery_temp_detect_task_attributes.pStackBase = &battery_temp_detect_task_stack[0];
     battery_temp_detect_task_attributes.nStackSize = APP_OS_BATTERY_TEMP_DETECT_TASK_STK_SIZE;
     battery_temp_detect_task_attributes.pTaskAttrParam = NULL;
-    battery_temp_detect_task_attributes.szThreadName = "tmp_detect";
+    /* Thread Name should be of max 10 Characters */
+    battery_temp_detect_task_attributes.szThreadName = "TmpDetect";
     battery_temp_detect_task_attributes.pThreadTcb = &battry_temp_detect_task_tcb;
 
     eOsStatus = adi_osal_ThreadCreateStatic(&battery_temp_detect_task_handler,

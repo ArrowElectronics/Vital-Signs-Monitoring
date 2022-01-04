@@ -62,7 +62,6 @@
 #define MAX_RTC_TICKS_FOR_24_HOUR (uint32_t)(2764800000) /* = (NUMBER_OF_TICKS_FOR_24_HOUR*1000)<<10) */ //for 32KHz ticks resolution
 
 #define RTC_TICKS_PER_MILLI_SEC          32   //!< Number of rtc ticks per milli second
-
 #define SB_RTC_DEFAULT_CONFIG \
   {                             \
     .tm_year = 2019,            \
@@ -162,6 +161,14 @@ uint32_t get_ms_time_stamp(void);
   *  @brief: Function to set the compare value to get NRF_DRV_RTC_INT_COMPARE0 interrupt type
 */
 void enable_rtc_wakeup(uint32_t value);
+/**@brief Function for disabling a channel.
+ *
+ * This function disables channel events and channel interrupts. The function asserts if the instance is not
+ *       initialized or if the channel parameter is wrong.
+ *
+ * @retval None
+ */
+void nrf_rtc_cc_disable();
 #endif
 
 #endif

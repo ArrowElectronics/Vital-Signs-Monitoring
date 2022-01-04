@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/nrf_balloc.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\balloc\nrf_balloc.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\balloc\nrf_balloc.c \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -29,7 +29,7 @@ Output/watchv4_nrf52840\ Debug/Obj/nrf_balloc.o: \
  ..\..\..\..\components\libraries\util/nrf_assert.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  ..\..\..\..\components\libraries\util/nordic_common.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\balloc\nrf_balloc.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\balloc\nrf_balloc.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
  ..\..\..\..\components\libraries\util/app_util_platform.h \
  ..\..\..\..\components\softdevice\s140\headers/nrf_soc.h \

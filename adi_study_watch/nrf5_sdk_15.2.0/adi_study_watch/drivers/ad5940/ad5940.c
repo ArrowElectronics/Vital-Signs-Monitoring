@@ -57,7 +57,6 @@ static volatile bool ad5940_spi_xfer_done;  /**< Flag used to indicate that SPI 
 ADI_OSAL_MUTEX_HANDLE ad5940_spi_mutexlock;
 ADI_OSAL_SEM_HANDLE ad5940_spi_txfr_sem;
 
-
 static void (*gpfnAD5940CallBack)();
 typedef enum {
   ADI_HAL_OK       = 0x00,
@@ -148,6 +147,37 @@ static uint32_t ad5940_int0_init(void)
 
     return err_code;
 }
+
+/*!
+  ****************************************************************************
+  *@brief     Ad5940 Reset Pin initialization
+  *@param     None
+  *@return    None
+******************************************************************************/
+uint32_t ad5940_rstpin_init() {
+    
+  uint32_t err_code = NRF_SUCCESS;
+  
+  if (!nrf_drv_gpiote_is_init())
+  {
+      err_code = nrf_drv_gpiote_init();
+      VERIFY_SUCCESS(err_code);
+  }
+   /* configure reset pin of ad5940 */
+  nrf_gpio_cfg_output(AD5940_RESET_PIN);
+  nrf_gpio_pin_set(AD5940_RESET_PIN);
+}
+
+/*!
+  ****************************************************************************
+  *@brief     Ad5940 Reset Pin deinitialization
+  *@param     None
+  *@return    None
+******************************************************************************/
+void ad5940_rstpin_deinit() {
+    nrf_gpio_cfg_default(AD5940_RESET_PIN);
+}
+
 
 static uint32_t ad5940_int0_deinit(void)
 {
@@ -714,10 +744,10 @@ void AD5940_ClksCalculate(ClksCalInfo_Type *pFilterInfo, uint32_t *pClocks)
           AD5940_ClksCalculate(pFilterInfo, &temp);
           break;
         case DFTSRC_SINC2NOTCH:
-		if(pFilterInfo->BpNotch)
-          	pFilterInfo->DataType = DATATYPE_SINC2;
-		else
-			pFilterInfo->DataType = DATATYPE_NOTCH;
+          if(pFilterInfo->BpNotch)
+            pFilterInfo->DataType = DATATYPE_SINC2;
+          else
+            pFilterInfo->DataType = DATATYPE_NOTCH;
           AD5940_ClksCalculate(pFilterInfo, &temp);
           break;
         case DFTSRC_AVG:
@@ -750,8 +780,10 @@ void AD5940_SweepNext(SoftSweepCfg_Type *pSweepCfg, float *pNextFreq)
    {
       if(pSweepCfg->SweepStart<pSweepCfg->SweepStop) /* Normal */
       {
-         if(++pSweepCfg->SweepIndex == pSweepCfg->SweepPoints)
+         if(++pSweepCfg->SweepIndex == pSweepCfg->SweepPoints)  {
+            /* Reset sweep index */
             pSweepCfg->SweepIndex = 0;
+          }
          frequency = pSweepCfg->SweepStart*pow(10,pSweepCfg->SweepIndex*log10(pSweepCfg->SweepStop/pSweepCfg->SweepStart)/(pSweepCfg->SweepPoints-1));
       }
       else
@@ -3098,6 +3130,23 @@ void AD5940_HWReset(void)
   AD5940_Delay10us(200); /* Delay some time */
   AD5940_RstSet();
   AD5940_Delay10us(500); /* AD5940 need some time to exit reset status. 200us looks good. */
+#else
+  //There is no method to reset AFE only for M355.
+#endif
+}
+
+/**
+ * @brief Reset AD5940 with RESET pin with nrf delay utility.
+ * @note This will call function AD5940_RstClr which locates in file XXXPort.C
+ * @return return none.
+*/
+void AD5940_HWReset_NrfDelay(void)
+{
+#ifndef CHIPSEL_M355
+  AD5940_RstClr();
+  nrf_delay_ms(200); /* Delay some time */
+  AD5940_RstSet();
+  nrf_delay_ms(500); /* AD5940 need some time to exit reset status. 200us looks good. */
 #else
   //There is no method to reset AFE only for M355.
 #endif

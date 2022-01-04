@@ -51,7 +51,9 @@
 #include <stdlib.h>
 #include <adi_osal.h>
 #include "memory_management.h"
-
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+#include "m2m2_core.h"
+#endif
 #include <mem_pool.h>
 
 mem_pool_handler_t h_mem_blk_type2;
@@ -63,6 +65,18 @@ uint8_t memory_block_type2[MEM_BLK_TYPE2_CNT * SZ_MEM_BLK_TYPE2];
 //uint8_t memory_block_type3[MEM_BLK_TYPE3_CNT * SZ_MEM_BLK_TYPE3];
 uint8_t memory_block_type4[MEM_BLK_TYPE4_CNT * SZ_MEM_BLK_TYPE4];
 uint8_t memory_block_type5[MEM_BLK_TYPE5_CNT * SZ_MEM_BLK_TYPE5];
+
+#ifdef PO_MEM_UTIL_STATS
+uint16_t min_num_free_blks_type2 = MEM_BLK_TYPE2_CNT;
+uint16_t min_num_free_blks_type4 = MEM_BLK_TYPE4_CNT;
+uint16_t min_num_free_blks_type5 = MEM_BLK_TYPE5_CNT;
+uint32_t block_2_allocated=0;
+uint32_t block_4_allocated=0;
+uint32_t block_5_allocated=0;
+uint32_t block_2_freed=0;
+uint32_t block_4_freed=0;
+uint32_t block_5_freed=0;
+#endif
 
 /*!
   *@brief       get memory block from handler determined by message size.
@@ -81,25 +95,77 @@ uint32_t block_4_allocated=0;
 uint32_t gnSamples_in_fifo =0;
 uint32_t gnBytes_in_fifo =0;
 #endif
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+extern uint32_t g_temp_debugInfo[];
+extern uint32_t disp_app_packet_count;
+extern uint32_t batt_app_packet_count;
+extern uint32_t temp_app_packet_count;
+extern uint32_t usb_pend_start_time;
+extern uint32_t usb_delay_time;
+#endif
 MEM_MANAGER_ERR_STATUS_t memory_block_get(void **pp_memory, uint16_t size) {
   if (size <= SZ_MEM_BLK_TYPE2) {
     if (mem_pool_get(&h_mem_blk_type2, pp_memory) == MEM_POOL_SUCCESS) {
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+      if(size == 20){
+        g_temp_debugInfo[0]  = usb_pend_start_time;
+        g_temp_debugInfo[1]  = usb_delay_time;
+      }else if(size == 10){
+        g_temp_debugInfo[2]  = (h_mem_blk_type2.nBlkFree << 16 | M2M2_ADDR_DISPLAY);
+        g_temp_debugInfo[3]  = disp_app_packet_count;
+      }else if(size == 18){
+        g_temp_debugInfo[4]  = (h_mem_blk_type2.nBlkFree << 16 | M2M2_ADDR_SYS_BATT_STREAM);
+        g_temp_debugInfo[5]  = batt_app_packet_count;
+      }
+#endif
 #ifdef ADPD_SEM_CORRUPTION_DEBUG
       last_mem_allocated_type_2 = (uint8_t *)*pp_memory;
       block_2_allocated += 1;
 #endif
+#ifdef PO_MEM_UTIL_STATS
+      block_2_allocated += 1;
+      if (h_mem_blk_type2.nBlkFree < min_num_free_blks_type2){
+      min_num_free_blks_type2 = h_mem_blk_type2.nBlkFree;
+      }
+#endif
       return MEM_MANAGER_ERR_SUCCESS;
     }
+#ifdef ENABLE_TEMP_DEBUG_STREAM    
+    else{
+      if(size == 20){
+        g_temp_debugInfo[0]  = usb_pend_start_time;
+        g_temp_debugInfo[1]  = usb_delay_time;
+      }else if(size == 10){
+        g_temp_debugInfo[2]  = (0xFF << 16 | M2M2_ADDR_DISPLAY);
+        g_temp_debugInfo[3]  = disp_app_packet_count;
+      }else if(size == 18){
+        g_temp_debugInfo[4]  = (0xFF << 16 | M2M2_ADDR_SYS_BATT_STREAM);
+        g_temp_debugInfo[5]  = batt_app_packet_count;
+      }
+    }   
+#endif
   } else if (size <= SZ_MEM_BLK_TYPE4) {
     if (mem_pool_get(&h_mem_blk_type4, pp_memory) == MEM_POOL_SUCCESS) {
 #ifdef ADPD_SEM_CORRUPTION_DEBUG
       last_mem_allocated = (uint8_t *)*pp_memory;
       block_4_allocated += 1;
 #endif
+#ifdef PO_MEM_UTIL_STATS
+      block_4_allocated += 1;
+      if (h_mem_blk_type4.nBlkFree < min_num_free_blks_type4){
+      min_num_free_blks_type4 = h_mem_blk_type4.nBlkFree;
+      }
+#endif
       return MEM_MANAGER_ERR_SUCCESS;
     }
   } else if (size <= SZ_MEM_BLK_TYPE5) {
     if (mem_pool_get(&h_mem_blk_type5, pp_memory) == MEM_POOL_SUCCESS) {
+#ifdef PO_MEM_UTIL_STATS
+      block_5_allocated += 1;
+      if (h_mem_blk_type5.nBlkFree < min_num_free_blks_type5){
+        min_num_free_blks_type5 = h_mem_blk_type5.nBlkFree;
+      }
+#endif
       return MEM_MANAGER_ERR_SUCCESS;
     }
   } else {
@@ -126,22 +192,57 @@ uint32_t block_4_freed=0;
 MEM_MANAGER_ERR_STATUS_t memory_block_free(void *p_memory, uint16_t size) {
   if (size <= SZ_MEM_BLK_TYPE2) {
     if (mem_pool_free(&h_mem_blk_type2, p_memory) == MEM_POOL_SUCCESS) {
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+      if(size == 20){
+        g_temp_debugInfo[6]  = usb_pend_start_time;
+        g_temp_debugInfo[7]  = usb_delay_time;
+      }else if(size == 10){
+        g_temp_debugInfo[8]  = (h_mem_blk_type2.nBlkFree << 16 | M2M2_ADDR_DISPLAY);
+        g_temp_debugInfo[9]  = disp_app_packet_count;
+      }else if(size == 18){
+        g_temp_debugInfo[10]  = (h_mem_blk_type2.nBlkFree << 16 | M2M2_ADDR_SYS_BATT_STREAM);
+        g_temp_debugInfo[11]  = batt_app_packet_count;
+      }
+#endif
 #ifdef ADPD_SEM_CORRUPTION_DEBUG
       block_2_freed += 1;
       last_mem_freed_type_2 = (uint8_t *)p_memory;
 #endif
+#ifdef PO_MEM_UTIL_STATS
+      block_2_freed += 1;
+#endif
       return MEM_MANAGER_ERR_SUCCESS;
     }
+#ifdef ENABLE_TEMP_DEBUG_STREAM    
+    else{
+      if(size == 20){
+        g_temp_debugInfo[6]  = usb_pend_start_time;
+        g_temp_debugInfo[7]  = usb_delay_time;
+      }else if(size == 10){
+        g_temp_debugInfo[8]  = ( 0xFF << 16 | M2M2_ADDR_DISPLAY);
+        g_temp_debugInfo[9]  = disp_app_packet_count;
+      }else if(size == 18){
+        g_temp_debugInfo[10]  = ( 0xFF << 16 | M2M2_ADDR_SYS_BATT_STREAM);
+        g_temp_debugInfo[11]  = batt_app_packet_count;
+      } 
+    }  
+#endif
   } else if (size <= SZ_MEM_BLK_TYPE4) {
     if (mem_pool_free(&h_mem_blk_type4, p_memory) == MEM_POOL_SUCCESS) {
 #ifdef ADPD_SEM_CORRUPTION_DEBUG
       block_4_freed += 1;
       last_mem_freed = (uint8_t *)p_memory;
 #endif
+#ifdef PO_MEM_UTIL_STATS
+      block_4_freed += 1;
+#endif
       return MEM_MANAGER_ERR_SUCCESS;
     }
   } else if (size <= SZ_MEM_BLK_TYPE5) {
     if (mem_pool_free(&h_mem_blk_type5, p_memory) == MEM_POOL_SUCCESS) {
+#ifdef PO_MEM_UTIL_STATS
+      block_5_freed += 1;
+#endif
       return MEM_MANAGER_ERR_SUCCESS;
     }
   } else {

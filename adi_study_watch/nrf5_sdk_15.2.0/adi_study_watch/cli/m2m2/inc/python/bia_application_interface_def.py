@@ -27,7 +27,6 @@ class M2M2_BIA_APP_CMD_ENUM_t(c_ubyte):
     M2M2_BIA_APP_COMMON_CMD_READ_DCFG_REQ = 0x53
     M2M2_BIA_APP_COMMON_CMD_READ_DCFG_RESP = 0x54
 
-
 class M2M2_SENSOR_BIA_NSAMPLES_ENUM_t(c_ubyte):
     M2M2_SENSOR_BIA_NSAMPLES = 0x4
 
@@ -69,24 +68,6 @@ class bia_app_lcfg_op_t(Structure):
               ("value", c_float),
               ]
 
-class bia_app_dcfg_op_t(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("field", c_ulong),
-              ("value", c_ulong),
-              ]
-
-def bia_app_dcfg_op_hdr_t(array_size):
-  class bia_app_dcfg_op_hdr_t_internal(Structure):
-    _pack_ = 1
-    _fields_ = [
-              ("command", c_ubyte),
-              ("status", c_ubyte),
-              ("num_ops", c_ubyte),
-              ("ops", bia_app_dcfg_op_t * array_size),
-              ]
-  return bia_app_dcfg_op_hdr_t_internal()
-
 class bia_app_dcb_lcfg_t(Structure):
     _pack_ = 1
     _fields_ = [
@@ -105,13 +86,31 @@ def bia_app_lcfg_op_hdr_t(array_size):
               ]
   return bia_app_lcfg_op_hdr_t_internal()
 
+class bia_app_dcfg_op_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("field", c_ulong),
+              ("value", c_ulong),
+              ]
+
+def bia_app_dcfg_op_hdr_t(array_size):
+  class bia_app_dcfg_op_hdr_t_internal(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("num_ops", c_ubyte),
+              ("ops", bia_app_dcfg_op_t * array_size),
+              ]
+  return bia_app_dcfg_op_hdr_t_internal()
+
 class bia_data_set_t(Structure):
     _pack_ = 1
     _fields_ = [
               ("timestamp", c_ulong),
               ("real", c_long),
               ("img", c_long),
-              ("freq_index", M2M2_SENSOR_BIA_SWEEP_FREQ_INDEX_ENUM_t),
+              ("excitation_freq", c_long),
               ]
 
 class bia_app_stream_t(Structure):
@@ -121,7 +120,7 @@ class bia_app_stream_t(Structure):
               ("status", c_ubyte),
               ("sequence_num", c_ushort),
               ("datatype", c_ubyte),
-              ("bia_info", M2M2_SENSOR_BIA_APP_INFO_BITSET_ENUM_t),
+              ("bia_info", c_ubyte),
               ("bia_data", bia_data_set_t * 4),
               ]
 

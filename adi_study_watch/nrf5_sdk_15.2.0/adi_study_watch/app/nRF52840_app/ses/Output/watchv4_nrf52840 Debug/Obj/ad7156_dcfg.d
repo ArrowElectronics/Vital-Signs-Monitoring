@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/ad7156_dcfg.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156_dcfg.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156_dcfg.c \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
@@ -52,7 +52,7 @@ Output/watchv4_nrf52840\ Debug/Obj/ad7156_dcfg.o: \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \
  ..\..\..\..\components\libraries\log/nrf_log_types.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156.h \
  ..\..\..\drivers\ad7156/ad7156_dcfg.h ..\..\..\modules\system/printf.h \
  ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
@@ -76,6 +76,7 @@ Output/watchv4_nrf52840\ Debug/Obj/ad7156_dcfg.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \

@@ -28,8 +28,7 @@ struct m2m2_app_debug_stream_t {
   uint8_t  status; 
   uint16_t  sequence_num; 
   uint32_t  timestamp; 
-  uint64_t  debuginfo_64[4]; 
-  uint32_t  debuginfo[4]; 
+  uint32_t  debuginfo[12]; 
 };
 
 // Reset struct packing outside of this file

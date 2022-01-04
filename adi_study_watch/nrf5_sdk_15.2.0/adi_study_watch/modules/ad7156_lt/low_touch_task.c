@@ -74,6 +74,10 @@
 #include "user0_config_app_task.h"
 #include "user0_config_application_interface.h"
 #endif
+#ifdef CUST4_SM
+#include "display_app.h"
+#endif
+#include "power_manager.h"
 /* Low touch App Module Log settings */
 #define NRF_LOG_MODULE_NAME LT_App
 
@@ -104,11 +108,11 @@ ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
 #define LT_ON_WRIST_TIME_INTERVAL 5000
 /* OFF wrist time detection for starting logging 3000 (ms). */
 #define LT_OFF_WRIST_TIME_INTERVAL 3000
-/* Air Capacitance Value (uF) kept at default
+/* Air Capacitance Value (fF) kept at default
 * This was kept to the min. value seen in 10 trials
 */
 #define LT_AIR_CAP_VAL 1380
-/* Skin Capacitance Value (uF) kept at default
+/* Skin Capacitance Value (fF) kept at default
 * This was kept to the max. value seen in 10 trials
 */
 #define LT_SKIN_CAP_VAL 1340
@@ -119,7 +123,7 @@ APP_TIMER_DEF(m_lt_off_timer_id);
 
 #ifdef DVT
 /* For Watch prototype:
- * A maximum OffWrist Capacitance value in uF put, based on
+ * A maximum OffWrist Capacitance value in fF put, based on
  * seeing from couple of Watches, used for reset condition */
 #define TOUCH_DETECTION_THRESHOLD 1490
 //#define TOUCH_DETECTION_THRESHOLD     1300 //Bare board
@@ -167,6 +171,13 @@ static int16_t user_applied_airCapVal = 0;
 static int16_t user_applied_skinCapVal = 0;
 static int16_t user_applied_ltAppTrigMethd = 0;
 
+#ifdef CUST4_SM
+//Default LT Mode in Fw
+LT_APP_LCFG_TRIGGER_METHOD_t gn_default_lt_mode = LT_APP_INTERMITTENT_TRIGGER;
+#else
+//Default LT Mode in general release
+LT_APP_LCFG_TRIGGER_METHOD_t gn_default_lt_mode = LT_APP_TRIGGER_INVALID;
+#endif
 
 lt_app_cfg_type lt_app_cfg;
 /*-------------------- Private Function Declarations ------------------------*/
@@ -215,6 +226,10 @@ extern uint8_t gLowTouchRunning;
  * for ADPD, Gen block DCB
  * Buffer to be shared between tasks( General Blk DCB & ADPD4000 DCB ) */
 extern uint8_t gsConfigTmpFile[];
+#endif
+
+#ifdef USER0_CONFIG_APP
+extern ADI_OSAL_SEM_HANDLE   user0_config_app_evt_sem;
 #endif
 
 /* State machine variables for ON/OFF wrist events */
@@ -283,7 +298,8 @@ static void init_lt_app_lcfg() {
     if( !user_applied_ltAppTrigMethd )
     {
 #ifdef ENABLE_WATCH_DISPLAY
-      lt_app_cfg.ltAppTrigMethd  = LT_APP_BUTTON_TRIGGER;
+      lt_app_cfg.ltAppTrigMethd  = gn_default_lt_mode;
+      //lt_app_cfg.ltAppTrigMethd  = LT_APP_BUTTON_TRIGGER;
 #else
     lt_app_cfg.ltAppTrigMethd = LT_APP_CAPSENSE_TUNED_TRIGGER;
 #endif//#ifdef ENABLE_WATCH_DISPLAY
@@ -318,6 +334,7 @@ static void init_lt_app_lcfg() {
 
   AD7156_SetSensitivity(AD7156_CHANNEL2,gn_ch2_sensitivity);
   //AD7156_SetSensitivity(AD7156_CHANNEL2,25);
+
 }
 
 /*!
@@ -349,6 +366,18 @@ LT_APP_ERROR_CODE_t lt_app_write_lcfg(uint8_t field, uint16_t value) {
     case LT_APP_LCFG_TRIGGER_METHOD:
       lt_app_cfg.ltAppTrigMethd = value;
       user_applied_ltAppTrigMethd = 1;
+      /* Handle lcfg write to change the trigger mode and set
+         the display page accordingly */
+#ifdef CUST4_SM
+      if(get_low_touch_trigger_mode3_status())
+      {
+        dis_page_jump(&page_watch_id);
+      }
+      else
+      {
+        dis_page_jump(&page_menu);
+      }
+#endif
       break;
     }
     return LT_APP_SUCCESS;
@@ -461,7 +490,7 @@ static m2m2_hdr_t *lt_app_read_ch2_cap(m2m2_hdr_t *p_pkt) {
 
     //if(gsLowTouchInitFlag)
     //{
-      capVal = AD7156_ReadChannelCap(2); // unit in uF
+      capVal = AD7156_ReadChannelCap(2); // unit in fF
       status = M2M2_APP_COMMON_STATUS_OK;
     //} else {
     //  status = M2M2_APP_COMMON_STATUS_ERROR;
@@ -603,7 +632,8 @@ bool get_low_touch_trigger_mode3_status(void)
                   LT_APP_CAPSENSE_TUNED_TRIGGER = 0,
                   LT_APP_CAPSENSE_DISPLAY_TRIGGER = 1,
                   LT_APP_BUTTON_TRIGGER = 2,
-                  LT_APP_TRIGGER_INVALID = 3,
+                  LT_APP_INTERMITTENT_TRIGGER = 3
+                  LT_APP_TRIGGER_INVALID = 4,
  */
 LT_APP_LCFG_TRIGGER_METHOD_t get_lt_app_trigger_method() {
   return lt_app_cfg.ltAppTrigMethd;
@@ -626,7 +656,7 @@ int low_touch_init() {
       Register_out2_pin_detect_func(out2_pin_detect);
       bottom_touch_func_set(1);
       //Detect initial Wrist status
-      capVal = AD7156_ReadChannelCap(2); // unit in uF
+      capVal = AD7156_ReadChannelCap(2); // unit in fF
     }
 
     if( lt_app_cfg.ltAppTrigMethd  == LT_APP_CAPSENSE_TUNED_TRIGGER )
@@ -692,7 +722,8 @@ int low_touch_deinit() {
       gLowTouchTimerUp = 0;
       eDetection_State = OFF_WRIST, eCurDetection_State = OFF_WRIST;
     }
-    lt_app_cfg.ltAppTrigMethd = LT_APP_TRIGGER_INVALID;
+    //lt_app_cfg.ltAppTrigMethd = LT_APP_TRIGGER_INVALID;
+    lt_app_cfg.ltAppTrigMethd = gn_default_lt_mode;
 
     /*stop low touch logging*/
     SendStopLowTouchLogReq();
@@ -770,7 +801,7 @@ int LowTouchTimerEvent() {
  *           AD7156 configuration for LT application:
  *           -----------------------------------------
  *           Adaptive Threshold,In-Window Threshold Mode,with sensitivity of
- * 25uF Output2 from channel2, becomes Active(value:1) when,
+ * 25fF Output2 from channel2, becomes Active(value:1) when,
  * Data > Avg - Sensitivity
  * Data < Avg + Sensitivity
  * ON_WRIST/OFF_WRIST is detected based on the state machine vairable
@@ -786,7 +817,7 @@ int LowTouchSensorEvent() {
     if (gsLowTouchAd7156IntFlag) {
       /*AD7156 triggered an interrupt*/
       gsLowTouchAd7156IntFlag = 0;
-      gsLowTouchAd7156CapVal = AD7156_ReadChannelCap(2); // unit in uF
+      gsLowTouchAd7156CapVal = AD7156_ReadChannelCap(2); // unit in fF
 #ifndef DVT
       if (!gsLowTouchAd7156IntValue) // value=0 implies ON or touch
       {
@@ -1029,7 +1060,8 @@ void low_touch_task_init(void) {
   g_lt_task_attributes.pStackBase = &ga_lt_task_stack[0];
   g_lt_task_attributes.nStackSize = APP_OS_CFG_LT_APP_TASK_STK_SIZE;
   g_lt_task_attributes.pTaskAttrParam = NULL;
-  g_lt_task_attributes.szThreadName = "low_touch";
+  /* Thread Name should be of max 10 Characters */
+  g_lt_task_attributes.szThreadName = "LowTouch";
   g_lt_task_attributes.pThreadTcb = &g_lt_task_tcb;
 
   eOsStatus = adi_osal_MsgQueueCreate(&gh_lt_task_msg_queue, NULL, 9);
@@ -1081,7 +1113,8 @@ static void lt_task(void *arg) {
   }
   else
   {
-    lt_app_cfg.ltAppTrigMethd = LT_APP_TRIGGER_INVALID;
+    //lt_app_cfg.ltAppTrigMethd = LT_APP_TRIGGER_INVALID;
+    lt_app_cfg.ltAppTrigMethd = gn_default_lt_mode;
   }
 
 
@@ -1100,6 +1133,12 @@ static void lt_task(void *arg) {
   }
   else
       EnableLowTouchDetection(false);
+
+#ifdef USER0_CONFIG_APP
+  /*SemPost to user0 config task from LT task*/
+  adi_osal_SemPost(user0_config_app_evt_sem);
+#endif
+
 // Test DCB/NAND cfg working without ON/OFF Wrist events
 #ifdef TEST_LT_APP_WITHOUT_EVENTS
   static volatile uint8_t gb_trig_event = 0;
@@ -1179,6 +1218,8 @@ static void lt_task(void *arg) {
           else
           {
             reset_lt_mode2_selection_status();
+            /*Send Config file not found alarm to the tool*/
+            SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_CONFIG_FILE_NOT_FOUND);
             LowTouchErr();
           }
         } else {
@@ -1283,7 +1324,8 @@ void lt_app_lcfg_set_fw_default()
     lt_app_cfg.skinCapVal = LT_SKIN_CAP_VAL;
 
 #ifdef ENABLE_WATCH_DISPLAY
-    lt_app_cfg.ltAppTrigMethd = LT_APP_BUTTON_TRIGGER;
+    lt_app_cfg.ltAppTrigMethd = gn_default_lt_mode;
+    //lt_app_cfg.ltAppTrigMethd  = LT_APP_BUTTON_TRIGGER;
 #else
     lt_app_cfg.ltAppTrigMethd = LT_APP_CAPSENSE_TUNED_TRIGGER;
 #endif//ENABLE_WATCH_DISPLAY

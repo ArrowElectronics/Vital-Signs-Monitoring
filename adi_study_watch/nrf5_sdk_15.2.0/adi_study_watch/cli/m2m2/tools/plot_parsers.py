@@ -3890,7 +3890,6 @@ class bia_plot(plot):
                 new_data_admitance_img.append(admitance_img)
 
                 admitance_magnitude = math.sqrt(admitance_real*admitance_real + admitance_img*admitance_img)
-
                 admitance_phase = math.atan2(admitance_img,admitance_real)
 
                 new_data_admitance_magnitude.append(admitance_magnitude)
@@ -3908,7 +3907,7 @@ class bia_plot(plot):
 
                 if self.enable_csv_logs:
                     # fstream = open(self.fname, "a")
-                    self.fstream.write ('{},{},{},{}, {}, {}\n'.format(my_bia_data.timestamp, pkt.payload.sequence_num,impedance_magnitude,impedance_phase, impedance_real, impedance_img))
+                    self.fstream.write ('{},{},{},{},{},{},{}\n'.format(my_bia_data.timestamp, pkt.payload.sequence_num,impedance_magnitude,impedance_phase, impedance_real, impedance_img,my_bia_data.freq_index))
                     # fstream.close()
 
             if len(new_data_admitance_real) == 0:
@@ -3952,7 +3951,7 @@ class bia_plot(plot):
         if self.enable_csv_logs:
             print "creating."
             self.fstream = open(self.fname, "w+")
-            self.fstream.write ('Time_Stamp, Sequence number, Magnitude, Phase, Real Impedance, Imaginary Impedance\n')
+            self.fstream.write ('Time_Stamp, Sequence number, Magnitude, Phase, Real Impedance, Imaginary Impedance, Frequency in Hz \n')
             # fstream.close()
         return
 
@@ -4348,7 +4347,7 @@ class ad7156_plot(plot):
                          xlabel="Time",
                          xunit="Samples",
                          ylabel="Capacitance",
-                         yunit="pF",
+                         yunit="fF",
                          data_series={self.ch1_cap_key:
                                           {"format":
                                                {"name": self.ch1_cap_series_name,
@@ -4362,7 +4361,7 @@ class ad7156_plot(plot):
                          xlabel="Time",
                          xunit="Samples",
                          ylabel="Capacitance",
-                         yunit="pF",
+                         yunit="fF",
                          data_series={self.ch2_cap_key:
                                           {"format":
                                                {"name": self.ch2_cap_series_name,

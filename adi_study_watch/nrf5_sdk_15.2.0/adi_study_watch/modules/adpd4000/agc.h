@@ -48,7 +48,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define SLOT_NUM 12
 #define SKIP_SAMPLES 10
 #define SAMPLE_AVG_NUM 10
 

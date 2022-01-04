@@ -184,7 +184,7 @@ ADI_OSAL_STATUS adi_osal_SchedulerUnlock( void )
 	_adi_osal_gnSchedulerLockCnt--;             /* it must be done before unlocking */
 #endif /* OSAL_DEBUG */
 
-	xTaskResumeAll();
+	(void)xTaskResumeAll();
 
 	return ADI_OSAL_SUCCESS;
 }

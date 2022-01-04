@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/ecg_application_task.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_ecg\ecg_application_task.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_ecg\ecg_application_task.c \
  ..\..\..\modules\system/includes.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdarg.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
@@ -62,6 +62,7 @@ Output/watchv4_nrf52840\ Debug/Obj/ecg_application_task.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
@@ -93,7 +94,7 @@ Output/watchv4_nrf52840\ Debug/Obj/ecg_application_task.o: \
  ..\..\..\modules\system/post_office.h \
  ..\..\..\cli\m2m2\inc\c/post_office_interface.h \
  ..\..\..\cli\m2m2\inc\c/led_interface.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_ecg\adi_ecg.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_ecg\adi_ecg.h \
  ..\..\..\drivers\ad5940/ad5940.h ..\..\..\modules\ad5940_ecg/ecg_task.h \
  ..\..\..\cli\m2m2\inc\c/ecg_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \

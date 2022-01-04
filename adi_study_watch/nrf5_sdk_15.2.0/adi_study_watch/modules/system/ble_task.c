@@ -120,7 +120,7 @@ ADI_OSAL_QUEUE_HANDLE gh_ble_app_task_msg_queue = NULL;
 //ADI_OSAL_SEM_HANDLE g_ble_nus_evt_sem;
 /* Semaphore to block and wakeup ble_tx_task */
 ADI_OSAL_SEM_HANDLE g_ble_tx_task_evt_sem;
-
+ADI_OSAL_SEM_HANDLE g_ble_fs_download_evt_sem;
 /* For BLE Services Sensor FreeRTOS Task Creation */
 /* Create the stack for task */
 uint8_t ga_ble_services_sensor_task_stack[APP_OS_CFG_BLE_SERVICES_SENSOR_TASK_STK_SIZE];
@@ -340,6 +340,7 @@ static uint8_t sub_add_cnt = 0;
 static uint8_t tx_pkt_send_now = 0;
 
 #ifdef CUST4_SM
+#include "low_touch_task.h"
 #ifdef MEASURE_BLE_ADV_TIME
 static volatile uint32_t gn_ble_adv_dur_endtime;
 #endif
@@ -541,6 +542,7 @@ static uint32_t gn_ble_pkt_mem_fail = 0;
  * gTotalPktSubmit- which counts the data buffer submitted to
  * ble_nus_data_send() */
 volatile static uint32_t g_ble_tx_rdy_cnt = 0;
+volatile uint8_t g_fs_stream_pkt_flag = 0;
 /*!
  ****************************************************************************
  * @brief Function for handling the data from the Nordic UART Service.
@@ -596,9 +598,10 @@ static void nus_data_handler(ble_nus_evt_t *p_evt) {
         (p_in_pkt->src == M2M2_ADDR_APP_WT) ||
         (p_in_pkt->src == M2M2_ADDR_APP_DROID) ||
         (p_in_pkt->src == M2M2_ADDR_APP_IOS) ||
-        (p_in_pkt->src == M2M2_ADDR_APP_IOS_STREAM)) {
-      // if(M2M2_ADDR_UNDEFINED == ble_pkt_src)
-      //  ble_pkt_src = p_in_pkt->src;
+        (p_in_pkt->src == M2M2_ADDR_APP_CLI_BLE_STREAM) ||
+        (p_in_pkt->src == M2M2_ADDR_APP_IOS_STREAM) ||
+        (p_in_pkt->src == M2M2_ADDR_APP_DROID_STREAM) ||
+        (p_in_pkt->src == M2M2_ADDR_APP_WT_STREAM)){
       post_office_send(p_in_pkt, &err);
     } else {
       NRF_LOG_INFO("BLE RX: received pkt from incorrect src, consuming msg");
@@ -611,6 +614,11 @@ static void nus_data_handler(ble_nus_evt_t *p_evt) {
       // adi_osal_SemPost(g_ble_nus_evt_sem);
     }
     //adi_osal_SemPost(g_ble_nus_evt_sem);
+    if(g_fs_stream_pkt_flag)
+    {
+      g_fs_stream_pkt_flag = 0;
+      adi_osal_SemPost(g_ble_fs_download_evt_sem);
+    }
   } else if (BLE_NUS_EVT_COMM_STARTED == p_evt->type) {
     gb_ble_status = BLE_PORT_OPENED;
     gb_ble_force_stream_stop = false;
@@ -1174,7 +1182,8 @@ void ble_services_sensor_task_init()
   g_ble_services_sensor_task_attributes.pStackBase = &ga_ble_services_sensor_task_stack[0];
   g_ble_services_sensor_task_attributes.nStackSize = APP_OS_CFG_BLE_SERVICES_SENSOR_TASK_STK_SIZE;
   g_ble_services_sensor_task_attributes.pTaskAttrParam = NULL;
-  g_ble_services_sensor_task_attributes.szThreadName = "ble_services_sensor_task";
+  /* Thread Name should be of max 10 Characters */
+  g_ble_services_sensor_task_attributes.szThreadName = "BleSvcTask";
   g_ble_services_sensor_task_attributes.pThreadTcb = &g_ble_services_sensor_task_tcb;
   eOsStatus = adi_osal_MsgQueueCreate(&gh_ble_services_sensor_task_msg_queue, NULL,
       60); /* Incease this value as the ble buffer. */
@@ -1283,22 +1292,25 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt) {
     gn_ble_adv_dur_endtime = get_micro_sec();
 #endif
 #ifdef CUST4_SM
-    //Check curr state and do re-adv only for intermittent state
-    if((get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING)
-       && (gb_ble_status == BLE_DISCONNECTED))
+    if(get_low_touch_trigger_mode3_status())
     {
-      NRF_LOG_INFO("Advertising timeout, entering sleep state.")
-      //Register the event received
-      set_user0_config_app_event(EVENT_BLE_ADV_TIMEOUT);
-      user0_config_app_enter_state_sleep();
-    }
-    else if((gb_ble_status == BLE_DISCONNECTED))
-    {
+      //Check curr state and do re-adv only for intermittent state
+      if((get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING)
+         && (gb_ble_status == BLE_DISCONNECTED))
+      {
+        NRF_LOG_INFO("Advertising timeout, entering sleep state.")
+        //Register the event received
+        set_user0_config_app_event(EVENT_BLE_ADV_TIMEOUT);
+        user0_config_app_enter_state_sleep();
+      }
+      else if((gb_ble_status == BLE_DISCONNECTED))
+      {
 #endif
-      NRF_LOG_INFO("Advertising timeout, restarting.")
-      advertising_start(NULL);
+        NRF_LOG_INFO("Advertising timeout, restarting.")
+        advertising_start(NULL);
 #ifdef CUST4_SM
-    }
+      }
+    }//if(get_low_touch_trigger_mode3_status())
 #endif
     break;
   default:
@@ -1354,22 +1366,27 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
     APP_ERROR_CHECK(err_code);
 
 #ifdef CUST4_SM
-     //Watch connected to tool and its connected to cradle for charging
-     //if(get_user0_config_app_state() == STATE_START &&
-     if( (get_user0_config_app_state() == STATE_ADMIT_STANDBY) &&
-         (usbd_get_cradle_disconnection_status() == USBD_CONNECTED) )
-     {
-        user0_config_app_enter_state_admit_standby();
-     }
-     //Watch connected to tool and its disconnected from cradle
-     else if( (get_user0_config_app_state() == STATE_ADMIT_STANDBY) &&
-              (usbd_get_cradle_disconnection_status() == USBD_DISCONNECTED) )
-     {
-        /* Register the event received - Remove Band from cradle and network
-        system connects band via BLE */
-        set_user0_config_app_event(EVENT_WATCH_OFF_CRADLE_BLE_CONNECTION);
-        user0_config_app_enter_state_start_monitoring();
-     }
+    /*if(get_low_touch_trigger_mode3_status())
+       ->Skipping the condition check: otherwise transition to
+       STATE_START_MONITORING will not happen, when LT mode change/user0 config
+       will be done via the BLE tool
+    {*/
+      //Watch connected to tool and its connected to cradle for charging
+      if( (get_user0_config_app_state() == STATE_ADMIT_STANDBY) &&
+          (usbd_get_cradle_disconnection_status() == USBD_CONNECTED) )
+      {
+         user0_config_app_enter_state_admit_standby();
+      }
+      //Watch connected to tool and its disconnected from cradle
+      else if( (get_user0_config_app_state() == STATE_ADMIT_STANDBY) &&
+               (usbd_get_cradle_disconnection_status() == USBD_DISCONNECTED) )
+      {
+         /* Register the event received - Remove Band from cradle and network
+         system connects band via BLE */
+         set_user0_config_app_event(EVENT_WATCH_OFF_CRADLE_BLE_CONNECTION);
+         user0_config_app_enter_state_start_monitoring();
+      }
+    //}//if(get_low_touch_trigger_mode3_status())
 #endif
 
 #if 0
@@ -1404,40 +1421,46 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context) {
     gsErrResources = 0;
     adi_osal_ThreadResumeFromISR(gh_ble_services_sensor_task_handler);
 #ifdef CUST4_SM
-    //Register the event received
-    if( p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION )
+    if(get_low_touch_trigger_mode3_status())
     {
-      USBD_CONN_STATUS_t usbd_conn_status = usbd_get_cradle_disconnection_status();
-      if(usbd_conn_status == USBD_DISCONNECTED)
-        set_user0_config_app_event(EVENT_WATCH_OFF_CRADLE_BLE_DISCONNECT_NW_TERMINATED);
+      //Register the event received
+      if( (p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION) ||
+          (p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_LOCAL_HOST_TERMINATED_CONNECTION) )
+      {
+        USBD_CONN_STATUS_t usbd_conn_status = usbd_get_cradle_disconnection_status();
+        if(usbd_conn_status == USBD_DISCONNECTED)
+          set_user0_config_app_event(EVENT_WATCH_OFF_CRADLE_BLE_DISCONNECT_NW_TERMINATED);
+        else
+          set_user0_config_app_event(EVENT_BLE_DISCONNECT_NW_TERMINATED);
+      }
       else
-        set_user0_config_app_event(EVENT_BLE_DISCONNECT_NW_TERMINATED);
-    }
-    else
-    {
-      set_user0_config_app_event(EVENT_BLE_DISCONNECT_UNEXPECTED);
-    }
+      {
+        set_user0_config_app_event(EVENT_BLE_DISCONNECT_UNEXPECTED);
+      }
 
-    //Unexpected BLE disconnection, when in STATE_ADMIT_STANDBY
-    /*Do nothing*/
-    //Central gave BLE disconnection, when in STATE_ADMIT_STANDBY
-    /*Do nothing*/
+      //Unexpected BLE disconnection, when in STATE_ADMIT_STANDBY
+      /*Do nothing*/
+      //Central gave BLE disconnection, when in STATE_ADMIT_STANDBY
+      /*Do nothing*/
 
-    /*Unexpected BLE disconnection, when in STATE_START_MONITORING,
-    STATE_INTERMITTENT_MONITORING*/
-    /*Stay in same state*/
-    //p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_CONNECTION_TIMEOUT
+      /*Unexpected BLE disconnection, when in STATE_START_MONITORING,
+      STATE_INTERMITTENT_MONITORING*/
+      /*Stay in same state*/
+      //p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_CONNECTION_TIMEOUT
 
 
-    /*Central gave BLE disconnection, when in STATE_START_MONITORING or
-    STATE_INTERMITTENT_MONITORING */
-    if( p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION
-    && (get_user0_config_app_state() == STATE_START_MONITORING
-    || get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING) )
-    {
-       user0_config_app_enter_state_sleep();
-    }
-
+      /*Central gave BLE disconnection, when in STATE_START_MONITORING or
+      STATE_INTERMITTENT_MONITORING */
+      if( (p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION) ||
+          (p_ble_evt->evt.gap_evt.params.disconnected.reason == BLE_HCI_LOCAL_HOST_TERMINATED_CONNECTION) )
+      {
+        if( (get_user0_config_app_state() == STATE_START_MONITORING) ||
+            (get_user0_config_app_state() == STATE_INTERMITTENT_MONITORING) )
+        {
+           user0_config_app_enter_state_sleep();
+        }
+      }
+    }//if(get_low_touch_trigger_mode3_status())
 #endif
     break;
 
@@ -2066,8 +2089,13 @@ static void ble_tx_task(void *arg) {
               // adi_osal_SemPend(g_ble_nus_evt_sem, 1000);
               //                  nrf_pwr_mgmt_run();
 
-            } else
+            } 
+            else
+            {
               gTotalPktSubmit++;
+              if(p_in_cmd->command == M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_BLE_RESP)
+                g_fs_stream_pkt_flag = 1;
+            }
             if (tx_retry_cnt++ == MAX_BLE_TX_RETRY_CNT ||
                 err_code == NRF_ERROR_INVALID_STATE) {
               NRF_LOG_INFO("BLE Tx:retry count Max err_code:%d", err_code);
@@ -2188,7 +2216,8 @@ void ble_application_task_init(void) {
   g_ble_app_task_attributes.pStackBase = &ga_ble_app_task_stack[0];
   g_ble_app_task_attributes.nStackSize = APP_OS_CFG_BLE_TASK_STK_SIZE;
   g_ble_app_task_attributes.pTaskAttrParam = NULL;
-  g_ble_app_task_attributes.szThreadName = "ble_application_task";
+  /* Thread Name should be of max 10 Characters */
+  g_ble_app_task_attributes.szThreadName = "BleAppTask";
   g_ble_app_task_attributes.pThreadTcb = &g_ble_app_task_tcb;
   eOsStatus = adi_osal_MsgQueueCreate(&gh_ble_app_task_msg_queue, NULL,
       60); /* Incease this value as the ble buffer. */
@@ -2213,7 +2242,10 @@ void ble_application_task_init(void) {
   if (eOsStatus != ADI_OSAL_SUCCESS) {
     Debug_Handler();
   }
-
+  eOsStatus = adi_osal_SemCreate(&g_ble_fs_download_evt_sem, 0U);
+  if (eOsStatus != ADI_OSAL_SUCCESS) {
+    Debug_Handler();
+  }
 #ifdef BLE_THROUGHTPUT_DEBUG
   ble_timer_init();
 #endif

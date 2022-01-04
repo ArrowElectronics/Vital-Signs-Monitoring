@@ -91,7 +91,9 @@ uint32_t gPOPingReqCnt =0, gPOPingRespCnt = 0;
 msg_mgmt_info_t mem_create_arr, mem_free_arr[MEM_DBG_SIZE];
 uint8_t gMemAllocIndx = 0, gMemFreeIndx = 0;
 #endif //MEM_MGMT_DBG
-
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+extern uint32_t batt_app_packet_count;
+#endif
 /* API which updates the task queue list based on the task index*/
 void update_task_queue_list (task_queue_index_t task_index, ADI_OSAL_QUEUE_HANDLE task_queue_handle)
 {
@@ -208,6 +210,7 @@ void post_office_task_init(void) {
   PostOfficeTaskAttributes.pStackBase = &PostOfficeTaskStack[0];
   PostOfficeTaskAttributes.nStackSize = APP_OS_CFG_POST_OFFICE_TASK_STK_SIZE;
   PostOfficeTaskAttributes.pTaskAttrParam = NULL;
+  /* Thread Name should be of max 10 Characters */
   PostOfficeTaskAttributes.szThreadName = "PostOffice";
   PostOfficeTaskAttributes.pThreadTcb = &PostOfficeTaskTcb;
   eOsStatus = adi_osal_MsgQueueCreate(&post_office_task_msg_queue,NULL,
@@ -586,20 +589,29 @@ static void send_to_mailbox(m2m2_hdr_t  *p_msg) {
       }
     }
   }
+  adi_osal_EnterCriticalRegion();
   // If there's more than one sub, then send them each a copy of the message.
   for (uint8_t i = 0; i < subs_list_size; i++) {
     // Skip "empty" subscriber entries that are denoted by M2M2_ADDR_UNDEFINED
     if (sub_list[i] != M2M2_ADDR_UNDEFINED) {
+#ifdef ENABLE_TEMP_DEBUG_STREAM    	
+      if((p_msg->length == 18) && (p_msg->dest == M2M2_ADDR_SYS_BATT_STREAM)){
+          batt_app_packet_count |= 1 << (i + 1);
+        }
+#endif        
       p_m2m2_ = post_office_create_msg(p_msg->length);
-      adi_osal_EnterCriticalRegion();
       if (p_m2m2_ != NULL) {
         memcpy(p_m2m2_, (void *)p_msg, p_msg->length);
         p_m2m2_->dest = sub_list[i];
         post_office_route(p_m2m2_);
       }
-      adi_osal_ExitCriticalRegion();
     }
   }
+  adi_osal_ExitCriticalRegion();
+#ifdef ENABLE_TEMP_DEBUG_STREAM   
+  if((p_msg->length == 18) && (p_msg->dest == M2M2_ADDR_SYS_BATT_STREAM))
+    batt_app_packet_count &= ~(1 << 0);
+#endif    
   post_office_consume_msg(p_msg);
 }
 
@@ -613,14 +625,16 @@ void post_office_add_mailbox(M2M2_ADDR_ENUM_t requester_addr, M2M2_ADDR_ENUM_t m
   ADI_OSAL_STATUS err;
 
   PKT_MALLOC(p_pkt, post_office_config_t, 0);
-  PYLD_CST(p_pkt, post_office_config_t, p_pkt_payload);
+  if(p_pkt!= NULL) {
+    PYLD_CST(p_pkt, post_office_config_t, p_pkt_payload);
 
-  p_pkt->src = requester_addr;
-  p_pkt->dest = M2M2_ADDR_POST_OFFICE;
+    p_pkt->src = requester_addr;
+    p_pkt->dest = M2M2_ADDR_POST_OFFICE;
 
-  p_pkt_payload->box = mailbox_addr;
-  p_pkt_payload->cmd = POST_OFFICE_CFG_CMD_ADD_MAILBOX;
-  post_office_send(p_pkt, &err);
+    p_pkt_payload->box = mailbox_addr;
+    p_pkt_payload->cmd = POST_OFFICE_CFG_CMD_ADD_MAILBOX;
+    post_office_send(p_pkt, &err);
+  }
 }
 
 /*!
@@ -633,14 +647,16 @@ void post_office_remove_mailbox(M2M2_ADDR_ENUM_t requester_addr, M2M2_ADDR_ENUM_
   ADI_OSAL_STATUS err;
 
   PKT_MALLOC(p_pkt, post_office_config_t, 0);
-  PYLD_CST(p_pkt, post_office_config_t, p_pkt_payload);
+  if(p_pkt!= NULL) {
+    PYLD_CST(p_pkt, post_office_config_t, p_pkt_payload);
 
-  p_pkt->src = requester_addr;
-  p_pkt->dest = M2M2_ADDR_POST_OFFICE;
+    p_pkt->src = requester_addr;
+    p_pkt->dest = M2M2_ADDR_POST_OFFICE;
 
-  p_pkt_payload->box = mailbox_addr;
-  p_pkt_payload->cmd = POST_OFFICE_CFG_CMD_REMOVE_MAILBOX;
-  post_office_send(p_pkt, &err);
+    p_pkt_payload->box = mailbox_addr;
+    p_pkt_payload->cmd = POST_OFFICE_CFG_CMD_REMOVE_MAILBOX;
+    post_office_send(p_pkt, &err);
+  }
 }
 
 /*!
@@ -658,18 +674,20 @@ void post_office_setup_subscriber(M2M2_ADDR_ENUM_t requester_addr,
   ADI_OSAL_STATUS err;
 
   PKT_MALLOC(p_pkt, post_office_config_t, 0);
-  PYLD_CST(p_pkt, post_office_config_t, p_pkt_payload);
+  if(p_pkt!= NULL) {
+    PYLD_CST(p_pkt, post_office_config_t, p_pkt_payload);
 
-  p_pkt->dest = M2M2_ADDR_POST_OFFICE;
-  p_pkt->src = requester_addr;
+    p_pkt->dest = M2M2_ADDR_POST_OFFICE;
+    p_pkt->src = requester_addr;
 
-  if (add == 1) {
-    p_pkt_payload->cmd = POST_OFFICE_CFG_CMD_MAILBOX_SUBSCRIBE;
-  } else {
-    p_pkt_payload->cmd = POST_OFFICE_CFG_CMD_MAILBOX_UNSUBSCRIBE;
+    if (add == 1) {
+      p_pkt_payload->cmd = POST_OFFICE_CFG_CMD_MAILBOX_SUBSCRIBE;
+    } else {
+      p_pkt_payload->cmd = POST_OFFICE_CFG_CMD_MAILBOX_UNSUBSCRIBE;
+    }
+
+    p_pkt_payload->sub = sub_addr;
+    p_pkt_payload->box = mailbox_addr;
+    post_office_send(p_pkt, &err);
   }
-
-  p_pkt_payload->sub = sub_addr;
-  p_pkt_payload->box = mailbox_addr;
-  post_office_send(p_pkt, &err);
 }

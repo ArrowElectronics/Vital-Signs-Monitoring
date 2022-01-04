@@ -139,7 +139,7 @@ void Adpd400xLibApplyLCFG(Adpd400xLibConfig_t *lcfg)  {
 
 /**
   * @brief Returns the values used during the Detect On state.
-  * @param val returns the current DC level. If there’s no object on sensor,
+  * @param val returns the current DC level. If thereï¿½s no object on sensor,
   *        this is the ambient level.
   * @param valAir returns the current ambient level setting (lcfg41 value).
   * @param var returns the current variance value.

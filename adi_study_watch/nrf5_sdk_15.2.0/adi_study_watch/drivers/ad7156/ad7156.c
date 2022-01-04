@@ -138,8 +138,8 @@ void Unregister_out2_pin_detect_func(out_pin_detect_func hander)
 /******************************************************************************/
 /************************ Variables Declarations ******************************/
 /******************************************************************************/
-uint16_t ad7156Channel1Range = 2000;//use the fF to relace it.
-uint16_t ad7156Channel2Range = 2000;
+uint16_t ad7156Channel1Range = 2000;//use the fF to replace it.
+uint16_t ad7156Channel2Range = 2000;//use the fF to replace it.
 //unsigned char thrMode = 0;
 /******************************************************************************/
 /************************ Functions Definitions *******************************/
@@ -280,13 +280,13 @@ void AD7156_SetRange(unsigned channel, unsigned char range)
 }
 
 /***************************************************************************//**
- * @brief Reads the range bits from the device and returns the range in pF.
+ * @brief Reads the range bits from the device and returns the range in fF.
  *
  * @param channel - Channel option.
  *                  Example: AD7156_CHANNEL1
  *                           AD7156_CHANNEL2
  *
- * @return The capacitive input range(pF).
+ * @return The capacitive input range(fF).
 *******************************************************************************/
 uint16_t AD7156_GetRange(unsigned channel)
 {
@@ -310,6 +310,9 @@ uint16_t AD7156_GetRange(unsigned channel)
             break;
         case AD7156_CDC_RANGE_4_PF:
             range =  4000;
+            break;
+        default:
+            range = 2000;
             break;
     }
     /* Update global variables that hold range information. */
@@ -371,7 +374,7 @@ void AD7156_SetPowerDownTimeout(unsigned char time_4h)
  *                           AD7156_CHANNEL2
  * @param dacEn - enables capacitive the DAC
  * @param dacAutoEn -enables the auto-DAC function in the adaptive threshold mode.
- * @param dacValue -CAPDAC value.Code 0x00 â‰0 pF, Code 0x3F â‰CAPDAC full range(12.6pF),so the interval is 0.2pF
+ * @param dacValue -CAPDAC value.Code 0x00 ~= 0 pF, Code 0x3F ~= CAPDAC full range(12.6pF),so the interval is 0.2pF
  * @return None.
 *******************************************************************************/
 
@@ -391,21 +394,21 @@ void AD7156_SetCAPDAC(unsigned char channel,unsigned char dacEn,unsigned char da
  * @param channel - Channel option.
  *                  Example: AD7156_CHANNEL1
  *                           AD7156_CHANNEL2
- * @param pFthr - The threshold value in picofarads(pF). The value must not be
+ * @param pFthr - The threshold value in femto farads(fF). The value must not be
  *                out of the selected input range.
  *
  * @return None.
 *******************************************************************************/
-void AD7156_SetThreshold(unsigned char channel, uint16_t pFthr)
+void AD7156_SetThreshold(unsigned char channel, uint16_t fFthr)
 {
     unsigned char  thrRegAddress  = 0;
     unsigned short rawThr         = 0;
-    uint16_t  range                  = 0;
+    uint16_t  range               = 0;
 
     thrRegAddress = (channel == 1) ? AD7156_REG_CH1_SENS_THRSH_H :
                                      AD7156_REG_CH2_SENS_THRSH_H;
-    range = AD7156_GetRange(channel);
-    rawThr = (uint16_t)((pFthr * 0xA000 / range) + 0x3000);
+    range = AD7156_GetRange(channel); //range in fF
+    rawThr = (uint16_t)((fFthr * 0xA000 / range) + 0x3000);
     if(rawThr > 0xD000)
     {
         rawThr = 0xD000;
@@ -418,17 +421,17 @@ void AD7156_SetThreshold(unsigned char channel, uint16_t pFthr)
 }
 
 /***************************************************************************//**
- * @brief Writes a value(pF) to the sensitivity register. This functions
+ * @brief Writes a value(fF) to the sensitivity register. This functions
  * should be used when adaptive threshold mode is selected.
  *
  * @param channel - Channel option.
  *                  Example: AD7156_CHANNEL1
  *                           AD7156_CHANNEL2
- * @param pFsensitivity - The sensitivity value in picofarads(pF).
+ * @param pFsensitivity - The sensitivity value in femtofarads(fF).
  *
  * @return None.
 *******************************************************************************/
-void AD7156_SetSensitivity(unsigned char channel, uint16_t pFsensitivity)
+void AD7156_SetSensitivity(unsigned char channel, uint16_t fFsensitivity)
 {
     unsigned char  sensitivityRegAddr = 0;
     unsigned short rawSensitivity     = 0;
@@ -437,20 +440,22 @@ void AD7156_SetSensitivity(unsigned char channel, uint16_t pFsensitivity)
     sensitivityRegAddr = (channel == 1) ? AD7156_REG_CH1_SENS_THRSH_H :
                                           AD7156_REG_CH2_SENS_THRSH_H;
     range = (channel == 1) ? ad7156Channel1Range : ad7156Channel2Range;
-    rawSensitivity = (unsigned short)(pFsensitivity * 0xA00 / range);
+    rawSensitivity = (unsigned short)(fFsensitivity * 0xA00 / range);
 //    rawSensitivity = (rawSensitivity << 4) & 0x0FF0;//remove//20190505
 //    AD7156_SetRegisterValue(rawSensitivity, sensitivityRegAddr, 2);//remove//20190505
     AD7156_SetRegisterValue(rawSensitivity, sensitivityRegAddr, 1);//add//20190505
 }
 
 /***************************************************************************//**
- * @brief Writes a value(pF) to the sensitivity register. This functions
- * should be used when adaptive threshold mode is selected.
+ * @brief Writes timeout approaching and timout receding to a specific channel.
+ *        This functions
+ *        should be used when adaptive threshold mode is selected.
  *
  * @param channel - Channel option.
  *                  Example: AD7156_CHANNEL1
  *                           AD7156_CHANNEL2
- * @param pFsensitivity - The sensitivity value in picofarads(pF).
+ * @param TimeOutApr - Timeout approaching
+ * @param TimeOutRec - Timeout receding
  *
  * @return None.
 *******************************************************************************/
@@ -463,7 +468,7 @@ void AD7156_SetTimeout(unsigned char channel, unsigned char TimeOutApr,unsigned 
     RegAddr = (channel == 1) ? AD7156_REG_CH1_TMO_THRSH_L :AD7156_REG_CH2_TMO_THRSH_L;
 
     value = (TimeOutApr << 4)|(TimeOutRec&0x0f);
-    AD7156_SetRegisterValue(value, RegAddr, 1);//
+    AD7156_SetRegisterValue(value, RegAddr, 1);
 }
 
 
@@ -528,10 +533,10 @@ unsigned short AD7156_ReadOneChannel(unsigned char channel)
 }
 
 /***************************************************************************//**
- * @brief Read data form both channels and converts it to picofarads(pF).
+ * @brief Read data form both channels and converts it to femtofarads(fF).
  *
- * @param ch1 - Stores the read capacitance(pF) from channel 1.
- * @param ch2 - Stores the read capacitance(pF) from channel 2.
+ * @param ch1 - Stores the read capacitance(fF) from channel 1.
+ * @param ch2 - Stores the read capacitance(fF) from channel 2.
  *
  * @return None.
 *******************************************************************************/
@@ -562,18 +567,18 @@ void AD7156_ReadCapacitance(uint16_t* ch1, uint16_t* ch2)
 }
 
 /***************************************************************************//**
- * @brief Reads a sample and converts the data to picofarads(pF).
+ * @brief Reads a sample and converts the data to femtofarads(fF).
  *
  * @param channel - Channel option.
  *                  Example: AD7156_CHANNEL1
  *                           AD7156_CHANNEL2
- * @return Conversion result form the selected channel as picofarads(pF).
+ * @return Conversion result form the selected channel as femtofarads(fF).
 *******************************************************************************/
 uint16_t AD7156_ReadChannelCap(unsigned char channel)
 {
     unsigned short rawCh = 0;
     uint16_t chRange = 0;
-    uint16_t pFdata = 0;
+    uint16_t fFdata = 0;
 
     chRange = (channel == 1) ? ad7156Channel1Range : ad7156Channel2Range;
     rawCh = AD7156_ReadOneChannel(channel);
@@ -585,9 +590,9 @@ uint16_t AD7156_ReadChannelCap(unsigned char channel)
     {
         rawCh = 0xD000;
     }
-    pFdata = (((rawCh) - 0x3000) * chRange) / 0xA000;
+    fFdata = (((rawCh) - 0x3000) * chRange) / 0xA000;
 
-    return pFdata;
+    return fFdata;
 }
 
 static void ad7156_out1_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -742,6 +747,7 @@ void AD7156_task_init(void) {
     ad7156_task_attributes.pStackBase = &ad7156_task_stack[0];
     ad7156_task_attributes.nStackSize = APP_OS_CFG_TOUCH_TASK_STK_SIZE;
     ad7156_task_attributes.pTaskAttrParam = NULL;
+    /* Thread Name should be of max 10 Characters */
     ad7156_task_attributes.szThreadName = "ad7156";
     ad7156_task_attributes.pThreadTcb = &ad7156_task_tcb;
 
@@ -793,8 +799,8 @@ uint32_t AD7156_Init(void)
     AD7156_SetSensitivity(AD7156_CHANNEL2,25);//use the finger to touch, the max change value is 0.03pF, but wear to arm, the change will become small.
 #else
     AD7156_SetThresholdMode(AD7156_THR_MODE_NEGATIVE,AD7156_DETECT_METHOD);
-    AD7156_SetThreshold(AD7156_CHANNEL1,1.15);
-    AD7156_SetThreshold(AD7156_CHANNEL2,0.45);
+    AD7156_SetThreshold(AD7156_CHANNEL1,1150);
+    AD7156_SetThreshold(AD7156_CHANNEL2, 450);
 #endif
     AD7156_ChannelState(AD7156_CHANNEL1,1);
     AD7156_ChannelState(AD7156_CHANNEL2,1);

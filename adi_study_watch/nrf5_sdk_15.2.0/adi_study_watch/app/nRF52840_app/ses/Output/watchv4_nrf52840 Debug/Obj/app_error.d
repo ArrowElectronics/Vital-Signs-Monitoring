@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/app_error.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\app_error.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\app_error.c \
  ..\..\..\..\modules\nrfx\mdk/nrf.h \
  ..\..\..\..\modules\nrfx\mdk/nrf52840.h \
  ..\..\..\..\components\toolchain\cmsis\include/core_cm4.h \
@@ -15,9 +15,9 @@ Output/watchv4_nrf52840\ Debug/Obj/app_error.o: \
  ..\..\..\..\modules\nrfx\mdk/compiler_abstraction.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\app_error.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\app_error.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\sdk_errors.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\sdk_errors.h \
  ..\..\..\..\components\softdevice\s140\headers/nrf_error.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\nordic_common.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\app_error_weak.h
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\nordic_common.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\app_error_weak.h

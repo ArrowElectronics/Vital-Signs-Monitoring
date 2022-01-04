@@ -35,6 +35,8 @@ typedef enum M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t {
   M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_RESP = 73,
   M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_REQ = 74,
   M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_RESP = 75,
+  M2M2_USER0_CONFIG_APP_BYPASS_USER0_TIMINGS_REQ = 76,
+  M2M2_USER0_CONFIG_APP_BYPASS_USER0_TIMINGS_RESP = 77,
 } M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t;
 STATIC_ASSERT_PROJ(sizeof(M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t) == 1, INCORRECT_SIZE_M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t);
 
@@ -133,6 +135,12 @@ typedef struct _user0_app_prev_state_event_pkt_t {
   user0_app_prev_state_event_t  prev_st_evt[4]; 
   uint16_t  intermittent_op_cnt; 
 } user0_app_prev_state_event_pkt_t;
+
+typedef struct _user0_app_bypass_user0_timings_pkt_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  enable; 
+} user0_app_bypass_user0_timings_pkt_t;
 
 // Reset struct packing outside of this file
 #pragma pack()

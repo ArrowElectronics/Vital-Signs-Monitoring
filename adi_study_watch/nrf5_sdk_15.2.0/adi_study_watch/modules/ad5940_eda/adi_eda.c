@@ -236,7 +236,7 @@ AD5940Err AppEDASeqCfgGen(void) {
   write_ad5940_seqcfg();
 #else
   /* Sequence starts here */
-  AD5940_SEQGpioCtrlS(AGPIO_Pin6 | AGPIO_Pin1);
+  AD5940_SEQGpioCtrlS(0);
   AD5940_StructInit(&aferef_cfg, sizeof(aferef_cfg));
   /* Turn off all references, only enable it when needed */
   AD5940_REFCfgS(&aferef_cfg);
@@ -381,8 +381,8 @@ AD5940Err AppEDASeqMeasureGen(void) {
   /* GP6->endSeq, GP5 -> AD8233=OFF, GP1->RLD=OFF */
   AD5940_SEQGpioCtrlS(AGPIO_Pin6);
 #else
-  /* GP6->endSeq, GP5 -> AD8233=OFF,GP3 ->ELECTRODESWITCH=ON, GP1->RLD=OFF */
-  AD5940_SEQGpioCtrlS(AGPIO_Pin3 | AGPIO_Pin6);
+  /* GP3-> enable electrode pin */
+  AD5940_SEQGpioCtrlS(AGPIO_Pin3);
 #endif  
   /* LP loop configure: LPDAC and LPAMP */
   lpdac_cfg.LpdacSel = LPDAC0;
@@ -789,10 +789,7 @@ static AD5940Err AD5940PlatformCfg(void) {
   /* enable external trigger within ad5940 */
   SeqGpioTrig_Cfg cfg;
 #endif
-  /* Use hardware reset */
-  AD5940_HWReset();
-  /* Platform configuration */
-  AD5940_Initialize();
+
 #ifdef EDA_DCFG_ENABLE
   /* load dcfg here for test */
   write_ad5940_init();
@@ -852,9 +849,10 @@ static AD5940Err AD5940PlatformCfg(void) {
 #else
   /*Adding electrode switch on measurement sequence only using GPIO3*/
   /* Step4: Configure GPIO */
-  gpio_cfg.FuncSet =  GP6_SYNC | GP5_SYNC | GP4_SYNC | GP3_SYNC | GP2_EXTCLK | GP1_SYNC | GP0_INT;
-  gpio_cfg.InputEnSet = AGPIO_Pin2;
-  gpio_cfg.OutputEnSet =  AGPIO_Pin0 | AGPIO_Pin1 | AGPIO_Pin3 | AGPIO_Pin4 | AGPIO_Pin5 | AGPIO_Pin6;
+  /* GP3 is configured using sequencer */
+  gpio_cfg.FuncSet =  GP3_SYNC | GP0_INT;
+  gpio_cfg.InputEnSet = 0;
+  gpio_cfg.OutputEnSet =  AGPIO_Pin0 | AGPIO_Pin3;
   gpio_cfg.OutVal = 0;
   gpio_cfg.PullEnSet = 0;
   AD5940_AGPIOCfg(&gpio_cfg);
@@ -1004,8 +1002,10 @@ uint32_t EDARtiaAutoScaling(
     SumImp.Real += pImpedance[i].Real;
     SumImp.Image += pImpedance[i].Image;
   }
-  SumImp.Real /= uiDataCount;
-  SumImp.Image /= uiDataCount;
+  if(uiDataCount != 0) {
+    SumImp.Real /= uiDataCount;
+    SumImp.Image /= uiDataCount;
+  }
   /* Impedance under test is sum of changed value and baseline */
   SumImp = AD5940_ComplexAddFloat(&SumImp, &AppEDACfg.ImpEDABase);
   MagMean = AD5940_ComplexMag(&SumImp);
@@ -1142,9 +1142,6 @@ void ad5940_eda_start(void)
   /* configure call back */
   Ad5940DrvDataReadyCallback(Ad5940FifoCallBack);
    
-   /* Interrupts setting */
-  ad5940_port_Init();
-
 #endif
 /* switch off other switches */
 /*

@@ -120,7 +120,6 @@ uint32_t app_timer_create(app_timer_id_t const *      p_timer_id,
                           app_timer_mode_t            mode,
                           app_timer_timeout_handler_t timeout_handler)
 {
-    app_timer_info_t * pinfo = (app_timer_info_t*)(*p_timer_id);
     uint32_t      err_code = NRF_SUCCESS;
     unsigned long timer_mode;
 
@@ -128,6 +127,8 @@ uint32_t app_timer_create(app_timer_id_t const *      p_timer_id,
     {
         return NRF_ERROR_INVALID_PARAM;
     }
+
+    app_timer_info_t * pinfo = (app_timer_info_t*)(*p_timer_id);
     if (pinfo->active)
     {
         return NRF_ERROR_INVALID_STATE;

@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/ad7156.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156.c \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\ad7156\ad7156.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\configurations/watch_board_pcba_pin_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
@@ -80,6 +80,7 @@ Output/watchv4_nrf52840\ Debug/Obj/ad7156.o: \
  ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\..\external\freertos\source\include/task.h \
  ..\..\..\..\external\freertos\source\include/list.h \

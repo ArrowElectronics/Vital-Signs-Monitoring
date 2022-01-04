@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/memory_management.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\memory_management\memory_management.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\utilities\memory_management\memory_management.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
@@ -46,5 +46,5 @@ Output/watchv4_nrf52840\ Debug/Obj/memory_management.o: \
  ..\..\..\..\external\freertos\portable\CMSIS\nrf52/portmacro_cmsis.h \
  ..\..\..\..\components\libraries\util/app_util.h \
  ..\..\..\..\external\freertos\source\include/mpu_wrappers.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\memory_management\memory_management.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\utilities\memory_management\memory_management.h \
  ..\..\..\utilities\mem_pool/mem_pool.h

@@ -14,7 +14,7 @@ MAXADXLDCBSIZE = (25) #Max size of adxl DCB size in double word length; 25 uint3
 MAXPPGDCBSIZE = (56)
 MAXECGDCBSIZE = (4)
 MAXEDADCBSIZE = (2)
-MAXBIADCBSIZE = (18)
+MAXBIADCBSIZE = (27)
 
 """
 Size of gen Blk DCB contents passed in 1 pkt for the read/write/delete DCB

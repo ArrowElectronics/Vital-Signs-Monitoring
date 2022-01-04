@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/ble_task.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\ble_task.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\ble_task.c \
  ..\..\..\..\components\libraries\timer/app_timer.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\util/app_error.h \
@@ -144,6 +144,7 @@ Output/watchv4_nrf52840\ Debug/Obj/ble_task.o: \
  ..\..\..\..\modules\nrfx\drivers\include/nrfx_twi.h \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
@@ -175,6 +176,6 @@ Output/watchv4_nrf52840\ Debug/Obj/ble_task.o: \
  ..\..\..\drivers\adp5360/adp5360.h \
  ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \
  ..\display/display_app.h ..\..\..\modules\system/ble_task.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\ble_services_m2m2_protocol.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\ble_services_m2m2_protocol.h \
  ..\..\..\cli\m2m2\inc\c/ppg_application_interface.h \
  ..\..\..\modules\system/system_task.h

@@ -73,7 +73,7 @@ void ext_trigger_int_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t act
 void adpd_int_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
     gsAdpdIntCnt++;
-    Adpd400xISR();
+    adi_adpddrv_ISR();
 }
 
 void adxl_int_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)

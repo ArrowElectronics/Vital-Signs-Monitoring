@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/app_util_platform.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\app_util_platform.c \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\app_util_platform.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\app_util_platform.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\app_util_platform.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\..\modules\nrfx\mdk/compiler_abstraction.h \
  ..\..\..\..\modules\nrfx\mdk/nrf.h \
@@ -20,12 +20,12 @@ Output/watchv4_nrf52840\ Debug/Obj/app_util_platform.o: \
  ..\..\..\..\components\softdevice\s140\headers/nrf_error.h \
  ..\..\..\..\components\softdevice\s140\headers/nrf_error_soc.h \
  ..\..\..\..\components\softdevice\s140\headers/nrf_nvic.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\nrf_assert.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\app_error.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\nrf_assert.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\app_error.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\sdk_errors.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\sdk_errors.h \
  ..\..\..\..\components\softdevice\s140\headers/nrf_error.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\nordic_common.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\util\app_error_weak.h
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\nordic_common.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\util\app_error_weak.h

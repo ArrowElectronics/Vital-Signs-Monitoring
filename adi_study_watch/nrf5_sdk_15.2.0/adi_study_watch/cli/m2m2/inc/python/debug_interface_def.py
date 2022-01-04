@@ -18,7 +18,6 @@ class m2m2_app_debug_stream_t(Structure):
               ("status", c_ubyte),
               ("sequence_num", c_ushort),
               ("timestamp", c_ulong),
-              ("debuginfo_64", c_ulonglong * 4),
-              ("debuginfo", c_ulong * 4),
+              ("debuginfo", c_ulong * 12),
               ]
 

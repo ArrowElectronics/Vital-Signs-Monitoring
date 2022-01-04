@@ -7,18 +7,18 @@ from m2m2_core_def import *
 DCB_BLK_WORD_SZ = (4)
 MAXAD7156DCBSIZE = (20)
 MAXADPD4000DCBSIZE = (57)
-MAXTEMPRLCFGDCBSIZE = (57)
 MAXADXLDCBSIZE = (25)
-MAXBIADCBSIZE = (18)
+MAXBIADCBSIZE = (27)
 MAXECGDCBSIZE = (4)
 MAXEDADCBSIZE = (2)
 MAXGENBLKDCBSIZE = (57)
 MAXLTAPPLCFGDCBSIZE = (5)
 MAXPPGDCBSIZE = (56)
+MAXTEMPRLCFGDCBSIZE = (57)
 MAXUSER0BLKDCBSIZE = (19)
 MAX_ADPD4000_DCB_PKTS = (4)
-MAX_TEMPRLCFG_DCB_PKTS = (2)
 MAX_GEN_BLK_DCB_PKTS = (18)
+MAX_TEMPRLCFG_DCB_PKTS = (2)
 
 class M2M2_DCB_COMMAND_ENUM_t(c_ubyte):
     _M2M2_DCB_COMMAND_ENUM_t__M2M2_DCB_COMMAND_LOWEST = 0x96
@@ -126,7 +126,7 @@ class m2m2_dcb_bia_data_t(Structure):
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("size", c_ushort),
-              ("dcbdata", c_ulong * 18),
+              ("dcbdata", c_ulong * 27),
               ]
 
 class m2m2_dcb_gen_blk_data_t(Structure):

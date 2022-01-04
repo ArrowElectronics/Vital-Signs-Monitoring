@@ -70,7 +70,7 @@ char rtc_string1[6] = {0};
 static char memory_string1[6] = {0};
 static uint8_t fs_display_cnt1 = 0;//for refresh fs dispaly every 1 minute.
 
-static void usb_detect_func(uint8_t value,ADP5360_PGOOD_STATUS status)
+static void usb_detect_func1(uint8_t value,ADP5360_PGOOD_STATUS status)
 {
     if((0 == value)&&(status.vbusok == 1))
     {
@@ -232,9 +232,7 @@ static void display_func(void)
 
     lygl_creat_process_bar(&bm_memory_progressbar,80,36,0);
 
-#ifdef DEBUG_INTERMITTENT_OP_PAGE
     dis_time = rtc_date_time_get();
-#endif
 
 #ifdef USE_FS
     menu_fs_display();
@@ -251,7 +249,7 @@ static void display_func(void)
     }
     dis_dynamic_refresh(1000);
 
-    Register_pgood_detect_func(usb_detect_func);
+    Register_pgood_detect_func(usb_detect_func1);
 
     menu_time_display(dis_time);
 
@@ -274,13 +272,10 @@ static void key_handle(uint8_t key_value)
         break;
         case KEY_NAVIGATION_SHORT:
         {
-          //Unregister_pgood_detect_func(usb_detect_func);
         }
         break;
         case KEY_SELECT_LONG_VALUE:
         {
-          if(get_low_touch_trigger_mode2_status())
-              dis_page_jump(&page_LT_mode2_log_enable);
         }
         break;
         /*can add other key handle*/
@@ -391,6 +386,12 @@ static void signal_handle(uint8_t signal_value)
         default:break;
     }
 }
+
+void page_watch_id_exit()
+{
+  Unregister_pgood_detect_func(usb_detect_func1);
+}
+
 const PAGE_HANDLE page_watch_id = {
 .display_func = &display_func,
 .key_handle = &key_handle,

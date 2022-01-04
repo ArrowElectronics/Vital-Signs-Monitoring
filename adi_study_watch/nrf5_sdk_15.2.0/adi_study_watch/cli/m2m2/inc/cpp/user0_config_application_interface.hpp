@@ -31,6 +31,8 @@ enum M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t:uint8_t {
   M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_RESP = 73,
   M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_REQ = 74,
   M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_RESP = 75,
+  M2M2_USER0_CONFIG_APP_BYPASS_USER0_TIMINGS_REQ = 76,
+  M2M2_USER0_CONFIG_APP_BYPASS_USER0_TIMINGS_RESP = 77,
 };
 static_assert(sizeof(M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t) == 1, "Enum 'M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t' has an incorrect size!");
 
@@ -129,6 +131,12 @@ struct user0_app_prev_state_event_pkt_t {
   uint8_t  status; 
   user0_app_prev_state_event_t  prev_st_evt[4]; 
   uint16_t  intermittent_op_cnt; 
+};
+
+struct user0_app_bypass_user0_timings_pkt_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  enable; 
 };
 
 // Reset struct packing outside of this file

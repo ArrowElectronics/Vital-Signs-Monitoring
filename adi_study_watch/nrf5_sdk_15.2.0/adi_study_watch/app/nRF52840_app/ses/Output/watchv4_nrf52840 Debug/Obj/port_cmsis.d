@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/port_cmsis.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\external\freertos\portable\CMSIS\nrf52\port_cmsis.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\external\freertos\portable\CMSIS\nrf52\port_cmsis.c \
  ..\..\..\..\external\freertos\source\include/FreeRTOS.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stddef.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \

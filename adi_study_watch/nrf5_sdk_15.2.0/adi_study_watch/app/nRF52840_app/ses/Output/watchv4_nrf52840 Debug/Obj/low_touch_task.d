@@ -1,11 +1,11 @@
 Output/watchv4_nrf52840\ Debug/Obj/low_touch_task.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\low_touch_task.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\low_touch_task.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdlib.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  ..\..\..\drivers\ad7156/ad7156.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\low_touch_task.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\low_touch_task.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -63,6 +63,7 @@ Output/watchv4_nrf52840\ Debug/Obj/low_touch_task.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
  ..\..\..\modules\system\osal\free_rtos\src/osal_misra.h \
@@ -122,10 +123,11 @@ Output/watchv4_nrf52840\ Debug/Obj/low_touch_task.o: \
  ..\..\..\modules\system/adi_dcb_config.h \
  ..\..\..\..\components\libraries\fds/fds.h \
  ..\..\..\modules\system/fds_drv.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\dcb_general_block.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\lt_app_lcfg_block.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\dcb_general_block.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\ad7156_lt\lt_app_lcfg_block.h \
  ..\..\..\modules\user0_config_app/user0_config_app_task.h \
  ..\..\..\cli\m2m2\inc\c/user0_config_application_interface.h \
+ ..\..\..\utilities\power_manager/power_manager.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \

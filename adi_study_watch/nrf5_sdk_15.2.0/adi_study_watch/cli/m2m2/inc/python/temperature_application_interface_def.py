@@ -34,5 +34,6 @@ class temperature_app_lcfg_t(Structure):
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("field", c_ubyte),
-              ("value", c_ulong*21),
+              ("value", c_ulong * 21),
               ]
+

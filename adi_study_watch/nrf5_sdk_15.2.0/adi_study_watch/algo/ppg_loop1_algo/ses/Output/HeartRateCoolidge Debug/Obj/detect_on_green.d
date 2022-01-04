@@ -1,9 +1,9 @@
 Output/HeartRateCoolidge\ Debug/Obj/detect_on_green.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\detect_on_green.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\detect_on_green.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/math.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\app\nrf52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
@@ -37,10 +37,11 @@ Output/HeartRateCoolidge\ Debug/Obj/detect_on_green.o: \
  ..\..\..\..\components\libraries\log/nrf_log_backend_interface.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  ..\..\..\..\components\libraries\util/nordic_common.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib_common.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd_err_code.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd400x_lib_common.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_loop1_algo\adpd_err_code.h \
  ..\..\..\drivers\adpd4000/adpd400x_reg.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \
  ..\..\..\..\components\libraries\util/app_util.h \

@@ -99,7 +99,7 @@ uint32_t m2m2_ecg_write_lcfg(uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -154,7 +154,7 @@ uint32_t m2m2_ppg_load_adpd_cfg(uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -213,7 +213,7 @@ uint32_t m2m2_ppg_clock_calibration(uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -267,7 +267,7 @@ uint32_t m2m2_set_ppg_configuration(uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -320,7 +320,7 @@ uint32_t m2m2_start_fs_log(uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -373,7 +373,7 @@ uint32_t m2m2_add_fs_subscribe(M2M2_ADDR_ENUM_t sub_addr,uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -427,7 +427,7 @@ uint32_t m2m2_stop_fs_log(uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_LONG_WAIT, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -482,7 +482,7 @@ uint32_t m2m2_remove_fs_subscribe(M2M2_ADDR_ENUM_t sub_addr,uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -534,7 +534,7 @@ uint32_t m2m2_check_sensor_status(M2M2_ADDR_ENUM_t dest_addr,uint8_t *status,uin
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -610,7 +610,7 @@ uint32_t m2m2_check_fs_sub_status(M2M2_ADDR_ENUM_t sub_addr,uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -866,7 +866,7 @@ uint32_t m2m2_subscribe_stream(M2M2_ADDR_ENUM_t dest_addr,M2M2_ADDR_ENUM_t sub_a
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -920,7 +920,7 @@ uint32_t m2m2_start_stream(M2M2_ADDR_ENUM_t dest_addr,uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -972,7 +972,7 @@ uint32_t m2m2_stop_stream(M2M2_ADDR_ENUM_t dest_addr,uint8_t *status)
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -1027,7 +1027,7 @@ uint32_t m2m2_unsubscribe_stream(M2M2_ADDR_ENUM_t dest_addr,M2M2_ADDR_ENUM_t sub
     while(1)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_PERIOD, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;
@@ -1102,7 +1102,7 @@ uint32_t m2m2_check_logging_status(uint8_t *status)
     {
         p_m2m2_r = post_office_get(M2M2_TIMEOUT_SHORT_WAIT, APP_OS_CFG_DISPLAY_TASK_INDEX);//wait 10 ms
 
-        if((p_m2m2_r == NULL)||(p_m2m2_r->data == NULL))
+        if((p_m2m2_r == NULL))
         {
             NRF_LOG_INFO("post_office_get error!");
             return M2M2_WAIT_TIMEOUT;

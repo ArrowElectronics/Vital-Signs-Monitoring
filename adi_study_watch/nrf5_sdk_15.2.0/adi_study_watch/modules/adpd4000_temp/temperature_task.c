@@ -55,7 +55,12 @@ volatile uint8_t gb_adpd_raw_start_temp = 1; /* Flag to handle whether ADPD sens
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
+#include "adi_adpd_m2m2.h"
+#include "adi_adpd_ssm.h"
 
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+#include <debug_interface.h>
+#endif
 /* ---------------------------- Defines -------------------------------------- */
 #define   CAL_RESISTANCE            100000.0f   /*!< Calibration resistance value */
 #define   ADC_DARK_OFFSET           0x2010u     /*!< output of ADC of ADPD4k when no pulse vtg is applied */
@@ -80,15 +85,36 @@ typedef struct _app_routing_table_entry_t {
 }app_routing_table_entry_t;
 
 /*------------------------------ Public Variable -----------------------------*/
+extern tAdiAdpdAppState oAppState;
+uint32_t  gnTemperature_Slot = 0;
 /*! structure to hold the lcfg which is currently being used
     It could be the default lcfg or from the temperature lcfg dcb */
-temperature_lcfg_t active_temperature_lcfg = {0}; 
+temperature_lcfg_t active_temperature_lcfg = {0};
 
 /*! structure to store temperature slots info*/
 tempr_slot_info_t tempr_slot_info[SLOT_NUM];
 
 #ifdef DEBUG_PKT
 uint32_t g_temp_pkt_cnt = 0;
+#endif
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+#define M2M2_DEBUG_INFO_SIZE   12
+#define DEBUG_INFO_SIZE    M2M2_DEBUG_INFO_SIZE + 6 // 6 here to avoid overflow
+uint8_t g_tempOffset = 0;
+uint32_t g_pkt_fail_count = 0;
+uint32_t g_temp_debugInfo[DEBUG_INFO_SIZE];
+uint64_t g_temp_debugInfo_64[DEBUG_INFO_SIZE];
+uint32_t temp_app_packet_count = 0;
+uint32_t disp_app_packet_count = 0;
+uint32_t batt_app_packet_count = 0;
+uint32_t usb_pend_start_time = 0;
+uint32_t usb_delay_time = 0;
+void packetize_temp_debug_data(void);
+static struct _g_temp_debug_data{
+  m2m2_hdr_t   *p_pkt;
+  uint8_t num_subs;
+  uint16_t  data_pkt_seq_num;
+} g_temp_debug_data;
 #endif
 /*! Look up table for thermistor's resistance based on beta value for
   temperature ranging from 0 to 100 degree celcius in steps of 5 degree celcius*/
@@ -99,13 +125,12 @@ uint32_t aTemp_LUT[LUT_STEP_CNT] = {  355600, 271800, 209400, 162500, 127000,
                                       12640,  10580,  8887,   7500,   6357,
                                       5410
                                    };
-extern g_state_t g_state;
+
 extern slot_led_reg_t led_reg;
 extern uint8_t gsOneTimeValueWhenReadAdpdData;
-extern uint32_t gsTempSampleCount;
-extern adpd400xDrv_slot_t gsSlot[SLOT_NUM];
 extern uint16_t g_adpd_odr;
 extern const temperature_lcfg_t tempr_default_lcfg;
+extern tAdiAdpdSSmInst goAdiAdpdSSmInst;
 /*------------------------------ Public Function Prototype ------------------ */
 extern void temperatureAppData (uint32_t *pData, uint8_t slot_index);
 extern uint16_t get_adpd_odr();
@@ -155,18 +180,16 @@ static uint16_t g_reg_base;
 bool check_temp_slot_set = false;
 #endif
 /* Variable used for storing the temperature stream subscriber and sequence count */
-static uint16_t gsTemperatureSubscribers, gsTemperatureSeqNum;
+static uint16_t gsTemperatureSubscribers = 0, gsTemperatureSeqNum;
 /* Variable for counting the number of stream start requests*/
 uint16_t gsTemperatureStarts;
-
 /* Variables for storing the adpd4k value for thermistor and cal-resistor slots */
 static uint32_t gsThermValue = 0, gsCalResValue = 0;
-
 /*
   Each bit of this variable inidcates the presence/absence of thermistor in a given slot
   0th bit - slot A; 1st bit - slot B and so on till slot L
   1 - Thermistor is connected to the slot
-  0 - No thermistor is connected the slot 
+  0 - No thermistor is connected the slot
 */
 uint32_t g_therm_slot_en_bit_mask = 0;
 
@@ -179,7 +202,7 @@ static uint32_t thermistor_adc_val[SLOT_NUM];
 /* Variable to count the number of samples from ADPD4K */
 uint32_t num_thermistor_samples = 0;
 
-extern adpd400xDrv_slot_t gsSlot[SLOT_NUM];
+extern tAdiAdpdSSmInst goAdiAdpdSSmInst;
 
 /*------------------------ Private Function Prototype -----------------------*/
 static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt);
@@ -187,6 +210,7 @@ static m2m2_hdr_t *temperature_app_status(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *adpd_app_get_dcfg(m2m2_hdr_t *p_pkt);
 static void temperature_app_task(void *pArgument);
 static void fetch_temperature_data();
+
 
 /* Table which maps commands to the callback functions */
 app_routing_table_entry_t temperature_app_routing_table[] = {
@@ -230,7 +254,7 @@ user0_config_app_timing_params_t temp_app_timings = {0};
 **************************************************************************************/
 uint8_t get_last_thermistor_slot_index_enabled(void)
 {
-  uint8_t i = 0;
+  int8_t i = 0;
   for( i=(SLOT_NUM-1); i>=0; i--)
   {
     if(active_temperature_lcfg.slots_selected & ( 1 << i))
@@ -328,13 +352,16 @@ static m2m2_hdr_t *temperature_app_status(m2m2_hdr_t *p_pkt) {
     p_resp_payload->command = M2M2_APP_COMMON_CMD_SENSOR_STATUS_QUERY_RESP;
     p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
 
-    if (g_state.num_starts == 0) {
+    if (oAppState.nNumberOfStart== 0) {
       p_resp_payload->status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
     } else {
       p_resp_payload->status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
     }
     uint8_t slot_num;
-    slot_num = p_in_payload->stream - M2M2_ADDR_MED_TEMPERATURE_STREAM1;    
+    if(p_in_payload->stream == M2M2_ADDR_MED_TEMPERATURE_STREAM || p_in_payload->stream == M2M2_ADDR_MED_TEMPERATURE_STREAM4)
+      slot_num = E_THERMISTOR_SLOT_D;
+    else
+      slot_num = p_in_payload->stream - M2M2_ADDR_MED_TEMPERATURE_STREAM1;
     p_resp_payload->stream = p_in_payload->stream;
     p_resp_payload->num_subscribers = tempr_slot_info[slot_num].num_subs;
     p_resp_payload->num_start_reqs = gsTemperatureStarts;
@@ -354,7 +381,10 @@ static m2m2_hdr_t *temperature_app_status(m2m2_hdr_t *p_pkt) {
 */
 static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
   M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
+ 
+  ADI_OSAL_STATUS err;
   M2M2_APP_COMMON_CMD_ENUM_t    command;
+  uint16_t nSlotIdx = 0;
   /*Keeping nRetCode as success by default, to handle else part
     of if(!temp_app_timings.delayed_start) */
   int16_t nRetCode = ADPD400xDrv_SUCCESS;
@@ -363,95 +393,103 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
   PYLD_CST(p_pkt, m2m2_app_common_sub_op_t, p_in_payload);
   /* Declare and malloc a response packet */
   PKT_MALLOC(p_resp_pkt, m2m2_app_common_sub_op_t, 0);
+  
   if(NULL != p_resp_pkt)
   {
-  /* Declare a pointer to the response packet payload */
-  PYLD_CST(p_resp_pkt, m2m2_app_common_sub_op_t, p_resp_payload);
-
+    PYLD_CST(p_resp_pkt, m2m2_app_common_sub_op_t,p_resp_payload);    
   switch (p_in_payload->command) {
   case M2M2_APP_COMMON_CMD_STREAM_START_REQ:
-    if (g_state.num_starts == 0) {
-/*        //load_temperature_dcfg();
-        //Adpd400xDrvSlotSetup(4,1,0x0004,1);
-      //reset_adpd_packetization(); */
+    if(oAppState.nNumberOfStart == 0)
+    {
 #ifndef SLOT_SELECT
-  for(uint8_t i=0 ; i<SLOT_NUM ; i++)
+  for(uint8_t i = 0; i < SLOT_NUM; i++)
   {
     g_reg_base = i * 0x20;
-    if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &led_reg.reg_val[i].reg_pow12) == ADPD400xDrv_SUCCESS)
+    if(adi_adpddrv_RegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &led_reg.reg_val[i].reg_pow12) == ADPD400xDrv_SUCCESS)
       {
-      Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, 0x0);
+        adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, 0x0);
       }/* disable led for slot-A - I */
 
-     if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &led_reg.reg_val[i].reg_pow34) == ADPD400xDrv_SUCCESS)
+     if(adi_adpddrv_RegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &led_reg.reg_val[i].reg_pow34) == ADPD400xDrv_SUCCESS)
       {
-      Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, 0x0);
+        adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, 0x0);
       }/* disable led for slot-> A - I */
    }
 #endif
       g_adpd_odr = get_adpd_odr();
       enable_ext_syncmode();
       enable_adpd_ext_trigger(g_adpd_odr);
-
       gsOneTimeValueWhenReadAdpdData = 0;
 #ifdef USER0_CONFIG_APP
-      get_temp_app_timings_from_user0_config_app_lcfg(&temp_app_timings.start_time,\
-                                      &temp_app_timings.on_time, &temp_app_timings.off_time);
-      if(temp_app_timings.start_time > 0)
+      //Use user0 config app timings
+      if((is_bypass_user0_timings() == false))
       {
-        temp_app_timings.delayed_start = true;
-      }
+
+        get_temp_app_timings_from_user0_config_app_lcfg(&temp_app_timings.start_time,\
+                                        &temp_app_timings.on_time, &temp_app_timings.off_time);
+        if(temp_app_timings.start_time > 0)
+        {
+          temp_app_timings.delayed_start = true;
+        }
 #ifdef LOW_TOUCH_FEATURE
-      //Temp app not in continuous mode & its interval operation mode
-      if(!is_temp_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+        //Temp app not in continuous mode & its interval operation mode
+        if(!is_temp_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
 #else
-      //Temp app not in continuous mode
-      if(!is_temp_app_mode_continuous())
+        //Temp app not in continuous mode
+        if(!is_temp_app_mode_continuous())
 #endif
-      {
-        start_temp_app_timer();
-      }
+        {
+          start_temp_app_timer();
+        }
+      }//if((is_bypass_user0_timings() == false))
 
       if(!temp_app_timings.delayed_start)
       {
-        nRetCode = Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE);
+        nRetCode = adi_adpdssm_start();        
         temp_app_timings.app_mode_on = true;
       }
-      if(ADPD400xDrv_SUCCESS == nRetCode)
+      if(ADI_ADPD_SSM_SUCCESS == nRetCode)
 #else
-      if(ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE))
+      if(ADI_ADPD_SSM_SUCCESS == adi_adpdssm_start())
 #endif// USER0_CONFIG_APP
-
+        {
+          oAppState.nNumberOfStart = 1;
+          gsTemperatureStarts = 1;
+          gb_adpd_raw_start_temp = 0;
+          num_thermistor_samples = 0;
+          g_last_thermistor_slot_index = get_last_thermistor_slot_index_enabled();
+          if(get_low_touch_trigger_mode3_status())
+          {
+            num_thermistor_samples = ((goAdiAdpdSSmInst.oAdpdSlotInst.aSlotInfo[E_CAL_RES_SLOT_E].nOutputDataRate * active_temperature_lcfg.sample_period) - 1);
+          }
+          else
+          {
+            num_thermistor_samples = 0;
+          }
+          status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;  
+        }/* else stream not started */
+        else
+        {
+          status = M2M2_APP_COMMON_STATUS_STREAM_NOT_STARTED;
+        }
+    }
+  /* Stream already in progress */
+  else 
+  {
+    oAppState.nNumberOfStart++;
+    gb_adpd_raw_start_temp = 0;
+    gsTemperatureStarts++;
+    g_last_thermistor_slot_index = get_last_thermistor_slot_index_enabled();
+    if(gsTemperatureStarts == 1)
+    {            
+      if(get_low_touch_trigger_mode3_status())
       {
-        g_state.num_starts = 1;
-        gb_adpd_raw_start_temp = 0;
-        gsTemperatureStarts = 1;
-        num_thermistor_samples = 0;
-        g_last_thermistor_slot_index = get_last_thermistor_slot_index_enabled();
-#ifdef CUST4_SM
-        gsTempSampleCount = (gsSlot[ADPD400xDrv_SLOTD].odr - 1);
-#else
-        gsTempSampleCount = 0;
-#endif
-        status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
+        num_thermistor_samples = ((goAdiAdpdSSmInst.oAdpdSlotInst.aSlotInfo[E_CAL_RES_SLOT_E].nOutputDataRate * active_temperature_lcfg.sample_period) - 1);
       }
       else
       {
-        status = M2M2_APP_COMMON_STATUS_STREAM_NOT_STARTED;
+        num_thermistor_samples = 0;
       }
-
-    } else {
-      g_state.num_starts++;
-      gb_adpd_raw_start_temp = 0;
-      gsTemperatureStarts++;
-      g_last_thermistor_slot_index = get_last_thermistor_slot_index_enabled();
-      if(gsTemperatureStarts == 1)
-      {
-#ifdef CUST4_SM
-      gsTempSampleCount = (gsSlot[ADPD400xDrv_SLOTD].odr - 1);
-#else
-      gsTempSampleCount = 0;
-#endif
       status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
 #ifdef USER0_CONFIG_APP
       get_temp_app_timings_from_user0_config_app_lcfg(&temp_app_timings.start_time,\
@@ -460,7 +498,6 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       {
         temp_app_timings.delayed_start = true;
       }
-
 #ifdef LOW_TOUCH_FEATURE
       //Temp app not in continuous mode & its interval operation mode
       if(!is_temp_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
@@ -478,30 +515,36 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
         ;//TODO: Check and handle ADPD sample mode/idle mode switching
       }
 #endif// USER0_CONFIG_APP
-      }
-      else
-      {
-      status = M2M2_APP_COMMON_STATUS_STREAM_IN_PROGRESS;
-      }
     }
-    command = M2M2_APP_COMMON_CMD_STREAM_START_RESP;
-    break;
-  case M2M2_APP_COMMON_CMD_STREAM_STOP_REQ:
-    if (g_state.num_starts == 0) {
-      status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
-    } else if (g_state.num_starts == 1) {
+    else
+    {
+      status = M2M2_APP_COMMON_STATUS_STREAM_IN_PROGRESS;
+    }
+  }
+  command = M2M2_APP_COMMON_CMD_STREAM_START_RESP;
+  break;
 
-      gsOneTimeValueWhenReadAdpdData = 0;
-      disable_ext_syncmode();  /*! Disable ext sync mode*/
-      g_adpd_odr = get_adpd_odr();
-      disable_adpd_ext_trigger(g_adpd_odr);
-      if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE)) {
-        g_state.num_starts = 0;
+  case M2M2_APP_COMMON_CMD_STREAM_STOP_REQ:
+  if(oAppState.nNumberOfStart == 0)
+  {
+    status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
+  }
+  else if (oAppState.nNumberOfStart == 1)
+  {    
+    gsOneTimeValueWhenReadAdpdData = 0;
+
+    disable_ext_syncmode();  /*! Disable ext sync mode*/
+    g_adpd_odr = get_adpd_odr();
+    disable_adpd_ext_trigger(g_adpd_odr);
+
+    nRetCode = adi_adpdssm_stop();
+    if(nRetCode == ADI_ADPD_SSM_SUCCESS)
+    {    
+        oAppState.nNumberOfStart = 0;
         gb_adpd_raw_start_temp = 1;
         gsTemperatureStarts = 0;
-        gsTempSampleCount = 0;
+        num_thermistor_samples = 0;
         status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
-        /* reset_adpd_packetization();*/
 #ifdef USER0_CONFIG_APP
         if(temp_app_timings.check_timer_started)
         {
@@ -512,36 +555,45 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
           temp_app_timings.delayed_start =  false;
         }
 #endif//USER0_CONFIG_APP
-      } else {
-        g_state.num_starts = 1;
+    }//TODO MM: Handle M2M2_APP_COMMON_STATUS_STREAM_COUNT_DECREMENT from adpd task
+    else
+    {   
+        oAppState.nNumberOfStart = 1;
         gb_adpd_raw_start_temp = 1;
         gsTemperatureStarts = 1;
         status = M2M2_APP_COMMON_STATUS_ERROR;
-      }
+
+    }    
 #ifndef SLOT_SELECT
-  for(uint8_t i=0 ; i<SLOT_NUM ; i++)
+if(status != M2M2_APP_COMMON_STATUS_STREAM_COUNT_DECREMENT)
+{
+  for(uint8_t i = 0; i < SLOT_NUM; i++)
   {
     g_reg_base = i * 0x20;
-    Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, led_reg.reg_val[i].reg_pow12); /* enable led */
-    Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, led_reg.reg_val[i].reg_pow34);
+    adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, led_reg.reg_val[i].reg_pow12); /* enable led */
+    adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, led_reg.reg_val[i].reg_pow34);
   }
+}
 #endif
-    } else {
-      g_state.num_starts--;
-      gsTemperatureStarts--;
-      if(gsTemperatureStarts == 0)
-      {
+  }
+  else
+  {
+    oAppState.nNumberOfStart--;
+    gsTemperatureStarts--;
+    if(gsTemperatureStarts == 0)
+    {
       gb_adpd_raw_start_temp = 1;
-      gsTempSampleCount = 0;
+      num_thermistor_samples = 0;
       status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
-      }
-      else
-      {
-      status = M2M2_APP_COMMON_STATUS_STREAM_COUNT_DECREMENT;
-      }
     }
+    else
+    {
+      status = M2M2_APP_COMMON_STATUS_STREAM_COUNT_DECREMENT;
+    }
+  }
     command = M2M2_APP_COMMON_CMD_STREAM_STOP_RESP;
     break;
+
   case M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_REQ:
     gsTemperatureSubscribers++;
     if(gsTemperatureSubscribers == 1)
@@ -563,7 +615,19 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
         post_office_setup_subscriber(
             M2M2_ADDR_MED_TEMPERATURE, p_in_payload->stream, p_pkt->src, true);
     }
-    
+
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+          g_temp_debug_data.num_subs++;
+          if(g_temp_debug_data.num_subs == 1){
+            g_temp_debug_data.data_pkt_seq_num = 0;
+            g_tempOffset = 0;
+            g_pkt_fail_count = 0;
+            g_pkt_fail_count = 0;
+            memset(g_temp_debugInfo,0,sizeof(g_temp_debugInfo));
+            post_office_setup_subscriber(M2M2_ADDR_SENSOR_ADPD4000,M2M2_ADDR_SYS_DBG_STREAM, p_pkt->src, true);
+          }
+#endif
+
     tempr_slot_info[slot_num].num_subs++;
     if (tempr_slot_info[slot_num].num_subs == 1)
       tempr_slot_info[slot_num].seq_num = 0;
@@ -580,12 +644,21 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
 #else
       g_therm_slot_en_bit_mask = active_temperature_lcfg.slots_selected;
 #endif
-    /* post_office_setup_subscriber(M2M2_ADDR_SENSOR_ADPD, M2M2_ADDR_SENSOR_ADPD_STREAM, p_pkt->src, true); */
-//    post_office_setup_subscriber(M2M2_ADDR_MED_TEMPERATURE,M2M2_ADDR_MED_TEMPERATURE_STREAM, p_pkt->src, true);
+    while((nSlotIdx < SLOT_NUM) && (g_therm_slot_en_bit_mask != 0))
+    {
+     if(g_therm_slot_en_bit_mask & (0x1 << nSlotIdx)) 
+     {
+       adi_adpdssm_SetpsmActive(nSlotIdx);
+     }
+     nSlotIdx++;
+    }
+    // post_office_setup_subscriber(M2M2_ADDR_MED_TEMPERATURE,M2M2_ADDR_MED_TEMPERATURE_STREAM, p_pkt->src, true);
     status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
     command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;
     break;
+
   case M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_REQ:
+    
     if (gsTemperatureSubscribers <= 1) {
       gsTemperatureSubscribers = 0;
       g_therm_slot_en_bit_mask = 0;
@@ -602,7 +675,7 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
     }
     else
     {
-        slot_num = p_in_payload->stream - M2M2_ADDR_MED_TEMPERATURE_STREAM1;    
+        slot_num = p_in_payload->stream - M2M2_ADDR_MED_TEMPERATURE_STREAM1;
         post_office_setup_subscriber(M2M2_ADDR_MED_TEMPERATURE, p_in_payload->stream, p_pkt->src, false);
     }
 
@@ -616,6 +689,17 @@ static m2m2_hdr_t *temperature_app_stream_config(m2m2_hdr_t *p_pkt) {
       tempr_slot_info[slot_num].num_subs--;
       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
     }
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+          if(g_temp_debug_data.num_subs <= 1){
+            g_temp_debug_data.num_subs = 0;
+            g_temp_debug_data.data_pkt_seq_num = 0;
+            g_tempOffset = 0;
+            memset(g_temp_debugInfo,0,sizeof(g_temp_debugInfo));
+            post_office_setup_subscriber(M2M2_ADDR_SENSOR_ADPD4000,M2M2_ADDR_SYS_DBG_STREAM,p_pkt->src, false);
+          }else{
+            g_temp_debug_data.num_subs--;
+          }
+#endif
     command = M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP;
     break;
   default:
@@ -696,18 +780,18 @@ static void temp_timeout_handler(void * p_context)
       {
 #ifndef SLOT_SELECT
         //Check if ADPD is also started, if so turn LED off
-        if (g_state.num_starts >= 1) {
+        if (oAppState.nNumberOfStart>= 1) {
           for(uint8_t i=0 ; i<SLOT_NUM ; i++)
           {
             g_reg_base = i * 0x20;
-            if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &led_reg.reg_val[i].reg_pow12) == ADPD400xDrv_SUCCESS)
+            if(adi_adpddrv_RegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &led_reg.reg_val[i].reg_pow12) == ADPD400xDrv_SUCCESS)
             {
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, 0x0);
+              adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW12_A + g_reg_base, 0x0);
             }/* disable led for slot-A - I */
 
-             if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &led_reg.reg_val[i].reg_pow34) == ADPD400xDrv_SUCCESS)
+             if(adi_adpddrv_RegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &led_reg.reg_val[i].reg_pow34) == ADPD400xDrv_SUCCESS)
              {
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, 0x0);
+              adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW34_A + g_reg_base, 0x0);
              }/* disable led for slot-> A - I */
           }
         }
@@ -715,7 +799,8 @@ static void temp_timeout_handler(void * p_context)
 
         //TODO: Disable other slots except Slot D, E
         //delayed start time expired-turn ON ADPD
-        if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE))
+        // if (ADPD400xDrv_SUCCESS == adi_adpdssm_setOperationMode(ADPD400xDrv_MODE_SAMPLE))
+        if(adi_adpdssm_start() == ADI_ADPD_SSM_SUCCESS)
         {
         }
         temp_app_timings.delayed_start = false;
@@ -731,8 +816,10 @@ static void temp_timeout_handler(void * p_context)
         if(temp_app_timings.on_time_count == temp_app_timings.on_time)
         {
           //on timer expired - turn off ADPD
-          if (g_state.num_starts >= 1) {
-              if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE)) {
+          if (oAppState.nNumberOfStart >= 1) {
+              // if (ADPD400xDrv_SUCCESS == adi_adpdssm_setOperationMode(ADPD400xDrv_MODE_IDLE)) 
+              if(adi_adpdssm_stop() == ADI_ADPD_SSM_SUCCESS)
+              {
               }
               //TODO: Enable other slots except Slot D, E, disable Slot D,E
           }
@@ -746,8 +833,9 @@ static void temp_timeout_handler(void * p_context)
       if(temp_app_timings.off_time_count == temp_app_timings.off_time)
         {
            //off timer expired - turn on ADPD
-           if (g_state.num_starts >= 1) {
-               if (ADPD400xDrv_SUCCESS == Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_SAMPLE))
+           if (oAppState.nNumberOfStart>= 1) {
+              //  if (ADPD400xDrv_SUCCESS == adi_adpdssm_setOperationMode(ADPD400xDrv_MODE_SAMPLE))
+              if(adi_adpdssm_start() == ADI_ADPD_SSM_SUCCESS)
                {
                }
            }
@@ -803,9 +891,9 @@ void temperature_app_task_init(void) {
   temperature_app_task_attributes.pStackBase = &temperature_app_task_stack[0];
   temperature_app_task_attributes.nStackSize = APP_OS_CFG_TEMPERATURE_APP_TASK_STK_SIZE;
   temperature_app_task_attributes.pTaskAttrParam = NULL;
-  temperature_app_task_attributes.szThreadName = "Temperature Sensor";
+  /* Thread Name should be of max 10 Characters */
+  temperature_app_task_attributes.szThreadName = "Temp_Task";
   temperature_app_task_attributes.pThreadTcb = &temperature_app_task_tcb;
-
   eOsStatus = adi_osal_MsgQueueCreate(&temperature_app_task_msg_queue,NULL,
                                     25);
   if (eOsStatus != ADI_OSAL_SUCCESS) {
@@ -823,7 +911,7 @@ void temperature_app_task_init(void) {
   }
 
   adi_osal_SemCreate(&temperature_app_task_evt_sem, 0);
-  
+
   for (uint8_t slot_num = 0; slot_num < SLOT_NUM; slot_num++) {
     if( slot_num == E_THERMISTOR_SLOT_D)
         post_office_add_mailbox(M2M2_ADDR_MED_TEMPERATURE, M2M2_ADDR_MED_TEMPERATURE_STREAM);
@@ -845,13 +933,17 @@ void temperature_app_task_init(void) {
 *
 * \return None
 */
-static void temperature_app_task(void *pArgument) {
+static void temperature_app_task(void *pArgument) 
+{
   ADI_OSAL_STATUS         err;
-
 #ifdef USER0_CONFIG_APP
   temp_timer_init();
 #endif
-
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+  g_temp_debug_data.num_subs = 0;
+  g_temp_debug_data.data_pkt_seq_num = 0;
+  post_office_add_mailbox(M2M2_ADDR_SENSOR_ADPD4000, M2M2_ADDR_SYS_DBG_STREAM);
+#endif
   /*load the lcfg structure from dcb if present else copy the default lcfg*/
   if (tempr_get_dcb_present_flag() == true) {
     /*! dcb present, so read the lcfg from dcb and load the lcfg structure */
@@ -865,14 +957,16 @@ static void temperature_app_task(void *pArgument) {
 
   while (1)
   {
-      m2m2_hdr_t *p_in_pkt = NULL;
-      m2m2_hdr_t *p_out_pkt = NULL;
-      adi_osal_SemPend(temperature_app_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
-      p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_TEMPERATURE_TASK_INDEX);
-      if (p_in_pkt == NULL) {
+    m2m2_hdr_t *p_in_pkt = NULL;
+    m2m2_hdr_t *p_out_pkt = NULL;
+    adi_osal_SemPend(temperature_app_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+    p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_TEMPERATURE_TASK_INDEX);
+    /* if packets not present then fetch_temperature data */
+    if (p_in_pkt == NULL) 
+    {   
         /* No m2m2 messages to process, so fetch some data from the device. */
-        fetch_temperature_data();
-      } else {
+        fetch_temperature_data();    
+    } else {
         /* We got an m2m2 message from the queue, process it. */
        PYLD_CST(p_in_pkt, _m2m2_app_common_cmd_t, p_in_cmd);
        /* Look up the appropriate function to call in the function table */
@@ -913,13 +1007,13 @@ uint32_t getTemperature(uint8_t slot_index, uint8_t lut_index)
 
   uint8_t loopCnt = 0;
   uint32_t nDiffRes = 0, nDeltaResPerDegree = 0, nDeltaRes = 0,nTempResult = 0;
-  
+
   while(loopCnt<LUT_STEP_CNT)
   {
     if(gsResistance <= active_temperature_lcfg.T_I_curve_LUT[lut_index][LUT_STEP_CNT-1])
     {
         /* return max_temperature_value that is 20*5 = 100 */
-        return((LUT_STEP_CNT-1)*LUT_STEP_SIZE);
+        return((LUT_STEP_CNT-1) * LUT_STEP_SIZE * TEMPERATURE_SCALING_FACTOR);
     }
     else if(gsResistance >= active_temperature_lcfg.T_I_curve_LUT[lut_index][0])
     {
@@ -948,6 +1042,7 @@ uint32_t getTemperature(uint8_t slot_index, uint8_t lut_index)
         }
     }
   }
+  return 0;
 }
 #else
 uint32_t getTemperature(uint32_t *pTherm, uint32_t *pRefVal)
@@ -996,7 +1091,6 @@ uint32_t getTemperature(uint32_t *pTherm, uint32_t *pRefVal)
         }
     }
   }
-return -1;
 #else
   if (gsResistance > THERM_RESISTANCE_AT_25)
   {
@@ -1013,6 +1107,7 @@ return -1;
     return (REFERENCE_TEMPERATURE + gsDeltaResistance);            /*25 is the reference temperature*/
   }
 #endif /*LUT_METHOD */
+  return 0;
 }
 #endif
 
@@ -1038,7 +1133,7 @@ void fetch_temperature_data()
     uint8_t lut_index = 0;
     for(uint8_t s_index = 0; s_index < SLOT_NUM; s_index++)
     {
-      if((active_temperature_lcfg.slots_selected & (1 << s_index)) && s_index != E_CAL_RES_SLOT_E)
+      if((active_temperature_lcfg.slots_selected & (1 << s_index)) && (s_index != E_CAL_RES_SLOT_E))
       {
         if(tempr_slot_info[s_index].num_subs != 0) /* Check if the stream is subscribed*/
         {
@@ -1052,6 +1147,9 @@ void fetch_temperature_data()
           resp_temperature.nTemperature2 = (uint16_t)(gsResistance/100);  /*Resistance measured in 100's of ohms*/
           adi_osal_EnterCriticalRegion();
           lut_index++;
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+          temp_app_packet_count++;
+#endif
           p_pkt = post_office_create_msg(sizeof(temperature_app_stream_t) + M2M2_HEADER_SZ);
           if(p_pkt != NULL)
           {
@@ -1059,7 +1157,7 @@ void fetch_temperature_data()
             g_temp_pkt_cnt++;
 #endif
             p_pkt->src = M2M2_ADDR_MED_TEMPERATURE;
-      
+
             /*for slot D, keep the legacy stream ID*/
             if(s_index == E_THERMISTOR_SLOT_D)
               p_pkt->dest = M2M2_ADDR_MED_TEMPERATURE_STREAM;
@@ -1074,6 +1172,11 @@ void fetch_temperature_data()
             post_office_send(p_pkt,&err);
             p_pkt = NULL;
           }
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+          else{
+            g_temp_debugInfo_64[3] = get_sensor_time_stamp();
+          }
+#endif
           adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
         }
       }
@@ -1101,8 +1204,15 @@ void temperatureAppData (uint32_t *pData, uint8_t slot_index) {
   /* when the last thermistor's data is read from ADPD4K,trigger temperature app */
   if(slot_index == g_last_thermistor_slot_index)
   {
-      if(num_thermistor_samples++ >= gsSlot[E_CAL_RES_SLOT_E].odr * active_temperature_lcfg.sample_period)
+      if(num_thermistor_samples++ >= goAdiAdpdSSmInst.oAdpdSlotInst.aSlotInfo[E_CAL_RES_SLOT_E].nOutputDataRate * active_temperature_lcfg.sample_period)
       {
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+  packetize_temp_debug_data();
+  g_temp_debugInfo_64[0] = goAdiAdpdSSmInst.oAdpdSlotInst.aSlotInfo[E_CAL_RES_SLOT_E].nOutputDataRate;
+  g_temp_debugInfo_64[1] = num_thermistor_samples;
+  g_temp_debugInfo_64[2] = active_temperature_lcfg.slots_selected;
+  g_temp_debugInfo_64[3] = 0;
+#endif
           num_thermistor_samples = 0;
           adi_osal_SemPost(temperature_app_task_evt_sem);
       }
@@ -1110,3 +1220,38 @@ void temperatureAppData (uint32_t *pData, uint8_t slot_index) {
 }
 #endif
 #endif//ENABLE_TEMPERATURE_APP
+
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+
+/**
+* @brief Constructs the packet to send the ADPD debug data
+*
+* @return None
+*
+*/
+void packetize_temp_debug_data(void) {
+  ADI_OSAL_STATUS         err;
+  if(g_temp_debug_data.num_subs > 0){
+    adi_osal_EnterCriticalRegion();
+    g_temp_debug_data.p_pkt = post_office_create_msg(sizeof(m2m2_app_debug_stream_t) + M2M2_HEADER_SZ);
+    if(g_temp_debug_data.p_pkt != NULL){
+      PYLD_CST(g_temp_debug_data.p_pkt, m2m2_app_debug_stream_t,p_payload_ptr);
+      p_payload_ptr->command = M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
+      p_payload_ptr->status = M2M2_APP_COMMON_STATUS_OK;
+      p_payload_ptr->timestamp = get_sensor_time_stamp();
+      memset(p_payload_ptr->debuginfo, 0, M2M2_DEBUG_INFO_SIZE*4);
+      for (uint8_t i = 0; i < M2M2_DEBUG_INFO_SIZE; i++){
+        p_payload_ptr->debuginfo[i] = g_temp_debugInfo[i];
+      }
+     // memset(g_temp_debugInfo, 0, sizeof(g_temp_debugInfo));
+      g_temp_debug_data.p_pkt->src = M2M2_ADDR_SENSOR_ADPD4000;
+      g_temp_debug_data.p_pkt->dest = M2M2_ADDR_SYS_DBG_STREAM;
+      p_payload_ptr->sequence_num = g_temp_debug_data.data_pkt_seq_num++;
+
+      post_office_send(g_temp_debug_data.p_pkt, &err);
+      g_temp_debug_data.p_pkt = NULL;
+    }
+    adi_osal_ExitCriticalRegion(); /* exiting critical region even if mem_alloc fails*/
+  }
+}
+#endif

@@ -1,9 +1,10 @@
 Output/watchv4_nrf52840\ Debug/Obj/agc.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\agc.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\agc.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adpd4000/adpd400x_reg.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib_common.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib.h \
@@ -53,7 +54,7 @@ Output/watchv4_nrf52840\ Debug/Obj/agc.o: \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  ..\..\..\..\components\libraries\util/nordic_common.h \
  ..\..\..\algo\ppg_loop1_algo/adpd_err_code.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\agc.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\agc.h \
  ..\..\..\drivers\adpd4000/adpd4000_dcfg.h \
  ..\..\..\modules\system/printf.h ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
@@ -102,6 +103,7 @@ Output/watchv4_nrf52840\ Debug/Obj/agc.o: \
  ..\..\..\cli\m2m2\inc\c/file_system_interface.h \
  ..\..\..\cli\m2m2\inc\c/sensor_adpd_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \
+ ..\..\..\modules\SSM\Inc/adi_adpd_ssm.h \
  ..\..\..\modules\user0_config_app/user0_config_app_task.h \
  ..\..\..\cli\m2m2\inc\c/user0_config_application_interface.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/math.h \

@@ -65,4 +65,5 @@ typedef struct
 
 void temperature_app_task_init(void);
 void send_message_temperature_app_task(m2m2_hdr_t *p_pkt);
+// void temperatureAppNotify(uint32_t *pData , uint8_t nEventId);
 #endif // __TEMPERATURE_APP_TASK__H

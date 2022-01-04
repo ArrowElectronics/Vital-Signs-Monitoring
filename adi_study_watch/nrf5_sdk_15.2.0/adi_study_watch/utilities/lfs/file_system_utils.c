@@ -157,15 +157,21 @@ FS_STATUS_ENUM_t fs_hal_init(void) {
   version_error = lfs_check_comp_version(&fs_version);
 
   /* Check Version Compatibility */
-  if(version_error == LFS_READ_RESERVED_INFO_ERROR);
+  if(version_error == LFS_READ_RESERVED_INFO_ERROR) {
+   /* *Not doing anything for now
+      *Due to ECC error during bootup for the very first time, it may cause this error
+      *In that case fs_version flag remains false and fs_hal_flash_reset will happen down below
+   */
+  }
 
-    if(fs_version != true) {
-      if(fs_hal_flash_reset() == FS_STATUS_ERR){
-        return FS_STATUS_ERR;
-       }
+  if(fs_version != true) {
+    if(fs_hal_flash_reset() == FS_STATUS_ERR){
+      return FS_STATUS_ERR;
     }
-    /* Read table page in structure to preserve contents */
-    memset(&gh_fs_table_file_header,0,sizeof(gh_fs_table_file_header));
+  }
+
+  /* Read table page in structure to preserve contents */
+  memset(&gh_fs_table_file_header,0,sizeof(gh_fs_table_file_header));
 
   if(read_table_file_in_toc(&gh_fs_table_file_header) == LFS_ERROR) {
     return FS_STATUS_ERR;
@@ -634,9 +640,9 @@ FS_STATUS_ENUM_t fs_hal_append_file() {
   ****************************************************************************
   *@brief       Opens last closed file handler and assigns head pointer
   *@param       None
-  *@return      FS_STATUS_ENUM_t:file system status.
+  *@return      None
 ******************************************************************************/
-FS_STATUS_ENUM_t set_write_handler_mode() {
+void set_write_handler_mode() {
      /* Set operating mode to Manual */
   lfs_set_operating_mode(&gh_fs_file_write_handler, LFS_MODE_MANUAL);
   
@@ -1726,7 +1732,7 @@ uint32_t fs_get_file_page_number_offset(uint32_t *CurrentPageNumber, uint32_t *S
 uint32_t PageNumberOffset = 0;
 uint32_t nRollover = 65536;
   if(!bHandleRollover)
-    nRollover = 0;
+    nRollover = 1;
 
   if(*CurrentPageNumber  >= *StartPageNumber){
     PageNumberOffset = (*CurrentPageNumber - *StartPageNumber) % nRollover;

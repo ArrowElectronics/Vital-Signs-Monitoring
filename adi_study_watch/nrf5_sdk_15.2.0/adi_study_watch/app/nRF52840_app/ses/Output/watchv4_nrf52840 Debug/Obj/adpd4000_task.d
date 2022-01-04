@@ -1,10 +1,11 @@
 Output/watchv4_nrf52840\ Debug/Obj/adpd4000_task.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\adpd4000_task.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\adpd4000_task.c \
  ..\..\..\drivers\adpd4000/adpd4000_buffering.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\utilities\circular_buffer/circular_buffer.h \
  ..\..\..\drivers\adpd4000/adpd4000_dcfg.h \
  ..\..\..\modules\system/printf.h \
@@ -114,7 +115,7 @@ Output/watchv4_nrf52840\ Debug/Obj/adpd4000_task.o: \
  ..\..\..\..\components\libraries\balloc/nrf_balloc.h \
  ..\..\..\..\components\libraries\log/nrf_log_instance.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\agc.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\agc.h \
  ..\..\..\modules\adpd4000_ppg/app_common.h \
  ..\..\..\modules\ad5940_bia/bia_application_task.h \
  ..\..\..\cli\m2m2\inc\c/bia_application_interface.h \
@@ -136,6 +137,17 @@ Output/watchv4_nrf52840\ Debug/Obj/adpd4000_task.o: \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib.h \
  ..\..\..\algo\ppg_loop1_algo/adpd_err_code.h \
  ..\..\..\modules\adpd4000_ppg/struct_operations.h \
+ ..\..\..\cli\m2m2\inc\c/ppg_application_interface.h \
+ ..\..\..\modules\SSM\Inc/adi_adpd_ssm.h \
+ ..\..\..\modules\PSM\Inc/adi_adpd_psm.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000\adi_adpd_m2m2.h \
+ ..\..\..\algo\ppg_loop1_algo/heart_rate_internal.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/errno.h \
+ ..\..\..\algo\ppg_loop1_algo/timers.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/inttypes.h \
+ ..\..\..\algo\ppg_loop1_algo/logging.h \
+ ..\..\..\modules\PSM\ADPD/adi_adpd.h \
+ ..\..\..\modules\adpd4000/adi_adpd_m2m2.h \
  ..\..\..\drivers\adpd4000/lcm.h ..\..\..\modules\system/adi_dcb_config.h \
  ..\..\..\..\components\libraries\fds/fds.h \
  ..\..\..\modules\system/fds_drv.h \
@@ -145,7 +157,9 @@ Output/watchv4_nrf52840\ Debug/Obj/adpd4000_task.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_timer.h \
  ..\..\..\modules\adpd4000_ppg/app_sync.h \
  ..\..\..\modules\ad7156_lt/low_touch_task.h \
- ..\..\..\cli\m2m2\inc\c/ppg_application_interface.h \
+ ..\..\..\modules\adpd4000_temp/tempr_lcfg.h \
+ ..\..\..\modules\adpd4000_temp/temperature_task.h \
+ ..\..\..\cli\m2m2\inc\c/temperature_application_interface.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \

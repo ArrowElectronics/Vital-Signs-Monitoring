@@ -56,6 +56,9 @@ volatile uint8_t gb_adpd_raw_start_ppg = 1; /* Flag to handle whether ADPD senso
 #include "app_common.h"
 #include "mw_ppg.h"
 #include "app_timer.h"
+#include "adi_adpd_m2m2.h"
+#include "adi_adpd_ssm.h"
+
 #ifdef USER0_CONFIG_APP
 #include "user0_config_app_task.h"
 #endif
@@ -122,7 +125,8 @@ uint32_t g_ppg_hr_pkt_cnt =0, g_sync_ppg_pkt_cnt = 0;
 extern uint32_t gn_led_slot_g;
 extern uint32_t gn_agc_active_slots;
 extern bool gRun_agc;
-extern g_state_t       g_state;
+extern uint8_t gStaticAgcSkipSampleCnt;
+extern tAdiAdpdAppState oAppState;
 extern g_state_adxl_t  g_state_adxl;
 #ifdef ENABLE_TEMPERATURE_APP
 extern uint16_t gsTemperatureStarts;
@@ -382,6 +386,7 @@ static void ppg_timeout_handler(void * p_context)
           SyncClearDataBuffer();
           /*AdxlDrvExtSampleMode(PRM_EXT_SAMPLE_ENABLE);*/
           (*pfPpgAppSetOpMode)(ADPDDrv_MODE_SAMPLE);
+          adi_adpdssm_SetSlotBufPtrs();
            hr_mode_on = true;
            off_time_count = 0;
         }
@@ -428,7 +433,8 @@ void ppg_application_task_init(void) {
   ppg_application_task_attributes.pStackBase = &ppg_application_task_stack[0];
   ppg_application_task_attributes.nStackSize = APP_OS_CFG_PPG_APPLICATION_TASK_STK_SIZE;
   ppg_application_task_attributes.pTaskAttrParam = NULL;
-  ppg_application_task_attributes.szThreadName = "PPG Data";
+  /* Thread Name should be of max 10 Characters */
+  ppg_application_task_attributes.szThreadName = "PPG_Task";
   ppg_application_task_attributes.pThreadTcb = &ppgTaskTcb;
   eOsStatus = adi_osal_MsgQueueCreate(&ppg_task_msg_queue,NULL,
                                     5);
@@ -769,7 +775,7 @@ void packetize_ppg_HR_debug_data(LibResultX_t lib_result, ADPDLIB_ERROR_CODE_t r
     for (uint8_t i = 0; i < DEBUG_INFO_SIZE; i++){
       p_payload_ptr->debugInfo[i] = debugInfo[i];
     }
-    if(retcode == ADPDLIB_ERR_AFE_SATURATION){
+    if((retcode == ADPDLIB_ERR_AFE_SATURATION) || (retcode == ADPDLIB_ERR_ALGO_INPUT_OVERFLOW)){
       p_payload_ptr->debugInfo[DEBUG_INFO_SIZE-1] = abs(retcode);// capture the library return code
     }
     g_state_ppgapp.ppgapp_pktizer.p_pkt->src = M2M2_ADDR_MED_PPG;
@@ -1024,13 +1030,13 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
     {
 #ifndef SLOT_SELECT
 #ifdef ENABLE_TEMPERATURE_APP
-      if((gsTemperatureStarts > 0) && (gsTemperatureStarts == g_state.num_starts))
+      if((gsTemperatureStarts > 0) && (gsTemperatureStarts == oAppState.nNumberOfStart))
       {
           for(uint8_t i=0 ; i<SLOT_NUM ; i++)
            {
               g_ppg_reg_base = i * ADPD400x_SLOT_BASE_ADDR_DIFF;
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_ppg_reg_base, led_reg.reg_val[i].reg_pow12); /*!enable led */
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_ppg_reg_base, led_reg.reg_val[i].reg_pow34);
+              adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW12_A + g_ppg_reg_base, led_reg.reg_val[i].reg_pow12); /*!enable led */
+              adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW34_A + g_ppg_reg_base, led_reg.reg_val[i].reg_pow34);
            }
       }
 #endif //ENABLE_TEMPERATURE_APP
@@ -1057,6 +1063,7 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
       gn_led_slot_g = (gPpg_agc_en == 1) ? Ppg_Slot : 0;
       gn_agc_active_slots = (gPpg_agc_en == 1) ? Ppg_Slot : 0;
       gRun_agc = (gPpg_agc_en == 1) ? true: false;
+      gStaticAgcSkipSampleCnt = 0;
       gPpg_agc_done = 0;
 
       gsOneTimeValueWhenReadAdpdData = 0;
@@ -1069,6 +1076,8 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
         SyncInit();
 
         (*pfPpgAppSetOpMode)(ADPDDrv_MODE_SAMPLE);
+        adi_adpdssm_SetSlotBufPtrs();
+
 #ifdef USER0_CONFIG_APP
         adpd_app_timings.app_mode_on = true;
 #endif
@@ -1094,7 +1103,7 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
         g_state_ppgapp.num_starts = 1;
         g_state_syncapp.num_starts = 1;
         g_state_ppg_hrv.num_starts = 1;
-        g_state.num_starts++;
+        oAppState.nNumberOfStart++;
         gb_adpd_raw_start_ppg = 0;
         g_state_adxl.num_starts++;
         gb_adxl_raw_start_ppg = 0;
@@ -1110,7 +1119,7 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
       g_state_ppgapp.num_starts++;
       g_state_syncapp.num_starts++;
       g_state_ppg_hrv.num_starts++;
-      g_state.num_starts++;
+     oAppState.nNumberOfStart++;
       gb_adpd_raw_start_ppg = 0;
       g_state_adxl.num_starts++;
       gb_adxl_raw_start_ppg = 0;
@@ -1130,7 +1139,7 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
       case 1:
         if (!MwPPG_HeartRateDeInit())
         {
-          if (1 == g_state.num_starts) // Stop adpd stream
+          if (1 == oAppState.nNumberOfStart) // Stop adpd stream
           {
             gsOneTimeValueWhenReadAdpdData = 0;
             (*pfPpgAppSetOpMode)(ADPDDrv_MODE_IDLE);
@@ -1156,6 +1165,7 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
           gn_led_slot_g = 0;
           gn_agc_active_slots = 0;
           gRun_agc = false;
+          gStaticAgcSkipSampleCnt = 0;
           gPpg_agc_en = 0;
           gPpg_agc_done = 0;
           /*****************************/
@@ -1163,25 +1173,25 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
           g_state_ppgapp.num_starts = 0;
           g_state_syncapp.num_starts = 0;
           g_state_ppg_hrv.num_starts = 0;
-          (0 < g_state.num_starts) ? g_state.num_starts-- : (g_state.num_starts = 0);
+          (0 < oAppState.nNumberOfStart) ? oAppState.nNumberOfStart-- : (oAppState.nNumberOfStart = 0);
           gb_adpd_raw_start_ppg = 1;
           (0 < g_state_adxl.num_starts) ? g_state_adxl.num_starts-- : (g_state_adxl.num_starts = 0);
           gb_adxl_raw_start_ppg = 1;
 #ifndef SLOT_SELECT
 #ifdef ENABLE_TEMPERATURE_APP
-   if((g_state.num_starts > 0) && (g_state.num_starts == gsTemperatureStarts))
+   if((oAppState.nNumberOfStart > 0) && (oAppState.nNumberOfStart == gsTemperatureStarts))
    {
       for(uint8_t i=0 ; i<SLOT_NUM ; i++)
       {
           g_ppg_reg_base = i * ADPD400x_SLOT_BASE_ADDR_DIFF;
-          if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_ppg_reg_base, &led_reg.reg_val[i].reg_pow12) == ADPD400xDrv_SUCCESS)
+          if(adi_adpddrv_RegRead(ADPD400x_REG_LED_POW12_A + g_ppg_reg_base, &led_reg.reg_val[i].reg_pow12) == ADPD400xDrv_SUCCESS)
             {
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_A + g_ppg_reg_base, 0x0);
+              adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW12_A + g_ppg_reg_base, 0x0);
             }/*! disable led for slot-A - I */
 
-          if(Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_ppg_reg_base, &led_reg.reg_val[i].reg_pow34) == ADPD400xDrv_SUCCESS)
+          if(adi_adpddrv_RegRead(ADPD400x_REG_LED_POW34_A + g_ppg_reg_base, &led_reg.reg_val[i].reg_pow34) == ADPD400xDrv_SUCCESS)
             {
-              Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW34_A + g_ppg_reg_base, 0x0);
+              adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW34_A + g_ppg_reg_base, 0x0);
             }/*! disable led for slot-> A - I */
        }
    }
@@ -1209,7 +1219,7 @@ static m2m2_hdr_t *ppg_app_stream_config(m2m2_hdr_t *p_pkt) {
         g_state_ppgapp.num_starts--;
         g_state_syncapp.num_starts--;
         g_state_ppg_hrv.num_starts--;
-        (0 < g_state.num_starts) ? g_state.num_starts-- : (g_state.num_starts = 0);
+        (0 < oAppState.nNumberOfStart) ? oAppState.nNumberOfStart-- : (oAppState.nNumberOfStart = 0);
         (0 < g_state_adxl.num_starts) ? g_state_adxl.num_starts-- : (g_state_adxl.num_starts = 0);
         status = M2M2_APP_COMMON_STATUS_STREAM_COUNT_DECREMENT;
       break;

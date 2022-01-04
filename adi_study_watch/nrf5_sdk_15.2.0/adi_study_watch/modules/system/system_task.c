@@ -76,6 +76,7 @@
 #include <adpd4000_task.h>
 #include "display_app.h"
 #include "manufacture_date.h"
+#include "memory_management.h"
 
 /* System Task Module Log settings */
 #define NRF_LOG_MODULE_NAME System_Task
@@ -140,6 +141,8 @@ m2m2_pm_sys_info_t g_system_info = {
     0x00000000,                           // date
     0x00};                                // board_type
 
+/* Variable to track the reason for force stop log request */
+FORCE_STOP_LOG_REASON_ENUM_t gForceStopLogReason = E_INVALID; 
 /*Battery-full charge level  */
 #define BATTERY_FULL_CHARGE_LEVEL 99U
 
@@ -170,6 +173,9 @@ volatile uint8_t gsCfgFileFoundFlag = 0;
 #include <low_touch_task.h>
 /*Indicate the availability of gen blk DCB config for low touch*/
 static volatile uint8_t gbDCBCfgFoundFlag = 0;
+#endif
+#ifdef CUST4_SM
+#include "display_app.h"
 #endif
 static uint16_t BattInfoSubsciberCount = 0;
 
@@ -234,7 +240,9 @@ void SendSensorStopCmds();
 #ifdef ENABLE_WATCH_DISPLAY
 extern void reset_display_vol_info();
 #endif
-
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+extern uint32_t batt_app_packet_count;
+#endif
 /* M2M2 address(ble/usb) from which Force stream stop/unsub REQ needs to be
  * given out; to be used from M2M2_PM_SYS_COMMAND_FORCE_STREAM_STOP_REQ */
 static M2M2_ADDR_ENUM_t gnForceStopReqAddr = M2M2_ADDR_UNDEFINED;
@@ -269,13 +277,77 @@ extern volatile LOW_TOUCH_DETECTION_STATUS_ENUM_t eCurDetection_State;
 #if defined(MEASURE_BLE_ADV_TIME) && defined(CUST4_SM)
 static volatile uint32_t gn_ble_ontime;
 #endif
+
+/*!
+  ********************************************************************************
+*    @brief Sends System task Alarm Notification Message to the Tool 
+
+*    @param[in]  nAlarm  - This is of type M2M2_APP_COMMON_ALARM_STATUS_ENUM_t
+*                             Alarm status could be low/critical/full
+*    @return                - None
+*
+**********************************************************************************/
+void SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_ENUM_t nAlarm) {
+  m2m2_hdr_t *response_mail = NULL;
+  ADI_OSAL_STATUS err;
+
+  if (battery_level_alerts.tool_addr != M2M2_ADDR_UNDEFINED) {
+    response_mail =
+        post_office_create_msg(M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
+    if (response_mail != NULL) {
+      _m2m2_app_common_cmd_t *battery_level_alarm_msg =
+          (_m2m2_app_common_cmd_t *)&response_mail->data[0];
+
+      /* send response packet */
+      response_mail->src = M2M2_ADDR_SYS_PM;
+      response_mail->dest = (M2M2_ADDR_ENUM_t)battery_level_alerts.tool_addr;
+      response_mail->checksum = 0x0000;
+      battery_level_alarm_msg->command =
+          M2M2_APP_COMMON_CMD_ALARM_NOTIFICATION; /* Battery level Alarm Notification
+                                              message*/
+      battery_level_alarm_msg->status = nAlarm;
+      post_office_send(response_mail, &err);
+    }
+  }
+}
+
+/*!
+  ****************************************************************************
+*    @brief Sends the reason for force stop log request
+*
+*    @param[in]                    - None
+*    @return                       - FORCE_STOP_LOG_REASON_ENUM_t; returns the
+*                                    reason for force stop log request
+*                                    It can be either battery critical or 
+*                                    power state shutdown command received
+*
+*****************************************************************************/
+
+FORCE_STOP_LOG_REASON_ENUM_t getForceStopLogReason(void)
+{
+  return(gForceStopLogReason);
+}
+
+/*!
+  ****************************************************************************
+*    @brief resets the reason for force stop log request to E_INVALID
+*
+*    @param[in]                    - None
+*    @return                       - None
+*
+*****************************************************************************/
+
+void resetForceStopLogReason(void)
+{
+  gForceStopLogReason = E_INVALID;
+}
 /*!
   ****************************************************************************
 *    @brief Sends Battery Level Alert Message to the Tool Registered
 
 *    @param[in]                    - M2M2_PM_SYS_STATUS_ENUM_t
 *    nAlertMsg                     - battery level status enum could be
-low/critical
+                                     low/critical
 *    @return                       - None
 
 *****************************************************************************/
@@ -721,24 +793,27 @@ void LowTouchErr(void) {
   resume_key_and_lt_task();
 #endif
 #ifdef CUST4_SM
-  //Some error occured in Low touch logging
-  USER0_CONFIG_APP_STATE_t read_user0_config_app_state = get_user0_config_app_state();
-  if((read_user0_config_app_state ==
-      STATE_INTERMITTENT_MONITORING_START_LOG) ||
-     (read_user0_config_app_state ==
-     STATE_INTERMITTENT_MONITORING_STOP_LOG))
+  if(get_low_touch_trigger_mode3_status())
   {
-    set_user0_config_app_state(STATE_INTERMITTENT_MONITORING);
-  }
-  if( (read_user0_config_app_state ==
-      STATE_INTERMITTENT_MONITORING_START_LOG) ||
-      (read_user0_config_app_state ==
-      STATE_INTERMITTENT_MONITORING_STOP_LOG) ||
-      (read_user0_config_app_state ==
-      STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING) )
-  {
-    //Turn on BLE
-    turn_on_BLE();
+    //Some error occured in Low touch logging
+    USER0_CONFIG_APP_STATE_t read_user0_config_app_state = get_user0_config_app_state();
+    if((read_user0_config_app_state ==
+        STATE_INTERMITTENT_MONITORING_START_LOG) ||
+       (read_user0_config_app_state ==
+       STATE_INTERMITTENT_MONITORING_STOP_LOG))
+    {
+      set_user0_config_app_state(STATE_INTERMITTENT_MONITORING);
+    }
+    if( (read_user0_config_app_state ==
+        STATE_INTERMITTENT_MONITORING_START_LOG) ||
+        (read_user0_config_app_state ==
+        STATE_INTERMITTENT_MONITORING_STOP_LOG) ||
+        (read_user0_config_app_state ==
+        STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING) )
+    {
+      //Turn on BLE
+      turn_on_BLE();
+    }
   }
 #endif
 }
@@ -1064,16 +1139,18 @@ void SendSensorStopCmds() {
                         .sensor_app_id);
                 pkt1 = post_office_create_msg(
                     M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
-                m2m2_app_common_sub_op_t *payload =
-                    (m2m2_app_common_sub_op_t *)&pkt1->data[0];
+                if(pkt1 != NULL) {
+                  m2m2_app_common_sub_op_t *payload =
+                      (m2m2_app_common_sub_op_t *)&pkt1->data[0];
 
-                gb_sensor_stop_cmds = 1;
-                payload->command = M2M2_APP_COMMON_CMD_STREAM_STOP_REQ;
-                payload->status = M2M2_APP_COMMON_STATUS_OK;
-                pkt1->src = M2M2_ADDR_SYS_PM;
-                pkt1->dest = gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
-                                .sensor_app_id;
-                post_office_send(pkt1, &err);
+                  gb_sensor_stop_cmds = 1;
+                  payload->command = M2M2_APP_COMMON_CMD_STREAM_STOP_REQ;
+                  payload->status = M2M2_APP_COMMON_STATUS_OK;
+                  pkt1->src = M2M2_ADDR_SYS_PM;
+                  pkt1->dest = gsSensorStatusRespPkt->app_info[gsSensorAppsCnt]
+                                  .sensor_app_id;
+                  post_office_send(pkt1, &err);
+                }
 
             }  if (!nSendStopCmd || pkt_used == 0) {
               //m2m2_hdr_t *pkt unused, so free it
@@ -1117,6 +1194,7 @@ void SendSensorStopCmds() {
         /* All sensor applications are stopped;
           send out the response */
         SendLowTouchErrResp(M2M2_PM_SYS_STATUS_USER_CONFIG_LOG_DISABLED);
+        SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_USER_CONFIG_LOG_DISABLED);
       }
 #endif
   }
@@ -1185,7 +1263,6 @@ void update_hw_id_in_system_info(uint16_t hw_id) {
   g_system_info.hw_id = hw_id;
 }
 #endif
-
 /*!
  ****************************************************************************
  * @brief System task init function.
@@ -1199,7 +1276,8 @@ void system_task_init(void) {
   g_system_task_attributes.pStackBase = &ga_system_task_stack[0];
   g_system_task_attributes.nStackSize = APP_OS_CFG_PM_TASK_STK_SIZE;
   g_system_task_attributes.pTaskAttrParam = NULL;
-  g_system_task_attributes.szThreadName = "system_task";
+  /* Thread Name should be of max 10 Characters */
+  g_system_task_attributes.szThreadName = "SystemTask";
   g_system_task_attributes.pThreadTcb = &g_system_task_tcb;
   eOsStatus = adi_osal_MsgQueueCreate(&gh_system_task_msg_queue, NULL, 9);
   if (eOsStatus != ADI_OSAL_SUCCESS) {
@@ -1321,8 +1399,13 @@ static void system_task(void *pArgument) {
           version_num_resp->major = FW_VERSION_MAJOR;
           version_num_resp->minor = FW_VERSION_MINOR;
           version_num_resp->patch = FW_VERSION_PATCH;
-          memcpy(&version_num_resp->verstr[0], "-Perseus", 10);
-          if (SYSTEM_BUILD_VERSION_LEN > sizeof(version_num_resp->str) - 1) {
+          memcpy(&version_num_resp->verstr[0], "-Perseus", 9);
+
+          /* Commenting off since SYSTEM_BUILD_VERSION isnt populated and with
+          increase in SYSTEM_BUILD_COMMIT_ID_LEN, we dont want to increase
+          sizeof(version_num_resp->str) greater than 40, since tool change would
+          also be required */
+          /*if (SYSTEM_BUILD_VERSION_LEN > sizeof(version_num_resp->str) - 1) {
             string_len = sizeof(version_num_resp->str) - 1;
           } else {
             string_len = SYSTEM_BUILD_VERSION_LEN;
@@ -1343,6 +1426,17 @@ static void system_task(void *pArgument) {
                                   SYSTEM_BUILD_COMMIT_ID_LEN - 1] = '|';
             memcpy(&version_num_resp->str[SYSTEM_BUILD_VERSION_LEN +
                                           SYSTEM_BUILD_COMMIT_ID_LEN],
+                SYSTEM_BUILD_TIME, SYSTEM_BUILD_TIME_LEN);
+          }*/
+          if (SYSTEM_BUILD_COMMIT_ID_LEN < sizeof(version_num_resp->str)) {
+            version_num_resp->str[0] = '|';
+            memcpy(&version_num_resp->str[1],
+                SYSTEM_BUILD_COMMIT_ID, SYSTEM_BUILD_COMMIT_ID_LEN);
+          }
+          if ((SYSTEM_BUILD_COMMIT_ID_LEN + SYSTEM_BUILD_TIME_LEN) <
+              sizeof(version_num_resp->str)) {
+            version_num_resp->str[SYSTEM_BUILD_COMMIT_ID_LEN] = '|';
+            memcpy(&version_num_resp->str[SYSTEM_BUILD_COMMIT_ID_LEN+1],
                 SYSTEM_BUILD_TIME, SYSTEM_BUILD_TIME_LEN);
           }
 
@@ -1454,6 +1548,7 @@ static void system_task(void *pArgument) {
           /* If File logging is in progress */
           if (fs_hal_write_access_state() == FS_FILE_ACCESS_IN_PROGRESS) {
             /* Force Stop Logging */
+            gForceStopLogReason = E_PWR_STATE_SHUTDOWN;
             response_mail = post_office_create_msg(
                 M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
             if (response_mail != NULL) {
@@ -1483,6 +1578,9 @@ static void system_task(void *pArgument) {
               (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_PM_SYS_STATUS_OK;
           set_power_resp->state = power_state->state;
           post_office_send(response_mail, &err);
+          /* Wait for 250ms, to let alarm packet from FS task and PWR state response packet from 
+          System task to reach the tool before entering into power mode*/
+          vTaskDelay(250);
 
           /* Same as Power off from Watch display page. */
           if (power_state->state == M2M2_PM_SYS_PWR_STATE_HIBERNATE) {
@@ -2059,12 +2157,6 @@ static void system_task(void *pArgument) {
               dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_OK;
               /* While disabling the switch, EPHYZ LDO needs to be turned OFF
                via M2M2_PM_SYS_COMMAND_LDO_CNTRL_REQ m2m2 cmd */
-#if 0
-              /*Turning LDO off only when we are disabling electrodes*/
-              if(req1->sw_enable == 0x00) {
-                adp5360_enable_ldo(ECG_LDO, false);
-              }
-#endif
             }
             else {
               /*TODO a better enum can be created to explain this error*/
@@ -2092,12 +2184,6 @@ static void system_task(void *pArgument) {
               dg2502_sw_cntrl_resp->status = M2M2_PM_SYS_STATUS_OK;
               /* While disabling the switch, EPHYZ LDO needs to be turned OFF
                 via M2M2_PM_SYS_COMMAND_LDO_CNTRL_REQ m2m2 cmd */
-#if 0
-              /*Turning LDO off only when we are disabling electrodes*/
-              if(req1->sw_enable == 0x00) {
-                adp5360_enable_ldo(ECG_LDO, false);
-              }
-#endif
             }
             else {
               /*TODO a better enum can be created to explain this error*/
@@ -2196,8 +2282,6 @@ static void system_task(void *pArgument) {
           case M2M2_PM_SYS_AD5940:
             // Get chip id of AD5940
             adp5360_enable_ldo(ECG_LDO, true); // power on LDO
-            ad5940_port_Init();
-            AD5940_HWReset();
             chip_id_resp->chip_id = AD5940_GetChipID();
             ad5940_port_deInit();
             adp5360_enable_ldo(ECG_LDO, false); // power off LDO
@@ -2440,6 +2524,7 @@ static void system_task(void *pArgument) {
         } else {
           SendLowTouchErrResp(
               M2M2_PM_SYS_STATUS_LOW_TOUCH_LOGGING_ALREADY_STARTED);
+          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_LOW_TOUCH_LOGGING_ALREADY_STARTED);
         }
         post_office_consume_msg(pkt);
         break;
@@ -2453,6 +2538,7 @@ static void system_task(void *pArgument) {
             GetFileCount();
           } else {
             SendLowTouchErrResp(M2M2_PM_SYS_STATUS_LOW_TOUCH_MEMORY_FULL_ERR);
+            SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_LOW_TOUCH_MEMORY_FULL_ERR);
             MaxFileErr(); /*Memory is full ; give indication on Display*/
           }
         } else {
@@ -2481,6 +2567,7 @@ static void system_task(void *pArgument) {
               if(GEN_BLK_DCB_STATUS_ERR == ret_val)
               {
                 SendLowTouchErrResp(M2M2_PM_SYS_STATUS_CONFIG_FILE_NOT_FOUND);
+                SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_CONFIG_FILE_NOT_FOUND);
                 LowTouchErr(); // config file read failed
               }
               else
@@ -2497,6 +2584,7 @@ static void system_task(void *pArgument) {
 #endif
           } else {
             SendLowTouchErrResp(M2M2_PM_SYS_STATUS_LOW_TOUCH_MAX_FILE_ERR);
+            SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_LOW_TOUCH_MAX_FILE_ERR);
             MaxFileErr(); /*Maximum File count reached; give indication on Display*/
           }
         } else {
@@ -2535,6 +2623,7 @@ static void system_task(void *pArgument) {
         if (ctrl_cmd->status == M2M2_FILE_SYS_ERR_MEMORY_FULL) {
           /*Force log stop response came because of memory full event*/
           SendLowTouchErrResp(M2M2_PM_SYS_STATUS_LOW_TOUCH_MEMORY_FULL_ERR);
+          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_LOW_TOUCH_MEMORY_FULL_ERR);
           /*low touch log stopped due to mem-full; stop the sensors and inform
            * the tool*/
           LowTouchErr(); // provide indication on Display
@@ -2619,9 +2708,11 @@ static void system_task(void *pArgument) {
 
             sensorAppsInfoHdr = post_office_create_msg(
                 M2M2_HEADER_SZ + sizeof(m2m2_pm_sys_sensor_apps_info_req_t));
-            memcpy(sensorAppsInfoHdr, gsSensorAppsInfoHdr,
+            if(sensorAppsInfoHdr != NULL) {
+                memcpy(sensorAppsInfoHdr, gsSensorAppsInfoHdr,
                 gsSensorAppsInfoHdr->length);
-            post_office_send(sensorAppsInfoHdr, &err);
+                post_office_send(sensorAppsInfoHdr, &err);
+            }
             post_office_consume_msg(resp_pkt);
 
 #if 0
@@ -2663,6 +2754,7 @@ static void system_task(void *pArgument) {
           }
         } else {
           SendLowTouchErrResp(M2M2_PM_SYS_STATUS_CONFIG_FILE_NOT_FOUND);
+          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_CONFIG_FILE_NOT_FOUND);
           LowTouchErr(); // config file doesn't exist
         }
         post_office_consume_msg(pkt);
@@ -2683,6 +2775,7 @@ static void system_task(void *pArgument) {
           }
         } else {
           SendLowTouchErrResp(M2M2_PM_SYS_STATUS_CONFIG_FILE_READ_ERR);
+          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_CONFIG_FILE_READ_ERR);
           LowTouchErr(); // Reading config file failed
         }
         post_office_consume_msg(pkt);
@@ -2873,6 +2966,59 @@ static void system_task(void *pArgument) {
       }
 #endif//LOW_TOUCH_FEATURE
 #endif
+#ifdef PO_MEM_UTIL_STATS
+      case M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_REQ: {
+        response_mail = post_office_create_msg(
+            M2M2_HEADER_SZ + sizeof( m2m2_get_po_memory_utilization_cmd_t));
+        if (response_mail != NULL) {
+         m2m2_get_po_memory_utilization_cmd_t *get_mem_utilization =
+            (m2m2_get_po_memory_utilization_cmd_t *)&response_mail->data[0];
+         response_mail->src = pkt->dest;
+         response_mail->dest = pkt->src;
+         get_mem_utilization->command = M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_RESP;
+         get_mem_utilization->status = M2M2_PM_SYS_STATUS_OK;
+         get_mem_utilization->min_num_free_blks_type2 = min_num_free_blks_type2;
+         get_mem_utilization->min_num_free_blks_type4 = min_num_free_blks_type4;
+         get_mem_utilization->min_num_free_blks_type5 = min_num_free_blks_type5;
+         get_mem_utilization->block_2_allocated = block_2_allocated;
+         get_mem_utilization->block_4_allocated = block_4_allocated;
+         get_mem_utilization->block_5_allocated = block_5_allocated;
+         get_mem_utilization->block_2_freed = block_2_freed;
+         get_mem_utilization->block_4_freed = block_4_freed;
+         get_mem_utilization->block_5_freed = block_5_freed;
+         post_office_send(response_mail, &err);
+        }
+        post_office_consume_msg(pkt);
+        break;
+      }
+      case M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_REQ: {
+      response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_clear_po_memory_utilization_cmd_t));
+        if (response_mail != NULL) {
+          m2m2_clear_po_memory_utilization_cmd_t *clear_po_mem_resp =
+              (m2m2_clear_po_memory_utilization_cmd_t *)&response_mail->data[0];
+
+          /* send response packet */
+          response_mail->src = pkt->dest;
+          response_mail->dest = pkt->src;
+          clear_po_mem_resp->command =
+              (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_RESP;
+          clear_po_mem_resp->status =
+              (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_PM_SYS_STATUS_OK;
+          post_office_send(response_mail, &err);
+        }
+        post_office_consume_msg(pkt);
+        min_num_free_blks_type2 = MEM_BLK_TYPE2_CNT;
+        min_num_free_blks_type4 = MEM_BLK_TYPE4_CNT;
+        min_num_free_blks_type5 = MEM_BLK_TYPE5_CNT;
+        block_2_allocated=0;
+        block_4_allocated=0;
+        block_5_allocated=0;
+        block_2_freed=0;
+        block_4_freed=0;
+        block_5_freed=0;
+        break;
+      }
+#endif //PO_MEM_UTIL_STATS
 
       case M2M2_FILE_SYS_CMD_STOP_LOGGING_RESP: {
         /* check if memory full event has occured */
@@ -2945,16 +3091,28 @@ static void system_task(void *pArgument) {
                       if(gsStartCmdsRunning)
                       {
                         if(gbDCBCfgFoundFlag)
+                        {
                           SendLowTouchErrResp(M2M2_PM_SYS_STATUS_ENABLE_DCB_CONFIG_LOG_FAILED);
+                          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_ENABLE_DCB_CONFIG_LOG_FAILED);
+                        }
                         else
+                        {
                           SendLowTouchErrResp(M2M2_PM_SYS_STATUS_ENABLE_USER_CONFIG_LOG_FAILED);
+                          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_ENABLE_USER_CONFIG_LOG_FAILED);
+                        }
                       }
                       else
                       {
                         if(gbDCBCfgFoundFlag)
+                        {
                           SendLowTouchErrResp(M2M2_PM_SYS_STATUS_DISABLE_DCB_CONFIG_LOG_FAILED);
+                          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_DISABLE_DCB_CONFIG_LOG_FAILED);
+                        }
                         else
+                        {
                           SendLowTouchErrResp(M2M2_PM_SYS_STATUS_DISABLE_USER_CONFIG_LOG_FAILED);
+                          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_DISABLE_USER_CONFIG_LOG_FAILED);
+                        }
                       }
                       LowTouchErr();
                       post_office_consume_msg(pkt);
@@ -2976,9 +3134,12 @@ static void system_task(void *pArgument) {
             if (!gbDCBCfgFoundFlag) {
 #endif
               SendLowTouchErrResp(M2M2_PM_SYS_STATUS_USER_CONFIG_LOG_ENABLED);
+              SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_USER_CONFIG_LOG_ENABLED);
 #ifdef DCB
-            } else
+            } else {
               SendLowTouchErrResp(M2M2_PM_SYS_STATUS_DCB_CONFIG_LOG_ENABLED);
+              SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_DCB_CONFIG_LOG_ENABLED);
+            }
 #endif
               if(!get_low_touch_trigger_mode2_status() && !get_low_touch_trigger_mode3_status())
               {
@@ -2990,7 +3151,7 @@ static void system_task(void *pArgument) {
                   gLowTouchRunning = 0;
                 }
               }
-#ifdef USER0_CONFIG_APP
+#ifdef CUST4_SM
               else if(get_low_touch_trigger_mode3_status())
               {
                 //Send app timer start cmd to start LT logging
@@ -3011,32 +3172,38 @@ static void system_task(void *pArgument) {
                 true); /*update the config file copy availability flag*/
             gLowTouchRunning = 0; // Low Touch loggging has stopped
 #ifdef CUST4_SM
-            //Low touch logging stopped
-            USER0_CONFIG_APP_STATE_t read_user0_config_app_state = get_user0_config_app_state();
-            if((read_user0_config_app_state ==
-               STATE_INTERMITTENT_MONITORING_STOP_LOG))
+            if(get_low_touch_trigger_mode3_status())
             {
-              set_user0_config_app_state(STATE_INTERMITTENT_MONITORING);
-            }
-            if( (read_user0_config_app_state ==
-                STATE_INTERMITTENT_MONITORING_STOP_LOG) ||
-                (read_user0_config_app_state ==
-                STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING) )
-            {
-              //Turn on BLE
-              turn_on_BLE();
+              //Low touch logging stopped
+              USER0_CONFIG_APP_STATE_t read_user0_config_app_state = get_user0_config_app_state();
+              if((read_user0_config_app_state ==
+                 STATE_INTERMITTENT_MONITORING_STOP_LOG))
+              {
+                set_user0_config_app_state(STATE_INTERMITTENT_MONITORING);
+              }
+              if( (read_user0_config_app_state ==
+                  STATE_INTERMITTENT_MONITORING_STOP_LOG) ||
+                  (read_user0_config_app_state ==
+                  STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING) )
+              {
+                //Turn on BLE
+                turn_on_BLE();
 #if defined(MEASURE_BLE_ADV_TIME) && defined(CUST4_SM)
-              gn_ble_ontime = get_micro_sec();
+                gn_ble_ontime = get_micro_sec();
 #endif
-            }
-#endif
+              }
+            }//if(get_low_touch_trigger_mode3_status())
+#endif//CUST4_SM
 #ifdef DCB
             if (!gbDCBCfgFoundFlag) {
 #endif
               SendLowTouchErrResp(M2M2_PM_SYS_STATUS_USER_CONFIG_LOG_DISABLED);
+              SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_USER_CONFIG_LOG_DISABLED);
 #ifdef DCB
-            } else
+            } else {
               SendLowTouchErrResp(M2M2_PM_SYS_STATUS_DCB_CONFIG_LOG_DISABLED);
+              SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_DCB_CONFIG_LOG_DISABLED);
+            }
 #endif
           } else {
             SendUserConfigCommands();
@@ -3088,6 +3255,7 @@ void StreamBatt_Info(void) {
         {
           battery_level_alerts.charge_alert_status = E_FULL_LEVEL;
           SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_BATTERY_LEVEL_FULL);
+          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_BATTERY_LEVEL_FULL);
         }
       }
       break;
@@ -3109,6 +3277,7 @@ void StreamBatt_Info(void) {
         /* If File logging is in progress */
         if (fs_hal_write_access_state() == FS_FILE_ACCESS_IN_PROGRESS) {
           /* Force Stop Logging */
+          gForceStopLogReason = E_BATTERY_CRITICAL;
           pkt = post_office_create_msg(
               M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
           if (pkt != NULL) {
@@ -3129,6 +3298,7 @@ void StreamBatt_Info(void) {
         {
           battery_level_alerts.charge_alert_status = E_CRITICAL_LEVEL;
           SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_BATTERY_LEVEL_CRITICAL);
+          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_BATTERY_LEVEL_CRITICAL);
         }
 
       } else if (bat_status.level <= battery_level_alerts.level_low) {
@@ -3137,6 +3307,7 @@ void StreamBatt_Info(void) {
         {
           battery_level_alerts.charge_alert_status = E_LOW_LEVEL;
           SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_BATTERY_LEVEL_LOW);
+          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_BATTERY_LEVEL_LOW);
         }
       } else if (bat_status.level < BATTERY_FULL_CHARGE_LEVEL) {
         if(battery_level_alerts.charge_alert_status != E_NORMAL_LEVEL)
@@ -3149,6 +3320,7 @@ void StreamBatt_Info(void) {
         {
           battery_level_alerts.charge_alert_status = E_FULL_LEVEL;
           SendBatteryLevelAlertMsg(M2M2_PM_SYS_STATUS_BATTERY_LEVEL_FULL);
+          SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_BATTERY_LEVEL_FULL);
         }
       } else {
         // No need to handle
@@ -3169,6 +3341,10 @@ void StreamBatt_Info(void) {
   }
   /* Send Battery info as Stream to subscribers */
   if (BattInfoSubsciberCount > 0) {
+    adi_osal_EnterCriticalRegion();
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+    batt_app_packet_count |= 1 << 0;
+#endif
     pkt = post_office_create_msg(
         M2M2_HEADER_SZ + sizeof(m2m2_pm_sys_bat_info_resp_t));
     if (pkt != NULL) {
@@ -3195,6 +3371,7 @@ void StreamBatt_Info(void) {
       pkt->dest = M2M2_ADDR_SYS_BATT_STREAM;
       post_office_send(pkt, &err);
     }
+    adi_osal_ExitCriticalRegion();
   }
   if( get_ble_nus_status() == BLE_CONNECTED )
   {
@@ -3304,27 +3481,30 @@ static m2m2_hdr_t *lt_app_lcfg_dcb_command_read_config(m2m2_hdr_t *p_pkt)
     M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
 
     PKT_MALLOC(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, 0);
-    // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_resp_payload);
+    if(p_resp_pkt != NULL) {
+      // Declare a pointer to the response packet payload
+      PYLD_CST(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_resp_payload);
 
-    r_size = (uint16_t)MAXLTAPPLCFGDCBSIZE;
-    if(read_lt_app_lcfg_dcb(&dcbdata[0],&r_size) == LT_APP_LCFG_DCB_STATUS_OK)
-    {
-        for(int i=0; i< r_size; i++)
-          p_resp_payload->dcbdata[i] = dcbdata[i];
-        p_resp_payload->size = (r_size);
-        status = M2M2_DCB_STATUS_OK;
-    }
-    else
-    {
-        p_resp_payload->size = 0;
-        status = M2M2_DCB_STATUS_ERR_ARGS;
-    }
+      r_size = (uint16_t)MAXLTAPPLCFGDCBSIZE;
+      if(read_lt_app_lcfg_dcb(&dcbdata[0],&r_size) == LT_APP_LCFG_DCB_STATUS_OK)
+      {
+          for(int i=0; i< r_size; i++){
+            p_resp_payload->dcbdata[i] = dcbdata[i];
+          }
+          p_resp_payload->size = (r_size);
+          status = M2M2_DCB_STATUS_OK;
+      }
+      else
+      {
+          p_resp_payload->size = 0;
+          status = M2M2_DCB_STATUS_ERR_ARGS;
+      }
 
-    p_resp_payload->status = status;
-    p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_pkt->dest = p_pkt->src;
+      p_resp_payload->status = status;
+      p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
+      p_resp_pkt->src = p_pkt->dest;
+      p_resp_pkt->dest = p_pkt->src;
+    }
     return p_resp_pkt;
 }
 
@@ -3341,29 +3521,44 @@ static m2m2_hdr_t *lt_app_lcfg_dcb_command_write_config(m2m2_hdr_t *p_pkt)
     // Declare a pointer to access the input packet payload
     PYLD_CST(p_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_in_payload);
     PKT_MALLOC(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, 0);
-    // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_resp_payload);
 
-    for(int i=0; i<p_in_payload->size; i++)
-      dcbdata[i] = p_in_payload->dcbdata[i];
-    if(write_lt_app_lcfg_dcb(&dcbdata[0],p_in_payload->size) == LT_APP_LCFG_DCB_STATUS_OK)
-    {
-        lt_app_lcfg_set_dcb_present_flag(true);
-        lt_app_lcfg_set_from_dcb();
-        status = M2M2_DCB_STATUS_OK;
-    }
-    else
-    {
-        status = M2M2_DCB_STATUS_ERR_ARGS;
-    }
+    if(p_resp_pkt != NULL) {
+      // Declare a pointer to the response packet payload
+      PYLD_CST(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_resp_payload);
 
-    p_resp_payload->status = status;
-    p_resp_payload->command = M2M2_DCB_COMMAND_WRITE_CONFIG_RESP;
-    p_resp_payload->size = 0;
-    for(uint16_t i=0; i< MAXLTAPPLCFGDCBSIZE; i++)
+      for(int i=0; i<p_in_payload->size; i++) {
+        dcbdata[i] = p_in_payload->dcbdata[i];
+      }
+      if(write_lt_app_lcfg_dcb(&dcbdata[0],p_in_payload->size) == LT_APP_LCFG_DCB_STATUS_OK)
+      {
+          lt_app_lcfg_set_dcb_present_flag(true);
+          lt_app_lcfg_set_from_dcb();
+#ifdef CUST4_SM
+          if(get_low_touch_trigger_mode3_status())
+          {
+            dis_page_jump(&page_watch_id);
+          }
+          else
+          {
+            dis_page_jump(&page_menu);
+          }
+#endif
+          status = M2M2_DCB_STATUS_OK;
+      }
+      else
+      {
+          status = M2M2_DCB_STATUS_ERR_ARGS;
+      }
+
+      p_resp_payload->status = status;
+      p_resp_payload->command = M2M2_DCB_COMMAND_WRITE_CONFIG_RESP;
+      p_resp_payload->size = 0;
+      for(uint16_t i=0; i< MAXLTAPPLCFGDCBSIZE; i++) {
         p_resp_payload->dcbdata[i] = 0;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_pkt->dest = p_pkt->src;
+      }
+      p_resp_pkt->src = p_pkt->dest;
+      p_resp_pkt->dest = p_pkt->src;
+    }
     return p_resp_pkt;
 }
 
@@ -3377,27 +3572,41 @@ static m2m2_hdr_t *lt_app_lcfg_dcb_command_delete_config(m2m2_hdr_t *p_pkt)
     M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
 
     PKT_MALLOC(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, 0);
-    // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_resp_payload);
 
-    if(delete_lt_app_lcfg_dcb() == LT_APP_LCFG_DCB_STATUS_OK)
-    {
-        lt_app_lcfg_set_dcb_present_flag(false);
-        lt_app_lcfg_set_fw_default();
-        status = M2M2_DCB_STATUS_OK;
-    }
-    else
-    {
-        status = M2M2_DCB_STATUS_ERR_ARGS;
-    }
+    if(p_resp_pkt != NULL) {
+      // Declare a pointer to the response packet payload
+      PYLD_CST(p_resp_pkt, m2m2_dcb_lt_app_lcfg_data_t, p_resp_payload);
 
-    p_resp_payload->status = status;
-    p_resp_payload->command = M2M2_DCB_COMMAND_ERASE_CONFIG_RESP;
-    p_resp_payload->size = 0;
-    for(uint16_t i=0; i< MAXLTAPPLCFGDCBSIZE; i++)
+      if(delete_lt_app_lcfg_dcb() == LT_APP_LCFG_DCB_STATUS_OK)
+      {
+          lt_app_lcfg_set_dcb_present_flag(false);
+          lt_app_lcfg_set_fw_default();
+#ifdef CUST4_SM
+          if(get_low_touch_trigger_mode3_status())
+          {
+            dis_page_jump(&page_watch_id);
+          }
+          else
+          {
+            dis_page_jump(&page_menu);
+          }
+#endif
+          status = M2M2_DCB_STATUS_OK;
+      }
+      else
+      {
+          status = M2M2_DCB_STATUS_ERR_ARGS;
+      }
+
+      p_resp_payload->status = status;
+      p_resp_payload->command = M2M2_DCB_COMMAND_ERASE_CONFIG_RESP;
+      p_resp_payload->size = 0;
+      for(uint16_t i=0; i< MAXLTAPPLCFGDCBSIZE; i++) {
         p_resp_payload->dcbdata[i] = 0;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_pkt->dest = p_pkt->src;
+      }
+      p_resp_pkt->src = p_pkt->dest;
+      p_resp_pkt->dest = p_pkt->src;
+    }
     return p_resp_pkt;
 
 }

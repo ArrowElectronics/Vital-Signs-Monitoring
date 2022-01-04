@@ -330,7 +330,8 @@ void key_detect_init(void) {
   key_task_attributes.pStackBase = &key_task_stack[0];
   key_task_attributes.nStackSize = APP_OS_CFG_KEY_TASK_STK_SIZE;
   key_task_attributes.pTaskAttrParam = NULL;
-  key_task_attributes.szThreadName = "key";
+  /* Thread Name should be of max 10 Characters */
+  key_task_attributes.szThreadName = "keyDetect";
   key_task_attributes.pThreadTcb = &key_task_tcb;
 
   eOsStatus = adi_osal_ThreadCreateStatic(&key_task_handler,

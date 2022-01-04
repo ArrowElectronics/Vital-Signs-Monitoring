@@ -58,6 +58,7 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 #include "low_touch_task.h"
+#include <system_task.h>
 
 extern volatile uint8_t gsCfgFileFoundFlag;
 static uint8_t lt_app_enab_status;
@@ -105,6 +106,8 @@ static void key_handle(uint8_t key_value)
                   }
                   else
                   {
+                    /*Send Config file not found alarm to the tool*/
+                    SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_CONFIG_FILE_NOT_FOUND);
                     //No LT config file
                     lcd_background_color_set(COLOR_WHITE);
                     lygl_dis_string_middle(&lygl_font_48,104,140,COLOR_BLACK,"No Config");

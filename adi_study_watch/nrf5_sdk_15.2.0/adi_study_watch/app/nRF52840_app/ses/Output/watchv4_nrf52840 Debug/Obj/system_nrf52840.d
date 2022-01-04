@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/system_nrf52840.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\system_nrf52840.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\system_nrf52840.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
  ..\..\..\..\modules\nrfx\mdk/nrf.h \

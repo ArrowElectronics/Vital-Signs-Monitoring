@@ -39,6 +39,7 @@
 #include <task_includes.h>
 #include <string.h>
 #include <stdint.h>
+#include "adi_adpd_ssm.h"
 #include "post_office_interface.h"
 #include "m2m2_core.h"
 #include "Common.h"
@@ -60,13 +61,13 @@
 #define SQI_TIME_WINDOW      (5.12f) //!<Time window of SQI -> 5.12 seconds
 #define SQI_MAX_N_SAMPLES    (512U) //!< Max Samples that sqi algo expect, at max fs of 100Hz
 #define SQI_READ_N_SAMPLES   (64U) //!< No. of samples to read from circular buff
+#define MAX_SAMPLES_PER_PACKET (6U) //!< max no. of samples in a packet 
 /* -------------------------Public variables -------------------------------*/
 uint8_t sqi_event;/* flag that is set when SQI stream is started */
 uint32_t gnSQI_Slot = 0x20; //slot-F;
 #ifdef DEBUG_PKT
 uint32_t g_sqi_pkt_cnt = 0;
 #endif
-extern g_state_t  g_state;
 
 /* flag to check if adpd data is externally fed for sqi stream */
 extern bool gAdpd_ext_data_stream_active;
@@ -98,7 +99,6 @@ ADI_OSAL_SEM_HANDLE   sqi_task_evt_sem;
 
 // Create Queue Handler for task
 ADI_OSAL_QUEUE_HANDLE  sqi_task_msg_queue = NULL;
-ADI_OSAL_MUTEX_HANDLE g_sqi_data_lock;
 
 const char GIT_SQI_VERSION[] = "TEST SQI_VERSION STRING";
 const uint8_t GIT_SQI_VERSION_LEN = sizeof(GIT_SQI_VERSION);
@@ -162,7 +162,8 @@ void sqi_app_task_init(void) {
   sqi_task_attributes.pStackBase = &sqi_task_stack[0];
   sqi_task_attributes.nStackSize = APP_OS_CFG_SQI_APP_TASK_STK_SIZE;
   sqi_task_attributes.pTaskAttrParam = NULL;
-  sqi_task_attributes.szThreadName = "SQI";
+  /* Thread Name should be of max 10 Characters */
+  sqi_task_attributes.szThreadName = "SQI_Task";
   sqi_task_attributes.pThreadTcb = &sqi_task_tcb;
 
   eOsStatus = adi_osal_MsgQueueCreate(&sqi_task_msg_queue,NULL,
@@ -181,16 +182,12 @@ void sqi_app_task_init(void) {
       Debug_Handler();
   }
 
-  eOsStatus = adi_osal_MutexCreate(&g_sqi_data_lock);
-  if (eOsStatus != ADI_OSAL_SUCCESS) {
-      Debug_Handler();
-  }
-
   eOsStatus = adi_osal_SemCreate(&sqi_task_evt_sem, 0U);
   if (eOsStatus != ADI_OSAL_SUCCESS) {
       Debug_Handler();
   }
 }
+
 
 static void sqi_task(void *pArgument) {
   ADI_OSAL_STATUS         err;
@@ -199,26 +196,36 @@ static void sqi_task(void *pArgument) {
   while (1)
   {
       m2m2_hdr_t *p_in_pkt = NULL;
-      m2m2_hdr_t *p_out_pkt = NULL;   
+      m2m2_hdr_t *p_out_pkt = NULL;
       adi_osal_SemPend(sqi_task_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
       p_in_pkt = post_office_get(ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_SQI_TASK_INDEX);
-      if (p_in_pkt == NULL) {
-        // No m2m2 messages to process, so fetch some data from the device.
-          packetize_sqi_data(gSqiPpgBuff, gSqiTimestamp);
-      } else {
-        // We got an m2m2 message from the queue, process it.
-       PYLD_CST(p_in_pkt, _m2m2_app_common_cmd_t, p_in_cmd);
-       // Look up the appropriate function to call in the function table
-        for (int i = 0; i < SQI_APP_ROUTING_TBL_SZ; i++) {
-          if (sqi_routing_table[i].command == p_in_cmd->command) {
-            p_out_pkt = sqi_routing_table[i].cb_handler(p_in_pkt);
-            break;
+
+      if(p_in_pkt == NULL)
+      {
+         //while(0);
+         packetize_sqi_data(gSqiPpgBuff, gSqiTimestamp);
+      }
+      else 
+      {
+
+          // We got an m2m2 message from the queue, process it.
+          PYLD_CST(p_in_pkt, _m2m2_app_common_cmd_t, p_in_cmd);
+          // Look up the appropriate function to call in the function table
+          for (uint8_t i = 0; i < SQI_APP_ROUTING_TBL_SZ; i++) 
+          {
+            if (sqi_routing_table[i].command == p_in_cmd->command) 
+            {
+              p_out_pkt = sqi_routing_table[i].cb_handler(p_in_pkt);
+              break;
+            }
           }
-        }
-        post_office_consume_msg(p_in_pkt);
-        if (p_out_pkt != NULL) {
-          post_office_send(p_out_pkt, &err);
-        }
+          /* Consume the msg from the p_in_pkt and release the memory */
+          post_office_consume_msg(p_in_pkt);
+          if (p_out_pkt != NULL) 
+          {
+            /* Send the pkt out to the postoffice for the consumer */
+            post_office_send(p_out_pkt, &err);
+          }
       }
   }
 }
@@ -324,58 +331,62 @@ static m2m2_hdr_t *sqi_get_version(m2m2_hdr_t *p_pkt) {
   PYLD_CST(p_pkt, m2m2_app_common_sub_op_t, p_in_payload);
 
   PKT_MALLOC(p_resp_pkt, m2m2_app_common_version_t, 0);
-  // Declare a pointer to the response packet payload
-  PYLD_CST(p_resp_pkt, m2m2_app_common_version_t, p_resp_payload);
-  p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
-  switch(p_in_payload->command){
-  case M2M2_APP_COMMON_CMD_GET_VERSION_REQ:
-    p_resp_payload->command = M2M2_APP_COMMON_CMD_GET_VERSION_RESP;
-    p_resp_payload->major = SQI_ALGO_MAJOR_VERSION;
-    p_resp_payload->minor = SQI_ALGO_MINOR_VERSION;
-    p_resp_payload->patch = SQI_ALGO_PATCH_VERSION;
-    memcpy(&p_resp_payload->str[0], &GIT_SQI_VERSION, GIT_SQI_VERSION_LEN);
-    p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-    break;
-  case M2M2_SQI_APP_CMD_GET_ALGO_VENDOR_VERSION_REQ: {
-    char aNameStr[40];
-    p_resp_payload->command = M2M2_SQI_APP_CMD_GET_ALGO_VENDOR_VERSION_RESP;
+  if(p_resp_pkt != NULL) {
+    // Declare a pointer to the response packet payload
+    PYLD_CST(p_resp_pkt, m2m2_app_common_version_t, p_resp_payload);
+    p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
+    switch(p_in_payload->command){
+     case M2M2_APP_COMMON_CMD_GET_VERSION_REQ: {
+      p_resp_payload->command = M2M2_APP_COMMON_CMD_GET_VERSION_RESP;
+      p_resp_payload->major = SQI_ALGO_MAJOR_VERSION;
+      p_resp_payload->minor = SQI_ALGO_MINOR_VERSION;
+      p_resp_payload->patch = SQI_ALGO_PATCH_VERSION;
+      memcpy(&p_resp_payload->str[0], &GIT_SQI_VERSION, GIT_SQI_VERSION_LEN);
+      p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
+      break;
+     }
+     case M2M2_SQI_APP_CMD_GET_ALGO_VENDOR_VERSION_REQ: {
+      char aNameStr[40];
+      p_resp_payload->command = M2M2_SQI_APP_CMD_GET_ALGO_VENDOR_VERSION_RESP;
 
-    p_resp_payload->major = SQI_ALGO_MAJOR_VERSION;
-    p_resp_payload->minor = SQI_ALGO_MINOR_VERSION;
-    p_resp_payload->patch = SQI_ALGO_PATCH_VERSION;
-    memcpy(&p_resp_payload->verstr[0], "-HC",  4);
-    strcpy((char *)aNameStr, "ADI SQI");
-    memcpy(p_resp_payload->str, aNameStr, sizeof(aNameStr));
-    p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-    break;
+      p_resp_payload->major = SQI_ALGO_MAJOR_VERSION;
+      p_resp_payload->minor = SQI_ALGO_MINOR_VERSION;
+      p_resp_payload->patch = SQI_ALGO_PATCH_VERSION;
+      memcpy(&p_resp_payload->verstr[0], "-HC",  4);
+      strcpy((char *)aNameStr, "ADI SQI");
+      memcpy(p_resp_payload->str, aNameStr, sizeof(aNameStr));
+      p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
+      break;
+     }
     }
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_pkt->dest = p_pkt->src;
+    p_resp_pkt->checksum = 0x0000;
   }
-  p_resp_pkt->src = p_pkt->dest;
-  p_resp_pkt->dest = p_pkt->src;
-  p_resp_pkt->checksum = 0x0000;
-
   return p_resp_pkt;
 }
 
 static m2m2_hdr_t *sqi_status(m2m2_hdr_t *p_pkt) {
   // Declare and malloc a response packet
   PKT_MALLOC(p_resp_pkt, m2m2_app_common_status_t, 0);
-  // Declare a pointer to the response packet payload
-  PYLD_CST(p_resp_pkt, m2m2_app_common_status_t, p_resp_payload);
+  if(p_resp_pkt != NULL) {
+    // Declare a pointer to the response packet payload
+    PYLD_CST(p_resp_pkt, m2m2_app_common_status_t, p_resp_payload);
 
-  p_resp_payload->command = M2M2_APP_COMMON_CMD_SENSOR_STATUS_QUERY_RESP;
-  p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
+    p_resp_payload->command = M2M2_APP_COMMON_CMD_SENSOR_STATUS_QUERY_RESP;
+    p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
 
-  if (g_state_sqi.nStreamStartCount == 0) {
-    p_resp_payload->status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
-  } else {
-    p_resp_payload->status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
+    if (g_state_sqi.nStreamStartCount == 0) {
+      p_resp_payload->status = M2M2_APP_COMMON_STATUS_STREAM_STOPPED;
+    } else {
+      p_resp_payload->status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
+    }
+    p_resp_payload->stream = M2M2_ADDR_MED_SQI_STREAM;
+    p_resp_payload->num_subscribers = g_state_sqi.nSubscriberCount;
+    p_resp_payload->num_start_reqs = g_state_sqi.nStreamStartCount;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_pkt->dest = p_pkt->src;
   }
-  p_resp_payload->stream = M2M2_ADDR_MED_SQI_STREAM;
-  p_resp_payload->num_subscribers = g_state_sqi.nSubscriberCount;
-  p_resp_payload->num_start_reqs = g_state_sqi.nStreamStartCount;
-  p_resp_pkt->src = p_pkt->dest;
-  p_resp_pkt->dest = p_pkt->src;
   return p_resp_pkt;
 }
 
@@ -388,6 +399,8 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
   PYLD_CST(p_pkt, m2m2_app_common_sub_op_t, p_in_payload);
   // Declare and malloc a response packet
   PKT_MALLOC(p_resp_pkt, m2m2_app_common_sub_op_t, 0);
+
+  if(p_resp_pkt != NULL) {
   // Declare a pointer to the response packet payload
   PYLD_CST(p_resp_pkt, m2m2_app_common_sub_op_t, p_resp_payload);
 
@@ -399,7 +412,7 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
     }
     else
     {
-      Adpd400xDrvGetParameter(ADPD400x_OUTPUTDATARATE, log2(gnSQI_Slot), &g_state_sqi.nSQIODR);
+      adi_adpdssm_GetParameter(ADPD400x_OUTPUTDATARATE, log2(gnSQI_Slot), &g_state_sqi.nSQIODR);
     }
 #ifdef PROFILE_SQI
     gSqiSampleCnt = 0;
@@ -456,6 +469,8 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
        /* reset pkt sequence no. only during 1st sub request */
        g_state_sqi.nSequenceCount = 0;
     }
+    /* Subscribe to the slot gnSQI_Slot */
+    //post_office_setup_subscriber(M2M2_ADDR_MED_SQI, (M2M2_ADDR_ENUM_t)(M2M2_ADDR_SENSOR_ADPD_STREAM1+log2(gnSQI_Slot)), M2M2_ADDR_MED_SQI, true);
     post_office_setup_subscriber(M2M2_ADDR_MED_SQI, M2M2_ADDR_MED_SQI_STREAM, p_pkt->src, true);
     status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_ADDED;
     command = M2M2_APP_COMMON_CMD_STREAM_SUBSCRIBE_RESP;
@@ -465,6 +480,7 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
     {
       sqi_event = 0;
       g_state_sqi.nSubscriberCount = 0;
+      gnSQI_Slot = 0;
       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_REMOVED;
     }
     else
@@ -472,6 +488,7 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
       g_state_sqi.nSubscriberCount--;
       status = M2M2_APP_COMMON_STATUS_SUBSCRIBER_COUNT_DECREMENT;
     }
+    //post_office_setup_subscriber(M2M2_ADDR_MED_SQI, (M2M2_ADDR_ENUM_t)(M2M2_ADDR_SENSOR_ADPD_STREAM1+log2(gnSQI_Slot)), M2M2_ADDR_MED_SQI, false);
     post_office_setup_subscriber(M2M2_ADDR_MED_SQI, M2M2_ADDR_MED_SQI_STREAM, p_pkt->src, false);
     command = M2M2_APP_COMMON_CMD_STREAM_UNSUBSCRIBE_RESP;
     break;
@@ -484,6 +501,7 @@ static m2m2_hdr_t *sqi_stream_config(m2m2_hdr_t *p_pkt) {
   p_resp_payload->stream = p_in_payload->stream;
   p_resp_pkt->src = p_pkt->dest;
   p_resp_pkt->dest = p_pkt->src;
+  }//if(p_resp_pkt != NULL) {
   return p_resp_pkt;
 }
 
@@ -526,8 +544,10 @@ static m2m2_hdr_t *sqi_lcfg_access(m2m2_hdr_t *p_pkt) {
     PYLD_CST(p_pkt, sqi_app_lcfg_op_hdr_t, p_in_payload);
     // Allocate a response packet with space for the correct number of operations
     PKT_MALLOC(p_resp_pkt, sqi_app_lcfg_op_hdr_t, p_in_payload->num_ops * sizeof(p_in_payload->ops[0]));
-    PYLD_CST(p_resp_pkt, sqi_app_lcfg_op_hdr_t, p_resp_payload);
-    uint16_t  reg_data = 0;
+
+    if(p_resp_pkt != NULL) {
+      PYLD_CST(p_resp_pkt, sqi_app_lcfg_op_hdr_t, p_resp_payload);
+      uint16_t  reg_data = 0;
 
     switch (p_in_payload->command) {
     case M2M2_APP_COMMON_CMD_READ_LCFG_REQ:
@@ -565,10 +585,11 @@ static m2m2_hdr_t *sqi_lcfg_access(m2m2_hdr_t *p_pkt) {
       post_office_consume_msg(p_resp_pkt);
       return NULL;
      }
-    p_resp_pkt->dest = p_pkt->src;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_payload->num_ops = p_in_payload->num_ops;
-    p_resp_payload->status = status;
+     p_resp_pkt->dest = p_pkt->src;
+     p_resp_pkt->src = p_pkt->dest;
+     p_resp_payload->num_ops = p_in_payload->num_ops;
+     p_resp_payload->status = status;
+    }//if(p_resp_pkt != NULL) {
     return p_resp_pkt;
 }
 
@@ -578,23 +599,25 @@ static m2m2_hdr_t *sqi_set_adpd_slot(m2m2_hdr_t *p_pkt) {
     PYLD_CST(p_pkt, sqi_app_set_slot_t, p_in_payload);
     // Allocate a response packet with space for the correct number of operations
     PKT_MALLOC(p_resp_pkt, sqi_app_set_slot_t, 0);
-    PYLD_CST(p_resp_pkt, sqi_app_set_slot_t, p_resp_payload);
+    if(p_resp_pkt != NULL) {
+      PYLD_CST(p_resp_pkt, sqi_app_set_slot_t, p_resp_payload);
 
-    switch (p_in_payload->command) {
-    case M2M2_SQI_APP_CMD_SET_SLOT_REQ:
-      gnSQI_Slot = p_in_payload->nSQISlot;
-      status = M2M2_APP_COMMON_STATUS_OK;
-      p_resp_payload->command = M2M2_SQI_APP_CMD_SET_SLOT_RESP;
-      break;
-    default:
-      // Something has gone horribly wrong.
-      post_office_consume_msg(p_resp_pkt);
-      return NULL;
-     }
-    p_resp_pkt->dest = p_pkt->src;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_payload->nSQISlot = p_in_payload->nSQISlot;
-    p_resp_payload->status = status;
+      switch (p_in_payload->command) {
+      case M2M2_SQI_APP_CMD_SET_SLOT_REQ:
+        gnSQI_Slot = p_in_payload->nSQISlot;
+        status = M2M2_APP_COMMON_STATUS_OK;
+        p_resp_payload->command = M2M2_SQI_APP_CMD_SET_SLOT_RESP;
+        break;
+      default:
+        // Something has gone horribly wrong.
+        post_office_consume_msg(p_resp_pkt);
+        return NULL;
+       }
+      p_resp_pkt->dest = p_pkt->src;
+      p_resp_pkt->src = p_pkt->dest;
+      p_resp_payload->nSQISlot = p_in_payload->nSQISlot;
+      p_resp_payload->status = status;
+    }
     return p_resp_pkt;
 }
 

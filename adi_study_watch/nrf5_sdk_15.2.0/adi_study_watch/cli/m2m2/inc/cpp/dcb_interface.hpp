@@ -18,21 +18,21 @@
 #endif  // defined __CC_ARM || defined __IAR_SYSTEMS_ICC__ || __clang__ || defined _MSC_VER || defined __GNUC__
 #pragma pack(1)
 
-#define DCB_BLK_WORD_SZ	4
+#define DCB_BLK_WORD_SZ         4
 #define MAXAD7156DCBSIZE	20
 #define MAXADPD4000DCBSIZE	57
-#define MAXTEMPRLCFGDCBSIZE	57
 #define MAXADXLDCBSIZE	25
-#define MAXBIADCBSIZE	18
+#define MAXBIADCBSIZE           27
 #define MAXECGDCBSIZE	4
 #define MAXEDADCBSIZE	2
 #define MAXGENBLKDCBSIZE	57
 #define MAXLTAPPLCFGDCBSIZE	5
 #define MAXPPGDCBSIZE	56
+#define MAXTEMPRLCFGDCBSIZE	57
 #define MAXUSER0BLKDCBSIZE	19
 #define MAX_ADPD4000_DCB_PKTS	4
-#define MAX_TEMPRLCFG_DCB_PKTS	2
 #define MAX_GEN_BLK_DCB_PKTS	18
+#define MAX_TEMPRLCFG_DCB_PKTS	2
 
 enum M2M2_DCB_COMMAND_ENUM_t:uint8_t {
   _M2M2_DCB_COMMAND_ENUM_t__M2M2_DCB_COMMAND_LOWEST = 150,
@@ -91,11 +91,11 @@ struct m2m2_dcb_adpd4000_data_t {
 };
 
 struct m2m2_dcb_temperature_data_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint16_t  size;
-  uint16_t  num_of_pkts;
-  uint32_t  dcbdata[57];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  size; 
+  uint16_t  num_of_pkts; 
+  uint32_t  dcbdata[57]; 
 };
 
 struct m2m2_dcb_adxl_data_t {
@@ -130,7 +130,7 @@ struct m2m2_dcb_bia_data_t {
   uint8_t  command; 
   uint8_t  status; 
   uint16_t  size; 
-  uint32_t  dcbdata[18]; 
+  uint32_t  dcbdata[27]; 
 };
 
 struct m2m2_dcb_gen_blk_data_t {

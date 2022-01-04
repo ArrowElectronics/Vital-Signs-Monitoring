@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/printf.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\printf.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\printf.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\modules\adpd4000/adpd_common.h ..\..\..\modules\system/printf.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
@@ -58,6 +58,7 @@ Output/watchv4_nrf52840\ Debug/Obj/printf.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
@@ -82,7 +83,7 @@ Output/watchv4_nrf52840\ Debug/Obj/printf.o: \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
  ..\..\..\cli\m2m2\inc\c/file_system_interface.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\printf.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\printf.h \
  ..\..\..\cli\m2m2\inc\c/debug_interface.h \
  ..\..\..\modules\system/post_office.h ..\..\..\modules\system/includes.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdarg.h \

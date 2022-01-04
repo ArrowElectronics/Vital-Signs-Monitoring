@@ -93,6 +93,7 @@
 typedef enum {
     BCM_ALG_SUCCESS = 0,//!< BCM Algorithm Succes
     BCM_ALG_IN_PROGRESS,
+    BCM_ALG_IN_FFM_ESTIMATED_ERROR,//!< BCM Algorithm Null Pointer error
     BCM_ALG_NULL_PTR_ERROR,//!< BCM Algorithm Null Pointer error
     BCM_ALG_ERROR//!< BCM Algorithm Error
 } BCM_ALG_RETURN_CODE_t;

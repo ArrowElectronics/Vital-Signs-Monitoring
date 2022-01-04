@@ -102,6 +102,10 @@ class M2M2_PM_SYS_COMMAND_ENUM_t(c_ubyte):
     M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_REQ = 0x9C
     M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_RESP = 0x9D
     M2M2_PM_SYS_BATTERY_LEVEL_ALERT = 0x9E
+    M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_REQ = 0x9F
+    M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_RESP = 0xA0
+    M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_REQ = 0xA1
+    M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_RESP = 0xA2
 
 class M2M2_PM_SYS_STATUS_ENUM_t(c_ubyte):
     _M2M2_PM_SYS_STATUS_ENUM_t__M2M2_PM_SYS_STATUS_LOWEST = 0x40
@@ -195,7 +199,7 @@ class ADI_PM_BOARD_TYPE_t(c_ubyte):
     ADI_PM_BOARD_TYPE_ADPD185_WATCH = 0x3
     ADI_PM_BOARD_TYPE_ADPD188_WATCH = 0x4
     ADI_PM_BOARD_TYPE_STUDYWATCH = 0x5
-    ADI_PM_BOARD_TYPE_VSM_WATCH = 0x6 #VSM_MB_SB
+    ADI_PM_BOARD_TYPE_VSM_WATCH = 0x6
 
 class m2m2_pm_sys_cmd_t(Structure):
     _pack_ = 1
@@ -447,5 +451,28 @@ class m2m2_hibernate_mode_status_resp_cmd_t(Structure):
               ("command", c_ubyte),
               ("status", c_ubyte),
               ("hib_mode_status", c_ubyte),
+              ]
+
+class m2m2_get_po_memory_utilization_cmd_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("min_num_free_blks_type2", c_ushort),
+              ("min_num_free_blks_type4", c_ushort),
+              ("min_num_free_blks_type5", c_ushort),
+              ("block_2_allocated", c_ulong),
+              ("block_4_allocated", c_ulong),
+              ("block_5_allocated", c_ulong),
+              ("block_2_freed", c_ulong),
+              ("block_4_freed", c_ulong),
+              ("block_5_freed", c_ulong),
+              ]
+
+class m2m2_clear_po_memory_utilization_cmd_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
               ]
 

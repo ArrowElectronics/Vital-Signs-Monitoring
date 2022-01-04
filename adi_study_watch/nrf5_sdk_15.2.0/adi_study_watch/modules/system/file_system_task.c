@@ -91,6 +91,8 @@ bool fs_unsubscribe_streams(void);
 static void fs_send_write_error(M2M2_ADDR_ENUM_t *src);
 static void fs_stream_usubscribe();
 extern m2m2_pm_sys_info_t g_system_info;
+/*Uncomment the FS_STREAM_CRC_DEBUG macro to enable crc debug code*/
+//#define FS_STREAM_CRC_DEBUG
 #define NAND_READ_TEST
 #define NAND_WRITE_TEST
 #undef NAND_WRITE_TEST
@@ -105,11 +107,16 @@ static uint32_t g_file_read_cnt = 0;
 static uint32_t g_write_time = 0;
 static uint64_t g_file_write_time = 0;
 #endif
-
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+extern uint32_t batt_app_packet_count;
+extern uint32_t temp_app_packet_count;
+#endif
 static uint32_t n500bChunkCnt = 0;
 extern uint8_t ConfigFileName[16];
 static char PatternFileName[16] = "PATTERN.LOG";
-
+#ifdef FS_STREAM_CRC_DEBUG
+uint16_t g_crc_computed = 0;
+#endif
 /* If an application is not found in the routing table,
     then this default ADDR_UNDEFINED is used. */
 #define M2M2_ADDRESS_DEFAULT  M2M2_ADDR_UNDEFINED
@@ -123,6 +130,9 @@ static char PatternFileName[16] = "PATTERN.LOG";
 /* ADI_FS_FILE_MAX_SIZE is the no of pages allocated
    for data files = 2044 * 64 */
 #define ADI_FS_FILE_MAX_SIZE            130816
+
+/* Macro to return the ceil value of division operation: equivalent to ceil(a/b) */
+#define CEIL(a,b) (a+b-1)/b
 
 #ifdef PATTERN_WRITE_ENABLED
 static volatile uint32_t gs2kChunkCnt = 0;
@@ -141,8 +151,9 @@ ADI_OSAL_THREAD_HANDLE gh_fs_task_handler;
 ADI_OSAL_STATIC_THREAD_ATTR g_fs_task_attributes;
 StaticTask_t g_fs_task_tcb;
 ADI_OSAL_QUEUE_HANDLE  gh_fs_task_msg_queue = NULL;
-
 volatile uint8_t fs_download_total_pkt_cnt = 0;
+FS_DOWNLOAD_MODE_t fs_download_mode = FS_STREAM_USB_MODE;
+uint32_t fs_download_chunk_size = 0;
 extern uint8_t total_packet_cnt_transferred;
 #ifdef ENABLE_WATCH_DISPLAY
 extern uint16_t min_timer_cnt;
@@ -176,9 +187,12 @@ extern uint8_t ConfigFileName[16];
 
 #include "nrf_log.h"
 NRF_LOG_MODULE_REGISTER();
-
+#define FS_STREAM_BLE_MODE  1
 ADI_OSAL_SEM_HANDLE   qspi_task_evt_sem;
 ADI_OSAL_SEM_HANDLE   fs_task_evt_sem;
+#ifdef FS_STREAM_BLE_MODE
+extern ADI_OSAL_SEM_HANDLE g_ble_fs_download_evt_sem;
+#endif
 /* semaphore handler for low touch task */
 extern ADI_OSAL_SEM_HANDLE   lt_task_evt_sem;
 #ifdef USER0_CONFIG_APP
@@ -233,11 +247,19 @@ struct _fs_stream {
   M2M2_ADDR_ENUM_t pkt_dest;
 }fs_stream;
 
+#define MAX_CHUNK_CNT_BLE   224
 #define MAX_PAGE_CHUNK_COUNT  PAGE_SIZE/MEMBER_SIZE(m2m2_file_sys_download_log_stream_t, page_chunk_bytes)
 #define CRC_COMPUTE_LENGTH(page_chunk_size) page_chunk_size + M2M2_HEADER_SZ + \
                                             (sizeof(m2m2_file_sys_download_log_stream_t) - \
                                             (MEMBER_SIZE(m2m2_file_sys_download_log_stream_t, page_chunk_bytes) + \
                                             MEMBER_SIZE(m2m2_file_sys_download_log_stream_t, crc16)))
+
+#define MAX_PAGE_CHUNK_COUNT_BLE  (PAGE_SIZE/MEMBER_SIZE(m2m2_file_sys_download_log_ble_stream_t, page_chunk_bytes) + 1)
+#define CRC_COMPUTE_LENGTH_BLE(page_chunk_size) page_chunk_size + M2M2_HEADER_SZ + \
+                                            (sizeof(m2m2_file_sys_download_log_ble_stream_t) - \
+                                            (MEMBER_SIZE(m2m2_file_sys_download_log_ble_stream_t, page_chunk_bytes) + \
+                                            MEMBER_SIZE(m2m2_file_sys_download_log_ble_stream_t, crc16)))
+
 /*!
 * @brief:  Array used for checking the subscription of a stream to file system
 */
@@ -252,7 +274,7 @@ static file_routing_table_entry file_routing_table[] = {
   {M2M2_ADDR_SENSOR_ADPD4000,       M2M2_ADDR_SENSOR_ADPD_STREAM8,        M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_SENSOR_ADPD4000,       M2M2_ADDR_SENSOR_ADPD_STREAM9,        M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_SENSOR_ADPD4000,       M2M2_ADDR_SYS_STATIC_AGC_STREAM,      M2M2_FILE_SYS_UNSUBSCRIBED},
-#ifdef ENABLE_DEBUG_STREAM
+#ifdef ENABLE_TEMP_DEBUG_STREAM
   {M2M2_ADDR_SENSOR_ADPD4000,       M2M2_ADDR_SYS_DBG_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
 #endif
   {M2M2_ADDR_SENSOR_ADXL,           M2M2_ADDR_SENSOR_ADXL_STREAM,         M2M2_FILE_SYS_UNSUBSCRIBED},
@@ -298,6 +320,7 @@ static file_routing_table_entry file_routing_table[] = {
   {M2M2_ADDR_APP_IOS,               M2M2_ADDR_APP_IOS_STREAM,             M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_APP_WT,                M2M2_ADDR_APP_WT_STREAM,              M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_APP_DROID,             M2M2_ADDR_APP_DROID_STREAM,           M2M2_FILE_SYS_UNSUBSCRIBED},
+  {M2M2_ADDR_APP_CLI_BLE,           M2M2_ADDR_APP_CLI_BLE_STREAM,         M2M2_FILE_SYS_UNSUBSCRIBED},
   {M2M2_ADDR_SYS_PM,                M2M2_ADDR_SYS_BATT_STREAM,            M2M2_FILE_SYS_UNSUBSCRIBED},
 };
 
@@ -387,7 +410,8 @@ void file_system_task_init(void) {
   g_fs_task_attributes.pStackBase = &ga_fs_task_stack[0];
   g_fs_task_attributes.nStackSize = APP_OS_CFG_FS_TASK_STK_SIZE;
   g_fs_task_attributes.pTaskAttrParam = NULL;
-  g_fs_task_attributes.szThreadName = "file_system_task";
+  /* Thread Name should be of max 10 Characters */
+  g_fs_task_attributes.szThreadName = "FS_task";
   g_fs_task_attributes.pThreadTcb = &g_fs_task_tcb;
   eOsStatus = adi_osal_MsgQueueCreate(&gh_fs_task_msg_queue,NULL,100);
   if (eOsStatus != ADI_OSAL_SUCCESS) {
@@ -442,6 +466,7 @@ static void InitTestBuffer(uint8_t *pBuff, uint32_t nBufSize)
 uint32_t gFileSystemMsgPostCnt =0;
 uint32_t gFileSystemMsgProcessCnt =0;
 uint32_t FS_msg_fail_tick = 0, g_fs_status_reps_tick = 0;
+
 void send_message_file_system_task(m2m2_hdr_t *p_pkt) {
   ADI_OSAL_STATUS osal_result;
   osal_result = adi_osal_MsgQueuePost(gh_fs_task_msg_queue, p_pkt);
@@ -604,15 +629,13 @@ static file_misd_packet_debug_table file_misd_packet_table[] = {
   {M2M2_ADDR_MED_SQI_STREAM,0,0,0},
   {M2M2_ADDR_MED_TEMPERATURE_STREAM,0,0,0},
   {M2M2_ADDR_MED_SYNC_ADPD_ADXL_STREAM,0,0,0},
-#ifdef UNUSED_CODES
   {M2M2_ADDR_APP_DROID_STREAM,0,0,0},
   {M2M2_ADDR_APP_WT_STREAM,0,0,0},
-#endif
   {M2M2_ADDR_APP_CLI_STREAM,0,0,0},
   {M2M2_ADDR_APP_DISPLAY_STREAM,0,0,0},
   {M2M2_ADDR_SYS_BATT_STREAM,0,0,0},
-#ifdef UNUSED_CODES
   {M2M2_ADDR_APP_IOS_STREAM,0,0,0},
+#ifdef UNUSED_CODES
   {M2M2_ADDR_MED_AD7689_STREAM,0,0,0},
 #endif
 };
@@ -748,6 +771,40 @@ bool fs_unsubscribe_streams(void) {
   else
     return false;
 }
+
+/*!
+  ********************************************************************************
+*    @brief Sends File System Alarm Notification Message to the Tool 
+
+*    @param[in]  nAlarm  - This is of type M2M2_APP_COMMON_ALARM_STATUS_ENUM_t
+*                             Alarm status could be low/critical/full
+*    @return                - None
+*
+**********************************************************************************/
+static void SendFileSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_ENUM_t nAlarm) {
+  m2m2_hdr_t *response_mail = NULL;
+  ADI_OSAL_STATUS err;
+
+  if (FileSrc != M2M2_ADDR_UNDEFINED) {
+    response_mail =
+        post_office_create_msg(M2M2_HEADER_SZ + sizeof(_m2m2_app_common_cmd_t));
+    if (response_mail != NULL) {
+      _m2m2_app_common_cmd_t *fs_alarm_msg =
+          (_m2m2_app_common_cmd_t *)&response_mail->data[0];
+
+      /* send response packet */
+      response_mail->src = M2M2_ADDR_SYS_FS;
+      response_mail->dest = (M2M2_ADDR_ENUM_t)FileSrc;
+      response_mail->checksum = 0x0000;
+      fs_alarm_msg->command =
+          M2M2_APP_COMMON_CMD_ALARM_NOTIFICATION; /* Battery level Alarm Notification
+                                              message*/
+      fs_alarm_msg->status = nAlarm;
+      post_office_send(response_mail, &err);
+    }
+  }
+}
+
 
 /*!
   ****************************************************************************
@@ -896,16 +953,19 @@ void file_system_task(void *pArgument) {
 
   adi_osal_SemPost(lt_task_evt_sem);
 #ifdef CUST4_SM
-  /*If wakeup from RTC timer interrupt, switch to intermittent operation
-   And for that send message that the config file update status is ready*/
-  USER0_CONFIG_APP_STATE_t read_user0_config_app_state;
-  read_user0_config_app_state = get_user0_config_app_state();
-  if( (read_user0_config_app_state == STATE_SLEEP) ||
-      (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING) ||
-      (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_START_LOG) ||
-      (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_STOP_LOG) )
+  if(get_low_touch_trigger_mode3_status())
   {
-     adi_osal_SemPost(user0_config_app_evt_sem);
+    /*If wakeup from RTC timer interrupt, switch to intermittent operation
+     And for that send message that the config file update status is ready*/
+    USER0_CONFIG_APP_STATE_t read_user0_config_app_state;
+    read_user0_config_app_state = get_user0_config_app_state();
+    if( (read_user0_config_app_state == STATE_SLEEP) ||
+        (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING) ||
+        (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_START_LOG) ||
+        (read_user0_config_app_state == STATE_INTERMITTENT_MONITORING_STOP_LOG) )
+    {
+       adi_osal_SemPost(user0_config_app_evt_sem);
+    }
   }
 #endif
 #endif
@@ -1458,6 +1518,7 @@ void file_system_task(void *pArgument) {
                 post_office_send(sub_pkt, &err);
               }
               fs_stream_state = ADI_FS_STREAM_STARTED;
+              fs_download_mode = FS_STREAM_USB_MODE;
               timeout = ADI_OSAL_TIMEOUT_NONE;
               nSeqNum = 0;
               /* clear variables for new file download */
@@ -1475,6 +1536,114 @@ void file_system_task(void *pArgument) {
               if (response_mail != NULL) {
                 m2m2_file_sys_cmd_t *err_resp = (m2m2_file_sys_cmd_t *)&response_mail->data[0];
                 err_resp->command = M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_RESP;
+                err_resp->status = M2M2_FILE_SYS_STATUS_ERROR;
+                response_mail->src = pkt->dest;
+                response_mail->dest = pkt->src;
+                /* send response packet */
+                post_office_send(response_mail, &err);
+              }
+            }
+          }
+         }
+        break;
+      }
+      case M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_BLE_REQ: {
+        if(fs_stream_state != ADI_FS_STREAM_STARTED) {
+#ifdef PROFILE_TIME_ENABLED
+          usb_avg_tx_time = 0;
+          num_bytes_transferred = 0;
+          avg_file_read_time = 0;
+          num_times_read = 0;
+          usb_min_cdc_time = 4,294,967,295;
+          usb_max_cdc_time = 0;
+          usb_min_tx_time= 4,294,967,295;
+          usb_max_tx_time = 0;
+          max_num_of_retries = 0;
+          total_time_taken_512_bytes_transfer = 0;
+#endif
+#ifdef PAGE_READ_DEBUG_INFO
+          /* reset variables */
+          last_page_read = 0;
+          last_page_read_offset = 0;
+          last_page_read_status = 0;
+          num_bytes_transferred = 0;
+          bytes_processed_from_fs_task = 0;
+          usb_cdc_write_failed = 0;
+#endif
+          memset(&fs_stream.file_path,0,sizeof(fs_stream.file_path));
+          m2m2_file_sys_get_req_t *get_file_req = (m2m2_file_sys_get_req_t *)&pkt->data[0];
+          /* Copy file name global path */
+          snprintf(fs_stream.file_path, ((pkt->length - M2M2_HEADER_SZ - 1)) , \
+            "%s", get_file_req->file_name);
+          memset(&get_file_req->file_name, 0,
+                 pkt->length - (M2M2_HEADER_SZ + \
+                   sizeof(m2m2_file_sys_get_req_t) - 1));
+          /* Power On and mount flash memory */
+          if(fs_flash_power_on(true) != FS_STATUS_OK) {
+            response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_cmd_t));
+            if (response_mail != NULL) {
+              m2m2_file_sys_cmd_t *err_resp = (m2m2_file_sys_cmd_t *)&response_mail->data[0];
+              err_resp->command = M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_BLE_RESP;
+              err_resp->status = M2M2_FILE_SYS_STATUS_ERROR;
+              response_mail->src = pkt->dest;
+              response_mail->dest = pkt->src;
+              /* send response packet */
+              post_office_send(response_mail, &err);
+            }
+          } else {
+            fs_stream.fs_buffer_size = sizeof(fs_stream.file_buff);
+            fs_stream.processed_data_len = 0;
+            fs_stream.current_page_number = 0;
+            fs_stream.file_start_page_number = 0;
+            fs_stream.page_chunk_number = 0;
+            setFsDownloadFlag(0);
+            fs_download_chunk_cnt = 0;
+            /* Open file for reading data */
+            fs_stream.fs_err_status = fs_hal_read_file(fs_stream.file_path,
+                                                       &fs_stream.file_buff[0],
+                                                       &fs_stream.fs_buffer_size,&fs_stream.current_page_number);
+            fs_status_stored = fs_stream.fs_err_status;
+            if(((fs_stream.fs_err_status == FS_STATUS_OK)
+                                             || (fs_stream.fs_err_status == FS_STATUS_ERR_EOF))
+                                             && (FileStreamSubsciberCount == 0)){
+              fs_stream.num_bytes_left = fs_stream.fs_buffer_size;
+              fs_stream.file_start_page_number = fs_stream.current_page_number;
+              fs_stream.pkt_src = pkt->src;
+              fs_stream.pkt_dest = pkt->dest;
+              /*Check if DOWNLOAD_LOG is requested by external Tool Entity*/
+              if((pkt->src >= M2M2_ADDR_APP_DROID) && (pkt->src <= M2M2_ADDR_APP_CLI_BLE))
+                gsFsDownloadReqByExtTool = 1;
+              FileStreamSubsciberCount++;
+              /* Subscribe to mailbox */
+              m2m2_hdr_t *sub_pkt = post_office_create_msg(M2M2_HEADER_SZ + sizeof(post_office_config_t));
+              if(sub_pkt != NULL) {
+                post_office_config_t *payload = (post_office_config_t *)&sub_pkt->data;
+                payload->cmd = POST_OFFICE_CFG_CMD_MAILBOX_SUBSCRIBE;
+                payload->sub = pkt->src;
+                payload->box = M2M2_ADDR_SYS_FS_STREAM;
+                sub_pkt->src = pkt->dest;
+                sub_pkt->dest = M2M2_ADDR_POST_OFFICE;
+                post_office_send(sub_pkt, &err);
+              }
+              fs_stream_state = ADI_FS_STREAM_STARTED;
+              fs_download_mode = FS_STREAM_BLE_MODE;
+              timeout = ADI_OSAL_TIMEOUT_NONE;
+              nSeqNum = 0;
+              /* clear variables for new file download */
+              num_bytes_processed = 0;
+              fs_download_total_pkt_cnt = 0;
+              total_packet_cnt_transferred = 0;
+
+#ifdef NAND_READ_TEST
+             // g_file_read_time = 0;
+             // g_file_read_cnt = 0;
+#endif //NAND_READ_TEST
+            } else {
+
+              response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_cmd_t));
+              if (response_mail != NULL) {
+                m2m2_file_sys_cmd_t *err_resp = (m2m2_file_sys_cmd_t *)&response_mail->data[0];
+                err_resp->command = M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_BLE_RESP;
                 err_resp->status = M2M2_FILE_SYS_STATUS_ERROR;
                 response_mail->src = pkt->dest;
                 response_mail->dest = pkt->src;
@@ -1808,13 +1977,22 @@ void file_system_task(void *pArgument) {
               }
               resp_payload->command = M2M2_FILE_SYS_CMD_FORCE_STOP_LOG_RESP;
               if(fs_error == FS_STATUS_OK) {
-                FileSrc = M2M2_ADDR_UNDEFINED;
                 if(gMemoryFull == true) {
                   gMemoryFull = false;
                   resp_payload->status = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_ERR_MEMORY_FULL;
                 } else {
                   resp_payload->status = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_ERR_LOG_FORCE_STOPPED;
+                  if(getForceStopLogReason() == E_BATTERY_CRITICAL)
+                    SendFileSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_FS_BATTERY_CRITICAL);
+                  else if(getForceStopLogReason() == E_PWR_STATE_SHUTDOWN)
+                    SendFileSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_FS_PWR_STATE_SHUTDOWN);
+                  else {
+                    /* No alarms to send out*/
+                  } 
+                  /*reset the reason for force stop logging to Invalid*/
+                  resetForceStopLogReason();
                 }
+                FileSrc = M2M2_ADDR_UNDEFINED;
               } else {
                 resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
               }
@@ -2982,7 +3160,7 @@ void file_system_task(void *pArgument) {
         if(response_mail != NULL) {
           m2m2_file_sys_format_debug_info_resp_t *resp_payload = (m2m2_file_sys_format_debug_info_resp_t *)&response_mail->data[0];
           response_mail->src = pkt->dest;
-          response_mail->dest = pkt->src;    
+          response_mail->dest = pkt->src;
 #ifdef FORMAT_DEBUG_INFO_CMD
           get_fs_format_debug_info(resp_payload);
 #else
@@ -3190,44 +3368,56 @@ void file_system_task(void *pArgument) {
               nPageNumber = retransmit_req->page_number + nPageRollOver;
               nPageChunkNumber = retransmit_req->page_chunk_number + 1;// Get absolute chunk number
               fs_stream.fs_err_status = fs_hal_read_pageoffset(fs_stream.file_path, &fs_stream.file_buff[0], &fs_stream.fs_buffer_size, &nfilesize,nPageNumber,&fs_stream.current_page_number,&nNextPageNumber);
-              nMaxchunkNumber = fs_stream.fs_buffer_size/ sizeof(resp->page_chunk_bytes);
+              if(fs_download_mode == FS_STREAM_BLE_MODE)
+                fs_download_chunk_size = MAX_CHUNK_CNT_BLE;
+              else
+                fs_download_chunk_size = sizeof(resp->page_chunk_bytes);
+              nMaxchunkNumber = CEIL(fs_stream.fs_buffer_size,fs_download_chunk_size);
               if((retransmit_req->retransmit_type == M2M2_FILE_SYS_PAGE_CHUNK_LOST) && (fs_stream.fs_err_status == FS_STATUS_OK)){
                if(nPageChunkNumber == nMaxchunkNumber){
                //need to read next page and first chunk
                 nPageChunkNumber = 1;
                 fs_stream.fs_err_status = fs_hal_read_pageoffset(fs_stream.file_path, &fs_stream.file_buff[0], &fs_stream.fs_buffer_size, &nfilesize,nNextPageNumber,&fs_stream.current_page_number,&nNextPageNumber);
-                nMaxchunkNumber = fs_stream.fs_buffer_size/ sizeof(resp->page_chunk_bytes);
+                nMaxchunkNumber = CEIL(fs_stream.fs_buffer_size,fs_download_chunk_size);
                }else{
                  nPageChunkNumber++;
                }
               }
               if(fs_stream.fs_err_status == FS_STATUS_OK) {
                 resp->status = M2M2_FILE_SYS_STATUS_OK;
-                fs_stream.processed_data_len =  (nPageChunkNumber - 1) * sizeof(resp->page_chunk_bytes);
                 fs_stream.data_chunk_len =  fs_stream.fs_buffer_size;
-                if (fs_stream.data_chunk_len > sizeof(resp->page_chunk_bytes)) {
-                  fs_stream.data_chunk_len = sizeof(resp->page_chunk_bytes);
+                if (fs_stream.data_chunk_len > fs_download_chunk_size) {
+                    fs_stream.data_chunk_len = fs_download_chunk_size;
                 }
+                fs_stream.processed_data_len =  (nPageChunkNumber - 1) * fs_download_chunk_size;
                 memset(&resp->page_chunk_bytes[0], 0, MEMBER_SIZE(m2m2_file_sys_download_log_stream_t, page_chunk_bytes));
                 memcpy(&resp->page_chunk_bytes[0], &fs_stream.file_buff[fs_stream.processed_data_len],fs_stream.data_chunk_len);
                 if(nPageChunkNumber < nMaxchunkNumber) {
-                  fs_stream.data_chunk_len =  sizeof(resp->page_chunk_bytes);
+                    fs_stream.data_chunk_len =  fs_download_chunk_size;
                 }else if(nPageChunkNumber == nMaxchunkNumber) {
-                  fs_stream.data_chunk_len  = fs_stream.fs_buffer_size - (sizeof(resp->page_chunk_bytes) * nMaxchunkNumber);
-                  if(fs_stream.data_chunk_len == 0) {
-                    fs_stream.data_chunk_len = sizeof(resp->page_chunk_bytes);
-                  }
+                    fs_stream.data_chunk_len  = fs_stream.fs_buffer_size - (fs_download_chunk_size * (nMaxchunkNumber-1));
                 }else{
                   fs_stream.data_chunk_len = 0;
                   resp->status = M2M2_FILE_SYS_STATUS_ERROR;
                 }
                 if(resp->status != M2M2_FILE_SYS_STATUS_ERROR){
-                resp->page_chunk_size =  fs_stream.data_chunk_len;
-                resp->page_number = fs_stream.current_page_number % 65536;
-                resp->page_chunk_number = nPageChunkNumber - 1;
+                  resp->page_chunk_size =  fs_stream.data_chunk_len;
+                  resp->page_number = fs_stream.current_page_number % 65536;
+                  resp->page_chunk_number = nPageChunkNumber - 1;
                 }
                 response_mail->checksum =  0;
-                resp->crc16 = crc16_compute((uint8_t *)response_mail,CRC_COMPUTE_LENGTH(fs_stream.data_chunk_len),NULL);
+                if(fs_download_mode == FS_STREAM_BLE_MODE)
+                {
+                  uint16_t *p_crc = (uint16_t *) &resp->page_chunk_bytes[MAX_CHUNK_CNT_BLE];
+                  response_mail->length = M2M2_HEADER_SZ + sizeof(m2m2_file_sys_download_log_ble_stream_t);
+                  resp->crc16 = crc16_compute((uint8_t *)response_mail,CRC_COMPUTE_LENGTH_BLE(fs_stream.data_chunk_len),NULL);
+                  *p_crc = resp->crc16;
+#ifdef FS_STREAM_CRC_DEBUG
+                  g_crc_computed = resp->crc16;
+#endif
+                }
+                else
+                  resp->crc16 = crc16_compute((uint8_t *)response_mail,CRC_COMPUTE_LENGTH(fs_stream.data_chunk_len),NULL);
               } else {
                  fs_stream.data_chunk_len = 0;
                 resp->status = M2M2_FILE_SYS_STATUS_ERROR;
@@ -3271,7 +3461,8 @@ void file_system_task(void *pArgument) {
         }
       }
     } else {
-      M2M2_APP_COMMON_STATUS_ENUM_t TempStatus;
+      /* Initilize every time to error */
+      M2M2_APP_COMMON_STATUS_ENUM_t TempStatus = M2M2_APP_COMMON_STATUS_ERROR;
       int16_t index;
       FS_STATUS_ENUM_t fs_error;
         index = get_file_misd_packet_table_index(pkt->src);
@@ -3283,7 +3474,7 @@ void file_system_task(void *pArgument) {
          if ((FileSrc != M2M2_ADDR_UNDEFINED) && (file_hdr_wr_progress != true)) {
 #ifdef ENABLE_DEBUG_STREAM
           // Debug stream will capture ADPD TS info , to save space in NAND flash avoid saving ADPD stream
-          if(pkt->src != M2M2_ADDR_SENSOR_ADPD_STREAM6){ 
+          if(pkt->src != M2M2_ADDR_SENSOR_ADPD_STREAM6){
 #endif
             TempStatus = fs_hal_write_packet_stream(pkt);
 #ifdef ENABLE_DEBUG_STREAM
@@ -3315,6 +3506,7 @@ void file_system_task(void *pArgument) {
                 if(fs_flash_power_on(false) != FS_STATUS_OK) {
                   NRF_LOG_INFO("Flash power off error");
                 }
+                SendFileSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_FS_MEMORY_FULL);
 
                 /* send message to source */
                 response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_stop_log_cmd_t));
@@ -3352,31 +3544,85 @@ void file_system_task(void *pArgument) {
             file_misd_packet_table[index].count = payload->sequence_num;
           }
         }
+
+#if 0
+/* Commenting out since mobile application doesn't have the
+   change to handle response pkt yet. Can enable, once they have it */
+        /* if source address is any 4 , route it and send it back  */
+        if((pkt->src == M2M2_ADDR_APP_CLI_BLE_STREAM) ||
+           (pkt->src == M2M2_ADDR_APP_CLI_STREAM) ||
+           (pkt->src == M2M2_ADDR_APP_WT_STREAM) ||
+           (pkt->src == M2M2_ADDR_APP_IOS_STREAM) ||
+           (pkt->src == M2M2_ADDR_APP_DROID_STREAM)) {
+          response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_cmd_t));
+
+              /* send response back */
+          if (response_mail != NULL) {
+            m2m2_file_sys_cmd_t *resp = (m2m2_file_sys_cmd_t*)&response_mail->data[0];
+            resp->command = M2M2_SENSOR_COMMON_CMD_STREAM_DATA;
+
+            if (TempStatus == M2M2_APP_COMMON_STATUS_OK) {
+              /* fill response packet success */
+              resp->status = M2M2_APP_COMMON_STATUS_OK;
+            }
+            else {
+              /* fill response packet error */
+              resp->status = M2M2_APP_COMMON_STATUS_ERROR;
+            }
+          }
+          /* packet source/destination */
+          response_mail->src = pkt->dest;
+          response_mail->dest = get_file_routing_table_entry(pkt->src);
+
+          /* send response back */
+          post_office_send(response_mail, &err);
+        }
+#endif
     }
       gFileSystemMsgProcessCnt++;
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+      if(pkt->src == M2M2_ADDR_SYS_BATT_STREAM)
+        batt_app_packet_count &= ~(1 << 2);
+      if(pkt->src == M2M2_ADDR_MED_TEMPERATURE_STREAM)
+        temp_app_packet_count--;
+#endif
       post_office_consume_msg(pkt);
     }
     if(fs_stream_state == ADI_FS_STREAM_STARTED) {
-      hike_fs_prio();
+      if(fs_download_mode == FS_STREAM_USB_MODE)
+        hike_fs_prio();
       if((fs_stream.fs_err_status != FS_STATUS_ERR_EOF) || (fs_stream_final_buffer == 1)) {
         do {
           fs_stream.data_chunk_len = fs_stream.fs_buffer_size - fs_stream.processed_data_len;
           /* Give the system some time to clear out pending messages */
-          response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_download_log_stream_t));
+            response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_download_log_stream_t));
           while (response_mail == NULL) {
             MCU_HAL_Delay(50);
-            response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_download_log_stream_t));
+              response_mail = post_office_create_msg(M2M2_HEADER_SZ + sizeof(m2m2_file_sys_download_log_stream_t));
           }
           /* to compute CRC with stream as source and destination as application */
           response_mail->src  =  M2M2_ADDR_SYS_FS_STREAM;
           response_mail->dest =  fs_stream.pkt_src;
+
           m2m2_file_sys_download_log_stream_t *resp = (m2m2_file_sys_download_log_stream_t *)&response_mail->data[0];
-          resp->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_RESP;
+          if(fs_download_mode == FS_STREAM_BLE_MODE)
+            resp->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_BLE_RESP;
+          else
+            resp->command = (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_RESP;
           if (fs_stream.fs_buffer_size <= sizeof(fs_stream.file_buff)) {
             resp->status = M2M2_FILE_SYS_STATUS_OK;
           }
-          if (fs_stream.data_chunk_len > sizeof(resp->page_chunk_bytes)) {
-            fs_stream.data_chunk_len = sizeof(resp->page_chunk_bytes);
+          if(fs_download_mode == FS_STREAM_BLE_MODE)
+          {
+	    if (fs_stream.data_chunk_len > MAX_CHUNK_CNT_BLE) {
+	        fs_stream.data_chunk_len = MAX_CHUNK_CNT_BLE;
+	    }
+          }
+          else
+          {
+            if (fs_stream.data_chunk_len > sizeof(resp->page_chunk_bytes)) {
+            	fs_stream.data_chunk_len = sizeof(resp->page_chunk_bytes);
+            }
           }
           memcpy(&resp->page_chunk_bytes[0], &fs_stream.file_buff[fs_stream.processed_data_len], fs_stream.data_chunk_len);
           fs_stream.num_bytes_left -= fs_stream.data_chunk_len;
@@ -3386,30 +3632,52 @@ void file_system_task(void *pArgument) {
           if (fs_stream.fs_err_status == FS_STATUS_ERR_EOF && fs_stream.num_bytes_left == 0) {
             resp->status = (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_FILE_SYS_END_OF_FILE;
             response_mail->checksum =  nSeqNum;
-            fs_stream.page_chunk_number %= MAX_PAGE_CHUNK_COUNT;
+            if(fs_download_mode == FS_STREAM_BLE_MODE)
+              fs_stream.page_chunk_number %= MAX_PAGE_CHUNK_COUNT_BLE;
+            else
+              fs_stream.page_chunk_number %= MAX_PAGE_CHUNK_COUNT;
             resp->page_chunk_number = fs_stream.page_chunk_number;
             fs_stream.page_chunk_number++;
             resp->page_number = fs_get_file_page_number_offset(&fs_stream.current_page_number,&fs_stream.file_start_page_number,true);
             /* crc calculation */
-            resp->crc16 = crc16_compute((uint8_t *)response_mail,CRC_COMPUTE_LENGTH(fs_stream.data_chunk_len),NULL);
+            if(fs_download_mode == FS_STREAM_BLE_MODE)
+            {
+              uint16_t *p_crc = (uint16_t *) &resp->page_chunk_bytes[MAX_CHUNK_CNT_BLE];
+              response_mail->length = M2M2_HEADER_SZ + sizeof(m2m2_file_sys_download_log_ble_stream_t);
+              resp->crc16 = crc16_compute((uint8_t *)response_mail,CRC_COMPUTE_LENGTH_BLE(fs_stream.data_chunk_len),NULL);
+              *p_crc = resp->crc16;
+#ifdef FS_STREAM_CRC_DEBUG
+              g_crc_computed = resp->crc16;
+#endif
+            }
+            else
+              resp->crc16 = crc16_compute((uint8_t *)response_mail,CRC_COMPUTE_LENGTH(fs_stream.data_chunk_len),NULL);
+
             response_mail->src = M2M2_ADDR_SYS_FS;
             response_mail->dest = M2M2_ADDR_SYS_FS_STREAM;// FS STREAM
-            setFsDownloadFlag(1);
+            if(fs_download_mode == FS_STREAM_USB_MODE)
+              setFsDownloadFlag(1);
             fs_download_chunk_cnt++;
             fs_download_total_pkt_cnt++;
             post_office_send(response_mail, &err);
+            if(fs_download_mode == FS_STREAM_BLE_MODE)
+              adi_osal_SemPend(g_ble_fs_download_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
             /* Unsubscribe from mailbox */
             fs_stream_usubscribe();
             fs_stream.pkt_src = M2M2_ADDR_UNDEFINED;
             fs_stream.pkt_dest = M2M2_ADDR_UNDEFINED;
             fs_stream_state = ADI_FS_STREAM_STOPPED;
             timeout = ADI_OSAL_TIMEOUT_FOREVER;
-            revert_fs_prio();
+            if(fs_download_mode == FS_STREAM_USB_MODE)
+              revert_fs_prio();
 #ifdef CUST4_SM
-            if(get_user0_config_app_state() == STATE_END_MONITORING)
+            if(get_low_touch_trigger_mode3_status())
             {
-              //Register event received
-              set_user0_config_app_event(EVENT_FINISH_LOG_TRANSFER);
+              if(get_user0_config_app_state() == STATE_END_MONITORING)
+              {
+                //Register event received
+                set_user0_config_app_event(EVENT_FINISH_LOG_TRANSFER);
+              }
             }
 #endif
 #ifdef PROFILE_TIME_ENABLED
@@ -3432,17 +3700,35 @@ void file_system_task(void *pArgument) {
             resp->status = (M2M2_APP_COMMON_STATUS_ENUM_t)M2M2_FILE_SYS_ERR_INVALID;
           }
           response_mail->checksum =  nSeqNum;
-          fs_stream.page_chunk_number %= MAX_PAGE_CHUNK_COUNT;
+          if(fs_download_mode == FS_STREAM_BLE_MODE)
+            fs_stream.page_chunk_number %= MAX_PAGE_CHUNK_COUNT_BLE;
+          else
+            fs_stream.page_chunk_number %= MAX_PAGE_CHUNK_COUNT;
           resp->page_chunk_number = fs_stream.page_chunk_number;
           fs_stream.page_chunk_number++;
           resp->page_number = fs_get_file_page_number_offset(&fs_stream.current_page_number,&fs_stream.file_start_page_number,true);
-          resp->crc16 = crc16_compute((uint8_t *)response_mail,CRC_COMPUTE_LENGTH(fs_stream.data_chunk_len),NULL);
+          if(fs_download_mode == FS_STREAM_BLE_MODE)
+          {
+            uint16_t *p_crc = (uint16_t *)&resp->page_chunk_bytes[MAX_CHUNK_CNT_BLE];
+            response_mail->length = M2M2_HEADER_SZ + sizeof(m2m2_file_sys_download_log_ble_stream_t);
+            resp->crc16 = crc16_compute((uint8_t *)response_mail,CRC_COMPUTE_LENGTH_BLE(fs_stream.data_chunk_len),NULL);
+            *p_crc = resp->crc16;
+#ifdef FS_STREAM_CRC_DEBUG
+            g_crc_computed = resp->crc16;
+#endif
+	  }
+          else
+            resp->crc16 = crc16_compute((uint8_t *)response_mail,CRC_COMPUTE_LENGTH(fs_stream.data_chunk_len),NULL);
+
           response_mail->src = M2M2_ADDR_SYS_FS;
           response_mail->dest = M2M2_ADDR_SYS_FS_STREAM;
-          setFsDownloadFlag(1);
+          if(fs_download_mode == FS_STREAM_USB_MODE)
+            setFsDownloadFlag(1);
           fs_download_chunk_cnt++;
           fs_download_total_pkt_cnt++;
           post_office_send(response_mail, &err);
+          if(fs_download_mode == FS_STREAM_BLE_MODE)
+            adi_osal_SemPend(g_ble_fs_download_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
           nSeqNum++;
           n500bChunkCnt++;
         } while (fs_stream.processed_data_len < fs_stream.fs_buffer_size);
@@ -3485,9 +3771,11 @@ void file_system_task(void *pArgument) {
              if(response_mail != NULL) {
                response_mail->src = M2M2_ADDR_SYS_FS;
                response_mail->dest = M2M2_ADDR_SYS_FS_STREAM;
-               m2m2_file_sys_download_log_stream_t *resp_payload = (m2m2_file_sys_download_log_stream_t *)&response_mail->data[0];
+                m2m2_file_sys_download_log_stream_t *resp_payload = (m2m2_file_sys_download_log_stream_t *)&response_mail->data[0];
                resp_payload->page_chunk_size = 0;
                resp_payload->status = M2M2_FILE_SYS_STATUS_ERROR;
+               if(fs_download_mode == FS_STREAM_BLE_MODE)
+                  response_mail->length = M2M2_HEADER_SZ + sizeof(m2m2_file_sys_download_log_ble_stream_t);
                /* Send Error response to App */
                post_office_send(response_mail, &err);
                /* Unsubscribe from mailbox */
@@ -3497,23 +3785,27 @@ void file_system_task(void *pArgument) {
                fs_stream.pkt_dest = M2M2_ADDR_UNDEFINED;
                fs_stream_state = ADI_FS_STREAM_STOPPED;
                timeout = ADI_OSAL_TIMEOUT_FOREVER;
-               revert_fs_prio();
+               if(fs_download_mode == FS_STREAM_USB_MODE)
+                  revert_fs_prio();
              }
             }
         }
-        /* wait for packet transfer only if DOWNLOAD_LOG requested by external tool */
-        if(gsFsDownloadReqByExtTool)
+        if (fs_download_mode == FS_STREAM_USB_MODE)
         {
-          while(get_file_download_chunk_count() < fs_download_chunk_cnt)
-          {
-            MCU_HAL_Delay(4);
-          }
-          while(get_usbd_tx_pending_status())
-          {
-            MCU_HAL_Delay(1);
-          }
+            /* wait for packet transfer only if DOWNLOAD_LOG requested by external tool */
+            if(gsFsDownloadReqByExtTool)
+            {
+              while(get_file_download_chunk_count() < fs_download_chunk_cnt)
+              {
+                MCU_HAL_Delay(4);
+              }
+              while(get_usbd_tx_pending_status())
+              {
+                MCU_HAL_Delay(1);
+              }
+            }
+            setFsDownloadFlag(0);
         }
-        setFsDownloadFlag(0);
         fs_download_chunk_cnt = 0;
         if(fs_stream.fs_err_status == FS_STATUS_ERR_EOF) {
           fs_stream_final_buffer = 1;

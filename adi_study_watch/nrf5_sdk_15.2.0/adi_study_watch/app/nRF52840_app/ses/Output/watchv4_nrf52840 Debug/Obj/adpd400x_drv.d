@@ -1,13 +1,13 @@
 Output/watchv4_nrf52840\ Debug/Obj/adpd400x_drv.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\adpd400x_drv.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\adpd400x_drv.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdlib.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\adpd400x_reg.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\adpd400x_drv.h \
- ..\..\..\hal/hw_if_config.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\adpd400x_reg.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
  ..\..\..\..\modules\nrfx/nrfx.h \
  ..\..\..\..\integration\nrfx/nrfx_config.h \
@@ -85,6 +85,7 @@ Output/watchv4_nrf52840\ Debug/Obj/adpd400x_drv.o: \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
  ..\..\..\cli\m2m2\inc\c/file_system_interface.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\lcm.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\lcm.h \
  ..\..\..\drivers\adpd4000/adpd4000_buffering.h \
- ..\..\..\utilities\circular_buffer/circular_buffer.h
+ ..\..\..\utilities\circular_buffer/circular_buffer.h \
+ ..\..\..\modules\SSM\Inc/adi_adpd_ssm.h

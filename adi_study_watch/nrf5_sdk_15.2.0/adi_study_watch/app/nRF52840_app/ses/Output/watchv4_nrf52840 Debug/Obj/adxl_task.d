@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/adxl_task.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adxl362\adxl_task.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adxl362\adxl_task.c \
  ..\..\..\drivers\adxl362/adxl362.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\cli\m2m2\inc\c/sensor_adxl_application_interface.h \
@@ -81,6 +81,7 @@ Output/watchv4_nrf52840\ Debug/Obj/adxl_task.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\..\external\freertos\source\include/task.h \
  ..\..\..\..\external\freertos\source\include/list.h \
  ..\..\..\drivers\rtc/rtc.h ..\..\..\drivers\rtc/m_time.h \

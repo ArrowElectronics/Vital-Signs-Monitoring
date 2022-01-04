@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/nrf_log_backend_rtt.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\log\src\nrf_log_backend_rtt.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\log\src\nrf_log_backend_rtt.c \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -47,13 +47,13 @@ Output/watchv4_nrf52840\ Debug/Obj/nrf_log_backend_rtt.o: \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  ..\..\..\..\components\libraries\util/nordic_common.h \
  ..\..\..\..\components\libraries\log/nrf_log_types.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\log\src\nrf_log_backend_serial.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\log\src\nrf_log_backend_serial.h \
  ..\..\..\..\components\libraries\log/nrf_log_backend_interface.h \
  ..\..\..\..\external\fprintf/nrf_fprintf.h \
  ..\..\..\..\components\libraries\log/nrf_log_str_formatter.h \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_ctrl_internal.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\log\src\nrf_log_internal.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\log\src\nrf_log_internal.h \
  ..\..\..\..\components\libraries\log/nrf_log_types.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\..\modules\nrfx/nrfx.h \

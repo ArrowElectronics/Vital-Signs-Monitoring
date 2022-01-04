@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/nrfx_twi.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\modules\nrfx\drivers\src\nrfx_twi.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\modules\nrfx\drivers\src\nrfx_twi.c \
  ..\..\..\..\modules\nrfx/nrfx.h \
  ..\..\..\..\integration\nrfx/nrfx_config.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
@@ -51,7 +51,7 @@ Output/watchv4_nrf52840\ Debug/Obj/nrfx_twi.o: \
  ..\..\..\..\modules\nrfx\drivers\include/nrfx_twi.h \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\modules\nrfx/hal/nrf_gpio.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\modules\nrfx\drivers\src\prs/nrfx_prs.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\modules\nrfx\drivers\src\prs/nrfx_prs.h \
  ..\..\..\..\integration\nrfx/nrfx_log.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\util/sdk_common.h \

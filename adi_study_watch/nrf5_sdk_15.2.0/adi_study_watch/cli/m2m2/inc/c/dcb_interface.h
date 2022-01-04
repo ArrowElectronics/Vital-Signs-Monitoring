@@ -22,21 +22,21 @@
 #define STATIC_ASSERT_PROJ(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 #endif // STATIC_ASSERT_PROJ
 
-#define DCB_BLK_WORD_SZ	4
+#define DCB_BLK_WORD_SZ         4
 #define MAXAD7156DCBSIZE	20
 #define MAXADPD4000DCBSIZE	57
-#define MAXTEMPRLCFGDCBSIZE	57
 #define MAXADXLDCBSIZE	25
-#define MAXBIADCBSIZE	18
+#define MAXBIADCBSIZE           27
 #define MAXECGDCBSIZE	4
 #define MAXEDADCBSIZE	2
 #define MAXGENBLKDCBSIZE	57
 #define MAXLTAPPLCFGDCBSIZE	5
 #define MAXPPGDCBSIZE	56
+#define MAXTEMPRLCFGDCBSIZE	57
 #define MAXUSER0BLKDCBSIZE	19
 #define MAX_ADPD4000_DCB_PKTS	4
-#define MAX_TEMPRLCFG_DCB_PKTS	2
 #define MAX_GEN_BLK_DCB_PKTS	18
+#define MAX_TEMPRLCFG_DCB_PKTS	2
 
 typedef enum M2M2_DCB_COMMAND_ENUM_t {
   _M2M2_DCB_COMMAND_ENUM_t__M2M2_DCB_COMMAND_LOWEST = 150,
@@ -134,7 +134,7 @@ typedef struct _m2m2_dcb_bia_data_t {
   uint8_t  command; 
   uint8_t  status; 
   uint16_t  size; 
-  uint32_t  dcbdata[18]; 
+  uint32_t  dcbdata[27]; 
 } m2m2_dcb_bia_data_t;
 
 typedef struct _m2m2_dcb_gen_blk_data_t {
@@ -179,7 +179,7 @@ typedef struct _m2m2_dcb_user0_blk_data_t {
 typedef struct _m2m2_dcb_block_status_t {
   uint8_t  command; 
   uint8_t  status; 
-  uint8_t  dcb_blk_array[ADI_DCB_MAX_BLOCK_IDX]; 
+  uint8_t  dcb_blk_array[17]; 
 } m2m2_dcb_block_status_t;
 
 // Reset struct packing outside of this file

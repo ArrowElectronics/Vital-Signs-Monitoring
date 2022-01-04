@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/main_freertos.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\main_freertos.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\app\nRF52840_app\main_freertos.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\..\external\freertos\source\include/FreeRTOS.h \
@@ -91,6 +91,7 @@ Output/watchv4_nrf52840\ Debug/Obj/main_freertos.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h ..\..\..\drivers\rtc/rtc.h \
  ..\..\..\drivers\rtc/m_time.h ..\..\..\hal/adi_calendar.h \
  ..\..\..\cli\m2m2\inc\c/system_interface.h \
@@ -167,4 +168,5 @@ Output/watchv4_nrf52840\ Debug/Obj/main_freertos.o: \
  ..\..\..\modules\user0_config_app/user0_config_app_task.h \
  ..\..\..\cli\m2m2\inc\c/user0_config_application_interface.h \
  ..\..\..\drivers\adp5360/adp5360.h ..\..\..\hal/hal_twi0.h \
- ..\..\..\utilities\power_manager/power_manager.h
+ ..\..\..\utilities\power_manager/power_manager.h \
+ ..\..\..\configurations/watch_board_pcba_pin_config.h

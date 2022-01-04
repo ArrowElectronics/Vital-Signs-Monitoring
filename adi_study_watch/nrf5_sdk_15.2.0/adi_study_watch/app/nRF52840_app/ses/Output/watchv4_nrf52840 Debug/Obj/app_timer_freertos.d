@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/app_timer_freertos.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\timer\app_timer_freertos.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\timer\app_timer_freertos.c \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -50,7 +50,7 @@ Output/watchv4_nrf52840\ Debug/Obj/app_timer_freertos.o: \
  ..\..\..\..\external\freertos\source\include/list.h \
  ..\..\..\..\external\freertos\source\include/timers.h \
  ..\..\..\..\external\freertos\source\include/task.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\timer\app_timer.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\timer\app_timer.h \
  ..\..\..\..\components\libraries\util/app_error.h \
  ..\..\..\..\components\libraries\util/nordic_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdlib.h

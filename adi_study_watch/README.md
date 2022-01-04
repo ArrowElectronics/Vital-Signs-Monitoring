@@ -179,7 +179,7 @@ index d69e82a..b83976c 100644
    return ADPD400xDrv_SUCCESS;
  }
  
-@@ -656,6 +664,7 @@ int16_t Adpd400xDrvReadFifoData(uint8_t *pnData, uint16_t nDataSetSize) {
+@@ -656,6 +664,7 @@ int16_t adi_adpddrv_ReadFifoData(uint8_t *pnData, uint16_t nDataSetSize) {
    uint8_t nAddr;
    uint8_t txData[2];
    uint8_t i = 0;
@@ -187,7 +187,7 @@ index d69e82a..b83976c 100644
    
    Adpd400xDrvRegRead(ADPD400x_REG_INT_STATUS_FIFO, &gnFifoLevel);
    gnFifoLevel = gnFifoLevel & 0x7FF;
-@@ -670,7 +679,7 @@ int16_t Adpd400xDrvReadFifoData(uint8_t *pnData, uint16_t nDataSetSize) {
+@@ -670,7 +679,7 @@ int16_t adi_adpddrv_ReadFifoData(uint8_t *pnData, uint16_t nDataSetSize) {
      switch(nAdpd400xCommMode){
      case ADPD400x_SPI_BUS:
        i = 0;
@@ -200,11 +200,11 @@ diff --git a/ADPD40xx/src/Adpd400xDrv.h b/ADPD40xx/src/Adpd400xDrv.h
 index 90ba23f..4fbcfa0 100644
 --- a/ADPD40xx/src/Adpd400xDrv.h
 +++ b/ADPD40xx/src/Adpd400xDrv.h
-@@ -187,4 +187,5 @@ int16_t Adpd400xDrvSetLedCurrent(uint16_t nLedCurrent,
+@@ -187,4 +187,5 @@ int16_t adi_adpddrv_SetLedCurrent(uint16_t nLedCurrent,
  int16_t Adpd400xDrvGetLedCurrent(uint16_t *pLedCurrent, 
                                   ADPD400xDrv_LedId_t nLedId,
                                   ADPD400xDrv_SlotNum_t nSlotNum);
-+void Adpd400xISR();
++void adi_adpddrv_ISR();
  #endif
 ```
  
@@ -256,6 +256,50 @@ index 7224ece2..4eef181a 100644
 +#define nrf_drv_rtc_int_is_enabled      nrf_rtc_int_is_enabled
 +/** @brief Macro for forwarding the new implementation. */
 +#define nrf_drv_rtc_event_pending       nrf_rtc_event_pending
+```
+
+4. Change to app_timer_freertos.c
+
+```c
+diff --git a/nrf5_sdk_15.2.0/components/libraries/timer/app_timer_freertos.c b/nrf5_sdk_15.2.0/components/libraries/timer/app_timer_freertos.c
+index 45645f99..a17140fd 100644
+--- a/nrf5_sdk_15.2.0/components/libraries/timer/app_timer_freertos.c
++++ b/nrf5_sdk_15.2.0/components/libraries/timer/app_timer_freertos.c
+@@ -120,7 +120,6 @@ uint32_t app_timer_create(app_timer_id_t const *      p_timer_id,
+                           app_timer_mode_t            mode,
+                           app_timer_timeout_handler_t timeout_handler)
+ {
+-    app_timer_info_t * pinfo = (app_timer_info_t*)(*p_timer_id);
+     uint32_t      err_code = NRF_SUCCESS;
+     unsigned long timer_mode;
+
+@@ -128,6 +127,8 @@ uint32_t app_timer_create(app_timer_id_t const *      p_timer_id,
+     {
+         return NRF_ERROR_INVALID_PARAM;
+     }
++
++    app_timer_info_t * pinfo = (app_timer_info_t*)(*p_timer_id);
+     if (pinfo->active)
+     {
+         return NRF_ERROR_INVALID_STATE;
+```
+
+5. Change to ble_conn_state.c
+
+```c
+diff --git a/nrf5_sdk_15.2.0/components/ble/common/ble_conn_state.c b/nrf5_sdk_15.2.0/components/ble/common/ble_conn_state.c
+index c438ea2f..600ec274 100644
+--- a/nrf5_sdk_15.2.0/components/ble/common/ble_conn_state.c
++++ b/nrf5_sdk_15.2.0/components/ble/common/ble_conn_state.c
+@@ -96,7 +96,7 @@ void bcs_internal_state_reset(void)
+
+ ble_conn_state_conn_handle_list_t conn_handle_list_get(nrf_atflags_t flags)
+ {
+-    ble_conn_state_conn_handle_list_t conn_handle_list;
++    ble_conn_state_conn_handle_list_t conn_handle_list = {};
+     conn_handle_list.len = 0;
+
+     if (flags != 0)
 ```
 
 ### Watch Bring Up Guide

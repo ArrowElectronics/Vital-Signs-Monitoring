@@ -235,7 +235,7 @@ adi_osal_ThreadSlotAcquire(ADI_OSAL_TLS_SLOT_KEY     *pnThreadSlotKey,
 		}
     }
 
-    xTaskResumeAll();
+    (void)xTaskResumeAll();
 
     return eRetStatus;
 }

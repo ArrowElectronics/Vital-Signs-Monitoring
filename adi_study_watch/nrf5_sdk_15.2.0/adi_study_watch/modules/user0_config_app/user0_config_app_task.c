@@ -45,6 +45,7 @@
 #include <common_application_interface.h>
 #include <user0_config_application_interface.h>
 #include <post_office.h>
+#include <system_task.h>
 #ifdef DCB
 #include "adi_dcb_config.h"
 #include "dcb_user0_block.h"
@@ -113,6 +114,12 @@ extern volatile bool gnGpioPowerOn;
 extern volatile bool gnWatchReset;
 #endif
 
+/*
+* Variable to bypass user0 app timings, to force continuous mode of operations from sensors
+* Will be useful, when there is user0 timings meant for intermittent opearation in LT Mode3
+*/
+volatile uint8_t gn_bypass_user0_timings = 0;
+
 static uint16_t user_applied_agc_up_th;
 static uint16_t user_applied_agc_low_th;
 static uint16_t user_applied_adv_timeout_monitor;
@@ -143,12 +150,13 @@ static void on_timer_init();
 static void user0_config_app_on_timer_start(void);
 static void user0_config_app_on_timer_stop(void);
 static m2m2_hdr_t *user0_battery_level_alert_handler(m2m2_hdr_t *p_pkt);
-#endif
-
-static m2m2_hdr_t *user0_config_app_lcfg_access(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *user0_config_app_get_set_state(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *user0_config_app_get_prev_st_evt_req(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *user0_config_app_clear_prev_st_evt_req(m2m2_hdr_t *p_pkt);
+static m2m2_hdr_t *user0_config_app_bypass_user0_timings(m2m2_hdr_t *p_pkt);
+#endif
+
+static m2m2_hdr_t *user0_config_app_lcfg_access(m2m2_hdr_t *p_pkt);
 #ifdef DCB
 static m2m2_hdr_t *user0_blk_dcb_command_read_config(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *user0_blk_dcb_command_write_config(m2m2_hdr_t *p_pkt);
@@ -180,6 +188,7 @@ app_routing_table_entry_t user0_config_app_routing_table[] = {
     {M2M2_PM_SYS_BATTERY_LEVEL_ALERT, user0_battery_level_alert_handler},
     {M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_REQ, user0_config_app_get_prev_st_evt_req},
     {M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_REQ, user0_config_app_clear_prev_st_evt_req},
+    {M2M2_USER0_CONFIG_APP_BYPASS_USER0_TIMINGS_REQ, user0_config_app_bypass_user0_timings},
 #endif
 #ifdef DCB
     {M2M2_DCB_COMMAND_READ_CONFIG_REQ, user0_blk_dcb_command_read_config},
@@ -335,18 +344,24 @@ USER0_CONFIG_ERROR_CODE_t user0_config_app_write_lcfg(uint8_t field, uint32_t va
       //Update hw_id in the System Info structure
       update_hw_id_in_system_info(user0_config_app_lcfg.hw_id);
 #ifdef CUST4_SM
-      //Update the id shown in page_watch_id of Display
-      send_private_type_value(DIS_REFRESH_SIGNAL);
-      reset_display_vol_info1();
+      if(get_low_touch_trigger_mode3_status())
+      {
+        //Update the id shown in page_watch_id of Display
+        send_private_type_value(DIS_REFRESH_SIGNAL);
+        reset_display_vol_info1();
+      }
 #endif
       break;
     case USER0_CONFIG_LCFG_EXP_ID:
       user0_config_app_lcfg.exp_id = value;
       user_applied_exp_id = 1;
 #ifdef CUST4_SM
-      //Update the id shown in page_watch_id of Display
-      send_private_type_value(DIS_REFRESH_SIGNAL);
-      reset_display_vol_info1();
+      if(get_low_touch_trigger_mode3_status())
+      {
+        //Update the id shown in page_watch_id of Display
+        send_private_type_value(DIS_REFRESH_SIGNAL);
+        reset_display_vol_info1();
+      }
 #endif
       break;
     case USER0_CONFIG_LCFG_ADXL_START_TIME:
@@ -674,9 +689,12 @@ USER0_CONFIG_APP_STATE_t get_user0_config_app_state()
  ******************************************************************************/
 void set_user0_config_app_state(USER0_CONFIG_APP_STATE_t state)
 {
-  //Update page_watch_id contents of Display
-  send_private_type_value(DIS_REFRESH_SIGNAL);
-  reset_display_vol_info1();
+  if(get_low_touch_trigger_mode3_status())
+  {
+    //Update page_watch_id contents of Display
+    send_private_type_value(DIS_REFRESH_SIGNAL);
+    reset_display_vol_info1();
+  }
 
   switch(state)
   {
@@ -927,6 +945,34 @@ static void user0_config_app_on_timer_stop(void) {
 
 /*!
  ****************************************************************************
+ *@brief      m2m2 command to enable/disable the bypass of user0 config app
+               timings used by the sensor apps.
+ *@param      pPkt: pointer to the packet structure
+ *@return     m2m2_hdr_t * type pointer
+ *****************************************************************************/
+static m2m2_hdr_t *user0_config_app_bypass_user0_timings(m2m2_hdr_t *p_pkt) {
+  M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
+  PYLD_CST(p_pkt, user0_app_bypass_user0_timings_pkt_t, p_in_payload);
+  /* Allocate a response packet with space for the correct number of operations
+   */
+  PKT_MALLOC(p_resp_pkt, user0_app_bypass_user0_timings_pkt_t,0);
+  if (NULL != p_resp_pkt) {
+    PYLD_CST(p_resp_pkt, user0_app_bypass_user0_timings_pkt_t, p_resp_payload);
+
+    gn_bypass_user0_timings = p_in_payload->enable;
+
+    p_resp_pkt->dest = p_pkt->src;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_payload->command =
+          (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_USER0_CONFIG_APP_BYPASS_USER0_TIMINGS_RESP;
+    p_resp_payload->status = M2M2_USER0_CONFIG_APP_STATUS_OK;
+    p_resp_payload->enable = p_in_payload->enable;
+  }
+  return p_resp_pkt;
+}
+
+/*!
+ ****************************************************************************
  * @brief    User0 Config task init function.
  * @param[in] None
  * @retval    None
@@ -940,7 +986,8 @@ void user0_config_app_task_init(void) {
   g_user0_config_app_attributes.pStackBase = &ga_user0_config_app_stack[0];
   g_user0_config_app_attributes.nStackSize = APP_OS_CFG_USER0_CONFIG_APP_TASK_STK_SIZE;
   g_user0_config_app_attributes.pTaskAttrParam = NULL;
-  g_user0_config_app_attributes.szThreadName = "user0_config_app";
+  /* Thread Name should be of max 10 Characters */
+  g_user0_config_app_attributes.szThreadName = "Usr0CfgApp";
   g_user0_config_app_attributes.pThreadTcb = &g_user0_config_app_tcb;
 
   eOsStatus = adi_osal_MsgQueueCreate(&gh_user0_config_app_msg_queue, NULL, 9);
@@ -964,23 +1011,9 @@ void user0_config_app_task_init(void) {
 #endif
 }
 
-/*!
- ****************************************************************************
- * @brief User0 Config App task function
- * @param  arg - unused
- * @return none
- ******************************************************************************/
-static void user0_config_app(void *arg) {
-  ADI_OSAL_STATUS err;
-
-  UNUSED_PARAMETER(arg);
-
-  /*Wait for FDS init to complete*/
-  adi_osal_SemPend(user0_config_app_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
-
-  init_user0_config_app_lcfg();
-
 #ifdef CUST4_SM
+void user0_config_app_state_init()
+{
   USER0_CONFIG_APP_STATE_t read_user0_config_app_state;
   read_user0_config_app_state = get_user0_config_app_state();
   USBD_CONN_STATUS_t usbd_conn_status = usbd_get_cradle_disconnection_status();
@@ -1023,10 +1056,10 @@ static void user0_config_app(void *arg) {
       case STATE_INTERMITTENT_MONITORING:
       case STATE_INTERMITTENT_MONITORING_START_LOG:
       case STATE_INTERMITTENT_MONITORING_STOP_LOG:
-      case STATE_OUT_OF_BATTERY_STATE_BEFORE_START_MONITORING:
+      case STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING:
         user0_config_app_enter_state_end_monitoring();
         break;
-      case STATE_OUT_OF_BATTERY_STATE_DURING_INTERMITTENT_MONITORING:
+      case STATE_OUT_OF_BATTERY_STATE_BEFORE_START_MONITORING:
         user0_config_app_enter_state_admit_standby();
         break;
       default:
@@ -1060,6 +1093,33 @@ static void user0_config_app(void *arg) {
     //Clear the event
     set_user0_config_app_event(EVENT_INVALID);
   }
+}
+#endif
+
+/*!
+ ****************************************************************************
+ * @brief User0 Config App task function
+ * @param  arg - unused
+ * @return none
+ ******************************************************************************/
+static void user0_config_app(void *arg) {
+  ADI_OSAL_STATUS err;
+
+  UNUSED_PARAMETER(arg);
+
+  /*Wait for FDS init to complete*/
+  adi_osal_SemPend(user0_config_app_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+
+  init_user0_config_app_lcfg();
+
+  /* Wait for LT task initialisation to complete */
+  adi_osal_SemPend(user0_config_app_evt_sem, ADI_OSAL_TIMEOUT_FOREVER);
+
+#ifdef CUST4_SM
+  if(get_low_touch_trigger_mode3_status())
+  {
+    user0_config_app_state_init();
+  }//if(get_low_touch_trigger_mode3_status())
 #endif
 
   while (1) {
@@ -1087,7 +1147,10 @@ static void user0_config_app(void *arg) {
 #ifdef CUST4_SM
     else
     {
-      User0ConfigTimerEvent();
+      if(get_low_touch_trigger_mode3_status())
+      {
+        User0ConfigTimerEvent();
+      }
     }
 #endif
   }
@@ -1176,6 +1239,8 @@ void user0_config_app_enter_state_intermittent_monitoring()
        * After wakeup from sleep, found that no Configs exist -> fall back to inital state
       */
       NRF_LOG_INFO("No Cfg found after sleep state-setting admit standby state");
+      /*Send Config file not found alarm to the tool*/
+      SendSystemAlarmNtfMsg(M2M2_APP_COMMON_ALARM_STATUS_CONFIG_FILE_NOT_FOUND);
       set_user0_config_app_state(STATE_ADMIT_STANDBY);
       user0_config_app_deinit(false);
   }
@@ -1184,13 +1249,15 @@ void user0_config_app_enter_state_intermittent_monitoring()
 /*!
  ****************************************************************************
  * @brief  Function which changes the state  of User0 Config App task function
- *         to STATE_END_MONITORING
+ *         to STATE_END_MONITORING and
+ *         Disable RTC compare Event
  * @param  None
  * @return None
  *****************************************************************************/
 void user0_config_app_enter_state_end_monitoring()
 {
   set_user0_config_app_state(STATE_END_MONITORING);
+  nrf_rtc_cc_disable();
 }
 
 /*!
@@ -1221,6 +1288,25 @@ void send_message_user0_config_app(m2m2_hdr_t *p_pkt) {
       post_office_consume_msg(p_pkt);
   }
   adi_osal_SemPost(user0_config_app_evt_sem);
+}
+
+/*!
+ ****************************************************************************
+ * @brief  Function to check if user0 app timings needs to be bypassed, to
+ *         force continuous operation of sensor apps or not
+ * @Desc   Needed when continuous operation is required, when there is user0
+ *         timings meant for intermittent operation and it is LT Mode3
+ * @param  None
+ * @return True:  Force continuous operation
+ *         False: Use user0 config app timings
+ *
+ ****************************************************************************/
+bool is_bypass_user0_timings()
+{
+  if(gn_bypass_user0_timings)
+    return true;
+  else
+    return false;
 }
 
 /*!
@@ -1447,27 +1533,31 @@ static m2m2_hdr_t *user0_blk_dcb_command_read_config(m2m2_hdr_t *p_pkt) {
     M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
 
     PKT_MALLOC(p_resp_pkt, m2m2_dcb_user0_blk_data_t, 0);
-    // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_user0_blk_data_t, p_resp_payload);
 
-    r_size = (uint16_t)MAXUSER0BLKDCBSIZE;
-    if(read_user0_blk_dcb(&dcbdata[0],&r_size) == USER0_BLK_DCB_STATUS_OK)
-    {
-        for(int i=0; i< r_size; i++)
-          p_resp_payload->dcbdata[i] = dcbdata[i];
-        p_resp_payload->size = (r_size);
-        status = M2M2_DCB_STATUS_OK;
-    }
-    else
-    {
-        p_resp_payload->size = 0;
-        status = M2M2_DCB_STATUS_ERR_ARGS;
-    }
+    if(p_resp_pkt != NULL) {
+      // Declare a pointer to the response packet payload
+      PYLD_CST(p_resp_pkt, m2m2_dcb_user0_blk_data_t, p_resp_payload);
 
-    p_resp_payload->status = status;
-    p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_pkt->dest = p_pkt->src;
+      r_size = (uint16_t)MAXUSER0BLKDCBSIZE;
+       if(read_user0_blk_dcb(&dcbdata[0],&r_size) == USER0_BLK_DCB_STATUS_OK)
+      {
+          for(int i=0; i< r_size; i++){
+            p_resp_payload->dcbdata[i] = dcbdata[i];
+          }
+          p_resp_payload->size = (r_size);
+          status = M2M2_DCB_STATUS_OK;
+      }
+      else
+      {
+          p_resp_payload->size = 0;
+          status = M2M2_DCB_STATUS_ERR_ARGS;
+      }
+
+      p_resp_payload->status = status;
+      p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
+      p_resp_pkt->src = p_pkt->dest;
+      p_resp_pkt->dest = p_pkt->src;
+    }
     return p_resp_pkt;
 }
 
@@ -1483,29 +1573,34 @@ static m2m2_hdr_t *user0_blk_dcb_command_write_config(m2m2_hdr_t *p_pkt) {
     // Declare a pointer to access the input packet payload
     PYLD_CST(p_pkt, m2m2_dcb_user0_blk_data_t, p_in_payload);
     PKT_MALLOC(p_resp_pkt, m2m2_dcb_user0_blk_data_t, 0);
-    // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_user0_blk_data_t, p_resp_payload);
 
-    for(int i=0; i<p_in_payload->size; i++)
-      dcbdata[i] = p_in_payload->dcbdata[i];
-    if(write_user0_blk_dcb(&dcbdata[0],p_in_payload->size) == USER0_BLK_DCB_STATUS_OK)
-    {
-        user0_blk_set_dcb_present_flag(true);
-        user0_config_app_lcfg_set_from_dcb();
-        status = M2M2_DCB_STATUS_OK;
-    }
-    else
-    {
-        status = M2M2_DCB_STATUS_ERR_ARGS;
-    }
+    if(p_resp_pkt != NULL) {
+      // Declare a pointer to the response packet payload
+      PYLD_CST(p_resp_pkt, m2m2_dcb_user0_blk_data_t, p_resp_payload);
 
-    p_resp_payload->status = status;
-    p_resp_payload->command = M2M2_DCB_COMMAND_WRITE_CONFIG_RESP;
-    p_resp_payload->size = 0;
-    for(uint16_t i=0; i< MAXUSER0BLKDCBSIZE; i++)
-        p_resp_payload->dcbdata[i] = 0;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_pkt->dest = p_pkt->src;
+      for(int i=0; i<p_in_payload->size; i++) {
+        dcbdata[i] = p_in_payload->dcbdata[i];
+      }
+      if(write_user0_blk_dcb(&dcbdata[0],p_in_payload->size) == USER0_BLK_DCB_STATUS_OK)
+      {
+          user0_blk_set_dcb_present_flag(true);
+          user0_config_app_lcfg_set_from_dcb();
+          status = M2M2_DCB_STATUS_OK;
+      }
+      else
+      {
+          status = M2M2_DCB_STATUS_ERR_ARGS;
+      }
+
+      p_resp_payload->status = status;
+      p_resp_payload->command = M2M2_DCB_COMMAND_WRITE_CONFIG_RESP;
+      p_resp_payload->size = 0;
+      for(uint16_t i=0; i< MAXUSER0BLKDCBSIZE; i++) {
+          p_resp_payload->dcbdata[i] = 0;
+      }
+      p_resp_pkt->src = p_pkt->dest;
+      p_resp_pkt->dest = p_pkt->src;
+    }
     return p_resp_pkt;
 }
 
@@ -1518,27 +1613,31 @@ static m2m2_hdr_t *user0_blk_dcb_command_delete_config(m2m2_hdr_t *p_pkt) {
     M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
 
     PKT_MALLOC(p_resp_pkt, m2m2_dcb_user0_blk_data_t, 0);
-    // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_user0_blk_data_t, p_resp_payload);
 
-    if(delete_user0_blk_dcb() == USER0_BLK_DCB_STATUS_OK)
-    {
-        user0_blk_set_dcb_present_flag(false);
-        user0_config_app_lcfg_set_fw_default();
-        status = M2M2_DCB_STATUS_OK;
-    }
-    else
-    {
-        status = M2M2_DCB_STATUS_ERR_ARGS;
-    }
+    if(p_resp_pkt != NULL) {
+      // Declare a pointer to the response packet payload
+      PYLD_CST(p_resp_pkt, m2m2_dcb_user0_blk_data_t, p_resp_payload);
 
-    p_resp_payload->status = status;
-    p_resp_payload->command = M2M2_DCB_COMMAND_ERASE_CONFIG_RESP;
-    p_resp_payload->size = 0;
-    for(uint16_t i=0; i< MAXUSER0BLKDCBSIZE; i++)
-        p_resp_payload->dcbdata[i] = 0;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_pkt->dest = p_pkt->src;
+      if(delete_user0_blk_dcb() == USER0_BLK_DCB_STATUS_OK)
+      {
+          user0_blk_set_dcb_present_flag(false);
+          user0_config_app_lcfg_set_fw_default();
+          status = M2M2_DCB_STATUS_OK;
+      }
+      else
+      {
+          status = M2M2_DCB_STATUS_ERR_ARGS;
+      }
+
+      p_resp_payload->status = status;
+      p_resp_payload->command = M2M2_DCB_COMMAND_ERASE_CONFIG_RESP;
+      p_resp_payload->size = 0;
+      for(uint16_t i=0; i< MAXUSER0BLKDCBSIZE; i++) {
+          p_resp_payload->dcbdata[i] = 0;
+      }
+      p_resp_pkt->src = p_pkt->dest;
+      p_resp_pkt->dest = p_pkt->src;
+    }
     return p_resp_pkt;
 
 }
@@ -1677,9 +1776,12 @@ static m2m2_hdr_t *id_operation(m2m2_hdr_t *p_pkt) {
         p_resp_payload->id_op = ID_OPERATION_MODE_WRITE;
         p_resp_payload->id_num = p_in_payload->id_num;
 #ifdef CUST4_SM
-        //Update the id shown in page_watch_id of Display
-        send_private_type_value(DIS_REFRESH_SIGNAL);
-        reset_display_vol_info1();
+        if(get_low_touch_trigger_mode3_status())
+        {
+          //Update the id shown in page_watch_id of Display
+          send_private_type_value(DIS_REFRESH_SIGNAL);
+          reset_display_vol_info1();
+        }
 #endif
         break;
 
@@ -1695,6 +1797,14 @@ static m2m2_hdr_t *id_operation(m2m2_hdr_t *p_pkt) {
         }
         p_resp_payload->id_op = ID_OPERATION_MODE_DELETE;
         p_resp_payload->id_num = 0;//Clearing the exp_id information
+#ifdef CUST4_SM
+        if(get_low_touch_trigger_mode3_status())
+        {
+          //Update the id shown in page_watch_id of Display
+          send_private_type_value(DIS_REFRESH_SIGNAL);
+          reset_display_vol_info1();
+        }
+#endif
         break;
       default:
         p_resp_payload->id_op = p_in_payload->id_op;

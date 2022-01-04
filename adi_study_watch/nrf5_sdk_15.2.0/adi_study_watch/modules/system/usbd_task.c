@@ -110,6 +110,13 @@ extern bool eda_update_dcb_present_flag(void);
 #ifdef ENABLE_BIA_APP
 extern bool bia_update_dcb_present_flag(void);
 #endif
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+extern uint32_t g_temp_debugInfo[];
+extern uint32_t batt_app_packet_count;
+extern uint32_t usb_pend_start_time;
+extern uint32_t usb_delay_time;
+extern void packetize_temp_debug_data(void);
+#endif
 /* enum to hold possible PHY for wired communication */
 typedef enum {
   M2M2_PHY_INVALID,
@@ -288,7 +295,8 @@ void usbd_task_init(void) {
   g_usbd_tx_task_attributes.pStackBase = &ga_usbd_tx_task_stack[0];
   g_usbd_tx_task_attributes.nStackSize = APP_OS_CFG_USBD_TX_TASK_STK_SIZE;
   g_usbd_tx_task_attributes.pTaskAttrParam = NULL;
-  g_usbd_tx_task_attributes.szThreadName = "tx_USBD";
+  /* Thread Name should be of max 10 Characters */
+  g_usbd_tx_task_attributes.szThreadName = "TX_USBD";
   g_usbd_tx_task_attributes.pThreadTcb = &g_usbd_tx_task_tcb;
   /* TODO: The Queue ptr holding size increased as 250 from 25
      in-order to get all sterams. The count can be decreased based on the
@@ -314,7 +322,8 @@ void usbd_task_init(void) {
   g_usbd_app_task_attributes.pStackBase = &ga_usbd_app_task_stack[0];
   g_usbd_app_task_attributes.nStackSize = APP_OS_CFG_USBD_APP_TASK_STK_SIZE;
   g_usbd_app_task_attributes.pTaskAttrParam = NULL;
-  g_usbd_app_task_attributes.szThreadName = "app_usbd_task";
+  /* Thread Name should be of max 10 Characters */
+  g_usbd_app_task_attributes.szThreadName = "USBD_Task";
   g_usbd_app_task_attributes.pThreadTcb = &g_usbd_app_task_tcb;
 
   eOsStatus = adi_osal_ThreadCreateStatic(
@@ -506,6 +515,7 @@ uint32_t max_num_of_retries;
  ******************************************************************************/
 static void usbd_tx_task(void *pArgument) {
   m2m2_hdr_t *pkt;
+  M2M2_ADDR_ENUM_t  source; 
   M2M2_ADDR_ENUM_t destination;
   static uint8_t usbd_tx_buf[2064];
   uint32_t msg_len;
@@ -552,10 +562,14 @@ static void usbd_tx_task(void *pArgument) {
     pkt = post_office_get(
         ADI_OSAL_TIMEOUT_NONE, APP_OS_CFG_USBD_TX_TASK_INDEX);
     if (gb_usb_status == USB_PORT_OPENED) {
+#ifdef ENABLE_TEMP_DEBUG_STREAM 
+      usb_delay_time &= ~(1 << 2);
+#endif
       if (pkt == NULL) {
         continue;
       } else {
         msg_len = pkt->length;
+        source = pkt->src;
         destination = pkt->dest;
 
         switch (get_usbd_routing_table_entry(destination)) {
@@ -573,6 +587,12 @@ static void usbd_tx_task(void *pArgument) {
 
              // Swap the header around so that the length can be properly freed.
              pkt->length = BYTE_SWAP_16(pkt->length);
+#ifdef ENABLE_TEMP_DEBUG_STREAM                
+                if((pkt->length == 18) && (pkt->src == 0x91C6)){
+                    batt_app_packet_count &= ~(1 << 1);
+                  }
+#endif
+             post_office_consume_msg(pkt);// consume packet as it copied to usbd_tx_buf buffer 
 
              g_usb_tx_pending_flag = 1;
              if(gFsDownloadFlag)
@@ -597,7 +617,7 @@ static void usbd_tx_task(void *pArgument) {
               ret = app_usbd_cdc_acm_write(&m_app_cdc_acm,usbd_tx_buf,msg_len);
 
               /* increment bytes transferred only for fs stream packet */
-              if(((M2M2_ADDR_ENUM_t)BYTE_SWAP_16(pkt->src)) == M2M2_ADDR_SYS_FS_STREAM){
+              if(source == M2M2_ADDR_SYS_FS_STREAM){
                 if(num_retry == 0){
                   num_bytes_transferred += msg_len;
                   num_retry = 1;
@@ -611,10 +631,18 @@ static void usbd_tx_task(void *pArgument) {
               if(ret != NRF_SUCCESS)
               {
                 NRF_LOG_INFO("CDC ACM unavailable, data received: %s", usbd_tx_buf);
+#ifdef ENABLE_TEMP_DEBUG_STREAM 
+                usb_delay_time |= (1 << 0);
+                g_temp_debugInfo[1]  = usb_delay_time;
+                packetize_temp_debug_data();
+#endif
                 MCU_HAL_Delay(4);   /*TODO: need to check why the usb busy comes*/
               }
               else
               {
+#ifdef ENABLE_TEMP_DEBUG_STREAM 
+                usb_delay_time &= ~(1 << 0);
+#endif
                 submission_success_cnt += 1;
                 NRF_LOG_INFO("Successfull submission cnt= %d",submission_success_cnt);
 #if PROFILE_TIME_ENABLED
@@ -630,10 +658,17 @@ static void usbd_tx_task(void *pArgument) {
                 usb_tx_time_start = get_micro_sec();
 #endif
               /* Block until transfer is completed */
+#ifdef ENABLE_TEMP_DEBUG_STREAM  
+              usb_pend_start_time = get_sensor_time_stamp() % MAX_RTC_TICKS_FOR_24_HOUR;
+              usb_delay_time |= (1 << 1);
+#endif
               eOsStatus = adi_osal_SemPend(g_usb_wr_sync, ADI_OSAL_TIMEOUT_FOREVER);
               if (eOsStatus != ADI_OSAL_SUCCESS) {
                 Debug_Handler();
               }
+#ifdef ENABLE_TEMP_DEBUG_STREAM  
+              usb_delay_time &= ~(1 << 1);
+#endif
 #if PROFILE_TIME_ENABLED
               usb_tx_time_end = get_micro_sec();
               usb_avg_tx_time += (usb_tx_time_end - usb_tx_time_start);
@@ -655,8 +690,7 @@ static void usbd_tx_task(void *pArgument) {
                }while((ind < write_retry_cnt) && (ret != NRF_SUCCESS));
                 if(ret != NRF_SUCCESS){
                   usb_cdc_write_failed=1;
-                }
-                post_office_consume_msg(pkt);
+                }          
                 break;
          }
           default: {
@@ -671,6 +705,11 @@ static void usbd_tx_task(void *pArgument) {
                (gb_usb_status == USB_DISCONNECTED)) {
 
       if (gb_force_stream_stop) {
+#ifdef ENABLE_TEMP_DEBUG_STREAM 
+        usb_delay_time |= (1 << 2);
+        g_temp_debugInfo[1]  = usb_delay_time;
+        packetize_temp_debug_data();
+#endif
         usbd_tx_msg_queue_reset();//TODO: we can read the message from queue and return it to pool
         /* Force-stop Sensor streaming that wasn't stopped */
         m2m2_hdr_t *req_pkt = NULL;

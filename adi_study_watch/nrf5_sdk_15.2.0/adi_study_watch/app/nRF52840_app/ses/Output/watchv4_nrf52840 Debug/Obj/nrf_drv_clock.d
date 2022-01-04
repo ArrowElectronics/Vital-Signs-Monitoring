@@ -1,7 +1,7 @@
 Output/watchv4_nrf52840\ Debug/Obj/nrf_drv_clock.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\integration\nrfx\legacy\nrf_drv_clock.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\integration\nrfx\legacy\nrf_drv_clock.c \
  ..\..\..\..\components\libraries\util/nordic_common.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\integration\nrfx\legacy\nrf_drv_clock.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\integration\nrfx\legacy\nrf_drv_clock.h \
  ..\..\..\..\modules\nrfx\drivers\include/nrfx_clock.h \
  ..\..\..\..\modules\nrfx/nrfx.h \
  ..\..\..\..\integration\nrfx/nrfx_config.h \

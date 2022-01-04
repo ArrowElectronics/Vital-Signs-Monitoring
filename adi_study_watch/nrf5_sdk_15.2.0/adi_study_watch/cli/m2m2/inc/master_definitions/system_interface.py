@@ -113,6 +113,10 @@ class M2M2_PM_SYS_COMMAND_ENUM_t(c_uint8):
     M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_REQ = 0x9C
     M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_RESP = 0x9D
     M2M2_PM_SYS_BATTERY_LEVEL_ALERT = 0x9E
+    M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_REQ = 0X9F
+    M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_RESP = 0XA0
+    M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_REQ = 0XA1
+    M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_RESP = 0XA2
 
 class M2M2_PM_SYS_STATUS_ENUM_t(c_uint8):
     __M2M2_PM_SYS_STATUS_LOWEST = 0x40
@@ -407,4 +411,23 @@ class m2m2_hibernate_mode_status_resp_cmd_t(Structure):
     fields = [
               (None, common_application_interface._m2m2_app_common_cmd_t),
                 ("hib_mode_status", c_uint8),
+              ]
+
+class m2m2_get_po_memory_utilization_cmd_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_common_cmd_t),
+                ("min_num_free_blks_type2", c_uint16),
+                ("min_num_free_blks_type4", c_uint16),
+                ("min_num_free_blks_type5", c_uint16),
+                ("block_2_allocated", c_uint32),
+                ("block_4_allocated", c_uint32),
+                ("block_5_allocated", c_uint32),
+                ("block_2_freed", c_uint32),
+                ("block_4_freed", c_uint32),
+                ("block_5_freed", c_uint32),
+             ]
+
+class m2m2_clear_po_memory_utilization_cmd_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_common_cmd_t),
               ]

@@ -110,7 +110,8 @@ typedef struct
   uint32_t FifoDataCount;         /* Count how many times impedance have been measured */
   uint32_t MeasSeqCycleCount;     /* How long the measurement sequence will take */
   float MaxODR;                   /* Max ODR for sampling in this config */       
-/* End */
+  bool FixedFreqSweepEn;
+  /* End */
 }AppBIACfg_Type;
 
 
@@ -151,6 +152,8 @@ typedef enum {
 #define BIA_DFT_CONFIGURATION_REGISTER                                                        0x000020D0
 
 #define BIA_WG_SINE_FREQUENCY_WORD_MASK                                                       0xFFFFFF
+#define BIA_WG_SINE_AMPLITUDE_WORD_MASK                                                       0x000FFF
+
 extern uint8_t bia_load_dcfg;
 extern uint64_t default_dcfg_bia[];
 #endif

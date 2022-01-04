@@ -44,6 +44,7 @@ root.withdraw()
 # ********************** Test Variables ********************************
 arduino_port = None  # This variable will be updated from station config file [read_station_Cfg()]
 watch_port = None  # This variable will be updated from station config file [read_station_Cfg()]
+watch_port_ble = None  # This variable will be updated from station config file [read_station_Cfg()]
 fg_instr_addr = None  # This variable will be updated from station config file [read_station_Cfg()]
 watch_port_type = None  # This variable will be updated from station config file [read_station_Cfg()]
 sm_instr_addr = None  # This variable will be updated from station config file [read_station_Cfg()]
@@ -73,6 +74,8 @@ DVT_version = None
 adpd_clk_calib = None
 cm = None  # CLI Map
 ble_mac_addr = None
+current_watch_mode = None
+test_level_handeler = 0
 # **********************************************************************
 
 # ********************* Configure Logging ******************************
@@ -307,7 +310,6 @@ def quick_stop_adpd_fs(led='G'):
 
     watch_shell.quick_stop("adpd", "adpd{}".format(cfg_dict[led]['sub']), fs=True)
     watch_shell.do_stop_logging("")
-
 
 
 def config_adpd_stream(samp_freq_hz=50, agc_state=0, led='G', skip_load_cfg=False):
@@ -614,11 +616,11 @@ def update_dvt_version():
     if chip_id == 0xc0:
         test_logger.info("DVT1 Watch Connected")
         DVT_version = 0
-    elif chip_id == 0x1c2:
+    else:
         test_logger.info("DVT2 Watch Connected")
         DVT_version = 1
-    else:
-        raise RuntimeError("Unknown DVT Watch version ADPD Chip ID-{}".format(str(chip_id)))
+    # else:
+    #     raise RuntimeError("Unknown DVT Watch version ADPD Chip ID-{}".format(str(chip_id)))
 
 
 def update_adpd_clock_calibration_value():
@@ -713,7 +715,7 @@ def init_matlab_engine():
     return matlab_eng
 
 
-def initialize_setup(ts_tolerance=0, com_port="NA", ble_mac="NA"):
+def initialize_setup(ts_tolerance=10, com_port="NA", mode="NA", ble_mac="NA", ble_com_port="NA"):
     """
     This function runs necessary steps to initialize the test setup
     - Connects to Arduino and initializes arduino global variable
@@ -724,19 +726,25 @@ def initialize_setup(ts_tolerance=0, com_port="NA", ble_mac="NA"):
     read_station_cfg()
     # Instantiating watch shell
     gui_signaller = cli_map.cli.QtSignaller()
-    threading.Thread(target=cli_map.cli._init_gui, args=(gui_signaller,), daemon=True).start()
+    # threading.Thread(target=cli_map.cli._init_gui, args=(gui_signaller,), daemon=True).start()
     watch_shell_obj = CLIMap(gui_signaller, testing=True)
     if com_port != "NA" and "COM" in com_port:
         global watch_port
         watch_port = com_port
+    if ble_com_port != "NA" and "COM" in ble_com_port:
+        global watch_port_ble
+        watch_port_ble = ble_com_port
     if ble_mac != "NA":
         global ble_mac_addr
         ble_mac_addr = ble_mac
+    if mode != "NA":
+        global watch_port_type
+        watch_port_type = mode
+
     if watch_port_type == 'USB':
         watch_shell_obj.do_connect_usb('{}'.format(watch_port))
     else:
-        # watch_shell_obj.do_connect_ble('{}'.format(watch_port))
-        watch_shell_obj.do_connect_ble('{} {}'.format(watch_port, ble_mac_addr))
+        watch_shell_obj.do_connect_ble('{} {}'.format(watch_port_ble, ble_mac_addr))
     # cm = CLIMap(watch_shell_obj)
     # Creating Test Rport Directory
     err_stat, sys_info_dict = watch_shell_obj.get_system_info()
@@ -770,6 +778,98 @@ def initialize_setup(ts_tolerance=0, com_port="NA", ble_mac="NA"):
     update_dvt_version()
     update_adpd_clock_calibration_value()
     update_ts_mismatch_tolerance(int(ts_tolerance))
+
+
+def initialize_setup_nk(ts_tolerance=0, usb_com_port="NA", mode="NA",
+                        ble_mac="NA", ble_com_port="NA", clear_flash=0, test_level=0, flash_reset=0):
+    """
+    This function runs necessary steps to initialize the test setup
+    - Connects to Arduino and initializes arduino global variable
+    :return:
+    """
+    global test_report_dir
+    read_station_cfg()
+    # Instantiating watch shell
+    gui_signaller = cli_map.cli.QtSignaller()
+    # threading.Thread(target=cli_map.cli._init_gui, args=(gui_signaller,), daemon=True).start()
+    watch_shell_obj = CLIMap(gui_signaller, testing=True)
+    update_watch_shell(watch_shell_obj)
+    if usb_com_port != "NA" and "COM" in usb_com_port:
+        global watch_port
+        watch_port = usb_com_port
+    if ble_com_port != "NA" and "COM" in ble_com_port:
+        global watch_port_ble
+        watch_port_ble = ble_com_port
+    if ble_mac != "NA":
+        global ble_mac_addr
+        ble_mac_addr = ble_mac
+    if mode != "NA":
+        global watch_port_type
+        watch_port_type = mode
+
+    connect(watch_port_type)
+    # Creating Test Report Directory
+    err_stat, sys_info_dict = watch_shell_obj.get_system_info()
+    if err_stat:
+        raise RuntimeError('Unable to communicate with the watch!')
+    pcb_name = str(sys_info_dict['mac_addr'])
+    if not pcb_name:
+        pcb_name = easygui.enterbox('PCB Number:', 'Enter PCB Number')
+    test_report_dir = init_test_report_dir(pcb_name)
+    test_logger.info('Test Results Directory: {}'.format(test_report_dir))
+    err_stat, fw_ver_info_dict = watch_shell_obj.get_version_cli()
+    if not err_stat:
+        ver_info_str = 'Firmware Version: V{}.{}.{}  |  Build Info: {}'.format(fw_ver_info_dict['major'],
+                                                                               fw_ver_info_dict['minor'],
+                                                                               fw_ver_info_dict['patch'],
+                                                                               fw_ver_info_dict['build'])
+        update_robot_suite_doc(ver_info_str)
+
+    update_dvt_version()
+    update_adpd_clock_calibration_value()
+    update_ts_mismatch_tolerance(int(ts_tolerance))
+
+    if clear_flash:
+        watch_shell.do_fs_format('')
+
+    if flash_reset:
+        watch_shell.do_flash_reset('')
+
+    test_level_update(test_level)
+
+
+def connect_with_mode(mode="USB", retry=False):
+    if current_watch_mode != mode.upper():
+        disconnect()
+        connect(mode, retry)
+
+
+def connect(mode="USB", retry=False):
+    global current_watch_mode
+    if mode.upper() == 'USB':
+        pkt = watch_shell.do_connect_usb('{}'.format(watch_port))
+    else:
+        pkt = watch_shell.do_connect_ble('{} {}'.format(watch_port_ble, ble_mac_addr))
+    if pkt["payload"]["status"].value[0] == -1:
+        if not retry:
+            test_logger.warning("***{} connect Not responding. Attempting Retry!!***".format(mode))
+            disconnect()
+            time.sleep(2)
+            connect(mode, True)
+        else:
+            test_logger.error("***{} connect Not responding***".format(mode))
+            raise ConditionCheckFailure("***{} connect Not responding***".format(mode))
+
+    current_watch_mode = mode.upper()
+
+
+def disconnect():
+    watch_shell.do_quit("")
+
+
+def test_level_update(level=0):
+    global test_level_handeler
+    test_level_handeler = level
 
 
 def init_test_report_dir(pcb_name):
@@ -857,7 +957,8 @@ def rename_stream_file(old_file_name, suffix='', row_offset=1, col_idx=1,
         plot_path = plot_and_save_png(new_name, col_idx, row_offset)
 
     if copy_to_shared_drive:
-        for retry in range(1):  # has to be multiple iteration but limiting due to the delay
+        total_retry = 1
+        for retry in range(total_retry):  # has to be multiple iteration but limiting due to the delay
             try:
                 test_group_name = inspect.getmodule(inspect.stack()[1][0]).__name__.split('.')[-1]
                 test_group_dir = os.path.join(test_report_dir, test_group_name)
@@ -874,9 +975,9 @@ def rename_stream_file(old_file_name, suffix='', row_offset=1, col_idx=1,
                     shutil.copyfile(plot_path, new_plot_path)
                 break
             except WindowsError:
-                test_logger.info("Trying to copy the file; Attempts remaining: {}".format(4 - retry))
+                test_logger.info("Trying to copy the file; Attempts remaining: {}".format(total_retry - retry - 1))
         else:
-            test_logger.error("*** File Copy Failed ***")
+            test_logger.warning("*** File Copy Failed ***")
 
     return new_name
 

@@ -90,7 +90,7 @@ static uint32_t microsecond = 0;
 static uint64_t gs_current_time = 0; //holds current system time in 32kHz resolution
 #ifdef ENABLE_DEBUG_STREAM
 #define M2M2_DEBUG_INFO_64_SIZE   4
-#define DEBUG_INFO_64_SIZE    M2M2_DEBUG_INFO_64_SIZE + 6 // 6 here to avoid overflow   
+#define DEBUG_INFO_64_SIZE    M2M2_DEBUG_INFO_64_SIZE + 6 // 6 here to avoid overflow
 static uint64_t gs_rtc_roll_over_handle_counter = 0; //number of time RTC roll over handled during the RTC ISR block
 uint8_t g_adpd_ts_flag_set = 0;
 uint8_t g_adpd_rtc_info_buffer_index = 0;
@@ -153,7 +153,7 @@ static void rtc_handler(nrf_drv_rtc_int_type_t int_type)
           gn_pending_comp_value = 0;
           gn_cont_comp_int = false;
         }
-        nrfx_rtc_cc_set(&m_rtc,NRFX_RTC_INT_COMPARE0,compare_val,true);
+        nrf_drv_rtc_cc_set(&m_rtc,NRFX_RTC_INT_COMPARE0,compare_val,true);
       }
       /*Reached the compare value requested*/
       else
@@ -182,7 +182,7 @@ void rtc_init(void)
     rtc_timestamp_restore(0xA000);
     nrf_drv_rtc_overflow_enable(&m_rtc,true);
 //    nrf_drv_rtc_tick_enable(&m_rtc,true);
-//    nrfx_rtc_cc_set(&m_rtc,NRFX_RTC_INT_COMPARE0,480000,true);
+//    nrf_drv_rtc_cc_set(&m_rtc,NRFX_RTC_INT_COMPARE0,480000,true);
     nrf_drv_rtc_enable(&m_rtc);
 }
 
@@ -207,7 +207,7 @@ uint32_t get_rtc_wakeup_time_to_be_configured(uint32_t sleep_time)
     static volatile uint32_t total_ticks;
 
     rtc_cnt = nrf_drv_rtc_counter_get(&m_rtc);//Current Watch operation time
-    sleep_time_ticks = (sleep_time << 15);    //Expressing seconds in terms of 32Khz clock ticks
+    sleep_time_ticks = ((volatile uint64_t)sleep_time << 15);    //Expressing seconds in terms of 32Khz clock ticks
     /*Return Wakeup time in ticks which is equal to total of time watch has been
       in operation + sleep time required */
     total_ticks =  (rtc_cnt + sleep_time_ticks);
@@ -247,7 +247,7 @@ void enable_rtc_wakeup(uint32_t value)
     gn_pending_comp_value = 0;
     gn_cont_comp_int = false;
   }
-  nrfx_rtc_cc_set(&m_rtc,NRFX_RTC_INT_COMPARE0,compare_val,true);
+  nrf_drv_rtc_cc_set(&m_rtc,NRFX_RTC_INT_COMPARE0,compare_val,true);
 }
 #endif
 
@@ -278,14 +278,14 @@ uint32_t get_sensor_time_stamp(void)
     rtc_cnt = nrf_drv_rtc_counter_get(&m_rtc);
 #ifdef ENABLE_DEBUG_STREAM
     rtc_cnt_capture = rtc_cnt;
-#endif     
+#endif
     time_ticks = gs_current_time + rtc_cnt + (current_timezone << 15);
     /* condition here to handle the RTC overflow in case of RTC ISR is not served at this time due to priority*/
     if (nrf_drv_rtc_int_is_enabled(m_rtc.p_reg,NRF_RTC_INT_OVERFLOW_MASK) &&
         nrf_drv_rtc_event_pending(m_rtc.p_reg, NRF_RTC_EVENT_OVERFLOW)) {
 #ifdef ENABLE_DEBUG_STREAM
       gs_rtc_roll_over_handle_counter++;
-#endif      
+#endif
       time_ticks += (1<<24); //increment it by number of 32Khz ticks elapsed in 24 bit wide register
     }
     rtc_cnt = time_ticks % NUMBER_OF_TICKS_FOR_24_HOUR;
@@ -444,3 +444,21 @@ uint8_t adi_rtc_clear_fds_settings()
 
     return (uint8_t)rRet;
 }
+
+#ifdef CUST4_SM
+/**@brief Function for disabling a RTC compare channel.
+ *
+ * This function disables channel events and channel interrupts. The function asserts if the instance is not
+ *       initialized or if the channel parameter is wrong.
+ *
+ * @retval None
+ */
+void nrf_rtc_cc_disable(){
+ ret_code_t err_code = DEF_FAIL;
+ err_code = nrf_drv_rtc_cc_disable(&m_rtc,NRFX_RTC_INT_COMPARE0);
+ if (err_code != NRF_SUCCESS)
+ {
+        NRF_LOG_INFO("rtc cc disable failure!");
+ }
+}
+#endif

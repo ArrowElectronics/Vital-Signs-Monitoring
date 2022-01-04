@@ -111,7 +111,7 @@ static void key_handle(uint8_t key_value)
     {
         case KEY_SELECT_SHORT:
         {
-            capVal = AD7156_ReadChannelCap(2); // unit in uF
+            capVal = AD7156_ReadChannelCap(2); // unit in fF
         }
         break;
         case KEY_SELECT_LONG_VALUE:

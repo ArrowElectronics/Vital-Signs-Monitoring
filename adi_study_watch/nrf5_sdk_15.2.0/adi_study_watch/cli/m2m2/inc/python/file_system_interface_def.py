@@ -91,6 +91,8 @@ class M2M2_FILE_SYS_CMD_ENUM_t(c_ubyte):
     M2M2_FILE_SYS_CMD_APPEND_FILE_RESP = 0xA1
     M2M2_FILE_SYS_CMD_FILE_READ_TEST_REQ = 0xA2
     M2M2_FILE_SYS_CMD_FILE_READ_TEST_RESP = 0xA3
+    M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_BLE_REQ = 0xA4
+    M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_BLE_RESP = 0xA5
 
 class M2M2_FILE_SYS_STATUS_ENUM_t(c_ubyte):
     _M2M2_FILE_SYS_STATUS_ENUM_t__M2M2_FILE_SYS_ERR_LOWEST = 0x40
@@ -207,6 +209,18 @@ class m2m2_file_sys_download_log_stream_t(Structure):
               ("page_number", c_ushort),
               ("page_chunk_size", c_ushort),
               ("page_chunk_bytes", c_ubyte * 512),
+              ("crc16", c_ushort),
+              ]
+
+class m2m2_file_sys_download_log_ble_stream_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("page_chunk_number", c_ubyte),
+              ("page_number", c_ushort),
+              ("page_chunk_size", c_ushort),
+              ("page_chunk_bytes", c_ubyte * 224),
               ("crc16", c_ushort),
               ]
 

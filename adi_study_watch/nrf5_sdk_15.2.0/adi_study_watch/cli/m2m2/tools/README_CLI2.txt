@@ -12,3 +12,10 @@ This file contains the newly added test commands in CLI2.
 Added from PERSEUS-895:
 9. clear_user0_prev_state_event
 10. get_user0_prev_state_event
+
+Added from PERSEUS-956:
+11. bypass_user0_timings
+
+Commands to fetch/clear PO memory utilization (PERSEUS - 998):
+12. getPoMemUtil
+13. clearPoMemUtil

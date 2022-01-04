@@ -44,6 +44,7 @@ NRF_LOG_MODULE_REGISTER();
 #include <adpd400x_drv.h>
 #include <adpd400x_reg.h>
 #include <sensor_adpd_application_interface.h>
+#include "adi_adpd_ssm.h"
 #ifdef DCB
 #include "adi_dcb_config.h"
 #include "dcb_interface.h"
@@ -820,32 +821,26 @@ AppECG4kCfg_Type AppECG4kCfg =
 void patch_dvt2_adpd4100_reg()
 {
   //Slot A
-  Adpd400xDrvRegWrite(0x010B, 0x01A0);//INTEG_OS_A
-  Adpd400xDrvRegWrite(0x0104, 0x02C1);//AFE_TRIM_A
+  adi_adpddrv_RegWrite(0x010B, 0x01A0);//INTEG_OS_A
+  adi_adpddrv_RegWrite(0x0104, 0x02C1);//AFE_TRIM_A
   //Slot D
-  Adpd400xDrvRegWrite(0x0161, 0x40DA);//TS_PATH_D
-  Adpd400xDrvRegWrite(0x0164, 0x0281);//AFE_TRIM_D
-  Adpd400xDrvRegWrite(0x016B, 0x01F3);//INTEG_OS_D
+  adi_adpddrv_RegWrite(0x0161, 0x40DA);//TS_PATH_D
+  adi_adpddrv_RegWrite(0x016B, 0x01F3);//INTEG_OS_D
   //Slot E
-  Adpd400xDrvRegWrite(0x0181, 0x40DA);//TS_PATH_E
-  Adpd400xDrvRegWrite(0x0184, 0x0281);//AFE_TRIM_E
-  Adpd400xDrvRegWrite(0x018B, 0x01F3);//INTEG_OS_E
+  adi_adpddrv_RegWrite(0x0181, 0x40DA);//TS_PATH_E
+  adi_adpddrv_RegWrite(0x018B, 0x01F3);//INTEG_OS_E
   //Slot F
-  Adpd400xDrvRegWrite(0x01A1, 0x40DA);//TS_PATH_F
-  Adpd400xDrvRegWrite(0x01A4, 0x03D2);//AFE_TRIM_F
-  Adpd400xDrvRegWrite(0x01AB, 0x0210);//INTEG_OS_F
+  adi_adpddrv_RegWrite(0x01A1, 0x40DA);//TS_PATH_F
+  adi_adpddrv_RegWrite(0x01AB, 0x0210);//INTEG_OS_F
   //Slot G
-  Adpd400xDrvRegWrite(0x01C1, 0x40DA);//TS_PATH_G
-  Adpd400xDrvRegWrite(0x01C4, 0x03D2);//AFE_TRIM_G
-  Adpd400xDrvRegWrite(0x01CB, 0x0210);//INTEG_OS_G
+  adi_adpddrv_RegWrite(0x01C1, 0x40DA);//TS_PATH_G
+  adi_adpddrv_RegWrite(0x01CB, 0x0210);//INTEG_OS_G
   //Slot H
-  Adpd400xDrvRegWrite(0x01E1, 0x40DA);//TS_PATH_H
-  Adpd400xDrvRegWrite(0x01E4, 0x03D2);//AFE_TRIM_H
-  Adpd400xDrvRegWrite(0x01EB, 0x0210);//INTEG_OS_H
+  adi_adpddrv_RegWrite(0x01E1, 0x40DA);//TS_PATH_H
+  adi_adpddrv_RegWrite(0x01EB, 0x0210);//INTEG_OS_H
   //Slot I
-  Adpd400xDrvRegWrite(0x0201, 0x40DA);//TS_PATH_I
-  Adpd400xDrvRegWrite(0x0204, 0x03D2);//AFE_TRIM_I
-  Adpd400xDrvRegWrite(0x020B, 0x0210);//INTEG_OS_I
+  adi_adpddrv_RegWrite(0x0201, 0x40DA);//TS_PATH_I
+  adi_adpddrv_RegWrite(0x020B, 0x0210);//INTEG_OS_I
 }
 
 /**
@@ -890,8 +885,8 @@ ADPD4000_DCFG_STATUS_t load_adpd4000_cfg(uint16_t device_id)
 #ifdef EVTBOARD
 ADPD4000_DCFG_STATUS_t load_temperature_dcfg ()
 {
-  Adpd400xDrvSoftReset();
-  Adpd400xDrvOpenDriver();
+  adi_adpddrv_SoftReset();
+  adi_adpddrv_OpenDriver();
   memcpy(&g_current_dcfg[0], &dcfg_4000_temperature[0], sizeof(dcfg_4000_temperature));
   if (write_adpd4000_dcfg(&g_current_dcfg[0]) != ADPD4000_DCFG_STATUS_OK) {
     return ADPD4000_DCFG_STATUS_ERR;
@@ -907,14 +902,14 @@ ADPD4000_DCFG_STATUS_t load_temperature_dcfg ()
 */
 ADPD4000_DCFG_STATUS_t load_adpd4000_dcfg(uint16_t device_id) {
   if (device_id == 0) {
-    Adpd400xDrvOpenDriver();
+    adi_adpddrv_OpenDriver();
     return ADPD4000_DCFG_STATUS_OK;
   }
   if (device_id != 0) {
     stage_adpd4000_dcfg(&device_id);
   }
-  Adpd400xDrvSoftReset();
-  //Adpd400xDrvOpenDriver();
+  adi_adpddrv_SoftReset();
+  //adi_adpddrv_OpenDriver();
   if (write_adpd4000_dcfg(&g_current_dcfg[0]) != ADPD4000_DCFG_STATUS_OK) {
     return ADPD4000_DCFG_STATUS_ERR;
   }
@@ -929,19 +924,132 @@ ADPD4000_DCFG_STATUS_t load_adpd4000_dcfg(uint16_t device_id) {
 ADPD4000_DCFG_STATUS_t read_adpd4000_dcfg(uint32_t *p_dcfg, uint16_t *p_dcfg_size) {
   uint16_t reg_addr;
   uint16_t reg_data;
+  int i = 0;
   if (p_dcfg == NULL) {
     return ADPD4000_DCFG_STATUS_NULL_PTR;
   }
 
-  for (int i = 0; g_current_dcfg[i]!= 0xFFFFFFFF; i++) {
+  /*for (int i = 0; g_current_dcfg[i]!= 0xFFFFFFFF; i++) {
     reg_addr = (uint16_t) (g_current_dcfg[i] >> 16);
-    if (Adpd400xDrvRegRead(reg_addr, &reg_data) != ADPD400xDrv_SUCCESS) {
+    if (adi_adpddrv_RegRead(reg_addr, &reg_data) != ADPD400xDrv_SUCCESS) {
       return ADPD4000_DCFG_STATUS_ERR;
     }
     *p_dcfg = (reg_addr << 16) | reg_data;
     p_dcfg++;
     *p_dcfg_size = i + 1;
-  }
+  }*/
+    if (adi_adpddrv_RegRead(ADPD400x_REG_OSC32M, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_OSC32M << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+    if (adi_adpddrv_RegRead(ADPD400x_REG_INT_ACLEAR, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_INT_ACLEAR << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+     if (adi_adpddrv_RegRead(ADPD400x_REG_OSC1M, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_OSC1M << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+   if (adi_adpddrv_RegRead(ADPD400x_REG_OSC32K, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_OSC32K << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+    if (adi_adpddrv_RegRead(ADPD400x_REG_TS_FREQ, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_TS_FREQ << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+     if (adi_adpddrv_RegRead(ADPD400x_REG_TS_FREQH, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_TS_FREQH << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+    if (adi_adpddrv_RegRead(ADPD400x_REG_SYS_CTL, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_SYS_CTL << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+   if (adi_adpddrv_RegRead(ADPD400x_REG_OPMODE, &reg_data) != ADPD400xDrv_SUCCESS) {
+      return ADPD4000_DCFG_STATUS_ERR;
+      }
+      *p_dcfg = (ADPD400x_REG_OPMODE << 16) | reg_data;
+      p_dcfg++;
+      *p_dcfg_size = i + 1;
+      i++;
+
+     if (adi_adpddrv_RegRead(ADPD400x_REG_INT_ENABLE_XD, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_INT_ENABLE_XD << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+    if (adi_adpddrv_RegRead(ADPD400x_REG_INPUT_SLEEP, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_INPUT_SLEEP << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+     if (adi_adpddrv_RegRead(ADPD400x_REG_INPUT_CFG, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_INPUT_CFG << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+    if (adi_adpddrv_RegRead(ADPD400x_REG_GPIO_CFG, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_GPIO_CFG << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+    if (adi_adpddrv_RegRead(ADPD400x_REG_GPIO01, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_GPIO01 << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
+    if (adi_adpddrv_RegRead(ADPD400x_REG_GPIO23, &reg_data) != ADPD400xDrv_SUCCESS) {
+    return ADPD4000_DCFG_STATUS_ERR;
+    }
+    *p_dcfg = (ADPD400x_REG_GPIO23 << 16) | reg_data;
+    p_dcfg++;
+    *p_dcfg_size = i + 1;
+    i++;
+
   return ADPD4000_DCFG_STATUS_OK;
 }
 
@@ -959,19 +1067,19 @@ ADPD4000_DCFG_STATUS_t write_adpd4000_dcfg(uint32_t *p_dcfg) {
     return ADPD4000_DCFG_STATUS_NULL_PTR;
   }
   // clear FIFO and IRQs
-  Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
-  //Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_PAUSE);
+  adi_adpdssm_setOperationMode(ADPD400xDrv_MODE_IDLE);
+  //adi_adpddrv_SetOperationMode(ADPD400xDrv_MODE_PAUSE);
 
   for (int i = 0; p_dcfg[i]!= 0xFFFFFFFF; i++) {
     reg_addr = (uint16_t) (p_dcfg[i] >> 16);
     reg_data = (uint16_t)(p_dcfg[i]);
 
-    if (Adpd400xDrvRegWrite(reg_addr, reg_data) != ADPD400xDrv_SUCCESS) {
-      //Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
+    if (adi_adpddrv_RegWrite(reg_addr, reg_data) != ADPD400xDrv_SUCCESS) {
+      //adi_adpddrv_SetOperationMode(ADPD400xDrv_MODE_IDLE);
       return ADPD4000_DCFG_STATUS_ERR;
     }
   }
-  //Adpd400xDrvSetOperationMode(ADPD400xDrv_MODE_IDLE);
+  //adi_adpddrv_SetOperationMode(ADPD400xDrv_MODE_IDLE);
   return ADPD4000_DCFG_STATUS_OK;
 }
 
@@ -1202,16 +1310,15 @@ ADPD4000_DCB_STATUS_t load_adpd4000_dcb(uint16_t device_id)
 {
     if (device_id == 0)
     {
-        Adpd400xDrvOpenDriver();
+        adi_adpddrv_OpenDriver();
         return ADPD4000_DCB_STATUS_OK;
     }
     if (device_id != 0)
     {
         stage_adpd4000_dcfg(&device_id);
     }
-
-    Adpd400xDrvSoftReset();
-    //Adpd400xDrvOpenDriver();
+    adi_adpddrv_SoftReset();
+    //adi_adpddrv_OpenDriver();
 
     if(write_adpd4000_dcfg(&g_current_dcfg[0]) != ADPD4000_DCFG_STATUS_OK)
     {
@@ -1304,9 +1411,9 @@ void adpd4000_update_dcb_present_flag(void)
 void DG2502_SW_control_ADPD4000(uint8_t sw_enable)
 {
     if(sw_enable)
-        Adpd400xDrvRegWrite(ADPD400x_REG_GPIO23, 1);//4K_SW_EN_1V8
+        adi_adpddrv_RegWrite(ADPD400x_REG_GPIO23, 1);//4K_SW_EN_1V8
     else
-        Adpd400xDrvRegWrite(ADPD400x_REG_GPIO23,0);//4K_SW_EN_1V8
+        adi_adpddrv_RegWrite(ADPD400x_REG_GPIO23,0);//4K_SW_EN_1V8
 }
 
 ////////////////////////////////////////////////////////
@@ -1323,7 +1430,7 @@ ADPD4000_DCFG_STATUS_t Set_adpd4000_SamplingFreq(uint16_t odr) {
   uint16_t temp16;
   uint32_t lfOSC;
 
-  Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &temp16);
+  adi_adpddrv_RegRead(ADPD400x_REG_SYS_CTL, &temp16);
   temp16 &= BITM_SYS_CTL_LFOSC_SEL;
   temp16 >>= BITP_SYS_CTL_LFOSC_SEL;
   if (temp16 == 1)
@@ -1333,7 +1440,7 @@ ADPD4000_DCFG_STATUS_t Set_adpd4000_SamplingFreq(uint16_t odr) {
 
   fs_reg_data = lfOSC / odr;  //samplingFrequency = lfOSC/ODR
 
-  if (Adpd400xDrvRegWrite(fs_reg_addr, fs_reg_data) != ADPD400xDrv_SUCCESS)
+  if (adi_adpddrv_RegWrite(fs_reg_addr, fs_reg_data) != ADPD400xDrv_SUCCESS) 
     {
             sts = ADPD4000_DCFG_STATUS_ERR;
     }

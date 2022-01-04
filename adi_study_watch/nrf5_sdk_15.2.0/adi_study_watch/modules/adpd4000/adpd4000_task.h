@@ -55,13 +55,6 @@
 
 /*----------------------------- Typedefs -------------------------------------*/
 
-/* Enum defines ADPD4K Slot channels */
-typedef enum{
-  CH1,
-  CH2,
-  NUM_CH_PER_SLOT
-} ADPD4K_SLOT_CH_t;
-
 /*! \struct packetizer_t ""
     Packetizer structure for adpd data stream */
 typedef struct _packetizer_t {
@@ -137,4 +130,5 @@ typedef enum{
 void sensor_adpd4000_task_init(void);
 void send_message_adpd4000_task(m2m2_hdr_t *p_pkt);
 uint16_t GetChipIdAdpd();
+void  adi_adpdOptionalDataHandler(uint8_t *tmp , uint32_t timestamp);
 #endif // __ADPD4000_TASK__H

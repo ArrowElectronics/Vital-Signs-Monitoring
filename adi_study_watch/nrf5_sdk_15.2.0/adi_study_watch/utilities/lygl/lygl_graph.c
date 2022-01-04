@@ -235,7 +235,7 @@ void lygl_send_graph_data(uint32_t *data,uint16_t len,uint32_t valid_bits)
         {
                 /* Conditional check to make sure that min_value 
                    won't be negative */
-                if((value - y_diff*m_graph_param.y_unit/5) < 0)
+                if(value < (y_diff*m_graph_param.y_unit/5))
                   min_value = 0;
                 else
                   min_value = value - y_diff*m_graph_param.y_unit/5;

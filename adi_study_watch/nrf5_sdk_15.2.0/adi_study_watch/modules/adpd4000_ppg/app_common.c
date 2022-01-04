@@ -39,6 +39,7 @@
 #include "Adxl362.h"
 #include "app_common.h"
 #include "math.h"
+#include "adi_adpd_ssm.h"
 
 uint16_t reg_base;
 uint16_t gPrevSamplerate = 0;
@@ -172,10 +173,10 @@ int16_t AdpdClSetOperationMode(uint8_t eOpState) {
   if (eOpState == ADPD400xDrv_MODE_SAMPLE)  {
     // ClearDataBufferAdpdCL(); // ori
     // ResetTimeGapAdpdCL();    // ori
-    Adpd400xDrvGetParameter(ADPD400x_SUM_SLOT_DATASIZE, 0, &total_slot_size);
+    adi_adpdssm_GetParameter(ADPD400x_SUM_SLOT_DATASIZE, 0, &total_slot_size);
     //adpdCl_buff_reset(total_slot_size);
   }
-  if (Adpd400xDrvSetOperationMode(eOpState) != ADPD400xDrv_SUCCESS) {
+  if (adi_adpdssm_setOperationMode(eOpState) != ADPD400xDrv_SUCCESS) {
     return -1;
   }
   return 0;
@@ -215,7 +216,7 @@ int8_t GetAdpdClOutputRate(uint16_t* sampleRate, uint16_t* decimation, uint16_t 
      *  Reg0x00F = 0x0006 = LFOSC = 1MHz enabled
      *  Reg0x00F = 0x0001 = LFOSC = 32KHz enabled
      */
-    if(Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &nOsc) != ADPD400xDrv_SUCCESS)
+    if(adi_adpddrv_RegRead(ADPD400x_REG_SYS_CTL, &nOsc) != ADPD400xDrv_SUCCESS)
     {
       return -1;
     }
@@ -224,8 +225,8 @@ int8_t GetAdpdClOutputRate(uint16_t* sampleRate, uint16_t* decimation, uint16_t 
      *  Reg0x00D 15:0 - TIMESLOT_PERIOD_L
      *  Reg0x00E  6:0 - TIMESLOT_PERIOD_H
      */
-
-    if(Adpd400xDrvRegRead32B(ADPD400x_REG_TS_FREQ, &nTimeSlotPeriod) != ADPD400xDrv_SUCCESS)
+    
+    if(adi_adpddrv_RegRead32B(ADPD400x_REG_TS_FREQ, &nTimeSlotPeriod) != ADPD400xDrv_SUCCESS)
     {
       return -1;
     }
@@ -236,7 +237,7 @@ int8_t GetAdpdClOutputRate(uint16_t* sampleRate, uint16_t* decimation, uint16_t 
       *sampleRate = 32000/nTimeSlotPeriod;   // LFOSC = 32KHz
     }
     reg_base = log2(slotN) * ADPD400x_SLOT_BASE_ADDR_DIFF;
-    if(Adpd400xDrvRegRead(reg_base + ADPD400x_REG_DECIMATE_A, decimation) != ADPD400xDrv_SUCCESS)
+    if(adi_adpddrv_RegRead(reg_base + ADPD400x_REG_DECIMATE_A, decimation) != ADPD400xDrv_SUCCESS)
     {
       return -1;
     }
@@ -265,7 +266,7 @@ int8_t SetAdpdClOutputRate(uint16_t sampleRate, uint16_t decimation, uint16_t sl
      *  Reg0x00F = 0x0006 = LFOSC = 1MHz enabled
      *  Reg0x00F = 0x0001 = LFOSC = 32KHz enabled
      */
-    Adpd400xDrvRegRead(ADPD400x_REG_SYS_CTL, &nOsc);
+    adi_adpddrv_RegRead(ADPD400x_REG_SYS_CTL, &nOsc);
 
     /* Read TS_FREQ/TS_FREQH registers (0x00D/0x00E)
      *  Reg0x00D 15:0 - TIMESLOT_PERIOD_L
@@ -277,14 +278,15 @@ int8_t SetAdpdClOutputRate(uint16_t sampleRate, uint16_t decimation, uint16_t sl
       nTimeSlotPeriod = 32000/sampleRate;   // LFOSC = 32KHz
     }
 
-    Adpd400xDrvRegWrite(ADPD400x_REG_TS_FREQ, (nTimeSlotPeriod&0xFFFF));
-    Adpd400xDrvRegWrite(ADPD400x_REG_TS_FREQH,(nTimeSlotPeriod>>16));
-    
+    adi_adpddrv_RegWrite(ADPD400x_REG_TS_FREQ, (nTimeSlotPeriod&0xFFFF));
+    adi_adpddrv_RegWrite(ADPD400x_REG_TS_FREQH,(nTimeSlotPeriod>>16));
+
+
     reg_base = log2(slotNum) * ADPD400x_SLOT_BASE_ADDR_DIFF;
-    Adpd400xDrvRegRead(ADPD400x_REG_DECIMATE_A + reg_base, &temp16);
+    adi_adpddrv_RegRead(ADPD400x_REG_DECIMATE_A + reg_base, &temp16);
     temp16 = temp16 & 0xF80F;
     temp16 |= (decimation - 1) << 4;//subract one becuase DECIMATE_FACTOR_x + 1 in register.
-    Adpd400xDrvRegWrite(ADPD400x_REG_DECIMATE_A + reg_base, temp16);
+    adi_adpddrv_RegWrite(ADPD400x_REG_DECIMATE_A + reg_base, temp16);
 
     if(sampleRate != gPrevSamplerate){
       ppg_adjust_adpd_ext_trigger(sampleRate);// Adjusting the external trigger timer

@@ -39,9 +39,10 @@
 #define __ADPD400x_Drv__H
 
 #include <stdint.h>
+#include <adi_adpd_result.h>
 
 /* ------------------------- Defines  -------------------------------------- */
-#define SLOT_NUM                    12    //!< total number of slots on ADPD4100
+#define SLOT_NUM                    (12)    //!< total number of slots on ADPD4100
 #define ADPD400xDrv_SUCCESS         (0)   //!< return code for SUCCESS
 #define ADPD400xDrv_ERROR           (-1)  //!< return code for ERROR
 /*  REGISTER Values */
@@ -52,7 +53,27 @@
 #define ADPD400x_SPI_READ           (0xFFFE) //!< used for setting LS bit low for register read operation
 #define ADPD400x_SLOT_BASE_ADDR_DIFF 0x20  //!< Difference between slot base register addresses
 
-/* Exported types ---------------------------------------------------------- */
+// #define ADI_ADPD_DRV_SUCCESS          (0U)       /*!< Driver operation success */
+// #define ADI_ADPD_DRV_ERROR            (0x10F0U)  /*!< Driver error */
+// #define ADI_ADPD_DRV_PARAM_ERROR      (0x1080U)  /*!< Driver Param error */
+// #define ADI_ADPD_DRV_READ_ERROR       (0x1040U)  /*!< Driver READ  error */
+// #define ADI_ADPD_DRV_WRITE_ERROR      (0x1020U)  /*!< Driver Write  error */
+// #define ADI_ADPD_DRV_FIFO_ERROR       (0x1010U)  /*!< Driver Fifo Not Full error */
+
+
+#define ADPD400x_I2C_LONG_ADDRESS     (0x8000U)  /*!< ADPD I2C LONG ADDRESS BIT */
+/*! BUFFER MANAGER MACROS */
+#define ADPA410x_FIFO_SIZE            (512U)      /*!< FIFO threshold of Adpd41x */
+#define ADPD400x_FIFO_SIZE            (256U)      /*!< FIFO threshold of Adpd40x */
+#define ADPD400x_ID                   (0x00C0U)   /*!< Adpd40x device ID */
+#define ADPD410x_ID                   (0x00C2U)   /*!< Adpd41x device ID */
+
+/* Enum defines ADPD4K Slot channels */
+typedef enum{
+  CH1,
+  CH2,
+  NUM_CH_PER_SLOT
+} ADPD4K_SLOT_CH_t;
 
 /*!
  * @brief:  Data type to store ADPD slot information
@@ -71,10 +92,10 @@ typedef struct {
  * @brief:  Data type to store the various modes of operation of ADPD
  */
 typedef enum {
-  ADPD400xDrv_MODE_IDLE = 0, //!< Idle mode, usually used for configuring registers
-  ADPD400xDrv_MODE_PAUSE,    //!< Same as idle mode
-  ADPD400xDrv_MODE_PWR_OFF,  //!< Power off mode of ADPD4100
-  ADPD400xDrv_MODE_SAMPLE    //!< Active or running mode of ADPD4100
+  ADPD400xDrv_MODE_IDLE     =   0U,    //!< Idle mode, usually used for configuring registers
+  ADPD400xDrv_MODE_PAUSE    =   1U,    //!< Same as idle mode
+  ADPD400xDrv_MODE_PWR_OFF  =   2U,    //!< Power off mode of ADPD4100
+  ADPD400xDrv_MODE_SAMPLE   =   3U     //!< Active or running mode of ADPD4100
 } ADPD400xDrv_Operation_Mode_t;
 
 /*!
@@ -111,75 +132,89 @@ typedef enum {
  */
 typedef enum {
   ADPD400xDrv_SIGNAL = 0x00, //!< Signal Part of data
-  ADPD400xDrv_DARK           //!< Dark part of data
+  ADPD400xDrv_DARK   = 0x01  //!< Dark part of data
 } ADPDDrvCl_SignalDark_t;
 
 /*!
  * @brief:  Enum for ADPD4100 Slot numbering
- */
+*/
 typedef enum {
-  ADPD400xDrv_SLOTA = 0x00, //!< First Slot
-  ADPD400xDrv_SLOTB,        //!< Second Slot
-  ADPD400xDrv_SLOTC,        //!< Third Slot
-  ADPD400xDrv_SLOTD,        //!< Fourth Slot
-  ADPD400xDrv_SLOTE,        //!< Fifth Slot
-  ADPD400xDrv_SLOTF,        //!< Sixth Slot
-  ADPD400xDrv_SLOTG,        //!< Seventh Slot
-  ADPD400xDrv_SLOTH,        //!< Eighth Slot
-  ADPD400xDrv_SLOTI,        //!< Ninth Slot
-  ADPD400xDrv_SLOTJ,        //!< Tenth Slot
-  ADPD400xDrv_SLOTK,        //!< Eleventh Slot
-  ADPD400xDrv_SLOTL         //!< Twelfth Slot
+  ADPD400xDrv_SLOTA = 0x00U, /*!< Slot-A ID Value*/
+  ADPD400xDrv_SLOTB = 0x01U, /*!< Slot-B ID Value*/
+  ADPD400xDrv_SLOTC = 0x02U, /*!< Slot-C ID Value*/
+  ADPD400xDrv_SLOTD = 0x03U, /*!< Slot-D ID Value*/
+  ADPD400xDrv_SLOTE = 0x04U, /*!< Slot-E ID Value*/
+  ADPD400xDrv_SLOTF = 0x05U, /*!< Slot-F ID Value*/
+  ADPD400xDrv_SLOTG = 0x06U, /*!< Slot-G ID Value*/
+  ADPD400xDrv_SLOTH = 0x07U, /*!< Slot-H ID Value*/
+  ADPD400xDrv_SLOTI = 0x08U, /*!< Slot-I ID Value*/
+  ADPD400xDrv_SLOTJ = 0x09U, /*!< Slot-J ID Value*/
+  ADPD400xDrv_SLOTK = 0x0AU, /*!< Slot-K ID Value*/
+  ADPD400xDrv_SLOTL = 0x0BU  /*!< Slot-L ID Value*/
 } ADPD400xDrv_SlotNum_t;
 
 /*!
  * @brief:  Enum for ADPD4100 LEDs: There are 4 LEDs on watch
  */
 typedef enum {
-  ADPD400xDrv_LED_OFF = 0x00, //!< No LED
-  ADPD400xDrv_LED1,           //!< First LED
-  ADPD400xDrv_LED2,           //!< Second LED
-  ADPD400xDrv_LED3,           //!< Third LED
-  ADPD400xDrv_LED4            //!< Fourth LED
+  ADPD400xDrv_LED_OFF = 0x00U, //!< No LED
+  ADPD400xDrv_LED1    = 0x01U, //!< First LED
+  ADPD400xDrv_LED2    = 0x02U, //!< Second LED
+  ADPD400xDrv_LED3    = 0x03U, //!< Third LED
+  ADPD400xDrv_LED4    = 0x04U  //!< Fourth LED
 } ADPD400xDrv_LedId_t;
 
 /*!
  * @brief:  Enum for ADPD4100 type of connection: used while checking the connection type
  */
 typedef enum {
-  ADPD400x_I2C_BUS,    //!< I2C connection
-  ADPD400x_SPI_BUS,    //!< SPI connection
-  ADPD400x_UNKNOWN_BUS //!> unknown connection
+  ADPD400x_I2C_BUS      = 0x00U,    //!< I2C connection
+  ADPD400x_SPI_BUS      = 0x01U,    //!< SPI connection
+  ADPD400x_UNKNOWN_BUS  = 0xFFU     //!> unknown connection
 } Adpd400xComMode_t;
 
-/* Adpd control functions */
-Adpd400xComMode_t Adpd400xDrvGetComMode(void);
-int16_t Adpd400xDrvOpenDriver(void);
-int16_t Adpd400xDrvCloseDriver(void);
-int16_t Adpd400xDrvSoftReset(void);
-int16_t Adpd400xDrvRegRead(uint16_t nAddr, uint16_t *pnData);
-int16_t Adpd400xDrvRegRead32B(uint16_t nAddr, uint32_t *pnData);
-int16_t Adpd400xDrvRegWrite(uint16_t nAddr, uint16_t nRegValue);
-int16_t Adpd400xDrvSlotSetup(uint8_t nSlotNum, uint8_t nEnable,
-                             uint16_t nSlotFormat, uint8_t nChannel);
-int16_t Adpd400xDrvSlotSetActive(uint8_t nSlotNum, uint8_t nSleep);
+/*! \struct tAdiAdpdDrvInst ""
+    ADPD driver Object
+ */
+typedef struct {
+  Adpd400xComMode_t nAdpd400xCommMode; /*!< Communication mode for read/write operations*/
+  uint32_t nAccessCnt[5];              /*!< Debug buffer to hold the information for developer regarding fifo transactions */
+  uint16_t nFifoLevel;                 /*!< This member will hold the fifo bytes count */
+#ifndef NDEBUG
+  uint32_t nOverFlowCnt; /*!< This member will hold the Fifo overflow count while sensor is in sample mode */
+#endif
+  uint16_t nChipID;  /*!< This member will hold the Chip ID information */
+} tAdiAdpdDrvInst;
+/*
+Slot ID Identifier
 
-int16_t Adpd400xDrvSetOperationMode(uint8_t nOpMode);
-int16_t Adpd400xDrvSetOperationPause(uint8_t nEnable);
-int16_t Adpd400xDrvReadFifoData(uint8_t *pnData, uint16_t nDataSetSize);
-int16_t Adpd400xDrvReadRegData(uint32_t *pnData,
-                               ADPD400xDrv_SlotNum_t nSlotNum,
-                               uint8_t nSignalDark, uint8_t nChNum);
-int16_t Adpd400xDrvSetParameter(Adpd400xCommandStruct_t eCommand,
-                                uint8_t nPar, uint16_t nValue);
-int16_t Adpd400xDrvGetParameter(Adpd400xCommandStruct_t eCommand,
-                                uint8_t nPar, uint16_t *pnValue);
-void Adpd400xDrvDataReadyCallback(void (*pfAdpdDataReady)());
-int16_t Adpd400xDrvSetLedCurrent(uint16_t nLedCurrent,
+0 --> Slot A
+1 --> Slot B
+*/
+typedef uint8_t Adpd400xSlotId;
+
+/* Adpd control functions */
+
+Adpd400xComMode_t adi_adpddrv_GetComMode(void);
+uint16_t adi_adpddrv_OpenDriver(void);
+uint16_t adi_adpddrv_CloseDriver(void);
+uint16_t adi_adpddrv_SoftReset(void);
+adi_adpd_result_t adi_adpddrv_RegRead(uint16_t nAddr, uint16_t *pnData);
+adi_adpd_result_t adi_adpddrv_RegRead32B(uint16_t nAddr, uint32_t *pnData);
+adi_adpd_result_t adi_adpddrv_RegWrite(uint16_t nAddr, uint16_t nRegValue);
+adi_adpd_result_t adi_adpddrv_SetIdleMode(void);
+int16_t adi_adpddrv_SetOperationPause(uint8_t nEnable);
+adi_adpd_result_t adi_adpddrv_ReadFifoData(uint16_t nDataSetSize, uint8_t *pnData);
+adi_adpd_result_t adi_adpddrv_ReadRegData(ADPD400xDrv_SlotNum_t nSlotNum, 
+                                          uint8_t nSignalDark, uint8_t nChNum, 
+                                          uint32_t *pnData);
+void adi_adpddrv_DataReadyCallback(void (*pfAdpdDataReady)());
+int16_t adi_adpddrv_SetLedCurrent(uint16_t nLedCurrent, 
                                  ADPD400xDrv_LedId_t nLedId,
                                  ADPD400xDrv_SlotNum_t nSlotNum);
-int16_t Adpd400xDrvGetLedCurrent(uint16_t *pLedCurrent,
+int16_t adi_adpddrv_GetLedCurrent(uint16_t *pLedCurrent, 
                                  ADPD400xDrv_LedId_t nLedId,
                                  ADPD400xDrv_SlotNum_t nSlotNum);
-void Adpd400xISR();
+uint16_t adi_adpddrv_GetChipId(void);
+void adi_adpddrv_ISR();
 #endif

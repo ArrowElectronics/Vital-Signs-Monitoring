@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/mw_ppg.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\mw_ppg.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\mw_ppg.c \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
@@ -55,8 +55,8 @@ Output/watchv4_nrf52840\ Debug/Obj/mw_ppg.o: \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/assert.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib.h \
  ..\..\..\drivers\adxl362/Adxl362.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\app_sync.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\struct_operations.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\app_sync.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\struct_operations.h \
  ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
  ..\..\..\..\modules\nrfx/nrfx.h \
@@ -79,6 +79,7 @@ Output/watchv4_nrf52840\ Debug/Obj/mw_ppg.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
@@ -104,12 +105,12 @@ Output/watchv4_nrf52840\ Debug/Obj/mw_ppg.o: \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
  ..\..\..\cli\m2m2\inc\c/m2m2_core.h \
  ..\..\..\cli\m2m2\inc\c/file_system_interface.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\mw_ppg.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\mw_ppg.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib_common.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib.h \
  ..\..\..\algo\ppg_loop1_algo/adpd_err_code.h \
  ..\..\..\drivers\adpd4000/adpd400x_reg.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\ppg_lcfg.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\ppg_lcfg.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/math.h \
  ..\..\..\modules\system/adi_dcb_config.h \
  ..\..\..\..\components\libraries\fds/fds.h \

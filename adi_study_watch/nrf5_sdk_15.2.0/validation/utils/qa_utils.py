@@ -1,11 +1,77 @@
 import os
 import common
 import time
-import csv
+import sys
+import yaml
+import numpy as np
 
 # Global Variables
 dev_id_dict = {'ADXL362': 'adxl', 'ADPD4K': 'adpd', 'ADP5360': '',
-               'AD5940': '', 'NAND_FLASH': '', 'AD7156': '', 'ECG': 'ecg', 'EDA': 'eda', 'BIA': 'bia'}
+               'AD5940': '', 'NAND_FLASH': '', 'AD7156': '', 'ECG': 'ecg', 'EDA': 'eda', 'BCM': 'bcm', "LT": "lt",
+               "USER0": "user0"}
+
+
+def check_fs_converted_files(dir_path, check_cfg_file, check_file_content=True):
+    """
+    This function checks if all the files specified in the check yaml file are present in the dir_path.
+    :param dir_path:
+    :param check_cfg_file:
+    :return:
+    """
+    with open(check_cfg_file, 'r') as f:
+        check_cfg_dict = yaml.load(f, yaml.FullLoader)
+    missing_file_list = []
+    empty_file_list = []
+    for folder, check_file_list in check_cfg_dict.items():
+        if folder == 'root':
+            check_dir = dir_path
+        else:
+            check_dir = os.path.join(dir_path, folder)
+        file_list = os.listdir(check_dir)
+        for check_file in check_file_list:
+            miss_status = True
+            empty_file = False
+            for file in file_list:
+                if check_file in file:
+                    miss_status = False
+                    if check_file_content:
+                        with open(os.path.join(check_dir, check_file), "r") as file_obj:
+                            x = len(file_obj.readlines())
+                            if "summary" in check_file.lower():
+                                if x == 0:
+                                    empty_file = True
+                            elif "temp" in check_file.lower() or "psboardinfo" in check_file.lower():
+                                if x < 6:
+                                    empty_file = True
+                            else:
+                                if x < 15:
+                                    empty_file = True
+
+                    break
+            if miss_status:
+                missing_file_list.append((check_dir, check_file))
+            if empty_file:
+                empty_file_list.append((check_dir, check_file))
+    return missing_file_list, empty_file_list
+
+
+def get_id_from_fs_log(fs_file, id_type):
+    if id_type == 'exp_id':
+        summary_dict = read_log_info(fs_file, 'summary')
+        id_from_fs = summary_dict['Participant Information']
+    elif id_type == 'hw_id' or id_type == 'dev_id':
+        ps_board_info_dict = read_log_info(fs_file, 'ps_board_info')
+        id_from_fs = ps_board_info_dict['Hardware ID']
+    id_from_fs = int(id_from_fs) if id_from_fs.strip() else -1
+    return id_from_fs
+
+
+def get_csv_col_info(csv_file, hdr_row):
+    with open(csv_file, 'r') as f:
+        line_list = f.readlines()
+    hdr_row_str = line_list[hdr_row]
+    col_hdr_list = [hdr.strip() for hdr in hdr_row_str.split(',') if hdr.strip()]
+    return col_hdr_list
 
 
 def clear_fs_logs(app_name='ADXL'):
@@ -34,6 +100,122 @@ def convert_and_verify_logs(log_file_name, csv_file_suffix='ADPDAppStream_Combin
         csv_file_path = None
         check_status = False
     return check_status, csv_file_path
+
+
+def read_log_info(fs_file, info_type='ps_board_info'):
+    f_dir, f_name = os.path.split(fs_file)
+    log_dir = os.path.join(f_dir, f_name.split('.')[0])
+    if info_type == 'ps_board_info':
+        f_path = os.path.join(log_dir, 'PSBoardInfo.csv')
+    else:
+        f_path = os.path.join(log_dir, 'Summary.csv')
+    with open(f_path, 'r') as f:
+        line_list = f.readlines()
+    info_dict = {line.split(',')[0].strip(): line.split(',')[1].strip() for line in line_list if line.strip()}
+    return info_dict
+
+
+def get_fs_file_names():
+    fs_ls_list = [file_info[0] for file_info in common.watch_shell.do_fs_ls("")]
+    return fs_ls_list
+
+
+def get_latest_file_name(previous_file_name_list, test_name="Stream Test", number_of_files=1):
+    fs_ls_list = get_fs_file_names()
+    new_files = []
+    for file in fs_ls_list:
+        if file != "USER_CONFIG.LOG" and file not in previous_file_name_list:
+            new_files.append(file)
+    if not new_files:
+        common.test_logger.error("***{} - There is no new files***".format(test_name))
+        raise common.ConditionCheckFailure("***{} - There is no new files***".format(test_name))
+    if len(new_files) != number_of_files:
+        common.test_logger.error("***{} - Fs file number not matching\nExpected {} files, but got {} files***".format(
+            test_name, number_of_files, len(new_files)))
+        raise common.ConditionCheckFailure("***{} - Fs file number not matching***".format(test_name))
+    return new_files
+
+
+def get_fs_log_with_name(log_file_name, cfg_file=None, test_name="Stream Test"):
+    common.test_logger.info("*** Log File Name - {} ***".format(log_file_name))
+    range_var = 1
+    break_var = False
+    if cfg_file is not None:
+        range_var = 5
+    for index in range(range_var):
+        common.watch_shell.do_download_file(log_file_name)
+        if index != 0:
+            time.sleep(2)
+        if not (os.path.exists(log_file_name) and os.path.isfile(log_file_name)):
+            common.test_logger.error('*** {} FS Stream Test - FAIL ***'.format(test_name))
+            raise common.ConditionCheckFailure("\n\n" + '{}'.format('FS log file was not found after download!'))
+        elif os.stat(log_file_name).st_size == 0:
+            common.test_logger.error('*** {} FS Stream Test - FAIL ***'.format(test_name))
+            raise common.ConditionCheckFailure("\n\n" + '{}'.format('Empty FS Log file downloaded!'))
+        common.watch_shell.do_convert_log(log_file_name)
+        csv_file_name = {}
+        csv_files_folder = os.path.join(os.getcwd(), log_file_name.split('.')[0])
+        if cfg_file is not None:
+            missing_file_list, empty_file_list = check_fs_converted_files(csv_files_folder, cfg_file)
+            if missing_file_list or empty_file_list:
+                if range_var - 1 == index:
+                    if missing_file_list or empty_file_list:
+                        common.test_logger.error('Unable to find all converted files in FS Log folder.')
+                        if missing_file_list:
+                            for item in missing_file_list:
+                                common.test_logger.error('Missing File: {} | {}'.format(item[0], item[1]))
+                        if empty_file_list:
+                            for item in empty_file_list:
+                                common.test_logger.error('Empty File: {} | {}'.format(item[0], item[1]))
+                else:
+                    common.test_logger.warning('Unable to find all converted files in FS Log folder. Attempting Retry '
+                                               '{}'.format(index+1))
+                    if missing_file_list:
+                        for item in missing_file_list:
+                            common.test_logger.warning('Missing File: {} | {}'.format(item[0], item[1]))
+                    if empty_file_list:
+                        for item in empty_file_list:
+                            common.test_logger.warning('Empty File: {} | {}'.format(item[0], item[1]))
+                    continue
+            else:
+                break_var = True
+        else:
+            break_var = True
+        files = os.listdir(csv_files_folder)
+        for file in files:
+            file_name_lower = file.lower()
+            if "adpd6" in file_name_lower:
+                csv_file_name["adpd_g"] = os.path.join(csv_files_folder, file)
+            elif "adpd7" in file_name_lower:
+                csv_file_name["adpd_r"] = os.path.join(csv_files_folder, file)
+            elif "adpd8" in file_name_lower:
+                csv_file_name["adpd_ir"] = os.path.join(csv_files_folder, file)
+            elif "adpd9" in file_name_lower:
+                csv_file_name["adpd_b"] = os.path.join(csv_files_folder, file)
+            elif "adpd" in file_name_lower:
+                csv_file_name["adpd"] = os.path.join(csv_files_folder, file)
+            elif "adxl" in file_name_lower:
+                csv_file_name["adxl"] = os.path.join(csv_files_folder, file)
+            elif "temp" in file_name_lower:
+                csv_file_name["temperature"] = os.path.join(csv_files_folder, file)
+            elif "sync_ppg" in file_name_lower:
+                csv_file_name["syncppg"] = os.path.join(csv_files_folder, file)
+            elif "ppg" in file_name_lower:
+                csv_file_name["ppg"] = os.path.join(csv_files_folder, file)
+            elif "ecg" in file_name_lower:
+                csv_file_name["ecg"] = os.path.join(csv_files_folder, file)
+            elif "eda" in file_name_lower:
+                csv_file_name["eda"] = os.path.join(csv_files_folder, file)
+            elif "bcm" in file_name_lower:
+                csv_file_name["bcm"] = os.path.join(csv_files_folder, file)
+            elif "summary" in file_name_lower:
+                csv_file_name["summary"] = os.path.join(csv_files_folder, file)
+            elif "psboardinfo" in file_name_lower:
+                csv_file_name["psboardinfo"] = os.path.join(csv_files_folder, file)
+        if break_var:
+            break
+
+    return log_file_name, csv_file_name
 
 
 def get_fs_log(app_name='ADXL'):
@@ -267,8 +449,9 @@ def quick_start_ppg_multi_led(samp_freq_hz=50, agc_state=0):
     common.watch_shell.do_csv_log("sync_ppg start")
     common.watch_shell.do_sub("ppg add")
 
+
 def get_delta_ts_and_fs(ts_data_list, repeat_count, fs_div):
-    if len(ts_data_list) > 100:
+    if len(ts_data_list) > 150:
         ts_data_list = ts_data_list[100:]  # Removing first 100 samples to avoid initial junk value related issues
         ts_data_list.sort()
         median_start_idx = int(len(ts_data_list)/2)
@@ -285,6 +468,76 @@ def get_delta_ts_and_fs(ts_data_list, repeat_count, fs_div):
     else:
         delta_ts, fs = None, None
     return delta_ts, fs
+
+
+def check_adpd_fs_stream_data(f_path):
+    data_col_offset = 1
+    col_hdr_list = get_csv_col_info(f_path, 3)
+    for i, col in enumerate(col_hdr_list):
+        data_list = common.read_csv_col(f_path, (data_col_offset+(2*i)), 5)
+        if sum(data_list[20:])/len(data_list[20:]) > 0:
+            return True
+    return False
+
+
+def check_fs_stream_non_zero_data(f_path, col_hdr_idx, exp_col_hdr_list, stream,
+                                  row_offset=3, col_offset=0, init_data_skip=20):
+    col_hdr_list = get_csv_col_info(f_path, col_hdr_idx)
+    if col_hdr_list != exp_col_hdr_list:
+        return True, '{} Stream Data Columns Missing!'.format(stream.upper())
+    for i, col in enumerate(col_hdr_list):
+        data_list = common.read_csv_col(f_path, (col_offset+i), row_offset)
+        if not (abs(sum(data_list[init_data_skip:])/len(data_list[init_data_skip:])) > 0):
+            return True, '{} Column "{}" has invalid data!'.format(stream.upper(), exp_col_hdr_list[i])
+        if stream == 'temperature':
+            check_data = data_list[init_data_skip:]
+            std_dev = np.std(check_data)
+            common.test_logger.info('Temperature Std. Dev. : {}'.format(std_dev))
+            if std_dev > 3:
+                return True, 'Standard deviation is more than 3! Measured Std. Deviation: {}'.format(std_dev)
+            if any([True for data in check_data if data <= 25]):
+                return True, 'One or more temperature values in the log file are equal to 25!'
+
+    return False, ''
+
+
+def check_stream_data_validity(f_path, stream):
+    data_error = True
+    err_msg = ''
+    if stream == 'adpd':
+        data_error = check_adpd_fs_stream_data(f_path)
+    elif stream == 'ecg':
+        pass
+    elif stream == 'eda':
+        col_offset = 0
+        row_offset = 3
+        col_hdr_idx = 2
+        exp_col_hdr_list = ['Timestamp', 'Seq No.', 'Impedance Module', 'Impedance Phase']
+        data_error, err_msg = check_fs_stream_non_zero_data(f_path, col_hdr_idx, exp_col_hdr_list, 'eda',
+                                                            row_offset, col_offset)
+    elif stream == 'temperature':
+        col_offset = 0
+        row_offset = 3
+        col_hdr_idx = 2
+        exp_col_hdr_list = ['Timestamp', 'Skin Temperature', 'Impedance', 'Compensated Temperature']
+        data_error, err_msg = check_fs_stream_non_zero_data(f_path, col_hdr_idx, exp_col_hdr_list, 'temperature',
+                                                            row_offset, col_offset, 0)
+    elif stream == 'ppg':
+        pass
+    elif stream == 'syncppg':
+        pass
+    elif stream == 'adxl':
+        col_offset = 0
+        row_offset = 3
+        col_hdr_idx = 2
+        exp_col_hdr_list = ['Timestamp', 'X', 'Y', 'Z']
+        data_error, err_msg = check_fs_stream_non_zero_data(f_path, col_hdr_idx, exp_col_hdr_list, 'adxl',
+                                                            row_offset, col_offset)
+    elif stream == 'bcm':
+        pass
+    else:
+        pass
+    return data_error, err_msg
 
 
 def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False, freq_tolerance_percentage=None):
@@ -364,8 +617,8 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False,
         if not ref_delta_ts and i == 1:
             ref_delta_ts = delta_ts
             compensator = 1
-            common.test_logger.warning(
-                'Median Ref Delta TS calculation Not available. Switching to start index calculation!')
+            # common.test_logger.warning(
+            #     'Median Ref Delta TS calculation Not available. Switching to start index calculation!')
         else:
             if not(0.9 * ref_delta_ts <= delta_ts <= 1.1 * ref_delta_ts):
                 if stream == "adpd" or stream == "ppg" or stream == "syncppg" or stream == "adpd_combined":
@@ -439,6 +692,17 @@ def check_stream_data(file_path, stream='ecg', ch=1, exp_fs_hz=50, fs_log=False,
                            'excess_samples': None, 'num_excess_samples': None}
         err_stat, err_str = True, 'Empty or invalid stream file!'
     return err_stat, err_str, freq_check_dict
+
+
+def reg_dump(f_name='reg_dump.txt'):
+    reg_list = []
+    with open(f_name, 'w') as f:
+        for i in range(632):
+            err_stat, reg_val = common.watch_shell.reg_read('adpd', hex(i))
+            reg_val = reg_val[0][1]
+            f.write('{}  {}\n'.format(hex(i), reg_val))
+            reg_list.append({'addr':i, 'val':reg_val})
+    return reg_list
 
 
 def dev_id_test(dev):
@@ -528,7 +792,8 @@ def check_dcb(dev, dcb_name):
                 if data.strip()[0] != '#':
                     addr = data.split(' ')[0]
                     val = int(data.split(' ')[1].strip(), 16)
-                    if dev_id.lower() == "ecg" or dev_id.lower() == "eda" or dev_id.lower() == "bia":
+                    if dev_id.lower() == "ecg" or dev_id.lower() == "eda" or dev_id.lower() == "bcm" or \
+                            dev_id.lower() == "lt":
                         packet = common.watch_shell.do_lcfg("r {} 0x{}".format(dev_id, addr))
                         reg_val_list = packet["payload"]["data"]
                     # elif dev_id.lower() == "eda":
@@ -547,6 +812,73 @@ def check_dcb(dev, dcb_name):
         err_stat = 1
     return err_stat, dcb_val_mismatch
 
+
+def check_dcb_with_msg(dev, dcb_name):
+    err_stat = True
+    error_msg = ""
+    if dev in dev_id_dict.keys():
+        dev_id = dev_id_dict[dev]
+        dcb_path = os.path.join('.', 'dcb_cfg', dcb_name)
+        with open(dcb_path, 'r') as f_ref:
+            line_list = f_ref.readlines()
+        for i, data in enumerate(line_list):
+            if data.strip():
+                if data.strip()[0] != '#' and data.strip() != "":
+                    addr = data.split(' ')[0]
+                    val = int(data.split(' ')[1].strip(), 16)
+                    if dev_id.lower() == "ecg" or dev_id.lower() == "eda" or dev_id.lower() == "bcm" or \
+                            dev_id.lower() == "lt":
+                        packet = common.watch_shell.do_lcfg("r {} 0x{}".format(dev_id, addr))
+                        reg_val_list = packet["payload"]["data"]
+                    # elif dev_id.lower() == "eda":
+                    #     status, reg_val_list = common.watch_shell.do_lcfgEdaRead(addr)
+                    else:
+                        packet = common.watch_shell.do_reg('r {} 0x{}'.format(dev_id, addr))
+                        reg_val_list = packet["payload"]["data"]
+                    if reg_val_list:
+                        reg_val = int(reg_val_list[0][1], 16)
+                        if reg_val != val:
+                            err_stat = False
+                            error_msg = 'Expected: Addr={} Val={} | Actual: Addr={} Val={}'.format(addr, val, addr,
+                                                                                                   reg_val)
+    else:
+        err_stat = False
+        error_msg = "Please enter a proper Dev ID"
+    return err_stat, error_msg
+
+
+def check_dcb_user0_with_msg(dev, dcb_name):
+    err_stat = True
+    error_msg = ""
+    if dev in dev_id_dict.keys():
+        dev_id = dev_id_dict[dev]
+        dcb_path = os.path.join('.', 'dcb_cfg', dcb_name)
+        with open(dcb_path, 'r') as f_ref:
+            line_list = f_ref.readlines()
+        addr = 0
+        for i, data in enumerate(line_list):
+            if addr == 0x13:
+                break
+            if data.strip():
+                if data.strip()[0] != '#' and data.strip() != "":
+                    val = data.split(' ')[0]
+                    packet = common.watch_shell.do_lcfg("r user0 {}".format(str(hex(addr))))
+                    reg_val_list = packet["payload"]["data"]
+                    print(data, reg_val_list)
+
+                    if reg_val_list:
+                        reg_val = int(reg_val_list[0][1], 16)
+                        if reg_val_list:
+                            reg_val = int(reg_val_list[0][1], 16)
+                            if reg_val != val:
+                                err_stat = False
+                                error_msg = 'Expected: Addr={} Val={} | Actual: Addr={} Val={}'.format(addr, val, addr,
+                                                                                                       reg_val)
+                    addr += 1
+    else:
+        err_stat = False
+        error_msg = "Please enter a proper Dev ID"
+    return err_stat, error_msg
 
 def enable_ecg_without_electrodes_contact():
     common.watch_shell.do_lcfg("w ecg 0x3:0x0")

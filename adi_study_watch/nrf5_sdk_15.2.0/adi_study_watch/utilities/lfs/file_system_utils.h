@@ -141,7 +141,7 @@ FS_STATUS_ENUM_t fs_write_rsd_block(uint32_t data[], uint16_t size);
 FS_STATUS_ENUM_t fs_block_erase(uint16_t block_no);
 bool UpdateFileInfo();
 FS_STATUS_ENUM_t fs_hal_append_file();
-FS_STATUS_ENUM_t set_write_handler_mode();
+void set_write_handler_mode();
 uint32_t fs_get_file_page_number_offset(uint32_t *CurrentPageNumber, uint32_t *StartPageNumber, bool bHandleRollover);
 #ifdef TEST_FS_NAND
 void fs_hal_test_features(void);

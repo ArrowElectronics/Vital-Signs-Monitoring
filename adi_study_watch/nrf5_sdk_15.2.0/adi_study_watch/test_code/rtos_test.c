@@ -123,7 +123,8 @@ void rtos_test_init(void)
     rtos_test_task_attributes.pStackBase = &rtos_test_task_stack[0];
     rtos_test_task_attributes.nStackSize = APP_OS_CFG_RTOS_TEST_TASK_STK_SIZE;
     rtos_test_task_attributes.pTaskAttrParam = NULL;
-    rtos_test_task_attributes.szThreadName = "rtos_test";
+    /* Thread Name should be of max 10 Characters */
+    rtos_test_task_attributes.szThreadName = "Rtos_Test";
     rtos_test_task_attributes.pThreadTcb = &rtos_test_task_tcb;
 
     eOsStatus = adi_osal_ThreadCreateStatic(&rtos_task_task_handler,

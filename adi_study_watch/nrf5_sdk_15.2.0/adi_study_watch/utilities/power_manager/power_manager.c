@@ -82,12 +82,17 @@
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
+#include "ad5940.h"
+
 #ifdef CUST4_SM
 volatile bool gnGpioPowerOn __attribute__((section(".non_init")));
 #endif
 
 extern uint8_t dvt2; //whether dvt2 or not
 bool gb_ecgldo_enable = false;
+bool g_disable_ad5940_port_init =false;
+bool g_disable_ad5940_port_deinit = false;
+
 #ifdef HIBERNATE_MD_EN
 /* Variable which controls the enable/disable of Hibernate Mode from m2m2 command */
 bool gb_hib_mode_control = true;
@@ -279,14 +284,26 @@ void adp5360_enable_ldo(int PIN,bool en)
 #endif
               gb_ecgldo_enable = true;
               nrf_gpio_pin_set(PWE_EPHYZ_PIN);
+              if(g_disable_ad5940_port_init == false) {
+              /* After enabling LDO,Initializing AD5940 */ 
+              ad5940_port_Init();
+              }
+              /* Use hardware reset */
+              AD5940_HWReset();
+              /* Platform configuration */
+              AD5940_Initialize();
             }
             else
             {
 #ifdef PRINTS_OUT
               NRF_LOG_INFO("Disabling Power for 8233 and bio impedance LDO");
 #endif
-              gb_ecgldo_enable = false;
+              if(g_disable_ad5940_port_deinit == false) {
+              /* DeInitializing AD5940 Port */ 
+              ad5940_port_deInit();
+              }
               nrf_gpio_pin_clear(PWE_EPHYZ_PIN);
+              gb_ecgldo_enable = false;
             }
     break;
     default:
@@ -325,7 +342,7 @@ void enter_poweroff_mode(void)
     Adp5350_wdt_set(ADP5360_DISABLE);/* close the WDT of AD5360*/
 #endif
     if( !dvt2 )
-      Adpd400xDrvCloseDriver();//will delete this after DVT2.
+      adi_adpddrv_CloseDriver();//will delete this after DVT2.
 #ifdef ENABLE_WATCH_DISPLAY
     lcd_disp_off();
 #endif

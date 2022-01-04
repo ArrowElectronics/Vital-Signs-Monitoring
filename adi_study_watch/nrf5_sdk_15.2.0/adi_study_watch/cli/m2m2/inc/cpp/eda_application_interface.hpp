@@ -42,6 +42,8 @@ enum M2M2_EDA_APP_CMD_ENUM_t:uint8_t {
   M2M2_APP_COMMON_CMD_WRITE_DCFG_RESP = 83,
   M2M2_APP_COMMON_CMD_READ_DCFG_REQ = 84,
   M2M2_APP_COMMON_CMD_READ_DCFG_RESP = 85,
+  M2M2_EDA_APP_CMD_BASELINE_IMP_GET_REQ = 86,
+  M2M2_EDA_APP_CMD_BASELINE_IMP_GET_RESP = 87,
 };
 static_assert(sizeof(M2M2_EDA_APP_CMD_ENUM_t) == 1, "Enum 'M2M2_EDA_APP_CMD_ENUM_t' has an incorrect size!");
 
@@ -75,15 +77,16 @@ struct eda_app_lcfg_op_hdr_t {
 };
 
 struct eda_app_dcfg_op_t {
-  uint32_t  field;
-  uint32_t  value;
+  uint32_t  field; 
+  uint32_t  value; 
 };
 
 struct eda_app_dcfg_op_hdr_t {
-  uint8_t  command;
-  uint8_t  status;
-  uint8_t  num_ops;
-  eda_app_dcfg_op_t  ops[0];
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  num_ops; 
+  eda_app_dcfg_op_t  ops[1]; // NOTE: THIS FIELD IS INTENDED TO BE OF VARIABLE LENGTH! 
+        // NOTE: Use offsetof(eda_app_dcfg_op_hdr_t, ops) instead of sizeof(eda_app_dcfg_op_hdr_t)
 };
 
 struct eda_data_set_t {
@@ -124,6 +127,22 @@ struct eda_app_set_dft_num_t {
 struct eda_app_set_baseline_imp_t {
   uint8_t  command; 
   uint8_t  status; 
+  float  imp_real_dft16; 
+  float  imp_img_dft16; 
+  float  imp_real_dft8; 
+  float  imp_img_dft8; 
+  uint32_t  resistor_baseline; 
+};
+
+struct eda_app_get_baseline_imp_req_t {
+  uint8_t  command; 
+  uint8_t  status; 
+};
+
+struct eda_app_get_baseline_imp_resp_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  int16_t  eda_user_baseline_imp_set; 
   float  imp_real_dft16; 
   float  imp_img_dft16; 
   float  imp_real_dft8; 

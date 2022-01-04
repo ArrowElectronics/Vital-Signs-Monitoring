@@ -1,5 +1,5 @@
 #EDA_DCB_LCFG
 
 00 0019	# for checking DCB, ODR here is 25 Hz to differentiate DCB value from f/w value . Default f/w EDA ODR = 4 Hz
-02 0001	# DFTNUM_8 = 1
+02 0001	# DFTNUM_8 = 1 It is recommended to keep DFTNUM_16 = 2 for EDA ODR <=16
 

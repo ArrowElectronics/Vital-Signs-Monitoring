@@ -47,8 +47,8 @@ typedef struct _temperature_app_dcb_lcfg_t {
 typedef struct _temperature_app_lcfg_t {
   uint8_t  command; 
   uint8_t  status; 
-  uint8_t   field; 
-  uint32_t  value[21];
+  uint8_t  field; 
+  uint32_t  value[21]; 
 } temperature_app_lcfg_t;
 
 // Reset struct packing outside of this file

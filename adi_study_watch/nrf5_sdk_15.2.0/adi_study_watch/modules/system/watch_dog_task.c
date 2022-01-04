@@ -73,7 +73,8 @@ void watchdog_task_init(void) {
   watchdog_system_task_attributes.pStackBase = &watchdog_system_task_stack[0];
   watchdog_system_task_attributes.nStackSize = APP_OS_CFG_WDT_TASK_STK_SIZE;
   watchdog_system_task_attributes.pTaskAttrParam = NULL;
-  watchdog_system_task_attributes.szThreadName = "adp5360_WD_task";
+  /* Thread Name should be of max 10 Characters */
+  watchdog_system_task_attributes.szThreadName = "WD_Task";
   watchdog_system_task_attributes.pThreadTcb = &watchdogTaskTcb;
   eOsStatus = adi_osal_MsgQueueCreate(&watchdog_task_msg_queue,NULL,
                                     5);

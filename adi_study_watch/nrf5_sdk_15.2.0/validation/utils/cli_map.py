@@ -36,11 +36,51 @@ class CLIMap(cli.CLI):
         err_stat = self.check_err_stat(pkt, 65)
         return err_stat, fw_ver_dict
 
+    def get_battery_info(self):
+        pkt = self.do_get_battery_info('')
+        battery_info_dict = {'battery_status': pkt['payload']['battery_status'].name,
+                             'battery_level': pkt['payload']['battery_level'],
+                             'battery_mv': pkt['payload']['battery_mv']}
+        err_stat = self.check_err_stat(pkt, 65)
+        return err_stat, battery_info_dict
+
     def get_chip_id(self, dev):
         pkt = self.do_get_chip_id(dev)
         chip_id = pkt['payload']['chip_id']
         err_stat = self.check_err_stat(pkt, 65)
         return err_stat, chip_id
+
+    def get_exp_id(self):
+        pkt = self.do_exp_id('r')
+        exp_id = pkt['payload']['value']
+        err_stat = self.check_err_stat(pkt, 65)
+        return err_stat, exp_id
+
+    def delete_exp_id(self):
+        pkt = self.do_exp_id('d')
+        err_stat = self.check_err_stat(pkt, 65)
+        return err_stat
+
+    def set_exp_id(self, exp_id):
+        pkt = self.do_exp_id('w -v {}'.format(exp_id))
+        err_stat = self.check_err_stat(pkt, 65)
+        return err_stat
+
+    def get_hw_id(self):
+        pkt = self.do_hw_id('r')
+        hw_id = pkt['payload']['value']
+        err_stat = self.check_err_stat(pkt, 65)
+        return err_stat, hw_id
+
+    def set_hw_id(self, hw_id):
+        pkt = self.do_hw_id('w -v {}'.format(hw_id))
+        err_stat = self.check_err_stat(pkt, 65)
+        return err_stat
+
+    def get_date_time(self):
+        pkt = self.do_get_datetime("")
+        return "{}/{}/{} {}:{}:{}".format(pkt['payload']['day'], pkt['payload']['month'], pkt['payload']['year'],
+                                          pkt['payload']['hour'], pkt['payload']['minute'], pkt['payload']['second'])
 
     def quick_start(self, sensor, stream, plot=False, fs=False):
         if fs:

@@ -91,7 +91,8 @@ void logger_task_init(void)
     logger_task_attributes.pStackBase = &logger_task_stack[0];
     logger_task_attributes.nStackSize = APP_OS_CFG_LOGGER_TASK_STK_SIZE;
     logger_task_attributes.pTaskAttrParam = NULL;
-    logger_task_attributes.szThreadName = "logger_task";
+    /* Thread Name should be of max 10 Characters */
+    logger_task_attributes.szThreadName = "LoggerTask";
     logger_task_attributes.pThreadTcb = &LoggerTaskTcb;
   
     eOsStatus = adi_osal_ThreadCreateStatic(&logger_task_handler,

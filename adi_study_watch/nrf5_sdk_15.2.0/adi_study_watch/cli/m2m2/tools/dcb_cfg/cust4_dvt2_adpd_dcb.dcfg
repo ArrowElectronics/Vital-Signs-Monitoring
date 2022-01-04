@@ -18,7 +18,7 @@
 000F  0006  # SYS_CTL [2]select 1MHz osc(1), [1]1MHz osc enable(1), [0]32kHz osc disable(0)
 0010  0500  # OPMODE [11:8]Timeslot enable control ABCDEF(0101)
 0020  2222  # INPUT_SLEEP [15:12][11:8][7:4][3:0]inputs 78/56/34/12 connected to VC1 during sleep(0x2)
-0021  0000  # INPUT_CFG [5:4]VC1 set to AVDD during sleep(0), [3:0]input pairs 78/56/34/12 are configured as single-ended(0000)
+0021  0010  # INPUT_CFG [5:4]VC1 set to GND during sleep(1), [3:0]input pairs 78/56/34/12 are configured as single-ended(0000)
 
 ##  GPIO Setup and Control
 0022  0003  # GPIO_CFG [11:9]gpio3 disable(000), [8:6]gpio2 disable(000), [5:3]gpio1 disable(000), [2:0]gpio0 enable output-inverted(011)
@@ -41,7 +41,7 @@
 0160  0000  # TS_CTRL_D [15]Sub-sambling disable(0), [14]CH2 disable(0), [13:12]standard sampling mode(00), [11:10]Rs=500ohm(0), [9:0]Timeslot offset 0cycle
 0161  40DA  # TS_PATH_D [15:12]Preconditioning duration 0x4(=8us), [9]Timeslot specific gpio value 0x0, [8:0]TIA-BPF-INT-ADC 0x0DA
 0162  0010  # INPUTS_D [15:12]IN78 discon(0000), [11:8]IN56 discon(0000), [7:4]IN3 to ch1, IN4 discon(0001), [3:0]IN12 discon(0000)
-0163  5A40  # CATHODE_D [14:12]Anode precondition to TIA_VREF(101), [11:10]VC2 Alternate Pulse Output(10), [9:8]Alternate TIA_VREF+215mV(10), [7:6]Active TIA_VREF(01)
+0163  5A4F  # CATHODE_D [14:12]Anode precondition to TIA_VREF(101), [11:10]VC2 Alternate Pulse Output(10), [9:8]Alternate TIA_VREF+215mV(10), [7:6]Active TIA_VREF(01)
 0164  E281  # AFE_TRIM_D [15]TIA saturation detection enable(1), [14:13]CH2 INT resistor 100k gain(11), [12:11]CH1 INT resistor 400k gain(00), [10]TIA_VREF Pulse Enable(1), [9:8]TIA_VREF=0.8855V(10), [7:6]TIA_VREF Alternate=0.8855V(10), [5:3]CH2 TIA resistor 200k gain(000), [2:0]CH1 TIA resistor 100k gain(001)
 0165  0000  # LED_POW12_D [15]drive LED2A(0), [14:8]LED2x current=1.6*0mA(0x00), [7]drive LED1A(0), [6:0]LED1x current=1.6*0mA(0x00)
 0166  0000  # LED_POW34_D [15]drive LED4A(0), [14:8]LED4x current=1.6*0mA(0x00), [7]drive LED3A(0), [6:0]LED3x current=1.6*0mA(0x00)
@@ -60,7 +60,7 @@
 0180  0000  # TS_CTRL_E [15]Sub-sambling disable(0), [14]CH2 disable(0), [13:12]standard sampling mode(00), [11:10]Rs=500ohm(0), [9:0]Timeslot offset 0cycle
 0181  40DA  # TS_PATH_E [15:12]Preconditioning duration 0x4(=8us), [9]Timeslot specific gpio value 0x0, [8:0]TIA-BPF-INT-ADC 0x0DA
 0182  0030  # INPUTS_E [15:12]IN78 discon(0000), [11:8]IN56 discon(0000), [7:4]IN4 to ch1, IN3 discon(0011), [3:0]IN12 discon(0000)
-0183  5A40  # CATHODE_E [14:12]Anode precondition to TIA_VREF(101), [11:10]VC2 Alternate Pulse Output(10), [9:8]Alternate TIA_VREF+215mV(10), [7:6]Active TIA_VREF(01)
+0183  5A4F  # CATHODE_E [14:12]Anode precondition to TIA_VREF(101), [11:10]VC2 Alternate Pulse Output(10), [9:8]Alternate TIA_VREF+215mV(10), [7:6]Active TIA_VREF(01)
 0184  E281  # AFE_TRIM_E [15]TIA saturation detection enable(1), [14:13]CH2 INT resistor 100k gain(11), [12:11]CH1 INT resistor 400k gain(00), [10]TIA_VREF Pulse Enable(1), [9:8]TIA_VREF=0.8855V(10), [7:6]TIA_VREF Alternate=0.8855V(10), [5:3]CH2 TIA resistor 200k gain(000), [2:0]CH1 TIA resistor 100k gain(001)
 0185  0000  # LED_POW12_E [15]drive LED2A(0), [14:8]LED2x current=1.6*0mA(0x00), [7]drive LED1A(0), [6:0]LED1x current=1.6*0mA(0x00)
 0186  0000  # LED_POW34_E [15]drive LED4A(0), [14:8]LED4x current=1.6*0mA(0x00), [7]drive LED3A(0), [6:0]LED3x current=1.6*0mA(0x00)

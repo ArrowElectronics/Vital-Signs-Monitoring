@@ -31,6 +31,7 @@ class LowTouch():
 
 
 enable_csv_logs = 0
+fs_file_pagechunk_list = []
 lowtouch = LowTouch()
 class verboser():
     msg_formatters = {
@@ -218,7 +219,12 @@ class m2m2_shell(cmd.Cmd):
                 "help":"send external sqi data stream"},
     "sqi_green": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40", "reg w adpd4000 0x0D:0x2710", "clockCalibration","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add"],
                 "help":"Starts the SQI with Green LED on slot F of ADPD4000 at 100Hz"},
-    "sqi_green_50": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add"],
+    "sqi_mm": {   "commands":["plot radpd1","plot rsqi", "sensor sqi start","sub rsqi add","sub radpd1 add","sensor adpd4000 start"],
+                "help":"Starts the SQI with Green LED on slot F of ADPD4000 at 100Hz"},
+                                
+    "sqi_mm_test": {  "commands":["sub radpd1 add","sub radpd4 add","sub radpd5 add","sensor sqi start","sub rtemperature add", "sub rsqi add","plot rsqi","plot radpd1","plot rtemperature","sensor adpd4000 start"],
+                "help":"Starts the SQI with Green LED on slot F of ADPD4000 at 100Hz"},  
+    "sqi_green_50": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40", "reg w adpd4000 0x0D:0x4E20", "clockCalibration 6","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add"],
                 "help":"Starts the SQI with Green LED on slot F of ADPD4000 at 50Hz"},
     "sqi_green_25": {   "commands":["plot radpd6","plot rsqi","loadAdpdCfg 40", "reg w adpd4000 0x0D:0x9C40", "clockCalibration","SQISetSlot 6","sensor sqi start","sub rsqi add","adpdAGCControl 1:1","sensor adpd4000 start","sub radpd6 add"],
                 "help":"Starts the SQI with Green LED on slot F of ADPD4000 at 25Hz"},
@@ -302,6 +308,12 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Start Temperature"},
     "start_log_ecg": {   "commands":["lcfgEcgWrite 0:100","fs_sub recg add","sensor ecg start","fs_log start"],
                 "help":"Start ecg"},
+    "start_log_ecg_1500": {   "commands":["lcfgEcgWrite 0:1500","fs_sub recg add","sensor ecg start","fs_log start"],
+                "help":"log ecg @ 1500Hz"},
+    "start_log_ecg_1600": {   "commands":["lcfgEcgWrite 0:1600","fs_sub recg add","sensor ecg start","fs_log start"],
+                "help":"log ecg @ 1600Hz"},
+    "start_log_ecg_2000": {   "commands":["lcfgEcgWrite 0:2000","fs_sub recg add","sensor ecg start","fs_log start"],
+                "help":"log ecg @ 2000Hz"},
     "start_log_ped": {"commands":["fs_sub rped add","sensor adxl start", "sensor ped start","fs_log start"],
                 "help":"Starts the Pedometer. logging"},
     "start_log_adpd4000_r_adxl": {"commands":["loadAdpdCfg 41", "clockCalibration","fs_sub radpd7 add","fs_sub radxl add","fs_log start","sensor adpd4000 start","sensor adxl start"],
@@ -387,6 +399,10 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Start bia logging"},
     "start_log_bcm": {"commands":["lcfgBiaWrite 5:1","fs_sub rbia add","sensor bia start","fs_log start"],
                 "help":"Start bia and bcm logging"},
+    "start_range_sweep_bia": {"commands":["lcfgBiaWrite 18:1","lcfgBiaWrite 20:1000","lcfgBiaWrite 21:50000","lcfgBiaWrite 22:100","lcfgBiaWrite 23:1","lcfgBiaWrite 24:0","quickstart bia"],
+                "help":"Start bia with sweep range"},
+    "start_fixed_sweep_bia": {"commands":["lcfgBiaWrite 19:1","lcfgBiaWrite 25:100000","quickstart bia"],
+                "help":"Start bia"},
     "start_stop_adpd4k": {"commands":["quickstart adpd4000","quickstop adpd4000"],
                 "help":"Start - stop tests addp4k "},                
     "start_stop_230": {"commands":["quickstart adxl","quickstart adpd4000","quickstart eda", "sensor temperature start","sub  rtemperature add","quickstop adxl","quickstop adpd4000","quickstop eda", "sub  rtemperature remove","sensor temperature stop"],
@@ -403,7 +419,7 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Start MV UC1 245 issue commands"},
     "mv_uc1_245_issue_wo_dcb": {"commands":["loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop","loadAdpdCfg 40","reg w adpd4000 0x0D:0x07D0","clockCalibration","adpdAGCControl 1:1","sensor adpd4000 start","quickstart adpd_reg_tab_update","sub radpd6 add","sensor adxl start","sub radxl add","sensor temperature start","sub rtemperature add","delay 1","quickstop mv_uc1_streaming_stop"],
                 "help":"Start MV UC1 245 issue commands"},
-	 "adpd_dcb_test": {"commands":["write_dcb_config adpd4000 adpd4000_dcb_test1.dcfg","delay 4","read_dcb_config adpd4000","delay 4","compare_cfg_files adpd4000_dcb_test1.dcfg adpd4000_dcb_get.dcfg","delete_dcb_config adpd4000","delay 4"],
+    "adpd_dcb_test": {"commands":["write_dcb_config adpd4000 adpd4000_dcb_test1.dcfg","delay 4","read_dcb_config adpd4000","delay 4","compare_cfg_files adpd4000_dcb_test1.dcfg adpd4000_dcb_get.dcfg","delete_dcb_config adpd4000","delay 4"],
                 "help":"Starts the adpd dcb test."},
     "adxl_dcb_test": {"commands":["write_dcb_config adxl adxl_dcb_test1.dcfg","delay 4","read_dcb_config adxl","delay 4","compare_cfg_files adxl_dcb_test1.dcfg adxl_dcb_get.dcfg","delete_dcb_config adxl","delay 4"],
                 "help":"Starts the adxl dcb test."},
@@ -567,6 +583,10 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Opens MWL view with Green, Red, IR, Blue LED from Slot F, G, H, I of ADPD4000, with static AGC OFF"},
     "eda_dcfg_test": {"commands":[ "edadcfg_write 1","loadEdaDcfg","edadcfg_read","lcfgEdaWrite 0:4","sub add reda","sensor eda start"],
                 "help":"DCFG reg commands usage for EDA app and start sensor"},
+    "eda_reg_read_write_test":{"commands":["LDOControl 3 1","reg r eda 0x0400","reg r eda 0x0404","reg r eda 0x20D0","reg w eda 0x20D0:0x3000C1","reg r eda 0x20D0","LDOControl 3 0"],
+                "help": "eda register read write test"},
+    "running_eda_reg_read_test" : {"commands":["quickstart eda", "reg r eda 0x0400","reg r eda 0x0404","quickstop eda"],
+                "help": "eda register read test while eda is running"},
 ###################################################################################################################
 #### Commands for Slot Switching, to be used only when Watch is loaded with FW built with "SLOT_SELECT" macro ####
 #################################################################################################################
@@ -688,9 +708,9 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Starts streaming for MV UC6 - Bia@20Hz, UC HR, SQI, Adpd@100Hz, Adxl, Temperature"},            
     "start_log_mv_uc4_1": {   "commands":["fs_log start","fs_sub rppg add","fs_sub recg add","fs_sub rtemperature add"],
                 "help":"Start MV UC4 start log cmd sequence, in b/w streaming"},
-    "start_nk_uc_log_dcb": {   "commands":["delete_config_file","fs_format","setDateTime","LTAppTuning dcb 3","write_dcb_config adpd4000 cust4_dvt2_adpd_dcb.dcfg","write_dcb_config adxl cust4_adxl_dcb.dcfg","write_dcb_config eda cust4_eda_dcb.lcfg","quickstart nand_config_file_create_nk_uc","write_dcb_config user0_config user0_blk_dcb.lcfg"],
+    "start_nk_uc_log_dcb": {   "commands":["delete_config_file","fs_format","setDateTime","LTAppTuning dcb 3","write_dcb_config adpd4000 cust4_dvt2_adpd_dcb.dcfg","write_dcb_config adxl cust4_adxl_dcb.dcfg","write_dcb_config eda cust4_eda_dcb.lcfg","quickstart nand_config_file_create_nk_uc","write_dcb_config user0_config cust4_user0_blk_dcb.lcfg"],
                 "help":"Start NK UC log with user0 config app DCB"},
-    "start_nk_uc_log_dcb_set_bat_thresh": {   "commands":["delete_config_file","fs_format","setDateTime","LTAppTuning dcb 3","write_dcb_config adpd4000 cust4_dvt2_adpd_dcb.dcfg","write_dcb_config adxl cust4_adxl_dcb.dcfg","write_dcb_config eda cust4_eda_dcb.lcfg","quickstart nand_config_file_create_nk_uc_set_bat_thresh","write_dcb_config user0_config user0_blk_dcb.lcfg"],
+    "start_nk_uc_log_dcb_set_bat_thresh": {   "commands":["delete_config_file","fs_format","setDateTime","LTAppTuning dcb 3","write_dcb_config adpd4000 cust4_dvt2_adpd_dcb.dcfg","write_dcb_config adxl cust4_adxl_dcb.dcfg","write_dcb_config eda cust4_eda_dcb.lcfg","quickstart nand_config_file_create_nk_uc_set_bat_thresh","write_dcb_config user0_config cust4_user0_blk_dcb.lcfg"],
                 "help":"Start NK UC log with user0 config app DCB after setting batter thresholds"},
     "start_adxl_interval_logging": {   "commands":["lcfgLTAppWrite 0x4 4","lcfgUser0ConfigAppWrite 0x5 0xA","lcfgUser0ConfigAppWrite 0x6 0xA","lcfgUser0ConfigAppWrite 0x7 0xA","quickstart start_log_adxl","delay 60","quickstop stop_log_adxl"],
                 "help":"Start adxl app interval based logging"},
@@ -699,7 +719,9 @@ class m2m2_shell(cmd.Cmd):
     "start_adpd_interval_logging": {   "commands":["lcfgLTAppWrite 0x4 4","lcfgUser0ConfigAppWrite 0xB 0xA","lcfgUser0ConfigAppWrite 0xC 0xA","lcfgUser0ConfigAppWrite 0xD 0xA","quickstart start_log_adpd4000_g","delay 60","quickstop stop_log_adpd4000_g"],
                 "help":"Start adpd app interval based logging"},
     "start_eda_interval_logging": {   "commands":["lcfgLTAppWrite 0x4 4","lcfgUser0ConfigAppWrite 0xE 0x0","lcfgUser0ConfigAppWrite 0xF 0x14","lcfgUser0ConfigAppWrite 0x10 0x5","quickstart start_log_eda","delay 60","quickstop stop_log_eda"],
-                "help":"Start eda app interval based logging"},}
+                "help":"Start eda app interval based logging"},
+    "start_eda_cont_stream_in_bw_nk_uc": {   "commands":["delete_config_file","fs_format","setDateTime","LTAppTuning dcb 3","write_dcb_config adpd4000 cust4_dvt2_adpd_dcb.dcfg","write_dcb_config adxl cust4_adxl_dcb.dcfg","write_dcb_config eda cust4_eda_dcb.lcfg","quickstart nand_config_file_create_nk_uc","write_dcb_config user0_config cust4_user0_blk_dcb.lcfg","bypass_user0_timings 1", "plot reda","quickstart eda"],
+                "help":"Start EDA continuous streams in between NK UC log with user0 config app DCB"},}
 
     # A dictionary of useful/common command sequences to be executed for stopping applications/sensors. The 'commands' key contains a list of CLI commands to be run for the sequence.
     quickstops = {
@@ -769,6 +791,8 @@ class m2m2_shell(cmd.Cmd):
                 "help":"Stops the Pedometer application, unsubscribes it and disables the ADXL sensor."},
     "sqi_green": {   "commands":["sub radpd6 remove","sensor adpd4000 stop","sub rsqi remove","sensor sqi stop"],
                 "help":"Stops the SQI application, un-subscribes it and disables the ADPD sensor running @100Hz"},
+    "sqi_mm": {   "commands":["sub radpd1 remove","sensor adpd4000 stop","sub rsqi remove","sensor sqi stop"],
+                "help":"Stops the SQI application, un-subscribes it and disables the ADPD sensor running @100Hz"},
     "sqi_green_50": {   "commands":["sub radpd6 remove","sensor adpd4000 stop","sub rsqi remove","sensor sqi stop"],
                 "help":"Stops the SQI application, un-subscribes it and disables the ADPD sensor running @50Hz"},
     "sqi_green_25": {   "commands":["sub radpd6 remove","sensor adpd4000 stop","sub rsqi remove","sensor sqi stop"],
@@ -826,6 +850,12 @@ class m2m2_shell(cmd.Cmd):
     "stop_log_temperature": {   "commands":["sensor temperature stop","fs_sub rtemperature remove","fs_log stop"],
                 "help":"Stop Temperature"},
     "stop_log_ecg": {   "commands":["sensor ecg stop","fs_sub recg remove","fs_log stop"],
+                "help":"Stop ecg"},
+    "stop_log_ecg_1500": {   "commands":["sensor ecg stop","fs_sub recg remove","fs_log stop"],
+                "help":"Stop ecg"},
+    "stop_log_ecg_1600": {   "commands":["sensor ecg stop","fs_sub recg remove","fs_log stop"],
+                "help":"Stop ecg"},
+    "stop_log_ecg_2000": {   "commands":["sensor ecg stop","fs_sub recg remove","fs_log stop"],
                 "help":"Stop ecg"},
     "ecg": {"commands": ["sub recg remove", "sensor ecg stop"],
                  "help": "Stop ECG"},
@@ -996,7 +1026,9 @@ class m2m2_shell(cmd.Cmd):
     "stop_nk_uc_log_fw": {   "commands":["delete_config_file"],
                 "help":"Stop NK UC log"},
     "stop_nk_uc_log_dcb": {   "commands":["delete_config_file", "delete_dcb_config lt_app_lcfg", "delete_dcb_config user0_config"],
-                "help":"Stop NK UC log"},}
+                "help":"Stop NK UC log"},
+    "stop_eda_cont_stream_in_bw_nk_uc": {   "commands":["delete_config_file", "delete_dcb_config lt_app_lcfg", "delete_dcb_config user0_config","bypass_user0_timings 0","quickstop eda"],
+                "help":"Stop EDA continuous streams in between NK UC log with user0 config app DCB"},}
 
     def precmd(self, line):
         """
@@ -2071,7 +2103,6 @@ Perform a register operation on a device.
                 if ":" in arg:
                     reg_addr = int(arg.split(':')[0], 16)
                     reg_val = int(arg.split(':')[1], 16)
-
                 # See if it's just an address
                 elif "0x" in arg:
                     reg_addr = int(arg, 16)
@@ -2800,7 +2831,7 @@ Send external adpd data to device
 
     def do_LTAppReadCh2Cap(self, arg):
         """
-Read the AD7156 CH2 Capacitace in uF. This returns SUCCESS, if LT app is ruuning, else ERROR
+Read the AD7156 CH2 Capacitace in fF. This returns SUCCESS, if LT app is ruuning, else ERROR
 	This is used to note the Cap value in different surfaces
     #>LTAppReadCh2Cap [ntimes]
     where 'ntimes' is the no:of times Cap value needs to be read
@@ -2990,10 +3021,10 @@ Usage:
         2 -> LT_APP_BUTTON_TRIGGER
         3 -> LT_APP_INTERMITTENT_TRIGGER
     [airCap]
-        Value in uF as observed from Display page which reads Ch2 Cap, when Watch is placed in Air, without touching bottom touch electrodes
+        Value in fF as observed from Display page which reads Ch2 Cap, when Watch is placed in Air, without touching bottom touch electrodes
         Try to keep a min value of the lot, observed in about 10 trials
     [skinCap]
-        Value in uF as observed from Display page which reads Ch2 Cap, when Watch is placed in skin, touching the bottom touch electrodes
+        Value in fF as observed from Display page which reads Ch2 Cap, when Watch is placed in skin, touching the bottom touch electrodes
         Try to keep a max value of the lot, observed in about 10 trials
 
     [airCap] & [skinCap] is not required for [trig_method] = 1 or 2
@@ -3052,10 +3083,10 @@ Usage:
 
             airCap = str(hex(int(minCap_air,10)))
             airCap = airCap.replace('0x','0')
-            str4 = "02 " +  airCap + " #AIR_CAP_VAL hex value in uF;"
+            str4 = "02 " +  airCap + " #AIR_CAP_VAL hex value in fF;"
             skinCap = str(hex(int(maxCap_skin,10)))
             skinCap = skinCap.replace('0x','0')
-            str5 = "03 " + skinCap + " #SKIN_CAP_VAL hex value in uF;"
+            str5 = "03 " + skinCap + " #SKIN_CAP_VAL hex value in fF;"
 
             trig_method = "000"+trig_method
             str6 = "04 " + trig_method + " #LT_APP_LCFG_TRIGGER_METHOD hex value; 0000 -> LT_APP_CAPSENSE_TUNED_TRIGGER, 0001 -> LT_APP_CAPSENSE_DISPLAY_TRIGGER, 0002 -> LT_APP_BUTTON_TRIGGER,  0003->LT_APP_INTERMITTENT_TRIGGER"
@@ -3324,6 +3355,32 @@ Usage:
                 print("Intermittent Operation Count: {} ").format(reply_msg.payload.intermittent_op_cnt)
             else:
                 self.vrb.err("Error occured while doing get_user0_prev_state_event request")
+        else:
+            self.vrb.err("The device did not respond!")
+
+    def do_bypass_user0_timings(self, arg):
+        """
+    This is a command, to enable/disable bypass of user0 config app timings, to force continuous mode of operation from the sensors. 
+    Will be needed when continuous operation is required, when there is user timings meant for intermittent operation and it is  LT Mode3
+    Usage:
+    #>bypass_user0_timings 0
+    #>bypass_user0_timings 1
+        """
+        args = self._parse_args(arg, 1)
+        if args == None:
+            return
+        address = M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP
+        msg = m2m2_packet(address, user0_app_bypass_user0_timings_pkt_t())
+        msg.payload.command = M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t.M2M2_USER0_CONFIG_APP_BYPASS_USER0_TIMINGS_REQ
+        msg.payload.status = M2M2_USER0_CONFIG_APP_STATUS_ENUM_t.M2M2_USER0_CONFIG_APP_STATUS_OK
+        msg.payload.enable = int(args[0])
+        self._send_packet(msg)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_USER0_CONFIG_APP, user0_app_bypass_user0_timings_pkt_t(), 10)
+        if reply_msg != None:
+            if (reply_msg.payload.status == M2M2_USER0_CONFIG_APP_STATUS_ENUM_t.M2M2_USER0_CONFIG_APP_STATUS_OK):
+                print("Bypass user0 timings set to : {} ").format(reply_msg.payload.enable)
+            else:
+                self.vrb.err("Error occured while doing bypass_user0_timings request")
         else:
             self.vrb.err("The device did not respond!")
 
@@ -3602,7 +3659,7 @@ Set the User0 Config App application LCFG. The argument is the User0 Config App 
         address:value dictionaries, and do_write is True to write, False to read.
         '''
         num_ops = len(ops)
-        if address == 49412:
+        if address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA:
             msg = m2m2_packet(address, m2m2_sensor_common_reg_op_32_hdr_t(num_ops))
             if do_write == True:
                 cmd = M2M2_SENSOR_COMMON_CMD_ENUM_t.M2M2_SENSOR_COMMON_CMD_WRITE_REG_32_REQ
@@ -3622,7 +3679,7 @@ Set the User0 Config App application LCFG. The argument is the User0 Config App 
             msg.payload.ops[i].address = ops[i]['address']
             msg.payload.ops[i].value = ops[i]['value']
         self._send_packet(msg)
-        if address == 49412:
+        if address == M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA:
             return self._get_packet(address, m2m2_sensor_common_reg_op_32_hdr_t(num_ops))
         else:
             return self._get_packet(address, m2m2_sensor_common_reg_op_16_hdr_t(num_ops))
@@ -3904,6 +3961,57 @@ Get date and time.Getting PM current date and time.
                           'timezone': int(reply_msg.payload.TZ_sec)}
         err_stat = int(status, 16)
         return err_stat, date_time_dict
+    
+    def do_getPoMemUtil(self, arg):
+        """
+        Get PO memory utilization statistics
+        #>getPoMemUtil
+        """
+        args = self._parse_args(arg, 0)
+        if args == None:
+            return
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, m2m2_pm_sys_cmd_t())
+        msg.payload.command = M2M2_PM_SYS_COMMAND_ENUM_t.M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_REQ
+        self._send_packet(msg)
+
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, m2m2_get_po_memory_utilization_cmd_t(), 10)
+        if reply_msg == None:
+            self.vrb.err("Error! Timed out waiting for the device!")
+            return
+        status = self._get_enum_name(M2M2_PM_SYS_STATUS_ENUM_t, reply_msg.payload.status)
+        if status == None:
+            status = format(reply_msg.payload.status, '#04x')
+        self.vrb.write("Min_num_free_blks_type2: {}".format(int(reply_msg.payload.min_num_free_blks_type2)))
+        self.vrb.write("Min_num_free_blks_type4: {}".format(int(reply_msg.payload.min_num_free_blks_type4)))
+        self.vrb.write("Min_num_free_blks_type5: {}".format(int(reply_msg.payload.min_num_free_blks_type5)))
+        self.vrb.write("Block_2_allocated: {}".format(int(reply_msg.payload.block_2_allocated)))
+        self.vrb.write("Block_4_allocated: {}".format(int(reply_msg.payload.block_4_allocated)))
+        self.vrb.write("Block_5_allocated: {}".format(int(reply_msg.payload.block_5_allocated)))
+        self.vrb.write("Block_2_freed: {}".format(int(reply_msg.payload.block_2_freed)))
+        self.vrb.write("Block_4_freed: {}".format(int(reply_msg.payload.block_4_freed)))
+        self.vrb.write("Block_5_freed: {}".format(int(reply_msg.payload.block_5_freed)))
+        self.vrb.write("Command return status: {}".format(status))
+
+    def do_clearPoMemUtil(self, arg):
+        """
+        Clear memory utilization statistics
+        #>clearPoMemUtil
+        """
+        args = self._parse_args(arg, 0)
+        if args == None:
+            return
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, m2m2_pm_sys_cmd_t())
+        msg.payload.command = M2M2_PM_SYS_COMMAND_ENUM_t.M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_REQ
+        self._send_packet(msg)
+
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_PM, m2m2_clear_po_memory_utilization_cmd_t(), 10)
+        if reply_msg == None:
+            self.vrb.err("Error! Timed out waiting for the device!")
+            return
+        status = self._get_enum_name(M2M2_PM_SYS_STATUS_ENUM_t, reply_msg.payload.status)
+        if status == None:
+            status = format(reply_msg.payload.status, '#04x')
+        self.vrb.write("Command return status: {}".format(status))
 
     def do_setManufactureDate(self, arg):
         """
@@ -6371,6 +6479,8 @@ mount file system. Command help to check if file system is available with proper
 read contents of file. Command is used to read file by getting data from file streamed as byte array.
     #>fs_stream
         """
+        global fs_file_pagechunk_list
+        fs_file_pagechunk_list = []
         args = self._parse_args(arg, 1)
         if args == None:
             return
@@ -6425,11 +6535,14 @@ read contents of file. Command is used to read file by getting data from file st
                     break
                 file_size += reply_msg.payload.page_chunk_size
                 data_length = reply_msg.payload.page_chunk_size + 15
-                #print"Length received t1 = {}".format(data_length)
-                #print "page_number = {}".format(reply_msg.payload.page_number)
-                #print "page_chunk_number = {}".format(reply_msg.payload.page_chunk_number)
-                #print "page_chunk_size = {}".format(reply_msg.payload.page_chunk_size)
-                
+                # print"Length received t1 = {}".format(data_length)
+                # print "page_number = {}".format(reply_msg.payload.page_number)
+                # print "page_chunk_number = {}".format(reply_msg.payload.page_chunk_number)
+                # print "page_chunk_size = {}".format(reply_msg.payload.page_chunk_size)
+                if(reply_msg.payload.page_number < len(fs_file_pagechunk_list)):
+                    fs_file_pagechunk_list[reply_msg.payload.page_number] = reply_msg.payload.page_chunk_number
+                else:
+                    fs_file_pagechunk_list.insert(reply_msg.payload.page_number,reply_msg.payload.page_chunk_number)
                 #self._print_file_system_status(reply_msg)
                 crc16_data_array =  buffer(reply_msg.header)[:] + buffer(reply_msg.payload)[:]
                 for index in range(0,8,2):
@@ -6447,7 +6560,7 @@ read contents of file. Command is used to read file by getting data from file st
                	#print"received crc16 = {}".format(reply_msg.payload.crc16)'''
             	if((nComputedCRC != reply_msg.payload.crc16)):
                     nCRCMisMatchCnt += 1
-                    #print"received crc16 = {}".format(format_hex(crc16_data_array))
+                    print"received crc16 = {}".format(format_hex(crc16_data_array))
                     #print"received crc16 = {}".format((crc16_data_array))
             	    #print"Length received t1 = {}".format(data_length)
             	    print"CRC mismatch cnt = {}".format(nCRCMisMatchCnt)
@@ -6473,9 +6586,210 @@ read contents of file. Command is used to read file by getting data from file st
                 break
             # end of loop
             end_time = datetime.datetime.now()
-            '''self.vrb.write("\n No. of CRC mismatches = {}".format(nCRCMisMatchCnt))
-            self.vrb.write("\n No. of Seq mismatches = {}".format(nSeqMisMatchCnt))
-            self.vrb.write("\nFile read complete!\n  Start Time: {}\n  End Time: {}\n  Elapsed Time: {}\n  Total bytes read: {}".format(start_time, end_time, end_time - start_time, file_size))'''
+        # print(fs_file_pagechunk_list)
+        # print(len(fs_file_pagechunk_list))
+        '''self.vrb.write("\n No. of CRC mismatches = {}".format(nCRCMisMatchCnt))
+        self.vrb.write("\n No. of Seq mismatches = {}".format(nSeqMisMatchCnt))
+        self.vrb.write("\nFile read complete!\n  Start Time: {}\n  End Time: {}\n  Elapsed Time: {}\n  Total bytes read: {}".format(start_time, end_time, end_time - start_time, file_size))'''
+
+    def do_fs_stream_ble(self, arg):
+        """
+read contents of file. Command is used to read file by getting data from file streamed as byte array.
+    #>fs_stream_ble
+        """
+        global fs_file_pagechunk_list
+        fs_file_pagechunk_list = []
+        args = self._parse_args(arg, 1)
+        if args == None:
+            return
+        fobj = open(args[0], "wb")
+        #Counter for CRC16 mismatch
+        nCRCMisMatchCnt = 0
+        #Counter for Sequence number mismatch
+        nSeqMisMatchCnt = 0
+        #Reference sequence number for comparing received sequence number
+        nSequenceNumber = 0
+        nComputedCRC = int(0x0FFFF)
+        nCRCPolynomial = int(0x1021)
+        # Read the size of the file
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_ls_req_t(2))
+        msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_LS_REQ
+        msg.payload.dir_path[0] = ord('\x01')
+        msg.payload.dir_path[1] = ord('\x01')
+        self._send_packet(msg)
+        while True:
+            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_ls_resp_t(), 100)
+            if reply_msg != None:
+                if reply_msg.payload.status != M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_STATUS_OK:
+                    break
+                elif reply_msg.payload.filetype == FILE_TYPE_ENUM_t.M2M2_FILE_SYS_IS_DATA_FILE:
+                    if (cast(reply_msg.payload.full_file_name, c_char_p).value == args[0]):
+                        total_file_size = reply_msg.payload.filesize
+                        #print("file size = {}".format(total_file_size))
+                elif reply_msg.payload.filetype == FILE_TYPE_ENUM_t.M2M2_FILE_SYS_IS_CONFIG_FILE:
+                    if cast(reply_msg.payload.full_file_name, c_char_p).value == args[0]:
+                        total_file_size = reply_msg.payload.filesize        
+            else:
+                self.vrb.err("No response from device")
+                return
+
+        bar = tqdm.tqdm(total=total_file_size, dynamic_ncols=True, ascii=True, unit="B", unit_scale=True)
+        msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_get_req_t(len(args[0])))
+        msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_BLE_REQ
+
+        temp_array = list(bytearray(args[0]))
+        for index in range(len(args[0])):
+            msg.payload.file_name[index] = temp_array[index]
+
+        start_time = datetime.datetime.now()
+        self._send_packet(msg)
+        file_size = 0
+        while True:
+            # loop body here
+            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS_STREAM, m2m2_file_sys_download_log_ble_stream_t(), 1000)
+            if reply_msg != None:
+                if reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_STATUS_ERROR:
+                    self._print_file_system_status(reply_msg)
+                    break
+                file_size += reply_msg.payload.page_chunk_size
+                data_length = reply_msg.payload.page_chunk_size + 15
+                #print"Length received t1 = {}".format(data_length)
+                # print "page_number = {}".format(reply_msg.payload.page_number)
+                # print "page_chunk_number = {}".format(reply_msg.payload.page_chunk_number)
+                # print "page_chunk_size = {}".format(reply_msg.payload.page_chunk_size)
+                if(reply_msg.payload.page_number < len(fs_file_pagechunk_list)):
+                    fs_file_pagechunk_list[reply_msg.payload.page_number] = reply_msg.payload.page_chunk_number
+                else:
+                    fs_file_pagechunk_list.insert(reply_msg.payload.page_number, reply_msg.payload.page_chunk_number)
+                #self._print_file_system_status(reply_msg)
+                crc16_data_array =  buffer(reply_msg.header)[:] + buffer(reply_msg.payload)[:]
+                for index in range(0,8,2):
+                    crc16_data_array = swap(crc16_data_array,index, index + 1)
+                nComputedCRC = int(0xFFFF)
+                for nByte in range(data_length):
+                	nComputedCRC = ((nComputedCRC >> 8) | (nComputedCRC << 8))&0xFFFF
+              		nComputedCRC = nComputedCRC ^ ord(crc16_data_array[nByte])
+               		nComputedCRC ^=(nComputedCRC & 0xFF) >> 4
+                	nComputedCRC ^= ((nComputedCRC << 8) << 4)&0xFFFF
+                	nComputedCRC ^= ((nComputedCRC & 0xFF) << 4) << 1
+                #'''print"nComputedCRC = {}".format(nComputedCRC)
+               	#print"Length received = {}".format(data_length)
+               	#print"nComputedCRC = {}".format(nComputedCRC)
+               	#print"received crc16 = {}".format(reply_msg.payload.crc16)'''
+            	if((nComputedCRC != reply_msg.payload.crc16)):
+                    nCRCMisMatchCnt += 1
+                    print"received crc16 = {}".format(format_hex(crc16_data_array))
+                    #print"received crc16 = {}".format((crc16_data_array))
+            	    #print"Length received t1 = {}".format(data_length)
+            	    print"CRC mismatch cnt = {}".format(nCRCMisMatchCnt)
+                if(nSequenceNumber != reply_msg.header.checksum):
+                    nSeqMisMatchCnt += 1
+                # Restraining refernce sequence number to 16bit wide
+            	if(nSequenceNumber == 65535):
+                   nSequenceNumber = 0
+	        else:
+                   nSequenceNumber += 1
+                bar.update(reply_msg.payload.page_chunk_size)
+                if (reply_msg.payload.page_chunk_size != len(reply_msg.payload.page_chunk_bytes)):
+                    fobj.write(bytearray(reply_msg.payload.page_chunk_bytes[0:int(reply_msg.payload.page_chunk_size)]))
+                else :
+                    fobj.write(reply_msg.payload.page_chunk_bytes)
+            else:
+                bar.close()
+                self.vrb.err("No response from device.Stream file operation failed.")
+                break
+            if (reply_msg.payload.status != M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_STATUS_OK):
+                fobj.close()
+                bar.close()
+                break
+            # end of loop
+            end_time = datetime.datetime.now()
+        # print(fs_file_pagechunk_list)
+        # print(len(fs_file_pagechunk_list))
+        '''self.vrb.write("\n No. of CRC mismatches = {}".format(nCRCMisMatchCnt))
+        self.vrb.write("\n No. of Seq mismatches = {}".format(nSeqMisMatchCnt))
+        self.vrb.write("\nFile read complete!\n  Start Time: {}\n  End Time: {}\n  Elapsed Time: {}\n  Total bytes read: {}".format(start_time, end_time, end_time - start_time, file_size))'''
+
+    def do_fs_chunk_retransfer_test(self,arg):
+        global fs_file_pagechunk_list
+        args = self._parse_args(arg, 1)
+        if args == None:
+            return
+        if (get_cli_addr() == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_CLI):
+            self.onecmd("fs_stream "+args[0]);
+        else:
+            self.onecmd("fs_stream_ble " + args[0]);
+        print(fs_file_pagechunk_list)
+        for page_num in range(len(fs_file_pagechunk_list)):
+            print "page_number = {}".format(page_num)
+            for page_chunk_num in range(fs_file_pagechunk_list[page_num] + 1):
+                Retransmit_type = 0
+                Page_Roll_over = int(page_num/65536)
+                Page_number = page_num - (Page_Roll_over * 65536)
+                Page_chunk_number = page_chunk_num
+                filename, ext = args[0].split('.')
+                temp_array = list(bytearray(args[0]))
+                msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_page_chunk_retransmit_req_t(len(args[0])))
+                msg.payload.command = M2M2_FILE_SYS_CMD_ENUM_t.M2M2_FILE_SYS_CMD_CHUNK_RETRANSMIT_REQ
+                msg.payload.retransmit_type = Retransmit_type
+                msg.payload.page_roll_over = Page_Roll_over
+                msg.payload.page_number = Page_number
+                msg.payload.page_chunk_number = Page_chunk_number
+                for index in range(len(args[0])):
+                    msg.payload.file_name[index] = temp_array[index]
+                self._send_packet(msg)
+                nComputedCRC = int(0x0FFFF)
+                nCRCPolynomial = int(0x1021)
+                nCRCMisMatchCnt = 0
+                # loop body here
+                if (get_cli_addr() == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_CLI):
+                    reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_download_log_stream_t(), 1000)
+                else:
+                    reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_download_log_ble_stream_t(), 1000)
+
+                if reply_msg != None:
+                    # print"Status:{}".format(reply_msg.payload.status)
+                    # print"page_number = {}".format(reply_msg.payload.page_number)
+                    # print"page_chunk_number = {}".format(reply_msg.payload.page_chunk_number)
+                    # print"page_chunk_size = {}".format(reply_msg.payload.page_chunk_size)
+                    if ((reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_STATUS_OK) or (
+                            reply_msg.payload.status == M2M2_FILE_SYS_STATUS_ENUM_t.M2M2_FILE_SYS_END_OF_FILE)):
+                        fobj = open(filename + '_chunk_retransfer.LOG', "ab")
+                        data_length = reply_msg.payload.page_chunk_size + 15
+                        # print"Length received t1 = {}".format(data_length)
+                        crc16_data_array = buffer(reply_msg.header)[:] + buffer(reply_msg.payload)[:]
+                        for index in range(0, 8, 2):
+                            crc16_data_array = swap(crc16_data_array, index, index + 1)
+                        nComputedCRC = int(0xFFFF)
+                        for nByte in range(data_length):
+                            nComputedCRC = ((nComputedCRC >> 8) | (nComputedCRC << 8)) & 0xFFFF
+                            nComputedCRC = nComputedCRC ^ ord(crc16_data_array[nByte])
+                            nComputedCRC ^= (nComputedCRC & 0xFF) >> 4
+                            nComputedCRC ^= ((nComputedCRC << 8) << 4) & 0xFFFF
+                            nComputedCRC ^= ((nComputedCRC & 0xFF) << 4) << 1
+                        # '''print"nComputedCRC = {}".format(nComputedCRC)
+                        # print"Length received = {}".format(data_length)'''
+                        # print"nComputedCRC = {}".format(nComputedCRC)
+                        # print"received crc16 = {}".format(reply_msg.payload.crc16)
+                        if ((nComputedCRC != reply_msg.payload.crc16)):
+                            nCRCMisMatchCnt += 1
+                            # print"CRC mismatch {}".format(nCRCMisMatchCnt)
+                            # print"received crc16 = {}".format(format_hex(crc16_data_array))
+                            # print"received crc16 = {}".format((crc16_data_array))
+                            # print"Length received t1 = {}".format(data_length)
+                            # print"CRC mismatch cnt = {}".format(nCRCMisMatchCnt)
+                            # Restraining refernce sequence number to 16bit wide
+                        if (reply_msg.payload.page_chunk_size != len(reply_msg.payload.page_chunk_bytes)):
+                            fobj.write(bytearray(reply_msg.payload.page_chunk_bytes[0:int(reply_msg.payload.page_chunk_size)]))
+                        else:
+                            fobj.write(reply_msg.payload.page_chunk_bytes)
+                        print"chunk stream obtained successfully"
+                        self._print_file_system_status(reply_msg)
+                        fobj.close()
+                    else:
+                        self._print_file_system_status(reply_msg)
+                else:
+                    self.vrb.err("No response from device.Stream file operation failed.")
 
     def do_get_file_cnt(self, arg):
         """
@@ -6495,6 +6809,7 @@ read contents of file. Command is used to read file by getting data from file st
             self._print_file_count_status(reply_msg)
         else:
             self.vrb.err("The device did not respond!")
+
 
 
     def do_get_file_info(self, arg):
@@ -7458,7 +7773,7 @@ Get the PPG LCFG, used from Watch. The argument is the LCFG ID, which is 40 for 
           Pagenumber recieved on download log stream
           
         page_chunk_number:
-          page_chunk_number maximum is 0-7.
+          page_chunk_number maximum is 0-7 in USB mode and 0-18 in BLE mode.
           page_chunk_number recieved on download log stream
           
             """
@@ -7484,7 +7799,11 @@ Get the PPG LCFG, used from Watch. The argument is the LCFG ID, which is 40 for 
             nCRCPolynomial = int(0x1021)
             nCRCMisMatchCnt = 0
             # loop body here
-            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_download_log_stream_t(), 1000)
+            if(get_cli_addr() == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_CLI):
+                reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_download_log_stream_t(), 1000)
+            else:
+                reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_download_log_ble_stream_t(), 1000)
+
             if reply_msg != None:
                 #print"Status:{}".format(reply_msg.payload.status)
                 print "page_number = {}".format(reply_msg.payload.page_number)
@@ -7515,7 +7834,7 @@ Get the PPG LCFG, used from Watch. The argument is the LCFG ID, which is 40 for 
                         # print"received crc16 = {}".format(format_hex(crc16_data_array))
                         # print"received crc16 = {}".format((crc16_data_array))
                         # print"Length received t1 = {}".format(data_length)
-                        print"CRC mismatch cnt = {}".format(nCRCMisMatchCnt)
+                        # print"CRC mismatch cnt = {}".format(nCRCMisMatchCnt)
                         # Restraining refernce sequence number to 16bit wide
                     if (reply_msg.payload.page_chunk_size != len(reply_msg.payload.page_chunk_bytes)):
                             fobj.write(bytearray(reply_msg.payload.page_chunk_bytes[0:int(reply_msg.payload.page_chunk_size)]))
@@ -7538,9 +7857,15 @@ Write referenceHr.Command is used to write reference hr and Current PC time.
         if args == None:
             return
         msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_app_ref_hr_stream_t())
-        msg.header.src = M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_CLI_STREAM
+        src_addr = get_cli_addr()
+        if src_addr == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_CLI_BLE:
+            msg.header.src = M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_CLI_BLE_STREAM
+        elif src_addr == M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_CLI:
+            msg.header.src = M2M2_ADDR_ENUM_t.M2M2_ADDR_APP_CLI_STREAM
+        else:
+            self.vrb.err("Improper address !!")    
         msg.payload.command = M2M2_SENSOR_COMMON_CMD_ENUM_t.M2M2_SENSOR_COMMON_CMD_STREAM_DATA
-
+        
         now = datetime.datetime.now()
         is_dst = time.daylight and time.localtime().tm_isdst > 0
         utc_offset = - (time.altzone if is_dst else time.timezone)
@@ -7556,7 +7881,7 @@ Write referenceHr.Command is used to write reference hr and Current PC time.
         self.vrb.write("date and time: {}".format(now), 2)
         self.vrb.write("timezone: {}".format(utc_offset), 2)
 
-        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_app_ref_hr_stream_t(), 1)
+        reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_SYS_FS, m2m2_file_sys_cmd_t(), 20)
         if reply_msg != None:
             self._print_file_system_status(reply_msg)
         else:
@@ -8373,6 +8698,7 @@ Set the EDA LCFG. The argument is the EDA LCFG ID:VALUE pair to modify the eda l
         Values
         1      DFT_NUMBER = 8 .Recommended for odr >16 Hz
         2      DFT_NUMBER = 16 Recommended for odr <= 16Hz
+
        Eg: = lcfgEdaWrite addr1:value1 addr2:value2
             lcfgEdaWrite 0:30
             lcfgEdaWrite 2:1
@@ -8913,13 +9239,37 @@ Usage:
             if reply_msg != None:
                 status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
                 self.vrb.write("  Status: '{}'".format(status))
-                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_real_dft16)))
-                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_img_dft16)))
-                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_real_dft8)))
-                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_img_dft8)))
-                self.vrb.write("  Value: '{}'".format(int(reply_msg.payload.resistor_baseline)))
+                self.vrb.write("  DFT16_REAL: '{}'".format(float(reply_msg.payload.imp_real_dft16)))
+                self.vrb.write("  DFT16_IMG: '{}'".format(float(reply_msg.payload.imp_img_dft16)))
+                self.vrb.write("  DFT8_REAL: '{}'".format(float(reply_msg.payload.imp_real_dft8)))
+                self.vrb.write("  DFT8_IMG: '{}'".format(float(reply_msg.payload.imp_img_dft8)))
+                self.vrb.write("  BASELINE REGISTER: '{}'".format(int(reply_msg.payload.resistor_baseline)))
             else:
                 self.vrb.err("Setting EDA Baseline Impedance failed!")
+
+    def do_GetEdaBaselineImp(self, arg):
+            """
+    Set the EDA app Baseline resistor used for measurement and measured impedance.
+        -----------------------------------------------
+    Usage:
+        #>GetEdaBaselineImp
+            """
+            msg = m2m2_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA, eda_app_get_baseline_imp_req_t())
+            msg.payload.command = M2M2_EDA_APP_CMD_ENUM_t.M2M2_EDA_APP_CMD_BASELINE_IMP_GET_REQ
+            self._send_packet(msg)
+            reply_msg = self._get_packet(M2M2_ADDR_ENUM_t.M2M2_ADDR_MED_EDA,
+                                         eda_app_get_baseline_imp_resp_t(), 10)
+            if reply_msg != None:
+                status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
+                self.vrb.write("  Status: '{}'".format(status))
+                self.vrb.write("  Eda user baseleine imp_set_flag: '{}'".format(reply_msg.payload.eda_user_baseline_imp_set))
+                self.vrb.write("  DFT16_REAL: '{}'".format(float(reply_msg.payload.imp_real_dft16)))
+                self.vrb.write("  DFT16_IMG: '{}'".format(float(reply_msg.payload.imp_img_dft16)))
+                self.vrb.write("  DFT8_REAL: '{}'".format(float(reply_msg.payload.imp_real_dft8)))
+                self.vrb.write("  DFT8_IMG: '{}'".format(float(reply_msg.payload.imp_img_dft8)))
+                self.vrb.write("  BASELINE REGISTER: '{}'".format(int(reply_msg.payload.resistor_baseline)))
+            else:
+                self.vrb.err("Getting EDA Baseline Impedance failed!")
 
     def do_ResetEdaBaselineImp(self, arg):
             """
@@ -8941,11 +9291,11 @@ Usage:
             if reply_msg != None:
                 status = self._get_enum_name(M2M2_APP_COMMON_STATUS_ENUM_t, reply_msg.payload.status)
                 self.vrb.write("  Status: '{}'".format(status))
-                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_real_dft16)))
-                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_img_dft16)))
-                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_real_dft8)))
-                self.vrb.write("  Value: '{}'".format(float(reply_msg.payload.imp_img_dft8)))
-                self.vrb.write("  Value: '{}'".format(int(reply_msg.payload.resistor_baseline)))
+                self.vrb.write("  DFT16_REAL: '{}'".format(float(reply_msg.payload.imp_real_dft16)))
+                self.vrb.write("  DFT16_IMG: '{}'".format(float(reply_msg.payload.imp_img_dft16)))
+                self.vrb.write("  DFT8_REAL: '{}'".format(float(reply_msg.payload.imp_real_dft8)))
+                self.vrb.write("  DFT8_IMG: '{}'".format(float(reply_msg.payload.imp_img_dft8)))
+                self.vrb.write("  BASELINE REGISTER: '{}'".format(int(reply_msg.payload.resistor_baseline)))
             else:
                 self.vrb.err("Resetting EDA Baseline Impedance failed!")
 

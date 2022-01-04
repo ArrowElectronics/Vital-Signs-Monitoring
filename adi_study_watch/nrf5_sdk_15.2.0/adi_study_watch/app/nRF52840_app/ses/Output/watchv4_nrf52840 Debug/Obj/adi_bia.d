@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/adi_bia.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_bia\adi_bia.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_bia\adi_bia.c \
  ..\..\..\drivers\ad5940/ad5940.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/math.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
@@ -77,6 +77,7 @@ Output/watchv4_nrf52840\ Debug/Obj/adi_bia.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\..\external\freertos\source\include/task.h \
  ..\..\..\..\external\freertos\source\include/list.h \
@@ -100,9 +101,9 @@ Output/watchv4_nrf52840\ Debug/Obj/adi_bia.o: \
  ..\..\..\cli\m2m2\inc\c/post_office_interface.h \
  ..\..\..\drivers\ad5940/sensor_ad5940.h \
  ..\..\..\modules\ad5940_ecg/app_ecg.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_bia\bia_application_task.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_bia\bia_application_task.h \
  ..\..\..\cli\m2m2\inc\c/bia_application_interface.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_bia\app_bia.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_bia\app_bia.h \
  ..\..\..\modules\adpd4000_ppg/sensor_internal.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_bia\adi_bcm_algo.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\ad5940_bia\adi_bcm_algo.h \
  ..\..\..\algo\bcm/adi_vsm_bcm.h

@@ -1960,7 +1960,10 @@ elfs_result lfs_update_config_file(uint8_t *in_buffer,
                                       .spare_size = sizeof(struct _page_header),
                                       .spare_offset = SPARE_OFFSET};
    /* write page */
-   nand_func_page_and_spare_write(&write_data);
+    if(nand_func_page_and_spare_write(&write_data) != NAND_FUNC_SUCCESS)  {
+      NRF_LOG_INFO("Error in closing of file");
+      return LFS_FILE_WRITE_ERROR;
+    }
 
    /* Update the handler variables */
    file_handler->tmp_write_mem_loc = 0;

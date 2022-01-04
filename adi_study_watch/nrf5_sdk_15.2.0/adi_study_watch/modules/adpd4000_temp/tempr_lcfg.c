@@ -48,7 +48,7 @@
 #include <tempr_lcfg.h>
 #ifdef DCB
 static volatile bool g_tempr_dcb_Present = false;
-static bool check_dcb_erase = false;
+//static bool check_dcb_erase = false;
 #endif
 
 /* Default Temperature LCFG structure */
@@ -549,7 +549,7 @@ m2m2_hdr_t *tempr_dcb_command_delete_config(m2m2_hdr_t *p_pkt) {
       tempr_set_dcb_present_flag(false);
       /*! dcb got deleted, so load the lcfg structure with default values */
       memcpy((uint8_t *)&active_temperature_lcfg,(uint8_t *)&tempr_default_lcfg,sizeof(active_temperature_lcfg));
-      check_dcb_erase = true;
+      //check_dcb_erase = true;
       status = M2M2_DCB_STATUS_OK;
     } else {
       status = M2M2_DCB_STATUS_ERR_ARGS;

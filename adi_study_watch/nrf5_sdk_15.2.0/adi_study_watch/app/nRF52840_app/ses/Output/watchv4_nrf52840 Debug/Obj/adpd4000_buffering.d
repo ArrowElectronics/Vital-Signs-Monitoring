@@ -1,10 +1,11 @@
 Output/watchv4_nrf52840\ Debug/Obj/adpd4000_buffering.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\adpd4000_buffering.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\adpd4000_buffering.c \
  ..\..\..\drivers\adpd4000/adpd4000_buffering.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\utilities\circular_buffer/circular_buffer.h \
  ..\..\..\hal/hw_if_config.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
@@ -106,4 +107,4 @@ Output/watchv4_nrf52840\ Debug/Obj/adpd4000_buffering.o: \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \
  ..\..\..\..\components\libraries\log/nrf_log_types.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\lcm.h
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\adpd4000\lcm.h

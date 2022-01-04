@@ -381,7 +381,8 @@ void touch_detect_init(void) {
   touch_task_attributes.pStackBase = &touch_task_stack[0];
   touch_task_attributes.nStackSize = APP_OS_CFG_TOUCH_TASK_STK_SIZE;
   touch_task_attributes.pTaskAttrParam = NULL;
-  touch_task_attributes.szThreadName = "touch";
+  /* Thread Name should be of max 10 Characters */
+  touch_task_attributes.szThreadName = "TouchTask";
   touch_task_attributes.pThreadTcb = &touch_task_tcb;
 
   eOsStatus = adi_osal_MsgQueueCreate(&touch_task_msg_queue,NULL,
@@ -456,19 +457,22 @@ m2m2_hdr_t *ad7156_app_reg_access(m2m2_hdr_t *p_pkt) {
 static m2m2_hdr_t *ad7156_app_load_cfg(m2m2_hdr_t *p_pkt) {
   // Declare and malloc a response packet
   PKT_MALLOC(p_resp_pkt, m2m2_sensor_ad7156_resp_t, 0);
-  // Declare a pointer to the response packet payload
-  PYLD_CST(p_resp_pkt, m2m2_sensor_ad7156_resp_t, p_resp_payload);
-  p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
 
-  if (!load_ad7156_cfg()) {  // Loads the device configuration
-    p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
-  } else {
+  if (NULL != p_resp_pkt) {
+    // Declare a pointer to the response packet payload
+    PYLD_CST(p_resp_pkt, m2m2_sensor_ad7156_resp_t, p_resp_payload);
     p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
-  }
 
-  p_resp_payload->command = M2M2_SENSOR_AD7156_COMMAND_LOAD_CFG_RESP;
-  p_resp_pkt->src = p_pkt->dest;
-  p_resp_pkt->dest = p_pkt->src;
+    if (!load_ad7156_cfg()) {  // Loads the device configuration
+      p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
+    } else {
+      p_resp_payload->status = M2M2_APP_COMMON_STATUS_ERROR;
+    }
+
+    p_resp_payload->command = M2M2_SENSOR_AD7156_COMMAND_LOAD_CFG_RESP;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_pkt->dest = p_pkt->src;
+  }
   return p_resp_pkt;
 }
 
@@ -620,29 +624,33 @@ static m2m2_hdr_t *ad7156_dcb_command_read_config(m2m2_hdr_t *p_pkt)
     static uint16_t r_size = 0;
     uint32_t dcbdata[MAXAD7156DCBSIZE];
     M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
-
+    // Declare and malloc a response packet
     PKT_MALLOC(p_resp_pkt, m2m2_dcb_ad7156_data_t, 0);
-    // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_ad7156_data_t, p_resp_payload);
 
-    r_size = (uint16_t)MAXAD7156DCBSIZE;
-    if(read_ad7156_dcb(&dcbdata[0],&r_size) == AD7156_DCB_STATUS_OK)
-    {
-        for(int i=0; i< r_size; i++)
-          p_resp_payload->dcbdata[i] = dcbdata[i];
-        p_resp_payload->size = (r_size);
-        status = M2M2_DCB_STATUS_OK;
-    }
-    else
-    {
-        p_resp_payload->size = 0;
-        status = M2M2_DCB_STATUS_ERR_ARGS;
-    }
+    if (NULL != p_resp_pkt) {
+      // Declare a pointer to the response packet payload
+      PYLD_CST(p_resp_pkt, m2m2_dcb_ad7156_data_t, p_resp_payload);
 
-    p_resp_payload->status = status;
-    p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_pkt->dest = p_pkt->src;
+      r_size = (uint16_t)MAXAD7156DCBSIZE;
+      if(read_ad7156_dcb(&dcbdata[0],&r_size) == AD7156_DCB_STATUS_OK)
+      {
+          for(int i=0; i< r_size; i++) {
+            p_resp_payload->dcbdata[i] = dcbdata[i];
+          }
+          p_resp_payload->size = (r_size);
+          status = M2M2_DCB_STATUS_OK;
+      }
+      else
+      {
+          p_resp_payload->size = 0;
+          status = M2M2_DCB_STATUS_ERR_ARGS;
+      }
+
+      p_resp_payload->status = status;
+      p_resp_payload->command = M2M2_DCB_COMMAND_READ_CONFIG_RESP;
+      p_resp_pkt->src = p_pkt->dest;
+      p_resp_pkt->dest = p_pkt->src;
+    }
     return p_resp_pkt;
 }
 
@@ -653,59 +661,65 @@ static m2m2_hdr_t *ad7156_dcb_command_write_config(m2m2_hdr_t *p_pkt)
 
     // Declare a pointer to access the input packet payload
     PYLD_CST(p_pkt, m2m2_dcb_ad7156_data_t, p_in_payload);
+    // Declare and malloc a response packet
     PKT_MALLOC(p_resp_pkt, m2m2_dcb_ad7156_data_t, 0);
-    // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_ad7156_data_t, p_resp_payload);
 
-    for(int i=0; i<p_in_payload->size; i++)
-      dcbdata[i] = p_in_payload->dcbdata[i];
-    if(write_ad7156_dcb(&dcbdata[0],p_in_payload->size) == AD7156_DCB_STATUS_OK)
-    {
-        ad7156_set_dcb_present_flag(true);
-        status = M2M2_DCB_STATUS_OK;
+    if (NULL != p_resp_pkt) {
+      // Declare a pointer to the response packet payload
+      PYLD_CST(p_resp_pkt, m2m2_dcb_ad7156_data_t, p_resp_payload);
+
+      for(int i=0; i<p_in_payload->size; i++){
+        dcbdata[i] = p_in_payload->dcbdata[i];
+      }
+      if(write_ad7156_dcb(&dcbdata[0],p_in_payload->size) == AD7156_DCB_STATUS_OK)
+      {
+          ad7156_set_dcb_present_flag(true);
+          status = M2M2_DCB_STATUS_OK;
+      }
+      else
+      {
+          status = M2M2_DCB_STATUS_ERR_ARGS;
+      }
+      p_resp_payload->status = status;
+      p_resp_payload->command = M2M2_DCB_COMMAND_WRITE_CONFIG_RESP;
+      p_resp_payload->size = 0;
+      for(int i=0; i<MAXAD7156DCBSIZE; i++){
+        p_resp_payload->dcbdata[i] = 0;
+      }
+      p_resp_pkt->src = p_pkt->dest;
+      p_resp_pkt->dest = p_pkt->src;
     }
-    else
-    {
-        status = M2M2_DCB_STATUS_ERR_ARGS;
-    }
-
-    p_resp_payload->status = status;
-    p_resp_payload->command = M2M2_DCB_COMMAND_WRITE_CONFIG_RESP;
-    p_resp_payload->size = 0;
-    for(int i=0; i<MAXAD7156DCBSIZE; i++)
-      p_resp_payload->dcbdata[i] = 0;
-
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_pkt->dest = p_pkt->src;
     return p_resp_pkt;
 }
 
 static m2m2_hdr_t *ad7156_dcb_command_delete_config(m2m2_hdr_t *p_pkt)
 {
     M2M2_DCB_STATUS_ENUM_t status = M2M2_DCB_STATUS_ERR_NOT_CHKD;
-
+    // Declare and malloc a response packet
     PKT_MALLOC(p_resp_pkt, m2m2_dcb_ad7156_data_t, 0);
-    // Declare a pointer to the response packet payload
-    PYLD_CST(p_resp_pkt, m2m2_dcb_ad7156_data_t, p_resp_payload);
 
-    if(delete_ad7156_dcb() == AD7156_DCB_STATUS_OK)
-    {
-        ad7156_set_dcb_present_flag(false);
-        status = M2M2_DCB_STATUS_OK;
-    }
-    else
-    {
-        status = M2M2_DCB_STATUS_ERR_ARGS;
-    }
+    if (NULL != p_resp_pkt) {
+      // Declare a pointer to the response packet payload
+      PYLD_CST(p_resp_pkt, m2m2_dcb_ad7156_data_t, p_resp_payload);
 
-    p_resp_payload->status = status;
-    p_resp_payload->command = M2M2_DCB_COMMAND_ERASE_CONFIG_RESP;
-    p_resp_payload->size = 0;
-    for(int i=0; i<MAXAD7156DCBSIZE; i++)
-      p_resp_payload->dcbdata[i] = 0;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_pkt->dest = p_pkt->src;
+      if(delete_ad7156_dcb() == AD7156_DCB_STATUS_OK)
+      {
+          ad7156_set_dcb_present_flag(false);
+          status = M2M2_DCB_STATUS_OK;
+      }
+      else
+      {
+          status = M2M2_DCB_STATUS_ERR_ARGS;
+      }
+      p_resp_payload->status = status;
+      p_resp_payload->command = M2M2_DCB_COMMAND_ERASE_CONFIG_RESP;
+      p_resp_payload->size = 0;
+      for(int i=0; i<MAXAD7156DCBSIZE; i++){
+        p_resp_payload->dcbdata[i] = 0;
+      }
+      p_resp_pkt->src = p_pkt->dest;
+      p_resp_pkt->dest = p_pkt->src;
+    }
     return p_resp_pkt;
-
 }
 #endif

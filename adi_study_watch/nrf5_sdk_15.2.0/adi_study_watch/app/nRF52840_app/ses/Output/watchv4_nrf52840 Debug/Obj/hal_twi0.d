@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/hal_twi0.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\hal\hal_twi0.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\hal\hal_twi0.c \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
  ..\..\..\modules\system\osal\free_rtos\src/osal_misra.h \
  ..\..\..\modules\system\osal\free_rtos\ports/adi_osal_arch.h \
@@ -44,7 +44,7 @@ Output/watchv4_nrf52840\ Debug/Obj/hal_twi0.o: \
  ..\..\..\..\external\freertos\portable\CMSIS\nrf52/portmacro_cmsis.h \
  ..\..\..\..\components\libraries\util/app_util.h \
  ..\..\..\..\external\freertos\source\include/mpu_wrappers.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\hal\hal_twi0.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\hal\hal_twi0.h \
  ..\..\..\..\modules\nrfx/nrfx.h \
  ..\..\..\..\integration\nrfx/nrfx_config.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \

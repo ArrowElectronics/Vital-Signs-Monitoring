@@ -1,6 +1,16 @@
 #ifndef __FILE_SYSTEM_TASK_H
 #define __FILE_SYSTEM_TASK_H
 #include "crc16.h"
+//typedef struct{
+//  uint16_t tool_addr;
+//  uint8_t chunk_size;
+//}fs_download_info;
+//
+typedef enum FS_DOWNLOAD_MODE_t
+{
+  FS_STREAM_USB_MODE = 0,
+  FS_STREAM_BLE_MODE = 1, 
+}FS_DOWNLOAD_MODE_t;
 
 void file_system_task_init(void);
 void send_message_file_system_task(m2m2_hdr_t *p_pkt);

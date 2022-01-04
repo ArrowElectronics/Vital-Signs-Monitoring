@@ -94,7 +94,7 @@ class bia_data_set_t(Structure):
               ("timestamp", c_uint32),
               ("real", c_int32),
               ("img", c_int32),
-              ("freq_index", M2M2_SENSOR_BIA_SWEEP_FREQ_INDEX_ENUM_t),
+              ("excitation_freq", uint32_t),
               ]
 
 class bia_app_stream_t(Structure):

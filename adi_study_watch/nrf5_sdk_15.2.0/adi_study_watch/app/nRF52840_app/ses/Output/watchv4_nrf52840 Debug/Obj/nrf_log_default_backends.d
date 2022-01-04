@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/nrf_log_default_backends.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\log\src\nrf_log_default_backends.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\log\src\nrf_log_default_backends.c \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -49,7 +49,7 @@ Output/watchv4_nrf52840\ Debug/Obj/nrf_log_default_backends.o: \
  ..\..\..\..\components\libraries\log/nrf_log_instance.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  ..\..\..\..\components\libraries\util/nordic_common.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\log\src\nrf_log_internal.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\log\src\nrf_log_internal.h \
  ..\..\..\..\components\libraries\log/nrf_log_types.h \
  ..\..\..\..\components\libraries\util/nrf_assert.h \
  ..\..\..\..\components\libraries\log/nrf_log_backend_rtt.h

@@ -158,7 +158,8 @@ void pedometer_app_task_init(void) {
   pedometer_app_task_attributes.nStackSize = \
                                    APP_OS_CFG_PEDOMETER_APP_TASK_STK_SIZE;
   pedometer_app_task_attributes.pTaskAttrParam = NULL;
-  pedometer_app_task_attributes.szThreadName = "Pedometer";
+  /* Thread Name should be of max 10 Characters */
+  pedometer_app_task_attributes.szThreadName = "Pedo_Task";
   pedometer_app_task_attributes.pThreadTcb = &pedometer_app_task_tcb;
 
   eOsStatus = adi_osal_MsgQueueCreate(&pedometer_app_task_msg_queue,NULL,

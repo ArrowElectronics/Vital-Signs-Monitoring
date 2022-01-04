@@ -30,7 +30,8 @@ class M2M2_EDA_APP_CMD_ENUM_t(c_uint8):
     M2M2_APP_COMMON_CMD_WRITE_DCFG_RESP    = 0x53
     M2M2_APP_COMMON_CMD_READ_DCFG_REQ      = 0x54
     M2M2_APP_COMMON_CMD_READ_DCFG_RESP     = 0x55
-
+    M2M2_EDA_APP_CMD_BASELINE_IMP_GET_REQ  = 0x56
+    M2M2_EDA_APP_CMD_BASELINE_IMP_GET_RESP = 0x57
 
 class M2M2_SENSOR_EDA_NSAMPLES_ENUM_t(c_uint8):
     M2M2_SENSOR_EDA_NSAMPLES = 0x6
@@ -108,6 +109,22 @@ class eda_app_set_dft_num_t(Structure):
 class eda_app_set_baseline_imp_t(Structure):
     fields = [
               (None, common_application_interface._m2m2_app_common_cmd_t),
+              ("imp_real_dft16", c_float),
+              ("imp_img_dft16", c_float),
+              ("imp_real_dft8", c_float),
+              ("imp_img_dft8", c_float),
+              ("resistor_baseline", c_uint32),
+              ]
+
+class eda_app_get_baseline_imp_req_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_common_cmd_t),
+              ]
+
+class eda_app_get_baseline_imp_resp_t(Structure):
+    fields = [
+              (None, common_application_interface._m2m2_app_common_cmd_t),
+              ("eda_user_baseline_imp_set",c_int16),
               ("imp_real_dft16", c_float),
               ("imp_img_dft16", c_float),
               ("imp_real_dft8", c_float),

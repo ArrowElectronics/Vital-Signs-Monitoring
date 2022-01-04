@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/hal_spi.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\hal\hal_spi.c \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\hal\hw_if_config.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\hal\hal_spi.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\hal\hw_if_config.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\..\integration\nrfx\legacy/nrf_drv_twi.h \
  ..\..\..\..\modules\nrfx/nrfx.h \
@@ -56,6 +56,7 @@ Output/watchv4_nrf52840\ Debug/Obj/hal_spi.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \

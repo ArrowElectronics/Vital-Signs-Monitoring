@@ -125,6 +125,7 @@ uint16_t gnAdxlODR;
 uint32_t gnHRAdxlSampleCount = 0;
 extern Adpd400xLibConfig_t gAdpd400xLibCfg;
 extern volatile uint8_t gn_uc_hr_enable;
+
 extern volatile uint8_t gnAppSyncTimerStarted;
 #endif
 extern bool gRun_agc;
@@ -207,7 +208,8 @@ void sensor_adxl_task_init(void) {
   sensor_adxl_task_attributes.pStackBase = &sensor_adxl_task_stack[0];
   sensor_adxl_task_attributes.nStackSize = APP_OS_CFG_SENSOR_ADXL_TASK_STK_SIZE;
   sensor_adxl_task_attributes.pTaskAttrParam = NULL;
-  sensor_adxl_task_attributes.szThreadName = "ADXL Sensor";
+  /* Thread Name should be of max 10 Characters */
+  sensor_adxl_task_attributes.szThreadName = "ADXL_Task";
 
   sensor_adxl_task_attributes.pThreadTcb = &adxlTaskTcb;
   eOsStatus = adi_osal_MsgQueueCreate(&adxl_task_msg_queue, NULL, 25);
@@ -734,23 +736,27 @@ static m2m2_hdr_t *adxl_app_stream_config(m2m2_hdr_t *p_pkt) {
             nRegVal1 & 0x07; /*Check 0x2C reg & update timer freq */
 
 #ifdef USER0_CONFIG_APP
-      get_adxl_app_timings_from_user0_config_app_lcfg(&adxl_app_timings.start_time,\
-                                        &adxl_app_timings.on_time, &adxl_app_timings.off_time);
-      if(adxl_app_timings.start_time > 0)
+      //Use user0 config app timings
+      if((is_bypass_user0_timings() == false))
       {
-        adxl_app_timings.delayed_start = true;
-      }
+        get_adxl_app_timings_from_user0_config_app_lcfg(&adxl_app_timings.start_time,\
+                                          &adxl_app_timings.on_time, &adxl_app_timings.off_time);
+        if(adxl_app_timings.start_time > 0)
+        {
+          adxl_app_timings.delayed_start = true;
+        }
 
 #ifdef LOW_TOUCH_FEATURE
-      //ADXL app not in continuous mode & its interval operation mode
-      if(!is_adxl_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+        //ADXL app not in continuous mode & its interval operation mode
+        if(!is_adxl_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
 #else
-      //ADXL app not in continuous mode
-      if(!is_adxl_app_mode_continuous())
+        //ADXL app not in continuous mode
+        if(!is_adxl_app_mode_continuous())
 #endif
-      {
-        start_adxl_app_timer();
-      }
+        {
+          start_adxl_app_timer();
+        }
+      }//if((is_bypass_user0_timings() == false))
 
       if(!adxl_app_timings.delayed_start)
       {
@@ -762,9 +768,9 @@ static m2m2_hdr_t *adxl_app_stream_config(m2m2_hdr_t *p_pkt) {
       if(ADXLDrv_SUCCESS == AdxlSampleMode()) {
 #endif// USER0_CONFIG_APP
           uint16_t nRegVal2;
-          Adpd400xDrvRegRead(0x0022, &nRegVal2);
+          adi_adpddrv_RegRead(0x0022, &nRegVal2);
           nRegVal2 = nRegVal2 & 0xFFC7;
-          Adpd400xDrvRegWrite(
+          adi_adpddrv_RegWrite(
               0x0022, nRegVal2); /* To disable GPIO1 from adpd4k */
           uint8_t adxl_odr;
           adxl_odr = (GetFilterAdxl362() & 0x07);

@@ -70,6 +70,16 @@ typedef enum {
   MEM_MANAGER_ERR_MEM_INVALID	= 0xFF,
 } MEM_MANAGER_ERR_STATUS_t;
 
+extern uint16_t min_num_free_blks_type2;
+extern uint16_t min_num_free_blks_type4;
+extern uint16_t min_num_free_blks_type5;
+extern uint32_t block_2_allocated;
+extern uint32_t block_4_allocated;
+extern uint32_t block_5_allocated;
+extern uint32_t block_2_freed;
+extern uint32_t block_4_freed;
+extern uint32_t block_5_freed;
+
 MEM_MANAGER_ERR_STATUS_t memory_block_get(void **pp_memory, uint16_t size);
 MEM_MANAGER_ERR_STATUS_t memory_block_free(void *p_memory, uint16_t size);
 MEM_MANAGER_ERR_STATUS_t memory_manager_init( void );

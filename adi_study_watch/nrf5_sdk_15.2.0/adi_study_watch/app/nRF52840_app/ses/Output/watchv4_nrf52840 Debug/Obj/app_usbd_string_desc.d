@@ -1,7 +1,7 @@
 Output/watchv4_nrf52840\ Debug/Obj/app_usbd_string_desc.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_string_desc.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_string_desc.c \
  ..\..\..\app\nRF52840_app/sdk_config.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_string_desc.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_string_desc.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -28,7 +28,7 @@ Output/watchv4_nrf52840\ Debug/Obj/app_usbd_string_desc.o: \
  ..\..\..\..\modules\nrfx\mdk/compiler_abstraction.h \
  ..\..\..\..\components\libraries\util/sdk_macros.h \
  ..\..\..\..\components\libraries\util/nrf_assert.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd.h \
  ..\..\..\..\components\drivers_nrf\usbd/nrf_drv_usbd.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
  ..\..\..\..\modules\nrfx\hal/nrf_usbd.h ..\..\..\..\modules\nrfx/nrfx.h \
@@ -57,10 +57,10 @@ Output/watchv4_nrf52840\ Debug/Obj/app_usbd_string_desc.o: \
  ..\..\..\..\components\softdevice\s140\headers/nrf_sd_def.h \
  ..\..\..\..\modules\nrfx/drivers/nrfx_errors.h \
  ..\..\..\..\components\drivers_nrf\usbd/nrf_drv_usbd_errata.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_types.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_request.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_descriptor.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_langid.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_class_base.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_core.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_types.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_request.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_descriptor.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_langid.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_class_base.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\libraries\usbd\app_usbd_core.h \
  ..\..\..\..\external\utf_converter/utf.h

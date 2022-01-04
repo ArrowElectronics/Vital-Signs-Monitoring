@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/ble_link_ctx_manager.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\ble\ble_link_ctx_manager\ble_link_ctx_manager.c \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\components\ble\ble_link_ctx_manager\ble_link_ctx_manager.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\ble\ble_link_ctx_manager\ble_link_ctx_manager.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\components\ble\ble_link_ctx_manager\ble_link_ctx_manager.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\..\components\ble\common/ble_conn_state.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \

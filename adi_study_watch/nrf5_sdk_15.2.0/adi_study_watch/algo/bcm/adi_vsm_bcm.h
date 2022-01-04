@@ -4,9 +4,9 @@
 * @{
 * @file         adi_vsm_bcm.h
 * @author       ADI
-* @version      V1.2.1
+* @version      V1.0.0
 * @date         30-Aug-2021
-* @brief        Header file of bcm algorithm parameters
+* @brief        Header file of BCM algorithm parameters
 ***************************************************************************
 * @attention
 ***************************************************************************
@@ -38,10 +38,6 @@
 #define ADI_VSM_BCM_H
 
 /******************************************************************************
-**          Includes
-******************************************************************************/
-
-/******************************************************************************
 **          Macro definitions
 ******************************************************************************/
 
@@ -49,11 +45,6 @@
 * Maximum polynomial coefficients
 */
 #define ALLOWED_POLY_COEFFICIENTS 8
-
-/**
-* Algorithm version number 
-*/
-#define ADI_BCM_VERSION_NUM 0x010000 /* Current version 01.00.00 */
 
 
 /******************************************************************************
@@ -66,6 +57,7 @@
 typedef enum {
     ADI_VSM_BCM_SUCCESS = 0,
     ADI_VSM_BCM_IN_PROGRESS,
+    ADI_VSM_BCM_FFM_ESTIMATED_ERROR,
     ADI_VSM_BCM_NULL_PTR_ERROR,
     ADI_VSM_BCM_ERROR,
 } adi_vsm_bcm_return_code_t;
@@ -83,6 +75,15 @@ typedef struct {
         uint16_t length_numchars;
     } state;
 } adi_vsm_bcm_mem_t;
+
+
+/**
+* @brief  Config Struct Algorithm version Information
+*/ 
+typedef struct {
+  uint32_t  bcm_algo_version_num;  //!< BCM Algorithm version in integer format
+  char      *version_text;         //!< BCM Algorithm version in string format
+} adi_vsm_bcm_module_info_t;
 
 
 /**
@@ -124,24 +125,13 @@ typedef struct {
    by the user. */
 typedef struct adi_vsm_bcm_instance adi_vsm_bcm_instance_t;
 
+/* The BCM module info structure holds algo version information */
+extern const adi_vsm_bcm_module_info_t adi_vsm_bcm_module_info;
 
 /******************************************************************************
 **          Function Prototypes
 ******************************************************************************/
 
-/**
-* @brief        Get Algorithm Version
-*
-* @param[in]    instance_handle:              Pointer to BCM Instance
-* @param[out]   *bcm_algo_version_num:        Pointer to BCM Algorithm version in integer format
-* @param[out]   *bcm_algo_version:            Pointer to BCM Algorithm version in string format
-* 					  
-*
-* @return       adi_vsm_bcm_return_code_t
-*/
-adi_vsm_bcm_return_code_t adi_vsm_bcm_algo_get_version(adi_vsm_bcm_instance_t* instance_handle,
-                                                      uint32_t *bcm_algo_version_num,
-                                                      char *bcm_algo_version);
 /**
 * @brief		Creates an BCM Instance
 *

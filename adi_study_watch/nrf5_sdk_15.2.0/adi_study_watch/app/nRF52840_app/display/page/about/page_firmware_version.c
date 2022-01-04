@@ -59,7 +59,7 @@ void get_app_version(void)
     ADI_OSAL_STATUS       err;
     p_m2m2_ = post_office_create_msg(M2M2_HEADER_SZ+sizeof(m2m2_app_common_sub_op_t));
     if (p_m2m2_ == NULL) {
-      //continue;
+      return;
     }
     /* swap from network byte order to little endian */
     p_m2m2_->src = M2M2_ADDR_DISPLAY;

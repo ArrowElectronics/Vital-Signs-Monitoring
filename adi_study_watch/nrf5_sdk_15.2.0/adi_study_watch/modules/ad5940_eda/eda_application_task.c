@@ -86,6 +86,7 @@ EDA_ERROR_CODE_t delete_eda_dcb(void);
 #include "nrf_log.h"
 NRF_LOG_MODULE_REGISTER();
 
+
 uint32_t temp;
 #ifdef DEBUG_EDA
 static uint32_t pkt_count = 0;
@@ -94,7 +95,8 @@ static uint32_t pkt_count = 0;
 #ifdef PROFILE_TIME_ENABLED
 static float eda_odr = 0, time_elapsed_for_eda = 0, eda_start_time = 0;
 #endif
-
+extern bool g_disable_ad5940_port_init;
+extern bool g_disable_ad5940_port_deinit;
 static _gEdaAd5940Data_t gEdaData = {{0}, 0, 0, 0};
 extern uint32_t FifoCount;
 extern uint64_t nTcv; /* timestamp */
@@ -104,7 +106,7 @@ float magnitude, phase;
 static int32_t SignalData[MAX_NUM_OF_FFT_POINTS] = {0}, eda_counter = 0;
 uint8_t measurement_cycle_completed = 0;
 uint8_t init_flag;
-#ifdef EDA_DCFG_ENABLE 
+#ifdef EDA_DCFG_ENABLE
 uint8_t eda_load_applied_dcfg=1;
 #endif
 extern AD5940_APP_ENUM_t gnAd5940App;
@@ -136,15 +138,15 @@ uint8_t num_ind_settings=0;
 
 // Register numbering used here starts from 0
 typedef enum DCFG_REGISTERS_ENUM_t{
-  DATA_FIFO_CONFIG = 6,// Data FIFO Mode and Size allowed 
+  DATA_FIFO_CONFIG = 6,// Data FIFO Mode and Size allowed
   DATA_FIFO_SOURCE_CONFIG = 8,// This Index is saved after reconfiguring FIFO,source of FIFO
   INTERRUPT_CONTROLLER_SELECT_1 = 9,// Sources for Interrupts to occur
   INTERRUPT_CONTROLLER_SELECT_0 = 10,// Sources for Interrupts to occur
-  COMMAND_FIFO_CONFIG = 19,// Command FIFO Mode and Size allowed 
+  COMMAND_FIFO_CONFIG = 19,// Command FIFO Mode and Size allowed
   INIT_DCFG_END = 22,              // Last register write for Init Part
   LOW_POWER_DAC_CONFIG = 27,
   ADC_PGA_GAIN_CONFIG = 43,
-  SEQCFG_REG_AFE_DFTCON_1 = 49, // ADC Filter, Notch and Sinc filter settings   
+  SEQCFG_REG_AFE_DFTCON_1 = 49, // ADC Filter, Notch and Sinc filter settings
   DFT_CON_CONFIG = 50,// DFT Number and Hanning Window setting allowed
   SEQCFG_END = 54,      // Last register write for Sequencer CFG
   GPIO_CONTROL_CONFIG = 55,
@@ -231,6 +233,8 @@ static m2m2_hdr_t *eda_app_dft_num_set(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_app_dcfg_reg_update(m2m2_hdr_t *p_pkt);
 #endif //EDA_DCFG_ENABLE
 static m2m2_hdr_t *eda_app_baseline_imp_set(m2m2_hdr_t *p_pkt);
+static m2m2_hdr_t *eda_app_baseline_imp_get(m2m2_hdr_t *p_pkt);
+
 #ifdef DEBUG_EDA
 static m2m2_hdr_t *eda_app_debug_info(m2m2_hdr_t *p_pkt);
 #endif
@@ -241,14 +245,11 @@ static m2m2_hdr_t *eda_dcb_command_read_config(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_dcb_command_write_config(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *eda_dcb_command_delete_config(m2m2_hdr_t *p_pkt);
 #endif
-#ifdef AD5940_REG_ACCESS
-static m2m2_hdr_t *ad5940_app_reg_access(m2m2_hdr_t *p_pkt);
-#endif
 
+static m2m2_hdr_t *ad5940_app_reg_access(m2m2_hdr_t *p_pkt);
 static void fetch_eda_data(void);
 static void sensor_eda_task(void *pArgument);
 void Enable_ephyz_power(void);
-uint32_t ad5940_port_deInit(void);
 
 uint8_t sensor_eda_task_stack[APP_OS_CFG_EDA_TASK_STK_SIZE];
 ADI_OSAL_THREAD_HANDLE sensor_eda_task_handler;
@@ -275,7 +276,7 @@ app_routing_table_entry_t eda_app_routing_table[] = {
     {M2M2_SENSOR_COMMON_CMD_GET_STREAM_DEC_FACTOR_REQ, eda_app_decimation},
     {M2M2_SENSOR_COMMON_CMD_SET_STREAM_DEC_FACTOR_REQ, eda_app_decimation},
     {M2M2_APP_COMMON_CMD_GET_VERSION_REQ, eda_app_get_version},
-#ifdef EDA_DCFG_ENABLE    
+#ifdef EDA_DCFG_ENABLE
     {M2M2_EDA_APP_CMD_LOAD_DCFG_REQ, eda_app_stream_config},
     {M2M2_APP_COMMON_CMD_WRITE_DCFG_REQ, eda_app_dcfg_reg_update},
     {M2M2_APP_COMMON_CMD_READ_DCFG_REQ, eda_app_dcfg_reg_update},
@@ -287,6 +288,7 @@ app_routing_table_entry_t eda_app_routing_table[] = {
 #endif
     {M2M2_EDA_APP_CMD_SET_DFT_NUM_REQ, eda_app_dft_num_set},
     {M2M2_EDA_APP_CMD_BASELINE_IMP_SET_REQ,eda_app_baseline_imp_set},
+    {M2M2_EDA_APP_CMD_BASELINE_IMP_GET_REQ,eda_app_baseline_imp_get},
     {M2M2_EDA_APP_CMD_BASELINE_IMP_RESET_REQ,eda_app_baseline_imp_set},
 #ifdef DCB
     {M2M2_APP_COMMON_CMD_SET_LCFG_REQ, eda_app_set_dcb_lcfg},
@@ -294,10 +296,8 @@ app_routing_table_entry_t eda_app_routing_table[] = {
     {M2M2_DCB_COMMAND_WRITE_CONFIG_REQ, eda_dcb_command_write_config},
     {M2M2_DCB_COMMAND_ERASE_CONFIG_REQ, eda_dcb_command_delete_config},
 #endif
-#ifdef AD5940_REG_ACCESS
-    {M2M2_SENSOR_COMMON_CMD_READ_REG_16_REQ, ad5940_app_reg_access},
-    {M2M2_SENSOR_COMMON_CMD_WRITE_REG_16_REQ, ad5940_app_reg_access},
-#endif
+    {M2M2_SENSOR_COMMON_CMD_READ_REG_32_REQ, ad5940_app_reg_access},
+    {M2M2_SENSOR_COMMON_CMD_WRITE_REG_32_REQ, ad5940_app_reg_access},
 };
 
 #define EDA_APP_ROUTING_TBL_SZ                                                 \
@@ -323,22 +323,22 @@ uint64_t default_dcfg_eda[] = {
     0x0000300802000000, /* Interrupt Controller Select 0 , enabling fifo threshold source */
     0x00003004FFFFFFFF, /* Masking all Interrupt sources for fresh Interrupts to occur  */
     /*  gpio configuration  */
-    0x0000000000002AB8, /* GPIO Functionality register  */
-    0x000000040000007B, /* Output pins Configuration and electrode pin3 enable  */
-    0x0000000C00000004, /*  Input pins Configuration  */
+    0x0000000000000080, /* GPIO Functionality register  */
+    0x0000000400000009, /* Output pins Configuration and electrode pin3 enable  */
+    0x0000000C00000000, /*  Input pins Configuration  */
     /*  Unlock Sequencer Trigger Sleep Register to allow sequencer to go to sleep when needed */
     0x00002118000A47E5,
     /*  Below 3 register writes is just kept to not alter enum numbers of usesr config  */
-    0x000000040000007B, // Repeating above,
-    0x0000000800000000, // as we moved electrode switching to 
+    0x0000000400000009, // Repeating above,
+    0x0000000800000000, // as we moved electrode switching to
     0x0000001800000000, // sequencer
     0x000021D800000489, /* Command FIFO Memory mode selected and 2KB size choosen */
     0x0000200400000000, /* Clear sequencer configuartion  */
     0x0000206400000000, /* Clear sequencer command count and CRC Count  */
     0xFFFFFFFFFFFFFFFF,
-    0x0000205400000042, /* Output of GP0CON register is sent to GPIO's */ /* to check why its done */
+    0x0000205400000000, /* Output of GP0CON register is sent to GPIO's */ /* to check why its done */
     0x0000200000080020, /* High speed DAC enable is '1' */
-    0x0000218000000037, /* Enable ADC 1.8V reference buffer, enables buffer current limit, High speed 1.8v reference buffer, enables 1.11 high speed common buffer, ADC 1.11v low power reference buffer of ADC */ 
+    0x0000218000000037, /* Enable ADC 1.8V reference buffer, enables buffer current limit, High speed 1.8v reference buffer, enables 1.11 high speed common buffer, ADC 1.11v low power reference buffer of ADC */
     0x0000205000000003, /* Low power reference powered down,powers down the low power 2.5v buffer. */
     0x0000212800000003, /* Enable low power DAC writes, Low power DAC powered off */
     0x0000212000000000, /* clear low power DAC  */
@@ -366,9 +366,9 @@ uint64_t default_dcfg_eda[] = {
     0x000020D000000021, /* Hanning window enable,DFT number setting */
     0x000021C400000000, /* clearing Statistics control module configuration register */
     0x000021F0000001f0, /* Repeat ADC conversion control register */
-    0x000020100000000e, /*  High speed DAC configuration */    
+    0x000020100000000e, /*  High speed DAC configuration */
     0xFFFFFFFFFFFFFFFF,/* demarker for dcfg 2 */
-    0x0000205400000048,/* Output of GP0CON register is sent to GPIO's */
+    0x0000205400000008,/* Output of GP0CON register is sent to GPIO's */
     0x0000212800000041, /* Enables Low power DAC writes, waveform generator as low power DAC source */
     0x0000212000020000,/* Low power DAC output data register */
     0x0000212400000036, /* Low power DAC switch control , switch control DAC */
@@ -377,15 +377,15 @@ uint64_t default_dcfg_eda[] = {
     0x0000205000000000, /* Clear low power reference control register */
     0x0000200000080020, /* Interrupt control select register 0 , Interrupt enabled 1*/
     0x0000210C000C59D6,/* Low power mode AFE Control lock register */
-    0x0000211000000001, /* Low power mode Clock select register system clock as 32Khz */ 
+    0x0000211000000001, /* Low power mode Clock select register system clock as 32Khz */
     0x0000211400000103, /* Low power mode Configuration register , high speed reference, high speed power oscillator, power down analog ldo */
     0x0000200000084020, /* high speed reference disable,waveform generator enabled,analog ldo buffer current limiting disabled */
     0xEEEEEEEE00000140,/* seqwait  configuration */
     0x000020000008C020,/*high speed reference disable,waveform generator enabled,analog ldo buffer current limiting disabled, high speed ref dac enable */
     0xBBBBBBBBBBBBBBBB, /* end of sequencer measurement init */
-    0x00002114000001F0, /* high speed common mode buffer to 1.11v,high speed reference buffer 1.8v, power down analog ldo */ 
+    0x00002114000001F0, /* high speed common mode buffer to 1.11v,high speed reference buffer 1.8v, power down analog ldo */
     0xEEEEEEEE00000004,/* seqwait  configuration */
-    0x00002114000001F8,/* set bit high for repititive ADC conversions,high speed common mode buffer to 1.11v,high speed reference buffer 1.8v, power down analog ldo */ 
+    0x00002114000001F8,/* set bit high for repititive ADC conversions,high speed common mode buffer to 1.11v,high speed reference buffer 1.8v, power down analog ldo */
     0xEEEEEEEE00000000, /* Seq NOP */
     0x00002114000001F4,/* repititive ADC conversions,1.11 high speed common buffer enabled,high speed 1.82v reference buffer, power down analog ldo */
     0xEEEEEEEE00000000, /* Seq NOP */
@@ -403,7 +403,7 @@ uint64_t default_dcfg_eda[] = {
     0x0000212400000020,/* Low power DAC switch control , switch control DAC */
     0x0000205400000000, /* clear sync to GPIO's */
     0x0000211C00000000,/* trigger sleep by sequencer, '0' is enter to sleep */
-    0x0000211C00000001,/* trigger sleep by sequencer, '1' is enter to sleep */  
+    0x0000211C00000001,/* trigger sleep by sequencer, '1' is enter to sleep */
     0xFFFFFFFFFFFFFFFF, /* demarker of dcfg 3 */
 
 };
@@ -649,7 +649,8 @@ void ad5940_eda_task_init(void) {
   sensor_eda_task_attributes.pStackBase = &sensor_eda_task_stack[0];
   sensor_eda_task_attributes.nStackSize = APP_OS_CFG_EDA_TASK_STK_SIZE;
   sensor_eda_task_attributes.pTaskAttrParam = NULL;
-  sensor_eda_task_attributes.szThreadName = "EDA Sensor";
+  /* Thread Name should be of max 10 Characters */
+  sensor_eda_task_attributes.szThreadName = "EDA_Task";
   sensor_eda_task_attributes.pThreadTcb = &edaTaskTcb;
 
   eOsStatus = adi_osal_MsgQueueCreate(&eda_task_msg_queue, NULL, 5);
@@ -983,7 +984,7 @@ static m2m2_hdr_t *eda_app_perform_rtia_calibration(m2m2_hdr_t *p_pkt) {
     }
 
     p_resp_payload->num_calibrated_values = num_cal_points;
-    
+
      /* clear flag rtia cal is on */
     rtia_cal_flag = 0;
 
@@ -1122,6 +1123,44 @@ static m2m2_hdr_t *eda_app_baseline_imp_set(m2m2_hdr_t *p_pkt) {
 
 /*!
  ****************************************************************************
+ *@brief      Get Baseline resistor used and measured impedance  for eda application
+ *@param      pPkt: pointer to the packet structure
+ *@return     m2m2_hdr_t
+ ******************************************************************************/
+static m2m2_hdr_t *eda_app_baseline_imp_get(m2m2_hdr_t *p_pkt) {
+  /* Declare a pointer to access the input packet payload */
+  PYLD_CST(p_pkt, eda_app_get_baseline_imp_req_t, p_in_payload);
+
+  /* Allocate memory to the response packet payload */
+  PKT_MALLOC(p_resp_pkt, eda_app_get_baseline_imp_resp_t, 0);
+  if (NULL != p_resp_pkt) {
+    /* Declare a pointer to the response packet payload */
+    PYLD_CST(p_resp_pkt, eda_app_get_baseline_imp_resp_t, p_resp_payload);
+    if(eda_user_applied_baseline_imp == USER_CONFIG_BASELINE_IMPEDANCE_SET) {
+      p_resp_payload->eda_user_baseline_imp_set = USER_CONFIG_BASELINE_IMPEDANCE_SET;
+      p_resp_payload->imp_real_dft16 = EDABase_Userconfig_Dft16.Real;
+      p_resp_payload->imp_img_dft16  = EDABase_Userconfig_Dft16.Image;
+      p_resp_payload->imp_real_dft8 = EDABase_Userconfig_Dft8.Real;
+      p_resp_payload->imp_img_dft8  = EDABase_Userconfig_Dft8.Image;
+      p_resp_payload->resistor_baseline = UserConfig_BaselineResistor;
+    }
+    else {
+      p_resp_payload->eda_user_baseline_imp_set = USER_CONFIG_BASELINE_IMPEDANCE_RESET;
+      p_resp_payload->imp_real_dft16 = EDABase_Dft16.Real;
+      p_resp_payload->imp_img_dft16  = EDABase_Dft16.Image;
+      p_resp_payload->imp_real_dft8 = EDABase_Dft8.Real;
+      p_resp_payload->imp_img_dft8  = EDABase_Dft8.Image;
+      p_resp_payload->resistor_baseline = DEFAULT_BASELINE_RESISTOR;
+    }
+    p_resp_payload->command = M2M2_EDA_APP_CMD_BASELINE_IMP_GET_RESP;
+    p_resp_payload->status = M2M2_APP_COMMON_STATUS_OK;
+    p_resp_pkt->src = p_pkt->dest;
+    p_resp_pkt->dest = p_pkt->src;
+  }
+  return p_resp_pkt;
+}
+/*!
+ ****************************************************************************
  *@brief      Perform dynamic scaling
  *@param      pPkt: pointer to the packet structure
  *@return     m2m2_hdr_t
@@ -1188,22 +1227,26 @@ static m2m2_hdr_t *eda_app_stream_config(m2m2_hdr_t *p_pkt) {
         eda_start_req = 1; /* eda app to start */
 #endif
 #ifdef USER0_CONFIG_APP
-      get_eda_app_timings_from_user0_config_app_lcfg(&eda_app_timings.start_time,\
-                                        &eda_app_timings.on_time, &eda_app_timings.off_time);
-      if(eda_app_timings.start_time > 0)
+      //Use user0 config app timings
+      if((is_bypass_user0_timings() == false))
       {
-        eda_app_timings.delayed_start = true;
-      }
+        get_eda_app_timings_from_user0_config_app_lcfg(&eda_app_timings.start_time,\
+                                          &eda_app_timings.on_time, &eda_app_timings.off_time);
+        if(eda_app_timings.start_time > 0)
+        {
+          eda_app_timings.delayed_start = true;
+        }
 #ifdef LOW_TOUCH_FEATURE
-      //EDA app not in continuous mode & its interval operation mode
-      if(!is_eda_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
+        //EDA app not in continuous mode & its interval operation mode
+        if(!is_eda_app_mode_continuous() && !(get_low_touch_trigger_mode3_status()))
 #else
-      //EDA app not in continuous mode
-      if(!is_eda_app_mode_continuous())
+        //EDA app not in continuous mode
+        if(!is_eda_app_mode_continuous())
 #endif
-      {
-        start_eda_app_timer();
-      }
+        {
+          start_eda_app_timer();
+        }
+      }//if((is_bypass_user0_timings() == false))
 
       if(!eda_app_timings.delayed_start)
       {
@@ -1342,7 +1385,7 @@ EDA_ERROR_CODE_t EDAAppDeInit() {
   disable_ad5940_ext_trigger(AppEDACfg.EDAODR);
 #endif
 
-  ad5940_port_deInit();
+
   gEdaAppInitFlag = false;
   /* de initing for next use */
   init_flag=0;
@@ -1350,7 +1393,7 @@ EDA_ERROR_CODE_t EDAAppDeInit() {
   /* set flag for reset */
   eda_load_applied_dcfg = 1;
 #endif
-
+  g_disable_ad5940_port_deinit = false;
   /* de init power */
   adp5360_enable_ldo(ECG_LDO, false);
   NRF_LOG_DEBUG("EDA Sensor stopped!!");
@@ -1428,6 +1471,7 @@ EDA_ERROR_CODE_t EDAAppInit() {
       .Image = -16.696,
   };
 */
+  g_disable_ad5940_port_init = false;
   /* power on */
   adp5360_enable_ldo(ECG_LDO, true);
 
@@ -1576,7 +1620,7 @@ static m2m2_hdr_t *eda_app_dcfg_reg_update(m2m2_hdr_t *p_pkt) {
     case M2M2_APP_COMMON_CMD_READ_DCFG_REQ:
       /* Copy register addresses, value pairs */
       for (int i = 0; i < p_in_payload->num_ops; i++) {
-        uint32_t addr = (uint32_t)p_in_payload->ops[i].field; 
+        uint32_t addr = (uint32_t)p_in_payload->ops[i].field;
         dcfg_position = mapaddrind(&addr);
 
         /* find index to set */
@@ -1677,7 +1721,7 @@ static m2m2_hdr_t *eda_app_decimation(m2m2_hdr_t *p_pkt) {
 
 #ifdef EDA_DCFG_ENABLE
 /**
-      @brief    Map user Index 
+      @brief    Map user Index
       @param    User Index to map to Global array Index
       @retval   Array Index
 */
@@ -1728,7 +1772,7 @@ uint8_t mapuserind(uint8_t *userind)  {
 }
 
 /**
-      @brief    Map Adress to User Index 
+      @brief    Map Adress to User Index
       @param    User Index to map to Global array Index
       @retval   Array Index
 */
@@ -1795,13 +1839,12 @@ uint32_t get_dftnumber_dcfg(){
 */
 void load_ad5940_default_config(uint64_t *cfg) {
     uint16_t i = 0, j = 0,array_ind=0;
-
     if (cfg == 0) {
         return;
     }
     for (i = 0; i < MAX_DCFG_COMBINED; i++) {
       while (1) {
-        g_current_dcfg_ad5940[j] = cfg[j]; 
+        g_current_dcfg_ad5940[j] = cfg[j];
          /* Demarker between DCFG's used to differentiate different register module settings */
         if (cfg[j++] == 0xFFFFFFFFFFFFFFFF) {
           break;
@@ -1841,25 +1884,25 @@ void load_ad5940_default_config(uint64_t *cfg) {
 
 /**
 * @brief    To check status of low / high frequency system clock if enabled
-* @param    uint32_t addr : 32 bit address 
-            uint32_t data : 32 bit data 
+* @param    uint32_t addr : 32 bit address
+            uint32_t data : 32 bit data
 * @retval   None
 */
 void check_system_clock_status(uint32_t addr, uint32_t data){
   if( (data & BITM_ALLON_OSCCON_HFOSCEN) == BITM_ALLON_OSCCON_HFOSCEN)
-    while((AD5940_ReadReg(REG_ALLON_OSCCON)&BITM_ALLON_OSCCON_HFOSCOK) == 0); /* Wait for clock ready */   
+    while((AD5940_ReadReg(REG_ALLON_OSCCON)&BITM_ALLON_OSCCON_HFOSCOK) == 0); /* Wait for clock ready */
   if( (data & BITM_ALLON_OSCCON_LFOSCEN) == BITM_ALLON_OSCCON_LFOSCEN)
     while((AD5940_ReadReg(REG_ALLON_OSCCON)&BITM_ALLON_OSCCON_LFOSCOK) == 0); /* Wait for clock ready */
 }
 
 /**
-* @brief    To check status of high frequency system clock if enabled, 
-            based on 16MHz/32MHz clock selection 
+* @brief    To check status of high frequency system clock if enabled,
+            based on 16MHz/32MHz clock selection
 * @param    None
 * @retval   None
 */
 void check_high_freq_clock_config_status(){
-     while((AD5940_ReadReg(REG_ALLON_OSCCON)&BITM_ALLON_OSCCON_HFOSCOK) == 0); /* Wait for clock ready */  
+     while((AD5940_ReadReg(REG_ALLON_OSCCON)&BITM_ALLON_OSCCON_HFOSCOK) == 0); /* Wait for clock ready */
 }
 
 
@@ -1875,7 +1918,7 @@ AD5940_DCFG_STATUS_t write_eda_init(uint64_t *p_dcfg) {
   if (p_dcfg == NULL) {
     return AD5940_DCFG_STATUS_NULL_PTR;
   }
- 
+
   for (int i = 0;p_dcfg[i]!= 0xFFFFFFFFFFFFFFFF; i++) {
     reg_addr = (uint32_t) (p_dcfg[i] >> 32);
     reg_data = (uint32_t)(p_dcfg[i]);
@@ -1902,6 +1945,7 @@ AD5940_DCFG_STATUS_t write_ad5940_init()
   if (write_eda_init(&g_current_dcfg_ad5940[0]) != AD5940_DCFG_STATUS_OK) {
       return AD5940_DCFG_STATUS_ERR;
   }
+  return AD5940_DCFG_STATUS_OK;
 }
 
 
@@ -1917,7 +1961,7 @@ AD5940_DCFG_STATUS_t write_eda_seqcfg_dcfg(uint64_t *p_dcfg) {
   if (p_dcfg == NULL) {
     return AD5940_DCFG_STATUS_NULL_PTR;
   }
- 
+
   for (int i = 0;p_dcfg[i]!= 0xFFFFFFFFFFFFFFFF; i++) {
     reg_addr = (uint32_t) (p_dcfg[i] >> 32);
     reg_data = (uint32_t)(p_dcfg[i]);
@@ -1939,7 +1983,7 @@ AD5940_DCFG_STATUS_t write_ad5940_seqcfg()
   if (write_eda_seqcfg_dcfg(&g_current_dcfg_ad5940[i]) != AD5940_DCFG_STATUS_OK) {
       return AD5940_DCFG_STATUS_ERR;
   }
-
+  return AD5940_DCFG_STATUS_OK;
 }
 
 /**
@@ -1949,15 +1993,15 @@ AD5940_DCFG_STATUS_t write_ad5940_seqcfg()
 */
 void write_eda_seqmeasurementloop_dcfg(uint64_t *p_dcfg) {
   uint32_t reg_addr;
-  uint32_t reg_data;      
+  uint32_t reg_data;
   uint32_t loop_count =  (1 << (AppEDACfg.DftNum + 2)),loop_index = 0;
-  while (loop_index < loop_count){   
+  while (loop_index < loop_count){
     for (int i = 0;i < (SEQMEASRMT_LOOP_TOTAL_REGISTERS_SIZE-2); i++) {
-    
-       if((loop_index == (loop_count-1)) && (i==(SEQMEASRMT_LOOP_TOTAL_REGISTERS_SIZE-4))) {    
+
+       if((loop_index == (loop_count-1)) && (i==(SEQMEASRMT_LOOP_TOTAL_REGISTERS_SIZE-4))) {
          return;
        }
-     
+
        if((uint32_t) (p_dcfg[i] >> 32) == 0xEEEEEEEE){
          AD5940_SEQGenInsert((uint32_t)(p_dcfg[i]));
        }
@@ -1965,7 +2009,7 @@ void write_eda_seqmeasurementloop_dcfg(uint64_t *p_dcfg) {
          reg_addr = (uint32_t) (p_dcfg[i] >> 32);
          reg_data = (uint32_t)(p_dcfg[i]);
          AD5940_WriteReg(reg_addr, reg_data);
-       }    
+       }
     }
      loop_index++;
   }
@@ -1979,13 +2023,14 @@ void write_eda_seqmeasurementloop_dcfg(uint64_t *p_dcfg) {
 AD5940_DCFG_STATUS_t write_eda_seqmeasurement_dcfg(uint64_t *p_dcfg) {
   uint32_t reg_addr;
   uint32_t reg_data;
+  AD5940Err error = AD5940ERR_ERROR;
 
   if (p_dcfg == NULL) {
     return AD5940_DCFG_STATUS_NULL_PTR;
   }
- 
+
   for (int i = 0;p_dcfg[i]!= 0xFFFFFFFFFFFFFFFF; i++) {
-    
+
     if(p_dcfg[i] == 0xBBBBBBBBBBBBBBBB){
       /*start of loop indication*/
        i = i+1;
@@ -2003,9 +2048,13 @@ AD5940_DCFG_STATUS_t write_eda_seqmeasurement_dcfg(uint64_t *p_dcfg) {
       reg_data = (uint32_t)(p_dcfg[i]);
       AD5940_WriteReg(reg_addr, reg_data);
     }
-    /* Sequencer saves index of voltage current settings to patch whichever required */ 
+    /* Sequencer saves index of voltage current settings to patch whichever required */
     if(i==SAVE_PATCH_CURRENT_VOLTAGE_SETTINGS_START_INDEX) {
-      AD5940_SEQGenFetchSeq(NULL, &AppEDACfg.SeqPatchInfo.SRAMAddr);
+      error = AD5940_SEQGenFetchSeq(NULL, &AppEDACfg.SeqPatchInfo.SRAMAddr);
+      if(error != AD5940ERR_OK)
+      {
+         return AD5940_DCFG_STATUS_ERR;
+      }
     }
   }
   return AD5940_DCFG_STATUS_OK;
@@ -2026,12 +2075,11 @@ AD5940_DCFG_STATUS_t write_ad5940_seqmeasurement()
   if (write_eda_seqmeasurement_dcfg(&g_current_dcfg_ad5940[i]) != AD5940_DCFG_STATUS_OK) {
       return AD5940_DCFG_STATUS_ERR;
   }
-
+  return AD5940_DCFG_STATUS_OK;
 }
 #endif //EDA_DCFG_ENABLE
 
 
-#ifdef AD5940_REG_ACCESS
 /*!
  ****************************************************************************
  *@brief      AD5940 stream Read/write configuration options
@@ -2039,53 +2087,46 @@ AD5940_DCFG_STATUS_t write_ad5940_seqmeasurement()
  *@return     m2m2_hdr_t
  ******************************************************************************/
 m2m2_hdr_t *ad5940_app_reg_access(m2m2_hdr_t *p_pkt) {
+  uint32_t reg_data = 0;
   M2M2_APP_COMMON_STATUS_ENUM_t status = M2M2_APP_COMMON_STATUS_ERROR;
-  PYLD_CST(p_pkt, m2m2_sensor_common_reg_op_16_hdr_t, p_in_payload);
-  PKT_MALLOC(p_resp_pkt, m2m2_sensor_common_reg_op_16_hdr_t,
+  PYLD_CST(p_pkt, m2m2_sensor_common_reg_op_32_hdr_t, p_in_payload);
+  PKT_MALLOC(p_resp_pkt, m2m2_sensor_common_reg_op_32_hdr_t,
       p_in_payload->num_ops * sizeof(p_in_payload->ops[0]));
   if (NULL != p_resp_pkt) {
-    PYLD_CST(p_resp_pkt, m2m2_sensor_common_reg_op_16_hdr_t, p_resp_payload);
-    uint32_t reg_data = 0;
-    /*TODO: ad5940_port_deInit();
-    // de init power
-    adp5360_enable_ldo(ECG_LDO,false);*/
+    PYLD_CST(p_resp_pkt, m2m2_sensor_common_reg_op_32_hdr_t, p_resp_payload);
     switch (p_in_payload->command) {
-    case M2M2_SENSOR_COMMON_CMD_READ_REG_16_REQ:
+    case M2M2_SENSOR_COMMON_CMD_READ_REG_32_REQ:
       for (int i = 0; i < p_in_payload->num_ops; i++) {
-        reg_data = AD5940_ReadReg(p_in_payload->ops[i].address);
+        reg_data = AD5940_ReadReg( p_in_payload->ops[i].address);
         status = M2M2_APP_COMMON_STATUS_OK;
         p_resp_payload->ops[i].address = p_in_payload->ops[i].address;
         p_resp_payload->ops[i].value = reg_data;
       }
       p_resp_payload->command =
-          (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_READ_REG_16_RESP;
+          (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_READ_REG_32_RESP;
       break;
-    case M2M2_SENSOR_COMMON_CMD_WRITE_REG_16_REQ:
+    case M2M2_SENSOR_COMMON_CMD_WRITE_REG_32_REQ:
       for (int i = 0; i < p_in_payload->num_ops; i++) {
-        AD5940_WriteReg((uint16_t)p_in_payload->ops[i].address,
-            (uint32_t)p_in_payload->ops[i].value);
+        AD5940_WriteReg(p_in_payload->ops[i].address,
+            p_in_payload->ops[i].value);
         status = M2M2_APP_COMMON_STATUS_OK;
         p_resp_payload->ops[i].address = p_in_payload->ops[i].address;
         p_resp_payload->ops[i].value = p_in_payload->ops[i].value;
       }
       p_resp_payload->command =
-          (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_WRITE_REG_16_RESP;
+          (M2M2_APP_COMMON_CMD_ENUM_t)M2M2_SENSOR_COMMON_CMD_WRITE_REG_32_RESP;
       break;
     default:
       // Something has gone horribly wrong.
       return NULL;
     }
-    /*TODO: ad5940_port_deInit();
-    // de init power
-    adp5360_enable_ldo(ECG_LDO,false);*/
-    p_resp_pkt->dest = p_pkt->src;
-    p_resp_pkt->src = p_pkt->dest;
-    p_resp_payload->num_ops = p_in_payload->num_ops;
-    p_resp_payload->status = status;
+  p_resp_pkt->dest = p_pkt->src;
+  p_resp_pkt->src = p_pkt->dest;
+  p_resp_payload->num_ops = p_in_payload->num_ops;
+  p_resp_payload->status = status;
   }
   return p_resp_pkt;
 }
-#endif
 
 ///////////////////////////////////////////////////////////////////
 #ifdef DCB

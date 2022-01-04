@@ -96,7 +96,7 @@ void bcs_internal_state_reset(void)
 
 ble_conn_state_conn_handle_list_t conn_handle_list_get(nrf_atflags_t flags)
 {
-    ble_conn_state_conn_handle_list_t conn_handle_list;
+    ble_conn_state_conn_handle_list_t conn_handle_list = {};
     conn_handle_list.len = 0;
 
     if (flags != 0)

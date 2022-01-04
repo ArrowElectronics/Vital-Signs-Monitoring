@@ -119,6 +119,10 @@ typedef enum M2M2_PM_SYS_COMMAND_ENUM_t {
   M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_REQ = 156,
   M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_RESP = 157,
   M2M2_PM_SYS_BATTERY_LEVEL_ALERT = 158,
+  M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_REQ = 159,
+  M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_RESP = 160,
+  M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_REQ = 161,
+  M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_RESP = 162,
 } M2M2_PM_SYS_COMMAND_ENUM_t;
 STATIC_ASSERT_PROJ(sizeof(M2M2_PM_SYS_COMMAND_ENUM_t) == 1, INCORRECT_SIZE_M2M2_PM_SYS_COMMAND_ENUM_t);
 
@@ -238,7 +242,7 @@ typedef enum ADI_PM_BOARD_TYPE_t {
   ADI_PM_BOARD_TYPE_ADPD185_WATCH = 3,
   ADI_PM_BOARD_TYPE_ADPD188_WATCH = 4,
   ADI_PM_BOARD_TYPE_STUDYWATCH = 5,
-  ADI_PM_BOARD_TYPE_VSM_WATCH = 6, /* VSM_MB_SB */
+  ADI_PM_BOARD_TYPE_VSM_WATCH = 6,
 } ADI_PM_BOARD_TYPE_t;
 STATIC_ASSERT_PROJ(sizeof(ADI_PM_BOARD_TYPE_t) == 1, INCORRECT_SIZE_ADI_PM_BOARD_TYPE_t);
 
@@ -269,7 +273,7 @@ typedef struct _m2m2_pm_sys_info_t {
   uint16_t  bom_id; 
   uint8_t  batch_id; 
   uint32_t  date; 
-  ADI_PM_BOARD_TYPE_t board_type; 
+  ADI_PM_BOARD_TYPE_t  board_type; 
 } m2m2_pm_sys_info_t;
 
 typedef struct _m2m2_pm_sys_date_time_req_t {
@@ -437,6 +441,25 @@ typedef struct _m2m2_hibernate_mode_status_resp_cmd_t {
   uint8_t  status; 
   uint8_t  hib_mode_status; 
 } m2m2_hibernate_mode_status_resp_cmd_t;
+
+typedef struct _m2m2_get_po_memory_utilization_cmd_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  min_num_free_blks_type2; 
+  uint16_t  min_num_free_blks_type4; 
+  uint16_t  min_num_free_blks_type5; 
+  uint32_t  block_2_allocated; 
+  uint32_t  block_4_allocated; 
+  uint32_t  block_5_allocated; 
+  uint32_t  block_2_freed; 
+  uint32_t  block_4_freed; 
+  uint32_t  block_5_freed; 
+} m2m2_get_po_memory_utilization_cmd_t;
+
+typedef struct _m2m2_clear_po_memory_utilization_cmd_t {
+  uint8_t  command; 
+  uint8_t  status; 
+} m2m2_clear_po_memory_utilization_cmd_t;
 
 // Reset struct packing outside of this file
 #pragma pack()

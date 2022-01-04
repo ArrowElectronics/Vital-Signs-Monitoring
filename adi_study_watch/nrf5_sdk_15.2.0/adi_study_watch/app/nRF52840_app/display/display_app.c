@@ -64,6 +64,7 @@
 #include "ble_task.h"
 #include "key_test.h"
 #include "low_touch_task.h"
+#include "user0_config_app_task.h"
 #ifdef HIBERNATE_MD_EN
 #include "power_manager.h"
 #endif
@@ -85,6 +86,15 @@ APP_TIMER_DEF(m_backlight_tmr);
 uint8_t get_user_backlight_flag(void);
 
 extern void change_sd_task_prio();
+#ifdef CUST4_SM
+extern void page_watch_id_exit();
+extern void page_menu_exit();
+extern void reset_display_vol_info();
+extern void reset_display_vol_info1();
+#endif
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+extern uint32_t disp_app_packet_count;
+#endif
 
 static void backlight_timeout_handler(void * p_context)
 {
@@ -129,12 +139,12 @@ static void send_signal_to_display(uint8_t type,uint8_t sub_type)
 {
     m2m2_hdr_t *p_m2m2_ = NULL;
     display_signal_t *signal;
-
+    adi_osal_EnterCriticalRegion();
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+    disp_app_packet_count++;
+#endif
     p_m2m2_ = post_office_create_msg(M2M2_HEADER_SZ+sizeof(display_signal_t));
-    if (p_m2m2_ == NULL) {
-      return;
-    }
-
+    if (p_m2m2_ != NULL) {
     p_m2m2_->src = M2M2_ADDR_DISPLAY;
     p_m2m2_->dest = M2M2_ADDR_DISPLAY;
 
@@ -143,6 +153,8 @@ static void send_signal_to_display(uint8_t type,uint8_t sub_type)
     signal->signal_value = sub_type;
 
     send_message_display_task(p_m2m2_);//send to display task directly.
+    }
+    adi_osal_ExitCriticalRegion();
 }
 
 void send_key_value(uint8_t  k_value)
@@ -180,8 +192,38 @@ void dis_refresh_reset(uint16_t refresh_ms)
 void dis_page_jump(const PAGE_HANDLE *page)
 {
     app_timer_stop(m_dis_refresh_tmr);
-    Current_page = page;
-    Current_page->display_func();
+
+    if(Current_page != page)
+    {
+#ifdef CUST4_SM
+      if(Current_page == &page_watch_id)
+      {
+        page_watch_id_exit();
+        reset_display_vol_info1();
+        reset_display_vol_info();
+        turn_on_backlight();
+#ifdef HIBERNATE_MD_EN
+        //Enable Hibernate Mode
+        set_hib_mode_control(1);
+#endif
+      }
+
+      else if(Current_page == &page_menu)
+      {
+        page_menu_exit();
+        reset_display_vol_info();
+        reset_display_vol_info1();
+#ifdef HIBERNATE_MD_EN
+        //Disable Hibernate Mode
+        set_hib_mode_control(0);
+#endif
+        //Do user0 config app state initialisations
+        user0_config_app_state_init();
+      }
+#endif
+      Current_page = page;
+      Current_page->display_func();
+    }
 }
 
 void dis_page_back(void)
@@ -211,16 +253,33 @@ void display_page_init(void)
     lcd_dis_bit_set(DISPLAY_OUT_4BIT);
     Current_page = &page_power_on;
     Current_page->display_func();
-#ifndef CUST4_SM
-    turn_on_backlight();
-#endif
+    if(!get_low_touch_trigger_mode3_status())
+    {
+      turn_on_backlight();
+    }
     //fds_rtc_init();
     adi_osal_ThreadSleep(3000);//display 3s log page.
 #ifdef CUST4_SM
-    Current_page = &page_watch_id;
+    if(get_low_touch_trigger_mode3_status())
+    {
+      Current_page = &page_watch_id;
+#ifdef HIBERNATE_MD_EN
+      //Disable Hibernate Mode
+      set_hib_mode_control(0);
+#endif
+    }
+    else
+    {
+      Current_page = &page_menu;
+#ifdef HIBERNATE_MD_EN
+      //Enable Hibernate Mode
+      set_hib_mode_control(1);
+#endif
+    }
 #else
     Current_page = &page_menu;
 #endif
+
     Current_page->display_func();
     //Change the SD task prio, after display init is completed
     change_sd_task_prio();
@@ -253,7 +312,7 @@ static void display_thread(void * arg)
     {
         m2m2_hdr_t  *pkt = NULL;
         pkt = post_office_get(ADI_OSAL_TIMEOUT_FOREVER, APP_OS_CFG_DISPLAY_TASK_INDEX);
-        if((pkt == NULL)||(pkt->data == NULL))
+        if((pkt == NULL))
         {
             NRF_LOG_INFO("display_thread:pkt = NULL!");
             continue;
@@ -275,9 +334,10 @@ static void display_thread(void * arg)
                     if(NULL != Current_page->key_handle)
                     {
                         Current_page->key_handle(display_signal->signal_value);
-#ifndef CUST4_SM
-                        turn_on_backlight();
-#endif
+                        if(!get_low_touch_trigger_mode3_status())
+                        {
+                          turn_on_backlight();
+                        }
 
                         if(Current_page->page_type == DIS_STATIC_PAGE)
                         {
@@ -488,6 +548,10 @@ static void display_thread(void * arg)
                 default:break;
             }//switch
         }
+#ifdef ENABLE_TEMP_DEBUG_STREAM
+       if(display_signal->signal_value == DIS_REFRESH_SIGNAL)
+          disp_app_packet_count--;
+#endif
         post_office_consume_msg(pkt);
     }
 }
@@ -504,7 +568,8 @@ void display_app_init(void) {
   display_task_attributes.pStackBase = &display_task_stack[0];
   display_task_attributes.nStackSize = APP_OS_CFG_DISPLAY_TASK_STK_SIZE;
   display_task_attributes.pTaskAttrParam = NULL;
-  display_task_attributes.szThreadName = "display";
+  /* Thread Name should be of max 10 Characters */
+  display_task_attributes.szThreadName = "Display";
   display_task_attributes.pThreadTcb = &display_task_tcb;
   eOsStatus = adi_osal_MsgQueueCreate(&display_task_msg_queue,NULL,
                                     50);//increase this value.

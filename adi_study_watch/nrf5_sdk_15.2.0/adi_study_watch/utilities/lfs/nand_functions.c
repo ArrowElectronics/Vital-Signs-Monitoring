@@ -428,7 +428,11 @@ eNand_Func_Result nand_func_erase(_memory_properties *mem_prop, \
                             (is_block_bad==true)?"bad":"good");
 
 #endif
-    nand_func_is_bad_block(mem_prop,(block_init+i), &is_block_bad);
+    if(nand_func_is_bad_block(mem_prop,(block_init+i), &is_block_bad) != NAND_FUNC_SUCCESS)
+    {
+      return NAND_FUNC_ERROR;
+    }
+
     if(is_block_bad==false) {
       /* erase current block index */
       result = nand_flash_block_erase((block_init+i)*mem_prop->pages_per_block);
@@ -624,7 +628,10 @@ eNand_Func_Result nand_func_erase_memory(_memory_properties *mem_prop)  {
 
 
   for(i=0;i<iterations;i++) {
-    nand_func_is_bad_block(mem_prop,i,&is_block_bad);
+    if(nand_func_is_bad_block(mem_prop,i,&is_block_bad) != NAND_FUNC_SUCCESS)
+    {
+      return NAND_FUNC_ERROR;
+    }
     if(is_block_bad == false) {
       result = nand_flash_block_erase(i*mem_prop->pages_per_block);
       if(result != NAND_SUCCESS)  {

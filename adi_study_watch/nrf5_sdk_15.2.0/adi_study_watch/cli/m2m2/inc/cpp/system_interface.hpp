@@ -115,6 +115,10 @@ enum M2M2_PM_SYS_COMMAND_ENUM_t:uint8_t {
   M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_REQ = 156,
   M2M2_PM_SYS_SET_HIBERNATE_MODE_STATUS_RESP = 157,
   M2M2_PM_SYS_BATTERY_LEVEL_ALERT = 158,
+  M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_REQ = 159,
+  M2M2_PM_SYS_GET_PO_MEMORY_UTILIZATION_RESP = 160,
+  M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_REQ = 161,
+  M2M2_PM_SYS_CLEAR_PO_MEMORY_UTILIZATION_RESP = 162,
 };
 static_assert(sizeof(M2M2_PM_SYS_COMMAND_ENUM_t) == 1, "Enum 'M2M2_PM_SYS_COMMAND_ENUM_t' has an incorrect size!");
 
@@ -234,7 +238,7 @@ enum ADI_PM_BOARD_TYPE_t:uint8_t {
   ADI_PM_BOARD_TYPE_ADPD185_WATCH = 3,
   ADI_PM_BOARD_TYPE_ADPD188_WATCH = 4,
   ADI_PM_BOARD_TYPE_STUDYWATCH = 5,
-  ADI_PM_BOARD_TYPE_VSM_WATCH = 6, /* VSM_MB_SB */
+  ADI_PM_BOARD_TYPE_VSM_WATCH = 6,
 };
 static_assert(sizeof(ADI_PM_BOARD_TYPE_t) == 1, "Enum 'ADI_PM_BOARD_TYPE_t' has an incorrect size!");
 
@@ -432,6 +436,25 @@ struct m2m2_hibernate_mode_status_resp_cmd_t {
   uint8_t  command; 
   uint8_t  status; 
   uint8_t  hib_mode_status; 
+};
+
+struct m2m2_get_po_memory_utilization_cmd_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint16_t  min_num_free_blks_type2; 
+  uint16_t  min_num_free_blks_type4; 
+  uint16_t  min_num_free_blks_type5; 
+  uint32_t  block_2_allocated; 
+  uint32_t  block_4_allocated; 
+  uint32_t  block_5_allocated; 
+  uint32_t  block_2_freed; 
+  uint32_t  block_4_freed; 
+  uint32_t  block_5_freed; 
+};
+
+struct m2m2_clear_po_memory_utilization_cmd_t {
+  uint8_t  command; 
+  uint8_t  status; 
 };
 
 // Reset struct packing outside of this file

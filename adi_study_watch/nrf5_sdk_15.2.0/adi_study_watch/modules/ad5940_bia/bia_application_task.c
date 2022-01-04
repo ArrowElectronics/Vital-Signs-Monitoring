@@ -90,7 +90,8 @@ BIA_ERROR_CODE_t delete_bia_dcb(void);
 NRF_LOG_MODULE_REGISTER();
 
 extern uint32_t AppBuff[APPBUFF_SIZE];
-
+extern bool g_disable_ad5940_port_init;
+extern bool g_disable_ad5940_port_deinit;
 #ifdef BIA_DCFG_ENABLE
 
 uint8_t bia_load_dcfg=1;
@@ -102,6 +103,11 @@ uint8_t g_user_bia_indexes[MAX_USER_CONFIG_REGISTER_NUM_BIA];
 
 uint8_t g_bia_num_ind_settings=0;
 
+#ifdef BCM_ALGO
+float prev_ffm_estimated=0;
+float prev_bmi=0;
+float prev_fatpercent=0;
+#endif
 
 // Register numbering used here starts from 0
 typedef enum BIA_DCFG_REGISTERS_ENUM_t{
@@ -192,7 +198,7 @@ uint64_t default_dcfg_bia[] = {
     0x0000205400000000, /* GPIO Configuration from Sequencer */
     0xFFFFFFFFFFFFFFFF, /*end of sequencer configuration*/
     /*START OF MEASURE */
-    0x0000205400000040, /*  GPIO Configuration from Sequencer */
+    0x0000205400000008, /*  GPIO Configuration from Sequencer */
     0xeeeeeeee00000fa0, /*  static Delay */
     0x0000215000000010, /*  Switch Matrix Full Configuration D */
     0x0000215800000400, /*  P switch matrix configuration */
@@ -233,7 +239,7 @@ static m2m2_hdr_t *bia_app_get_version(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *bia_app_decimation(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *bia_app_dft_num_set(m2m2_hdr_t *p_pkt);
 static m2m2_hdr_t *bia_app_set_cal(m2m2_hdr_t *p_pkt);
-static M2M2_SENSOR_BIA_SWEEP_FREQ_INDEX_ENUM_t GetBIASweepFrequencyIndex(float frequency);
+static uint32_t GetBIASweepFrequencyIndex();
 #ifdef DEBUG_DCB
 static m2m2_hdr_t *adi_dcb_fds_stat(m2m2_hdr_t *p_pkt);
 #endif
@@ -245,8 +251,6 @@ static void fetch_bia_data(void);
 static void sensor_bia_task(void *pArgument);
 void Enable_ephyz_power(void);
 static void InitCfg();
-uint32_t ad5940_port_Init(void);
-uint32_t ad5940_port_deInit(void);
 void ad5940_bia_start(void);
 #ifdef DCB
 static m2m2_hdr_t *bia_app_set_dcb_lcfg(m2m2_hdr_t *p_pkt);
@@ -267,9 +271,11 @@ volatile uint8_t bia_user_applied_odr = 0;
 volatile uint8_t bia_user_applied_dft_num = 0;
 static volatile uint8_t user_applied_pga_gain = 0;
 static volatile uint8_t user_applied_bia_hsrtia_sel = 0;
-static volatile uint8_t user_applied_bia_pwr_mod = 0;
 static volatile uint8_t user_applied_sin_freq = 0;
+static volatile uint8_t user_applied_bia_pwr_mod = 0;
+static volatile uint8_t user_applied_sweep_config = 0;
 static volatile uint8_t user_applied_algo_decimation_factor = 0;
+static volatile uint8_t user_applied_dac_voltage = 0;
 
 /*stability bia data*/
 #define BIA_DATA_BUFFER_SIZE 20
@@ -292,7 +298,9 @@ static int32_t bia_counter=0;
 extern AD5940_APP_ENUM_t gnAd5940App;
 
 /* first 10 elements are decimal entires in lcfg which does not require IEEE conversion */
-#define MAX_DECIMAL_ENTRIES 10
+#define MAX_FLOAT_ENTRIES 8
+#define START_IEEE_FLOAT_INDEX 10
+#define END_IEEE_FLOAT_INDEX 17
 
 #ifdef DEBUG_BCM
 static uint32_t pkt_count = 0;
@@ -393,13 +401,18 @@ static void InitCfg()
   AppBIACfg.DftSrc = DFTSRC_SINC3;
   AppBIACfg.HanWinEn = bTRUE;
 
-  /* private variables */
-  AppBIACfg.SweepCfg.SweepEn = bFALSE;
-  AppBIACfg.SweepCfg.SweepStart = 10000;
-  AppBIACfg.SweepCfg.SweepStop = 150000.0;
-  AppBIACfg.SweepCfg.SweepPoints = 100;
-  AppBIACfg.SweepCfg.SweepLog = bTRUE;
-  AppBIACfg.SweepCfg.SweepIndex = 0;
+
+#ifdef RANGE_SWEEP_ENABLE
+  //if(!user_applied_sweep_config)  {
+   /* private variables */
+//    AppBIACfg.SweepCfg.SweepEn = bFALSE;
+ //   AppBIACfg.SweepCfg.SweepStart = 1000.0;
+ //   AppBIACfg.SweepCfg.SweepStop = 150000.0;
+ //   AppBIACfg.SweepCfg.SweepPoints = 100;
+ //   AppBIACfg.SweepCfg.SweepLog = bTRUE;
+ //   AppBIACfg.SweepCfg.SweepIndex = 0;
+ //}
+#endif
 
   AppBIACfg.FifoThresh = 4;
   AppBIACfg.BIAInited = bFALSE;
@@ -477,7 +490,8 @@ void ad5940_bia_task_init(void) {
   sensor_bia_task_attributes.pStackBase = &sensor_bia_task_stack[0];
   sensor_bia_task_attributes.nStackSize = APP_OS_CFG_BIA_TASK_STK_SIZE;
   sensor_bia_task_attributes.pTaskAttrParam = NULL;
-  sensor_bia_task_attributes.szThreadName = "BIA Sensor";
+  /* Thread Name should be of max 10 Characters */
+  sensor_bia_task_attributes.szThreadName = "BIA_Task";
   sensor_bia_task_attributes.pThreadTcb = &bcmTaskTcb;
 
   eOsStatus = adi_osal_MsgQueueCreate(&bia_task_msg_queue,NULL,5);
@@ -642,18 +656,20 @@ static void fetch_bia_data(void){
   *@return     None
 ******************************************************************************/
 static void packetize_bia_raw_data(bia_packetizer_t *p_pktizer) {
-     M2M2_SENSOR_BIA_SWEEP_FREQ_INDEX_ENUM_t nfrequency_index = GetBIASweepFrequencyIndex(AppBIACfg.SinFreq);
+     uint32_t nfrequency_index = GetBIASweepFrequencyIndex();
     /*Calculate Impedance in form of Cartesian form */
     if (p_pktizer->packet_nsamples == 0) {
       p_pktizer->p_pkt = post_office_create_msg(sizeof(bia_app_stream_t) + M2M2_HEADER_SZ);
-      PYLD_CST(p_pktizer->p_pkt, bia_app_stream_t, p_payload_ptr);
-      g_state_bia.bia_pktizer.packet_max_nsamples=(sizeof(p_payload_ptr->bia_data)/sizeof(p_payload_ptr->bia_data[0]));
-      p_payload_ptr->bia_data[0].timestamp = gBiaData.biaImpedence.timestamp;
-      /* multiply data by 1000 to save the float precision*/
-      p_payload_ptr->bia_data[0].real = (int32_t)(gBiaData.biaImpedence.real * 1000);
-      p_payload_ptr->bia_data[0].img = (int32_t)(gBiaData.biaImpedence.img * 1000);
-      p_payload_ptr->bia_data[0].freq_index = nfrequency_index;
-      p_pktizer->packet_nsamples++;
+      if(p_pktizer->p_pkt != NULL) {
+        PYLD_CST(p_pktizer->p_pkt, bia_app_stream_t, p_payload_ptr);
+        g_state_bia.bia_pktizer.packet_max_nsamples=(sizeof(p_payload_ptr->bia_data)/sizeof(p_payload_ptr->bia_data[0]));
+        p_payload_ptr->bia_data[0].timestamp = gBiaData.biaImpedence.timestamp;
+        /* multiply data by 1000 to save the float precision*/
+        p_payload_ptr->bia_data[0].real = (int32_t)(gBiaData.biaImpedence.real * 1000);
+        p_payload_ptr->bia_data[0].img = (int32_t)(gBiaData.biaImpedence.img * 1000);
+        p_payload_ptr->bia_data[0].excitation_freq = nfrequency_index;
+        p_pktizer->packet_nsamples++;
+      }
     } else if (p_pktizer->packet_nsamples < p_pktizer->packet_max_nsamples) {
       PYLD_CST(p_pktizer->p_pkt, bia_app_stream_t, p_payload_ptr);
       /*  one packet =  four samples
@@ -664,7 +680,7 @@ static void packetize_bia_raw_data(bia_packetizer_t *p_pktizer) {
        /* multiply data by 1000 to save the float precision*/
       p_payload_ptr->bia_data[i].real = (int32_t)(gBiaData.biaImpedence.real * 1000);
       p_payload_ptr->bia_data[i].img = (int32_t)(gBiaData.biaImpedence.img * 1000);
-      p_payload_ptr->bia_data[i].freq_index = nfrequency_index;
+      p_payload_ptr->bia_data[i].excitation_freq = nfrequency_index;
       p_pktizer->packet_nsamples++;
     }
 }
@@ -689,6 +705,7 @@ static void packetize_bcm_algo_data() {
       bodyImpedance[1] = gBiaData.biaImpedence.img;
       ret = BcmAlgProcess(bcm_instance,bodyImpedance,
                       &adi_vsm_bcm_output);
+      
       /* bcm algo process */
       if(ret != ADI_VSM_BCM_IN_PROGRESS) {
         adi_osal_EnterCriticalRegion();
@@ -698,11 +715,31 @@ static void packetize_bcm_algo_data() {
           PYLD_CST(p_pkt, bcm_app_algo_out_stream_t, p_payload_ptr);
           p_payload_ptr->sequence_num = bcm_algo_data_pkt_seq_num++;
           p_payload_ptr->status = M2M2_APP_COMMON_STATUS_OK;
+
           if(ret == BCM_ALG_SUCCESS) {
             p_payload_ptr->ffm_estimated = adi_vsm_bcm_output.ffm_estimated;
             p_payload_ptr->bmi = adi_vsm_bcm_output.bmi;
             p_payload_ptr->fat_percent = adi_vsm_bcm_output.fatpercent;
-          }else if(ret == BCM_ALG_NULL_PTR_ERROR || ret == BCM_ALG_ERROR) {
+            
+            /* store previous value */
+            prev_ffm_estimated = adi_vsm_bcm_output.ffm_estimated;
+            prev_fatpercent = adi_vsm_bcm_output.fatpercent;
+            prev_bmi = adi_vsm_bcm_output.bmi;
+          }
+          else if(ret == BCM_ALG_IN_FFM_ESTIMATED_ERROR) {
+            /* send previous ffm estimated value */
+            adi_vsm_bcm_output.ffm_estimated = prev_ffm_estimated;
+            /* send previous bmi value */
+            adi_vsm_bcm_output.bmi = prev_bmi;
+            /* send previous fat percent value */
+            adi_vsm_bcm_output.fatpercent = prev_fatpercent;
+            
+            /* Copy to the payload */
+            p_payload_ptr->ffm_estimated = adi_vsm_bcm_output.ffm_estimated;
+            p_payload_ptr->bmi = adi_vsm_bcm_output.bmi;
+            p_payload_ptr->fat_percent = adi_vsm_bcm_output.fatpercent;
+          }
+          else if(ret == BCM_ALG_NULL_PTR_ERROR || ret == BCM_ALG_ERROR) {
             p_payload_ptr->ffm_estimated = 0xFF;
             p_payload_ptr->bmi = 0xFF;
             p_payload_ptr->fat_percent = 0xFF;
@@ -852,6 +889,7 @@ static m2m2_hdr_t *bcm_app_dcb_timing_info(m2m2_hdr_t *p_pkt) {
 }
 #endif
 
+
 /*!
   ****************************************************************************
   *@brief      Set high power loop calibration resitance
@@ -895,6 +933,8 @@ static m2m2_hdr_t *bia_app_stream_config(m2m2_hdr_t *p_pkt) {
   PYLD_CST(p_pkt, m2m2_app_common_sub_op_t, p_in_payload);
   /* Declare and malloc a response packet */
   PKT_MALLOC(p_resp_pkt, m2m2_app_common_sub_op_t, 0);
+
+  if (NULL != p_resp_pkt) {
   /* Declare a pointer to the response packet payload */
   PYLD_CST(p_resp_pkt, m2m2_app_common_sub_op_t, p_resp_payload);
 
@@ -919,8 +959,12 @@ static m2m2_hdr_t *bia_app_stream_config(m2m2_hdr_t *p_pkt) {
             status = M2M2_APP_COMMON_STATUS_ERROR;
           }
         }
+        else {
 #endif
           status = M2M2_APP_COMMON_STATUS_STREAM_STARTED;
+#ifdef BCM_ALGO
+       }
+#endif
 #ifdef DEBUG_BCM
         bcm_start_time = MCU_HAL_GetTick();
         pkt_count = 0;
@@ -1020,6 +1064,7 @@ static m2m2_hdr_t *bia_app_stream_config(m2m2_hdr_t *p_pkt) {
   p_resp_payload->stream = p_in_payload->stream;
   p_resp_pkt->src = p_pkt->dest;
   p_resp_pkt->dest = p_pkt->src;
+  }// if(NULL != p_resp_pkt)
   return p_resp_pkt;
 }
 
@@ -1309,12 +1354,29 @@ void bia_load_lcfg_params(void){
     g_current_dcfg_bia[BIA_WAVEGEN_FREQUENCY_CONFIG] |= AD5940_WGFreqWordCal(AppBIACfg.SinFreq, AppBIACfg.SysClkFreq);
     user_applied_sin_freq = 0;
   } else {
-    /* Recalculate sine frequency from frequency word register and system clock */
+      /* Recalculate sine frequency from frequency word register and system clock */
       float temp_sinfreqword = (float)( g_current_dcfg_bia[BIA_WAVEGEN_FREQUENCY_CONFIG] & BIA_WG_SINE_FREQUENCY_WORD_MASK);
       temp_sinfreqword /= (1LL<<30); 
       AppBIACfg.SinFreq = (float)( AppBIACfg.SysClkFreq * temp_sinfreqword);
   }
+
+   /* sweep change */
+  if(user_applied_sweep_config){
+    /* write sine frequency */
+    /* check range sweep freq enable / fixed frequency enable, over write sine frequency with sweep frequency */
+    g_current_dcfg_bia[BIA_WAVEGEN_FREQUENCY_CONFIG] &= ~(BIA_WG_SINE_FREQUENCY_WORD_MASK);
+    g_current_dcfg_bia[BIA_WAVEGEN_FREQUENCY_CONFIG] |= AD5940_WGFreqWordCal(AppBIACfg.SweepCurrFreq, AppBIACfg.SysClkFreq);
+    user_applied_sweep_config = 0;
+  }
   
+  /* sine amplitude update */
+  if(user_applied_dac_voltage)  {
+    uint32_t SinfreqWord =  (AppBIACfg.DacVoltPP/800.0f*2047 + 0.5f);
+    g_current_dcfg_bia[BIA_WAVEFORM_GENERATOR_AMPLITUDE_REGISTER] &= ~(BIA_WG_SINE_AMPLITUDE_WORD_MASK);
+    g_current_dcfg_bia[BIA_WAVEFORM_GENERATOR_AMPLITUDE_REGISTER] |= SinfreqWord;
+    user_applied_dac_voltage = 0;
+  }
+
   if(user_applied_pga_gain) {
     g_current_dcfg_bia[BIA_ADC_PGA_GAIN] &= ~(BITM_AFE_ADCCON_GNPGA);
     g_current_dcfg_bia[BIA_ADC_PGA_GAIN] |= ((AppBIACfg.ADCPgaGain << BITP_AFE_ADCCON_GNPGA ) & (BITM_AFE_ADCCON_GNPGA));
@@ -1333,7 +1395,7 @@ void bia_load_lcfg_params(void){
     AppBIACfg.DftNum = (uint32_t) ( g_current_dcfg_bia[BIA_DFT_CONFIG] & BITM_AFE_DFTCON_DFTNUM);
     AppBIACfg.DftNum >>= BITP_AFE_DFTCON_DFTNUM; 
   }
-  
+
   AppBIACfg.FifoThresh = (uint32_t)(g_current_dcfg_bia[BIA_FIFO_THRESHOLD_CONFIG] &  BITM_AFE_DATAFIFOTHRES_HIGHTHRES);
   AppBIACfg.FifoThresh >>= BITP_AFE_DATAFIFOTHRES_HIGHTHRES;
 }
@@ -1411,6 +1473,7 @@ BIA_DCFG_STATUS_t write_bia_init_1()
   if (write_bia_init_1_dcfg(&g_current_dcfg_bia[0]) != BIA_DCFG_STATUS_OK) {
       return BIA_DCFG_STATUS_ERR;
   }
+  return BIA_DCFG_STATUS_OK;
 }
 
 /**
@@ -1448,6 +1511,7 @@ BIA_DCFG_STATUS_t write_bia_init_2()
   if (write_bia_init_2_dcfg(&g_current_dcfg_bia[i]) != BIA_DCFG_STATUS_OK) {
       return BIA_DCFG_STATUS_ERR;
   }
+  return BIA_DCFG_STATUS_OK;
 }
 
 
@@ -1486,7 +1550,7 @@ BIA_DCFG_STATUS_t write_bia_seqcfg()
   if (write_bia_seqcfg_dcfg(&g_current_dcfg_bia[i]) != BIA_DCFG_STATUS_OK) {
       return BIA_DCFG_STATUS_ERR;
   }
-
+  return BIA_DCFG_STATUS_OK;
 }
 
 /**
@@ -1535,7 +1599,7 @@ BIA_DCFG_STATUS_t write_bia_seqmeasurement()
   if (write_bia_seqmeasurement_dcfg(&g_current_dcfg_bia[i]) != BIA_DCFG_STATUS_OK) {
       return BIA_DCFG_STATUS_ERR;
   }
-
+  return BIA_DCFG_STATUS_OK;
 }
 
 #endif
@@ -1547,24 +1611,22 @@ BIA_DCFG_STATUS_t write_bia_seqmeasurement()
  *****************************************************************************/
 BIA_ERROR_CODE_t BiaAppInit() {
   BIA_ERROR_CODE_t retVal = BIA_ERROR;
+  g_disable_ad5940_port_init = false;
+  
+#ifdef BCM_ALGO  
+  prev_ffm_estimated = prev_bmi = prev_fatpercent=0;
+#endif
+
   /* Ldo power on */
   adp5360_enable_ldo(ECG_LDO,true);
 
-
-  /* switch off other switches */
-
-/*
-#ifdef ENABLE_ECG_APP
-  DG2502_SW_control_AD8233(false);
-#endif
-  DG2502_SW_control_ADPD4000(false);
-*/
    /* Initialization of application parameters */
   InitCfg();
    
    /* start bia initialization */
    ad5940_bia_start();
    gBiaAppInitFlag = true;
+
   /* Control BIA measurment to start. Second parameter has no meaning with this command. */
   AppBIACtrl(APPCTRL_START, 0);
   NRF_LOG_INFO("Bia ODR=%d",AppBIACfg.BiaODR);
@@ -1586,12 +1648,12 @@ BIA_ERROR_CODE_t BiaAppDeInit() {
     return BIA_ERROR;
   }
   /* Interrupts de init */
-  ad5940_port_deInit();
   gBiaAppInitFlag = false;
 #ifdef BIA_DCFG_ENABLE
   /*resetting default load flag*/
   bia_load_dcfg = 1;
 #endif//BIA_DCFG_ENABLE
+  g_disable_ad5940_port_deinit = false;
   /* de init ldo power */
   adp5360_enable_ldo(ECG_LDO,false);
   return BIA_SUCCESS;
@@ -1709,6 +1771,67 @@ BIA_ERROR_CODE_t BiaWriteLCFG(uint8_t field, float value) {
       bcm_config_handle.adi_vsm_bcm_algo_config.b[7] = value;
       break;
 #endif
+      /* add sweep features here */
+#ifdef RANGE_SWEEP_ENABLE
+    case BIA_RANGE_SWEEP_FREQUENCY_ENABLE: /* field 18 */
+        if(value == 1)  {
+          /* here range sweep or fixed sweep one time will be enabled */
+          user_applied_sweep_config = 1;
+          AppBIACfg.SweepCfg.SweepEn = bTRUE;
+          /* fixed sweep disable */
+          AppBIACfg.FixedFreqSweepEn = bFALSE;
+        }
+       else {
+          user_applied_sweep_config = 0;
+          AppBIACfg.SweepCfg.SweepEn = bFALSE;
+       }
+       break;
+    case BIA_SWEEP_START_FREQUENCY: /* field 20 */
+       AppBIACfg.SweepCfg.SweepStart = value;
+       break;
+    case BIA_SWEEP_STOP_FREQUENCY: /* field 21 */
+       AppBIACfg.SweepCfg.SweepStop = value;
+       break;
+    case BIA_SWEEP_SWEEP_POINTS: /* field 22 */
+       AppBIACfg.SweepCfg.SweepPoints = value;
+       break;
+    case BIA_SWEEP_SCALE_TYPE: /* field 23 */
+       if(value == 1)  {
+          /* log step */
+          AppBIACfg.SweepCfg.SweepLog = bTRUE;
+       }
+       else {
+          /* linear step */
+          AppBIACfg.SweepCfg.SweepLog = bFALSE;
+       }
+       break;
+    case BIA_SWEEP_INDEX: /* field 24 */
+       AppBIACfg.SweepCfg.SweepIndex = value;
+       break;
+#endif
+#ifdef FIXED_FREQ_SWEEP_ENABLE
+    case BIA_FIXED_FREQUENCY_SWEEP_ENABLE: /* field 19 */
+      if(value == 1)  {
+        user_applied_sweep_config =1;
+       /* enable fixed freq sweep here */
+        AppBIACfg.FixedFreqSweepEn = bTRUE;
+        /* default range sweep is disabled */
+        AppBIACfg.SweepCfg.SweepEn = bFALSE;
+      }
+      else  {
+        user_applied_sweep_config =0;
+        /* enable fixed freq sweep here */
+        AppBIACfg.FixedFreqSweepEn = bFALSE;
+      }
+     break;
+    case BIA_SWEEP_FIXED_FREQUENCY: /* field 25 */
+      AppBIACfg.SweepCurrFreq = value;
+     break;
+    case BIA_SWEEP_VOLTAGE: /* field 26 */
+      user_applied_dac_voltage = 1;
+      AppBIACfg.DacVoltPP = value;
+      break;
+#endif
   }
 #ifdef BCM_ALGO
     /* if bcm algo en, bia running, update config */
@@ -1732,8 +1855,8 @@ BIA_ERROR_CODE_t BiaWriteLCFG(uint8_t field, float value) {
   * @retval   BIA_ERROR_CODE_t
  *****************************************************************************/
 BIA_ERROR_CODE_t BiaReadLCFG(uint8_t index, float *value) {
-AppBIACfg_Type *pCfg;
-AppBIAGetCfg(&pCfg);
+  AppBIACfg_Type *pCfg;
+  AppBIAGetCfg(&pCfg);
 if(index < BIA_LCFG_MAX){
     switch(index){
     case BIA_LCFG_FS: /* field 0 */
@@ -1792,6 +1915,48 @@ if(index < BIA_LCFG_MAX){
      case BCM_ALGO_COEFF_CONFIG_SEVEN: /* field 17 */
      *value = bcm_config_handle.adi_vsm_bcm_algo_config.b[7];
       break;
+#endif
+/* add sweep features here */
+#ifdef RANGE_SWEEP_ENABLE
+     case BIA_RANGE_SWEEP_FREQUENCY_ENABLE: /* field 18 */
+        if(AppBIACfg.SweepCfg.SweepEn == bTRUE) {
+          *value = 1;
+        }
+        else  {
+          *value = 0;
+        }
+       break;
+    case BIA_SWEEP_START_FREQUENCY: /* field 20 */
+      *value = AppBIACfg.SweepCfg.SweepStart;
+       break;
+    case BIA_SWEEP_STOP_FREQUENCY: /* field 21 */
+       *value = AppBIACfg.SweepCfg.SweepStop;
+       break;
+    case BIA_SWEEP_SWEEP_POINTS: /* field 22 */
+       *value = AppBIACfg.SweepCfg.SweepPoints;
+       break;
+    case BIA_SWEEP_SCALE_TYPE: /* field 23 */
+    if(AppBIACfg.SweepCfg.SweepLog == bTRUE)  {
+       *value = 1;/* log type */
+    }
+    else {
+      *value = 0; /* linear type */
+    }
+      break;
+    case BIA_SWEEP_INDEX: /* field 24 */
+      *value = AppBIACfg.SweepCfg.SweepIndex;
+       break;
+#endif
+#ifdef FIXED_FREQ_SWEEP_ENABLE
+    case BIA_FIXED_FREQUENCY_SWEEP_ENABLE: /* field 19 */
+       *value = AppBIACfg.FixedFreqSweepEn;
+       break;
+    case BIA_SWEEP_FIXED_FREQUENCY: /* field 25 */
+       *value = AppBIACfg.SweepCurrFreq;
+        break;
+    case BIA_SWEEP_VOLTAGE: /* field 26 */
+       *value = AppBIACfg.DacVoltPP;
+        break;
 #endif
    }
     return BIA_SUCCESS;
@@ -1976,7 +2141,7 @@ static m2m2_hdr_t *bia_app_set_dcb_lcfg(m2m2_hdr_t *p_pkt) {
           uint16_t field = i;
 
           /* copy value and convert into hex */
-          if( i < MAX_DECIMAL_ENTRIES ){
+          if((i < START_IEEE_FLOAT_INDEX) || (i > END_IEEE_FLOAT_INDEX)){
             f_value = (float)bia_dcb[i];
           }
           else  {
@@ -2099,26 +2264,23 @@ static m2m2_hdr_t *bia_dcb_command_delete_config(m2m2_hdr_t *p_pkt) {
   return p_resp_pkt;
 }
 
+
 /**
-* @brief            Get Frequency index of excitation signal frequecny
+* @brief            Get Frequency in Hz of excitation signal 
 *                   during the BIA packetization
 *
-* @param[in]        float frequency: excitation frequecny using for BIA measurement
 *
-* @return           Enum M2M2_SENSOR_BIA_SWEEP_FREQ_INDEX_ENUM_t   
-*                    M2M2_SENSOR_BIA_FREQ_1000HZ = 0,
-*                    M2M2_SENSOR_BIA_FREQ_3760HZ = 1,
-*                    M2M2_SENSOR_BIA_FREQ_14140HZ = 2,
-*                    M2M2_SENSOR_BIA_FREQ_53180HZ = 3,
-*                    M2M2_SENSOR_BIA_FREQ_200KHZ = 4,
-*                    M2M2_SENSOR_BIA_FREQ_50KHZ = 255,
+* @return           unsigned integer, frequency parameter
 */
-static M2M2_SENSOR_BIA_SWEEP_FREQ_INDEX_ENUM_t GetBIASweepFrequencyIndex(float frequency)  {
-  /* TODO compare sweep frquency and rerurn index based on that
-     currently assuming default frequecny is 50KHz always*/
-  //if(frequecny == 50000){
-   return M2M2_SENSOR_BIA_FREQ_50KHZ;
+static uint32_t GetBIASweepFrequencyIndex()  {
+#if defined(RANGE_SWEEP_ENABLE) || defined(FIXED_FREQ_SWEEP_ENABLE)
+    uint32_t nfrequencyindex = AppBIACfg.SweepCurrFreq;
+#else
+    uint32_t nfrequencyindex = AppBIACfg.SinFreq;
+#endif
+      return nfrequencyindex;
 }
+
 
 #ifdef BCM_ALGO
 /*
@@ -2339,4 +2501,5 @@ void Init_bia_data_stability()  {
 #endif
 #endif
 #endif
+
 

@@ -386,13 +386,14 @@ void m2m2_printf (uint8_t *str_buff) {
     str_len = 80;    // max size
 
   pDbgPkt = post_office_create_msg(M2M2_HEADER_SZ + str_len);
+  if(pDbgPkt != NULL){
+    // m2m2_hdr_t *pDbgPkt = (m2m2_hdr_t *)(&dbg_pkt[0]);
 
-  // m2m2_hdr_t *pDbgPkt = (m2m2_hdr_t *)(&dbg_pkt[0]);
+    pDbgPkt->src = M2M2_ADDR_SYS_PM;
+    pDbgPkt->dest = M2M2_ADDR_SYS_DBG_STREAM;
+    pDbgPkt->length = str_len + M2M2_HEADER_SZ;
 
-  pDbgPkt->src = M2M2_ADDR_SYS_PM;
-  pDbgPkt->dest = M2M2_ADDR_SYS_DBG_STREAM;
-  pDbgPkt->length = str_len + M2M2_HEADER_SZ;
-
-  memcpy(&(pDbgPkt->data[0]), str_buff, str_len);
-  post_office_send(pDbgPkt, &err);
+    memcpy(&(pDbgPkt->data[0]), str_buff, str_len);
+    post_office_send(pDbgPkt, &err);
+  }
 }

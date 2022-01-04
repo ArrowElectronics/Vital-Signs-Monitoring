@@ -184,6 +184,7 @@ typedef struct {
 #define TIMER_ONE_SEC_INTERVAL (1000) /* valie in millisec, to count 1 sec. interval */
 
 void user0_config_app_task_init(void);
+void user0_config_app_state_init();
 void send_message_user0_config_app(m2m2_hdr_t *p_pkt);
 USER0_CONFIG_APP_STATE_t get_user0_config_app_state();
 void set_user0_config_app_state(USER0_CONFIG_APP_STATE_t state);
@@ -211,4 +212,6 @@ void get_eda_app_timings_from_user0_config_app_lcfg(uint16_t *start_time, uint16
 void get_agc_led_current_threshold_from_user0_config_app_lcfg(uint16_t *agc_up_threshold, uint16_t *agc_low_threshold);
 uint8_t get_id_num(USER0_CONFIG_LCFG_t id_index, uint16_t * id_num);
 void get_id_num_fw_lcfg(uint16_t * id_num);
+
+bool is_bypass_user0_timings();
 #endif  // __USER0_CONFIG_APP_TASK_H

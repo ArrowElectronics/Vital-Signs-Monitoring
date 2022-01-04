@@ -211,10 +211,10 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
   * @retval SUCCESS = Initialization successful
   */
 INT_ERROR_CODE_t Adpd400xStateMachineInit() {
-  uint16_t nPulseRegVal,nTempReg,nDevId;
-  Adpd400xDrvRegRead(ADPD400x_REG_CHIP_ID, &nDevId);
+  uint16_t nPulseRegVal,nTempReg,nChipID;
+  adi_adpddrv_RegRead(ADPD400x_REG_CHIP_ID, &nChipID);
   /* Check if its DVT2 chip */
-  gDVT2 = (nDevId != 0xC0) ? 1 : 0;
+  gDVT2 = (nChipID != 0xC0) ? 1 : 0;
   g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
   AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
   if((gAdpd400x_lcfg->targetChs & BITM_TARGET_CH) == TARGET_CH3){
@@ -268,7 +268,7 @@ INT_ERROR_CODE_t Adpd400xStateMachineDeInit() {
     gAdpd400xPpgLibState = ADPDLIB_STAGE_HEART_RATE_INIT;
 #endif // STATIC_AGC
     g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
-    Adpd400xDrvRegRead(ADPD400x_REG_OPMODE, &nTemp);
+    adi_adpddrv_RegRead(ADPD400x_REG_OPMODE, &nTemp);
     AdpdMwLibSetMode(ADPDDrv_MODE_IDLE, ADPD400xDrv_SIZE_0, ADPD400xDrv_SIZE_0);
     if((gAdpd400x_lcfg->targetChs & BITM_TARGET_CH) == 3){//restore on sum mode
       AdpdDrvRegWrite(ADPD400x_REG_INPUTS_A + g_reg_base,gRegInputs);
@@ -341,17 +341,17 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
     }
     /* check if ch2 is enabled */
     g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET; 
-    Adpd400xDrvRegRead(ADPD400x_REG_TS_CTRL_A + g_reg_base, &nTsCtrl);
+    adi_adpddrv_RegRead(ADPD400x_REG_TS_CTRL_A + g_reg_base, &nTsCtrl);
     nCh2Enable = (nTsCtrl & BITM_TS_CTRL_A_CH2_EN_A) >> BITP_TS_CTRL_A_CH2_EN_A;
     if(gDVT2){
       nppgData = slotData[0];
       isSaturated = 0;
-      Adpd400xDrvRegRead(ADPD400x_REG_INT_STATUS_TC1, &nslotDetectionCh1);
+      adi_adpddrv_RegRead(ADPD400x_REG_INT_STATUS_TC1, &nslotDetectionCh1);
       if((nslotDetectionCh1 >> (int)log2(gAdpd400x_lcfg->targetSlots))== 1){
         isSaturated = 1;
       } 
       if(nCh2Enable && ((gAdpd400x_lcfg->targetChs & BITM_TARGET_CH) != TARGET_CH3)){ // In sum mode or ch2 disable case, saturation check not needed
-        Adpd400xDrvRegRead(ADPD400x_REG_INT_STATUS_TC2, &nslotDetectionCh2);
+        adi_adpddrv_RegRead(ADPD400x_REG_INT_STATUS_TC2, &nslotDetectionCh2);
         if((nslotDetectionCh2 >> (int)log2(gAdpd400x_lcfg->targetSlots))== 1){
           isSaturated = 1;
         }
@@ -366,9 +366,9 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
         }
         ret = IERR_AFE_SATURATION;
         PostNewSettingSetUp(1);
-        Adpd400xDrvRegWrite(ADPD400x_REG_INT_STATUS_TC1, nslotDetectionCh1);//clear the detection bit ch1 register
+        adi_adpddrv_RegWrite(ADPD400x_REG_INT_STATUS_TC1, nslotDetectionCh1);//clear the detection bit ch1 register
         if((gAdpd400x_lcfg->targetChs & BITM_TARGET_CH) != TARGET_CH3){
-        Adpd400xDrvRegWrite(ADPD400x_REG_INT_STATUS_TC2, nslotDetectionCh2);//clear the detection bit ch2 register
+        adi_adpddrv_RegWrite(ADPD400x_REG_INT_STATUS_TC2, nslotDetectionCh2);//clear the detection bit ch2 register
         }
         return ret;
       }
@@ -840,10 +840,10 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
       gAdpd400xPpgLibState = ADPDLIB_STAGE_HEART_RATE;
       //Write default dcfg values to LED and TIA register
       // Slot F LED 1A Green
-      Adpd400xDrvRegWrite(ADPD400x_REG_LED_POW12_F, 0x0002);
+      adi_adpddrv_RegWrite(ADPD400x_REG_LED_POW12_F, 0x0002);
 
       // Slot F TIA gain
-      Adpd400xDrvRegWrite(ADPD400x_REG_AFE_TRIM_F, 0xE3C1);
+      adi_adpddrv_RegWrite(ADPD400x_REG_AFE_TRIM_F, 0xE3C1);
     }
 #endif
     Adpd400xheartRateInit();
@@ -868,16 +868,16 @@ INT_ERROR_CODE_t Adpd400xStateMachine(LibResult_t *result,
 #endif // STATIC_AGC 
       uint16_t ledCurrent,ledTrim,tiaGain;
       g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;
-      Adpd400xDrvRegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &ledCurrent);
+      adi_adpddrv_RegRead(ADPD400x_REG_LED_POW12_A + g_reg_base, &ledCurrent);
       gAdpd400xOptmVal.ledB_Cur = ledCurrent;
       if((ledCurrent & BITM_LED_POW12_X_LED_CURRENT1_X) != 0)
         gAdpd400xOptmVal.ledB_CurVal = ledCurrent;
 
-      Adpd400xDrvRegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &ledTrim);
+      adi_adpddrv_RegRead(ADPD400x_REG_LED_POW34_A + g_reg_base, &ledTrim);
       if((ledTrim & BITM_LED_POW34_X_LED_CURRENT3_X) != 0)
         gAdpd400xOptmVal.ledB_Trim = ledTrim;
 
-      Adpd400xDrvRegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &tiaGain);
+      adi_adpddrv_RegRead(ADPD400x_REG_AFE_TRIM_A + g_reg_base, &tiaGain);
       gAdpd400xOptmVal.tiaB_Gain = tiaGain;
       if(gDVT2){
         g_reg_base = log2(gAdpd400x_lcfg->targetSlots) * SLOT_REG_OFFSET;

@@ -111,6 +111,8 @@ typedef enum M2M2_FILE_SYS_CMD_ENUM_t {
   M2M2_FILE_SYS_CMD_APPEND_FILE_RESP = 161,
   M2M2_FILE_SYS_CMD_FILE_READ_TEST_REQ = 162,
   M2M2_FILE_SYS_CMD_FILE_READ_TEST_RESP = 163,
+  M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_BLE_REQ = 164,
+  M2M2_FILE_SYS_CMD_DOWNLOAD_LOG_BLE_RESP = 165,
 } M2M2_FILE_SYS_CMD_ENUM_t;
 STATIC_ASSERT_PROJ(sizeof(M2M2_FILE_SYS_CMD_ENUM_t) == 1, INCORRECT_SIZE_M2M2_FILE_SYS_CMD_ENUM_t);
 
@@ -217,6 +219,16 @@ typedef struct _m2m2_file_sys_download_log_stream_t {
   uint8_t  page_chunk_bytes[512]; 
   uint16_t  crc16; 
 } m2m2_file_sys_download_log_stream_t;
+
+typedef struct _m2m2_file_sys_download_log_ble_stream_t {
+  uint8_t  command; 
+  uint8_t  status; 
+  uint8_t  page_chunk_number; 
+  uint16_t  page_number; 
+  uint16_t  page_chunk_size; 
+  uint8_t  page_chunk_bytes[224]; 
+  uint16_t  crc16; 
+} m2m2_file_sys_download_log_ble_stream_t;
 
 typedef struct _m2m2_file_sys_app_ref_hr_stream_t {
   uint8_t  command; 

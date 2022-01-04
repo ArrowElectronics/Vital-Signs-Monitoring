@@ -84,6 +84,9 @@ ECG_ERROR_CODE_t delete_ecg_dcb(void);
 /////////////////////////////////////////
 g_state_ecg_t g_state_ecg;
 volatile bool gEcgAppInitFlag = false;
+extern bool g_disable_ad5940_port_init;
+extern bool g_disable_ad5940_port_deinit;
+
 #ifdef EXTERNAL_TRIGGER_EDA
 uint8_t ecg_start_req=0;
 #endif
@@ -193,7 +196,8 @@ void ad5940_ecg_task_init(void) {
   sensor_ecg_task_attributes.pStackBase = &sensor_ecg_task_stack[0];
   sensor_ecg_task_attributes.nStackSize = APP_OS_CFG_ECG_TASK_STK_SIZE;
   sensor_ecg_task_attributes.pTaskAttrParam = NULL;
-  sensor_ecg_task_attributes.szThreadName = "ECG Sensor";
+  /* Thread Name should be of max 10 Characters */
+  sensor_ecg_task_attributes.szThreadName = "ECG_Task";
 
   sensor_ecg_task_attributes.pThreadTcb = &ecgTaskTcb;
   eOsStatus = adi_osal_MsgQueueCreate(&ecg_task_msg_queue, NULL, 5);
@@ -934,9 +938,7 @@ void HAL_GPIO_ECG_Sport_Enable(uint8_t en) {
  * @return None
  *****************************************************************************/
 void DG2502_SW_control_AD5940(uint8_t sw_enable) {
-  /* Using  hardware reset and initialization */
-  AD5940_HWReset();
-  AD5940_Initialize();
+
   if (sw_enable) {
     /* Gp0 Output enable */
     AD5940_WriteReg(REG_AGPIO_GP0OEN, (AGPIO_Pin3));
@@ -960,9 +962,7 @@ void DG2502_SW_control_AD5940(uint8_t sw_enable) {
  * @return None
  *****************************************************************************/
 void DG2502_SW_control_AD8233(uint8_t sw_enable) {
-  /* Using  hardware reset and initialization */
-  AD5940_HWReset();
-  AD5940_Initialize();
+
   if (sw_enable) {
     /* Gp0 Output enable */
     AD5940_WriteReg(REG_AGPIO_GP0OEN, (AGPIO_Pin4));
@@ -988,15 +988,17 @@ ECG_ERROR_CODE_t EcgAppInit() {
   // DG2502_SW_control_AD5940(false);
   //DG2502_SW_control_ADPD4000(false);
   ECG_ERROR_CODE_t retVal = ECG_ERROR;
-
-    adp5360_enable_ldo(ECG_LDO,true);
-    InitCfg();
-    ClearDataBufferAd5940();
-    ad5940_ecg_start();
-    gEcgAppInitFlag = true;
-    user_applied_packetization_enable=0;/* re init every time so that by default packetization is enabled for every start */
-  /* GPIO for ECG mode and electrodes */
-  /* Enable Sport AD8233 device */
+  g_disable_ad5940_port_init = true;
+  ad5940_rstpin_init();
+  adp5360_enable_ldo(ECG_LDO,true);
+  g_disable_ad5940_port_init = false;
+  InitCfg();
+  ClearDataBufferAd5940();
+  ad5940_ecg_start();
+  gEcgAppInitFlag = true;
+  user_applied_packetization_enable=0;/* re init every time so that by default packetization is enabled for every start */
+/* GPIO for ECG mode and electrodes */
+/* Enable Sport AD8233 device */
   HAL_GPIO_ECG_Sport_Enable(1);
   retVal = ECG_SUCCESS;
 
@@ -1021,8 +1023,11 @@ ECG_ERROR_CODE_t EcgAppDeInit() {
   /* Disable Sport AD8233 device */
   HAL_GPIO_ECG_Sport_Enable(0);
   gEcgAppInitFlag = false;
+  g_disable_ad5940_port_deinit = true;
+  ad5940_rstpin_deinit();
   /* de init power */
   adp5360_enable_ldo(ECG_LDO, false);
+  g_disable_ad5940_port_deinit = false;
   return ECG_SUCCESS;
 }
 

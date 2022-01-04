@@ -65,7 +65,4 @@ bool check_lt_app_capsense_tuned_trigger_status();
 bool get_low_touch_trigger_mode2_status(void);
 bool get_low_touch_trigger_mode3_status(void);
 LT_APP_LCFG_TRIGGER_METHOD_t get_lt_app_trigger_method();
-#ifdef USER0_CONFIG_APP
-bool get_low_touch_trigger_mode3_status(void);
-#endif
 #endif  // __LOW_TOUCH_TASK_H

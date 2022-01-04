@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/ppg_application_task.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\ppg_application_task.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\ppg_application_task.c \
  ..\..\..\modules\system/includes.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdarg.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
@@ -62,6 +62,7 @@ Output/watchv4_nrf52840\ Debug/Obj/ppg_application_task.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
@@ -93,14 +94,14 @@ Output/watchv4_nrf52840\ Debug/Obj/ppg_application_task.o: \
  ..\..\..\modules\system/post_office.h \
  ..\..\..\cli\m2m2\inc\c/post_office_interface.h \
  ..\..\..\cli\m2m2\inc\c/led_interface.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\ppg_application_task.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\ppg_application_task.h \
  ..\..\..\modules\adpd4000/adpd4000_task.h \
  ..\..\..\cli\m2m2\inc\c/sensor_adpd_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \
  ..\..\..\drivers\adpd4000/adpd4000_dcfg.h \
  ..\..\..\modules\adxl362/adxl_task.h \
  ..\..\..\cli\m2m2\inc\c/sensor_adxl_application_interface.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\sync_data_application_task.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\sync_data_application_task.h \
  ..\..\..\cli\m2m2\inc\c/sync_data_application_interface.h \
  ..\..\..\drivers\adxl362/adxl_buffering.h \
  ..\..\..\utilities\circular_buffer/circular_buffer.h \
@@ -119,17 +120,24 @@ Output/watchv4_nrf52840\ Debug/Obj/ppg_application_task.o: \
  ..\..\..\..\components\libraries\balloc/nrf_balloc.h \
  ..\..\..\..\components\libraries\log/nrf_log_instance.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\app_sync.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\app_sync.h \
  ..\..\..\drivers\adxl362/Adxl362.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\sensor_internal.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\app_common.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\mw_ppg.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\sensor_internal.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\app_common.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\adpd4000_ppg\mw_ppg.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib_common.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib.h \
  ..\..\..\algo\ppg_loop1_algo/adpd_err_code.h \
  ..\..\..\drivers\adpd4000/adpd400x_reg.h \
  ..\..\..\..\components\libraries\timer/app_timer.h \
  ..\..\..\..\components\libraries\util/app_error.h \
+ ..\..\..\modules\adpd4000/adi_adpd_m2m2.h \
+ ..\..\..\algo\ppg_loop1_algo/heart_rate_internal.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/errno.h \
+ ..\..\..\algo\ppg_loop1_algo/timers.h \
+ C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/inttypes.h \
+ ..\..\..\algo\ppg_loop1_algo/logging.h \
+ ..\..\..\modules\SSM\Inc/adi_adpd_ssm.h \
  ..\..\..\modules\user0_config_app/user0_config_app_task.h \
  ..\..\..\cli\m2m2\inc\c/user0_config_application_interface.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \

@@ -53,8 +53,8 @@ extern "C" {
 
 #define PpgGetRegAddr(a,b)          log2(a) * 0x20 + b;
 
-#define AdpdDrvRegWrite(a,b)        Adpd400xDrvRegWrite(a,b)
-#define AdpdDrvRegRead(a,b)         Adpd400xDrvRegRead(a,b)
+#define AdpdDrvRegWrite(a,b)        adi_adpddrv_RegWrite(a,b)
+#define AdpdDrvRegRead(a,b)         adi_adpddrv_RegRead(a,b)
 #define ADPDDrv_MODE_SAMPLE         ADPD400xDrv_MODE_SAMPLE
 #define ADPDDrv_MODE_IDLE           ADPD400xDrv_MODE_IDLE
 

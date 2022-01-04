@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/system_task.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\system_task.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\system_task.c \
  ..\..\..\utilities\lfs/file_system_utils.h \
  ..\..\..\cli\m2m2\inc\c/common_application_interface.h \
  ..\..\..\cli\m2m2\inc\c/dcb_interface.h \
@@ -66,6 +66,7 @@ Output/watchv4_nrf52840\ Debug/Obj/system_task.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
@@ -136,14 +137,14 @@ Output/watchv4_nrf52840\ Debug/Obj/system_task.o: \
  ..\..\..\..\components\softdevice\s140\headers/ble_ranges.h \
  ..\..\..\..\components\softdevice\s140\headers/ble_types.h \
  ..\..\..\..\components\softdevice\s140\headers/ble_err.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\ble_task.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\ble_task.h \
  ..\..\..\modules\ad7156_lt/dcb_general_block.h \
  ..\..\..\modules\ad7156_lt/lt_app_lcfg_block.h \
  ..\..\..\modules\ad7156_lt/low_touch_task.h \
  ..\..\..\modules\user0_config_app/dcb_user0_block.h \
  ..\..\..\modules\user0_config_app/user0_config_app_task.h \
  ..\..\..\cli\m2m2\inc\c/user0_config_application_interface.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\fds_drv.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\fds_drv.h \
  ..\..\..\modules\adpd4000_ppg/mw_ppg.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib_common.h \
  ..\..\..\algo\ppg_loop1_algo/adpd400x_lib.h \
@@ -156,7 +157,7 @@ Output/watchv4_nrf52840\ Debug/Obj/system_task.o: \
  ..\..\..\modules\adpd4000/adpd4000_task.h \
  ..\..\..\cli\m2m2\inc\c/sensor_adpd_application_interface.h \
  ..\display/display_app.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\manufacture_date.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\manufacture_date.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \

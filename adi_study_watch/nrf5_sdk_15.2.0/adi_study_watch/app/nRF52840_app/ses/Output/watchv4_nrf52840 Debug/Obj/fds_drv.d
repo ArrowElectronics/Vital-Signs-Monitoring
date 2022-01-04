@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/fds_drv.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\fds_drv.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\fds_drv.c \
  ..\..\..\..\components\libraries\log/nrf_log_ctrl.h \
  ..\..\..\app\nRF52840_app/sdk_config.h \
  ..\..\..\..\components\libraries\util/sdk_errors.h \
@@ -67,7 +67,7 @@ Output/watchv4_nrf52840\ Debug/Obj/fds_drv.o: \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \
  ..\..\..\..\components\libraries\log/nrf_log_types.h \
  ..\..\..\..\components\libraries\fds/fds.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\modules\system\fds_drv.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\modules\system\fds_drv.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
  ..\..\..\modules\system\osal\free_rtos\src/osal_misra.h \
  ..\..\..\modules\system\osal\free_rtos\ports/adi_osal_arch.h \

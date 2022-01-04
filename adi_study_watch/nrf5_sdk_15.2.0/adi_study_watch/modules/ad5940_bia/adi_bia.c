@@ -119,10 +119,12 @@ AD5940Err AppBIACtrl(int32_t BcmCtrl, void *pPara) {
     case BIACTRL_GETFREQ:
     if(pPara)
     {
+#if defined(RANGE_SWEEP_ENABLE) || defined(FIXED_FREQ_SWEEP_ENABLE)
       if(AppBIACfg.SweepCfg.SweepEn == bTRUE)
         *(float*)pPara = AppBIACfg.FreqofData;
-      else
+#else
         *(float*)pPara = AppBIACfg.SinFreq;
+#endif
     }
     break;
     case APPCTRL_SHUTDOWN:
@@ -213,18 +215,26 @@ static AD5940Err AppBIASeqCfgGen(void)
   hs_loop.WgCfg.GainCalEn = bFALSE;
   hs_loop.WgCfg.OffsetCalEn = bFALSE;
 
-   /*CAUTION:This sweep need to be proper handled in dcfg*/
-   /* If sweep enabled, perform sweep operation */
+#if defined(RANGE_SWEEP_ENABLE) || defined(FIXED_FREQ_SWEEP_ENABLE)
+   /* If sweep enabled, perform sweep operation , this generates next freq point which is very first freq point from start*/
   if(AppBIACfg.SweepCfg.SweepEn == bTRUE) {
     AppBIACfg.SweepCfg.SweepIndex = 0;
     AppBIACfg.FreqofData = AppBIACfg.SweepCfg.SweepStart;
     AppBIACfg.SweepCurrFreq = AppBIACfg.SweepCfg.SweepStart;
     AD5940_SweepNext(&AppBIACfg.SweepCfg, &AppBIACfg.SweepNextFreq);
     sin_freq = AppBIACfg.SweepCurrFreq;
-  } else {
-    sin_freq = AppBIACfg.SinFreq;
+  }
+  else if(AppBIACfg.FixedFreqSweepEn == bTRUE){
+      sin_freq = AppBIACfg.SweepCurrFreq;
+    }
+  else  {
+     sin_freq = AppBIACfg.SinFreq;
     AppBIACfg.FreqofData = sin_freq;
   }
+#else 
+    sin_freq = AppBIACfg.SinFreq;
+    AppBIACfg.FreqofData = sin_freq;
+#endif
 
   /* high power loop sine signal settings */
   hs_loop.WgCfg.SinCfg.SinFreqWord = AD5940_WGFreqWordCal(sin_freq, AppBIACfg.SysClkFreq);
@@ -339,8 +349,8 @@ static AD5940Err AppBIASeqMeasureGen(void) {
 #ifdef BIA_DCFG_ENABLE
   write_bia_seqmeasurement();
 #else
-  /* GP6->endSeq, GP5 -> AD8233=OFF, GP1->RLD=OFF */
-  AD5940_SEQGpioCtrlS(AGPIO_Pin6);
+  /* GP3-> enable electrodes */
+  AD5940_SEQGpioCtrlS(AGPIO_Pin3);
 
   /* wait 250*16 micro sec*/
   AD5940_SEQGenInsert(SEQ_WAIT(16*250));
@@ -438,16 +448,23 @@ static AD5940Err AppBIARtiaCal(void) {
   hsrtia_cal.fFreq = AppBIACfg.SweepCfg.SweepStart;
 
   /* If sweep is enabled, consider update of Rtia cal table based on sweep points */
-  if(AppBIACfg.SweepCfg.SweepEn == bTRUE) {
+  if((AppBIACfg.SweepCfg.SweepEn == bTRUE)  || (AppBIACfg.FixedFreqSweepEn == bTRUE)) {
+#if defined(RANGE_SWEEP_ENABLE) || defined(FIXED_FREQ_SWEEP_ENABLE)
     uint32_t i;
     AppBIACfg.SweepCfg.SweepIndex = 0;  /* Reset index */
     for(i = 0; i < AppBIACfg.SweepCfg.SweepPoints;i++) {
+      /* lets update table for all frequencies */
+      AD5940_HSRtiaCal(&hsrtia_cal, AppBIACfg.RtiaCalTable[i]);
       AD5940_SweepNext(&AppBIACfg.SweepCfg, &hsrtia_cal.fFreq);
     }
     AppBIACfg.SweepCfg.SweepIndex = 0;  /* Reset index */
+    /* RTIA Cal table has to be updated to copy values, we run calibration for all freq */
+
     AppBIACfg.RtiaCurrValue[0] = AppBIACfg.RtiaCalTable[AppBIACfg.SweepCfg.SweepIndex][0];
     AppBIACfg.RtiaCurrValue[1] = AppBIACfg.RtiaCalTable[AppBIACfg.SweepCfg.SweepIndex][1];
-  } else {
+#endif  
+  }
+  else  {
     hsrtia_cal.fFreq = AppBIACfg.SinFreq;
     AD5940_HSRtiaCal(&hsrtia_cal, AppBIACfg.RtiaCurrValue);
   }
@@ -470,34 +487,34 @@ AD5940Err AppBIAInit(uint32_t *pBuffer, uint32_t BufferSize) {
 
   /* Add mux enable for BCM measurement */
   /* output enable */
+  /* Taking enable electrode to sequencer,so electrodes will be on only
+     when required. Saves power consumption too */
+
   uint32_t tempreg;
   tempreg = AD5940_ReadReg(REG_AGPIO_GP0OEN);
-  tempreg &= 0xFFE7;
-  tempreg |= 0x0018;
+  tempreg &= 0xFFF7;
+  tempreg |= 0x0008;
   AD5940_AGPIOOen(tempreg);
   /* pull up / pull down register */
   tempreg = AD5940_ReadReg(REG_AGPIO_GP0PE);
-  tempreg &= 0xFFE7;
-  tempreg |= 0x0018;
-  AD5940_AGPIOPen(tempreg);
-  /* data set register */
-  tempreg =  AD5940_ReadReg(REG_AGPIO_GP0SET);
-  tempreg &= 0xFFE7;
+  tempreg &= 0xFFF7;
   tempreg |= 0x0008;
-  AD5940_AGPIOSet(tempreg);
+  AD5940_AGPIOPen(tempreg);
+
 #ifdef BIA_DCFG_ENABLE
    write_bia_init_1();
 #else
-  /* Configure sequencer and stop it */
-  /* 2kB SRAM is used for sequencer, others for data FIFO */
-  seq_cfg.SeqMemSize = SEQMEMSIZE_2KB;
-  seq_cfg.SeqBreakEn = bFALSE;
-  seq_cfg.SeqIgnoreEn = bFALSE;
-  seq_cfg.SeqCntCRCClr = bTRUE;
-  seq_cfg.SeqEnable = bFALSE;
-  seq_cfg.SeqWrTimer = 0;
-  AD5940_SEQCfg(&seq_cfg);
+   /* Configure sequencer and stop it */
+    /* 2kB SRAM is used for sequencer, others for data FIFO */
+    seq_cfg.SeqMemSize = SEQMEMSIZE_2KB;
+    seq_cfg.SeqBreakEn = bFALSE;
+    seq_cfg.SeqIgnoreEn = bFALSE;
+    seq_cfg.SeqCntCRCClr = bTRUE;
+    seq_cfg.SeqEnable = bFALSE;
+    seq_cfg.SeqWrTimer = 0;
+    AD5940_SEQCfg(&seq_cfg);
 #endif
+
   /* Do RTIA calibration */
   if((AppBIACfg.ReDoRtiaCal == bTRUE) || \
       AppBIACfg.BIAInited == bFALSE)  /* Do calibration on the first initialization */
@@ -543,17 +560,15 @@ AD5940Err AppBIAInit(uint32_t *pBuffer, uint32_t BufferSize) {
   /* Initialization sequencer  */
   AppBIACfg.InitSeqInfo.WriteSRAM = bFALSE;
   AD5940_SEQInfoCfg(&AppBIACfg.InitSeqInfo);
-  seq_cfg.SeqEnable = bTRUE;
-  /* Enable sequencer */
-  AD5940_SEQCfg(&seq_cfg);
+  /* Enable sequencer, run initialization sequence */
+  AD5940_SEQCtrlS(bTRUE);
   AD5940_SEQMmrTrig(AppBIACfg.InitSeqInfo.SeqId);
   while(AD5940_INTCTestFlag(AFEINTC_1, AFEINTSRC_ENDSEQ) == bFALSE);
   /* Measurment sequence  */
   AppBIACfg.MeasureSeqInfo.WriteSRAM = bFALSE;
   AD5940_SEQInfoCfg(&AppBIACfg.MeasureSeqInfo);
-  seq_cfg.SeqEnable = bTRUE;
-  /* Enable sequencer, and wait for trigger */
-  AD5940_SEQCfg(&seq_cfg);
+    /* Enable sequencer, run initialization sequence */
+  AD5940_SEQCtrlS(bTRUE);
   /* Clear interrupt flag generated before */
   AD5940_ClrMCUIntFlag();
   AD5940_AFEPwrBW(AppBIACfg.PwrMod, AFEBW_250KHZ);
@@ -581,10 +596,18 @@ AD5940Err AppBIARegModify(int32_t * const pData, uint32_t *pDataCount) {
     AD5940_WUPTCtrl(bFALSE);
     return AD5940ERR_OK;
   }
+#if defined(RANGE_SWEEP_ENABLE)
   /* Need to set new frequency and set power mode */
-  if(AppBIACfg.SweepCfg.SweepEn) {
+  if(AppBIACfg.SweepCfg.SweepEn == bTRUE) {
     AD5940_WGFreqCtrlS(AppBIACfg.SweepNextFreq, AppBIACfg.SysClkFreq);
   }
+#endif
+  /* load current freq variable when fixed freq */
+#if defined(FIXED_FREQ_SWEEP_ENABLE)
+  if(AppBIACfg.FixedFreqSweepEn == bTRUE)  {
+    AD5940_WGFreqCtrlS(AppBIACfg.SweepCurrFreq, AppBIACfg.SysClkFreq);
+  }
+#endif
   return AD5940ERR_OK;
 }
 
@@ -633,9 +656,9 @@ AD5940Err AppBIADataProcess(int32_t * const pData, uint32_t *pDataCount)  {
     DftVolt.Real = (float)pSrcData[i+1].Real;
     DftVolt.Image = (float)pSrcData[i+1].Image;
     
-    DftCurr.Real =  DftCurr.Real;
+    //DftCurr.Real =  DftCurr.Real;
     DftCurr.Image = -DftCurr.Image;
-    DftVolt.Real = DftVolt.Real;
+    //DftVolt.Real = DftVolt.Real;
     DftVolt.Image = -DftVolt.Image;
     res = AD5940_ComplexDivFloat(&DftCurr,(fImpCar_Type*)&AppBIACfg.RtiaCurrValue);           /* I=Vrtia/Zrtia */
     res = AD5940_ComplexDivFloat(&DftVolt, &res);
@@ -643,7 +666,8 @@ AD5940Err AppBIADataProcess(int32_t * const pData, uint32_t *pDataCount)  {
   }
   *pDataCount = ImpResCount; 
 
-  /* Calculate next frequency point */
+#ifdef RANGE_SWEEP_ENABLE
+  /* Calculate next frequency point, its done once current measurement is taken */
   if(AppBIACfg.SweepCfg.SweepEn == bTRUE){
     AppBIACfg.FreqofData = AppBIACfg.SweepCurrFreq;
     AppBIACfg.SweepCurrFreq = AppBIACfg.SweepNextFreq;
@@ -651,6 +675,16 @@ AD5940Err AppBIADataProcess(int32_t * const pData, uint32_t *pDataCount)  {
     AppBIACfg.RtiaCurrValue[1] = AppBIACfg.RtiaCalTable[AppBIACfg.SweepCfg.SweepIndex][1];
     AD5940_SweepNext(&AppBIACfg.SweepCfg, &AppBIACfg.SweepNextFreq);
   }
+#endif
+#ifdef FIXED_FREQ_SWEEP_ENABLE
+    if(AppBIACfg.FixedFreqSweepEn == bTRUE) {
+      AppBIACfg.RtiaCurrValue[0] = AppBIACfg.RtiaCalTable[AppBIACfg.SweepCfg.SweepIndex++][0];
+      AppBIACfg.RtiaCurrValue[1] = AppBIACfg.RtiaCalTable[AppBIACfg.SweepCfg.SweepIndex++][1];
+    }
+    if(AppBIACfg.SweepCfg.SweepIndex == AppBIACfg.SweepCfg.SweepPoints){
+      AppBIACfg.SweepCfg.SweepIndex = 0;
+    }
+#endif
   return AD5940ERR_OK;
 }
 
@@ -665,10 +699,7 @@ int32_t AD5940PlatformCfg(void)
   CLKCfg_Type clk_cfg;
   FIFOCfg_Type fifo_cfg;
   AGPIOCfg_Type gpio_cfg;
-  /* Use hardware reset */
-  AD5940_HWReset();
-  /* Platform configuration */
-  AD5940_Initialize();
+
   /* Step1. Configure clock */
   clk_cfg.ADCClkDiv = ADCCLKDIV_1;
   clk_cfg.ADCCLkSrc = ADCCLKSRC_HFOSC;
@@ -701,9 +732,10 @@ int32_t AD5940PlatformCfg(void)
   AD5940_INTCClrFlag(AFEINTSRC_ALLINT);
 
   /* Step4: Reconfigure GPIO */
-  gpio_cfg.FuncSet = GP6_SYNC|GP5_SYNC|GP4_SYNC|GP2_TRIG|GP1_SYNC|GP0_INT;
-  gpio_cfg.InputEnSet = AGPIO_Pin2;
-  gpio_cfg.OutputEnSet = AGPIO_Pin0|AGPIO_Pin1|AGPIO_Pin4|AGPIO_Pin5|AGPIO_Pin6;
+  /* Making GP3 as a sequencer configuring pin to enable electrodes */ 
+  gpio_cfg.FuncSet = GP3_SYNC|GP0_INT;
+  gpio_cfg.InputEnSet = 0;
+  gpio_cfg.OutputEnSet = AGPIO_Pin0|AGPIO_Pin3;
   gpio_cfg.OutVal = 0;
   gpio_cfg.PullEnSet = 0;
 
@@ -756,8 +788,7 @@ void AD5940BIAStructInit(void) {
  *@return     None
  ******************************************************************************/
 void ad5940_bia_start(void){
-     /* Interrupts setting */
-  ad5940_port_Init();
+
    /* configure call back */
   Ad5940DrvDataReadyCallback(Ad5940FifoCallBack);
 
@@ -769,14 +800,24 @@ void ad5940_bia_start(void){
   /* BIA Initialization */
   /* Configure your parameters in this function */
   AD5940BIAStructInit();
-
+  
+  /* Update sweep configuration here */
+  /* Update for fixed freq as well here */
 #ifdef BIA_DCFG_ENABLE
+#if defined(RANGE_SWEEP_ENABLE)
+   /* If sweep enabled, perform sweep operation , this generates next freq point which is very first freq point from start*/
+  if(AppBIACfg.SweepCfg.SweepEn == bTRUE) {
+    AppBIACfg.SweepCfg.SweepIndex = 0;
+    AppBIACfg.FreqofData = AppBIACfg.SweepCfg.SweepStart;
+    AppBIACfg.SweepCurrFreq = AppBIACfg.SweepCfg.SweepStart;
+    AD5940_SweepNext(&AppBIACfg.SweepCfg, &AppBIACfg.SweepNextFreq);
+  }
+#endif 
       /* Loading default if load command is not issued */ 
   if(bia_load_dcfg == 1) {
     load_bia_default_dcfg_config(&default_dcfg_bia[0]);
    }
 #endif//BIA_DCFG_ENABLE
-
 
   /* Initialize BIA application. Provide a buffer, which is used to store sequencer commands */
   AppBIAInit(AppBuff, APPBUFF_SIZE);

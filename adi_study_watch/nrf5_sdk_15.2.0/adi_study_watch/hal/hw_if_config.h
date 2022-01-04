@@ -99,7 +99,7 @@ void UART_RegisterReceiverCallback( uint16_t (*pfReceiveInputChar)(uint8_t *pByt
 void UART_Write_nblk(uint8_t *pData, uint32_t size);
 void UARTClearFifo();
 uint8_t get_usbd_tx_pending_status (void);
-void Adpd400xISR();
+void adi_adpddrv_ISR();
 int low_touch_init();
 
 void invert_adxl_trigger_signal();

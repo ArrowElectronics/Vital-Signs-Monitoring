@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/power_manager.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_manager.c \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_manager.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_manager.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_manager.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
@@ -90,6 +90,7 @@ Output/watchv4_nrf52840\ Debug/Obj/power_manager.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\..\external\freertos\source\include/task.h \
  ..\..\..\..\external\freertos\source\include/list.h \
@@ -116,7 +117,7 @@ Output/watchv4_nrf52840\ Debug/Obj/power_manager.o: \
  ..\..\..\..\components\libraries\pwr_mgmt/nrf_pwr_mgmt.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section_iter.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_on_detect.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\utilities\power_manager\power_on_detect.h \
  ..\..\..\..\modules\nrfx\hal/nrf_rtc.h \
  ..\..\..\drivers\display/lcd_driver.h ..\..\..\drivers\wdt/wdt.h \
  ..\..\..\..\modules\nrfx\hal/nrf_power.h \
@@ -134,4 +135,5 @@ Output/watchv4_nrf52840\ Debug/Obj/power_manager.o: \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \
  ..\..\..\..\components\libraries\log/nrf_log_types.h \
- ..\..\..\..\components\libraries\log/nrf_log_default_backends.h
+ ..\..\..\..\components\libraries\log/nrf_log_default_backends.h \
+ ..\..\..\drivers\ad5940/ad5940.h

@@ -3,7 +3,7 @@
 #Each row correspond to lcfg index
 #Add to a lcfg index, value as mentioned by the bytes allocated
 ##
-00000042    #hex value; USER0_CONFIG_LCFG_AGC_UP_TH = 0x0             #Upper limit of LED light intensity for Static AGC - 1byte, Setting range: 1-127, Increment: 1, Unit: LSB
+0000007F    #hex value; USER0_CONFIG_LCFG_AGC_UP_TH = 0x0             #Upper limit of LED light intensity for Static AGC - 1byte, Setting range: 1-127, Increment: 1, Unit: LSB
 00000001    #hex value; USER0_CONFIG_LCFG_AGC_LOW_TH = 0x1            #Lower limit of LED light intensity for Static AGC - 1byte, Setting range: 1-127, Increment: 1, Unit: LSB
 0000003C    #hex value; USER0_CONFIG_LCFG_ADV_TIMEOUT_MONITOR = 0x2   #Elapsed time from the start of advertising after finishing PPG,
                                                                       #EDA, body temperature, and acceleration measurement during

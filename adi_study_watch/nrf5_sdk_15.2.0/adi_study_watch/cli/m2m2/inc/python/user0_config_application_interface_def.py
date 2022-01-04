@@ -17,6 +17,8 @@ class M2M2_USER0_CONFIG_APP_COMMAND_ENUM_t(c_ubyte):
     M2M2_USER0_CONFIG_APP_CLEAR_PREV_ST_EVT_RESP = 0x49
     M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_REQ = 0x4A
     M2M2_USER0_CONFIG_APP_GET_PREV_ST_EVT_RESP = 0x4B
+    M2M2_USER0_CONFIG_APP_BYPASS_USER0_TIMINGS_REQ = 0x4C
+    M2M2_USER0_CONFIG_APP_BYPASS_USER0_TIMINGS_RESP = 0x4D
 
 class M2M2_USER0_CONFIG_APP_STATUS_ENUM_t(c_ubyte):
     _M2M2_USER0_CONFIG_APP_STATUS_LOWEST = 0x40
@@ -118,5 +120,13 @@ class user0_app_prev_state_event_pkt_t(Structure):
               ("status", c_ubyte),
               ("prev_st_evt", user0_app_prev_state_event_t * 4),
               ("intermittent_op_cnt", c_ushort),
+              ]
+
+class user0_app_bypass_user0_timings_pkt_t(Structure):
+    _pack_ = 1
+    _fields_ = [
+              ("command", c_ubyte),
+              ("status", c_ubyte),
+              ("enable", c_ubyte),
               ]
 

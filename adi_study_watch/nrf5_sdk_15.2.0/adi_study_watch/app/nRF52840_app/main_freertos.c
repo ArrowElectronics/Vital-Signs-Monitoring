@@ -90,11 +90,21 @@
 #include "fds_drv.h"
 #include "rtc.h"
 #endif //EVTBOARD
+
+#ifdef VSM_MBOARD
+#include "watch_vsm_motherboard_pin_config.h"
+#elif PCBA
+#include "watch_board_pcba_pin_config.h"
+#else
+#include "watch_board_evt_pin_config.h"
+#endif
+
 #include <stdio.h>
 #define LED_TASK_DELAY    200           /**< Task delay. Delays a LED0 task for 200 ms */
 #define TIMER_PERIOD      1000          /**< Timer period. LED1 timer will expire after 1000 ms */
 
 uint32_t ad5940_port_Init(void);
+void AD5940_HWReset_NrfDelay(void);
 
 uint8_t pTimerTcbBuf[sizeof(StaticTask_t)];
 StackType_t pTimerTaskStkBuf[configMINIMAL_STACK_SIZE+100];
@@ -253,6 +263,18 @@ int main(void)
 #ifdef USER0_CONFIG_APP
     user0_config_app_task_init();
 #endif
+
+    nrf_gpio_pin_set(PWE_EPHYZ_PIN);
+    /*
+      Not using task delay call hwreset as sheduler not started.
+      And also using nrfdelay only here,not in app as we dont want sheduler blocking delays
+      Note: Boot time is subjected to change with these changes
+    */ 
+    AD5940_HWReset_NrfDelay();
+    AD5940_Initialize();
+    DG2502_SW_control_AD5940(0);    
+    DG2502_SW_control_AD8233(0);
+    nrf_gpio_pin_clear(PWE_EPHYZ_PIN);
     NRF_LOG_INFO("App started\n");
 
     /* Activate deep sleep mode */

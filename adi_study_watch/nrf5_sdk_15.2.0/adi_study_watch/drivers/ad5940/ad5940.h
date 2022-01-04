@@ -4943,6 +4943,11 @@ void      AD5940_ReadWriteNBytes(unsigned char *pSendBuffer,unsigned char *pRecv
 uint32_t  AD5940_GetMCUIntFlag(void);
 uint32_t  AD5940_ClrMCUIntFlag(void);
 uint32_t  AD5940_MCUResourceInit(void *pCfg);
+/* Functions specific to NRF Microcontroller Interface */
+uint32_t ad5940_port_Init(void);
+uint32_t ad5940_port_deInit(void);
+uint32_t ad5940_rstpin_init(void);
+void ad5940_rstpin_deinit(void);
 /**
  * @} Library_Interface
 */

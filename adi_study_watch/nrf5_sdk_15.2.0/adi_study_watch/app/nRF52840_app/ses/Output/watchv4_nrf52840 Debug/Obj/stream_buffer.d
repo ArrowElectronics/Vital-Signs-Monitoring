@@ -1,5 +1,5 @@
 Output/watchv4_nrf52840\ Debug/Obj/stream_buffer.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\external\freertos\source\stream_buffer.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\external\freertos\source\stream_buffer.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \

@@ -64,7 +64,6 @@ CIRC_BUFF_STATUS_t adpd4000_buff_get(uint8_t *p_data,
                                 uint32_t *p_data_len);
 void adpd4000_buff_init(uint32_t data_sample_sz);
 void adpd4000_buff_reset(uint32_t data_sample_sz);
-uint8_t adpd4000_read_data_to_buffer(uint16_t *p_slot_sz, uint16_t *max_slot, uint16_t *ch);
 uint32_t* Adpd400xDrvGetDebugInfo();
 uint32_t Adpd400xDrvGetISRDebugInfo();
 #endif  // __ADPD4000_BUFFERING_H

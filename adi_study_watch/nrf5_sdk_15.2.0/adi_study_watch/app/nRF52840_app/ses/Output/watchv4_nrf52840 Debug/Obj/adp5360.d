@@ -1,6 +1,6 @@
 Output/watchv4_nrf52840\ Debug/Obj/adp5360.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\adp5360.c \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\adp5360.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\adp5360.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\adp5360.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdint.h \
  ..\..\..\..\components\libraries\util/sdk_common.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdbool.h \
@@ -67,6 +67,7 @@ Output/watchv4_nrf52840\ Debug/Obj/adp5360.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_twi.h \
  ..\..\..\..\components\libraries\delay/nrf_delay.h \
  ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h \
  ..\..\..\drivers\adxl362/adxl362.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_types.h \
  ..\..\..\modules\system\osal\free_rtos\src/adi_osal.h \
@@ -104,7 +105,7 @@ Output/watchv4_nrf52840\ Debug/Obj/adp5360.o: \
  ..\..\..\..\modules\nrfx/hal/nrf_gpio.h \
  ..\..\..\cli\m2m2\inc\c/common_sensor_interface.h \
  ..\..\..\hal/hal_twi0.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\low_voltage_protect.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\drivers\adp5360\low_voltage_protect.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\experimental_section_vars/nrf_section.h \
  ..\..\..\..\components\libraries\strerror/nrf_strerror.h \

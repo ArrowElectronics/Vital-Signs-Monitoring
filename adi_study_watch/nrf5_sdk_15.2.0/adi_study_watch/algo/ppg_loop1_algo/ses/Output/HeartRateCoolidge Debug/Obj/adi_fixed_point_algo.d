@@ -1,5 +1,5 @@
 Output/HeartRateCoolidge\ Debug/Obj/adi_fixed_point_algo.o: \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_motion_reject_algo\adi_fixed_point_algo.c \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_motion_reject_algo\adi_fixed_point_algo.c \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/string.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/__crossworks.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/stdio.h \
@@ -40,12 +40,13 @@ Output/HeartRateCoolidge\ Debug/Obj/adi_fixed_point_algo.o: \
  ..\..\..\..\components\libraries\util/nordic_common.h \
  ../adpd400x_lib_common.h ../adpd400x_lib.h ../adpd_err_code.h \
  ..\..\..\drivers\adpd4000/adpd400x_reg.h \
- ..\..\..\drivers\adpd4000/adpd400x_drv.h ../heart_rate_internal.h \
+ ..\..\..\drivers\adpd4000/adpd400x_drv.h \
+ ..\..\..\drivers\adpd4000/adi_adpd_result.h ../heart_rate_internal.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/errno.h \
  ../timers.h \
  C:/Program\ Files/SEGGER/SEGGER\ Embedded\ Studio\ for\ ARM\ 4.12/include/inttypes.h \
  ../logging.h \
- D:\29_oct_VSMcode\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_motion_reject_algo\adi_vsm_hrm.h \
+ D:\updated_bitbucket_code_vsm\nrf5_sdk_15.2.0\adi_study_watch\algo\ppg_motion_reject_algo\adi_vsm_hrm.h \
  ..\..\..\..\components\libraries\log/nrf_log.h \
  ..\..\..\..\components\libraries\log\src/nrf_log_internal.h \
  ..\..\..\..\components\libraries\util/app_util.h \

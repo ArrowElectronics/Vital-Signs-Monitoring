@@ -217,7 +217,6 @@ static void display_func(void)
     Adp5360_getBatSoC(&bat_soc);
     lygl_battry_level(bat_soc);
     lcd_display_refresh_all();
-
 }
 uint8_t g_key_val_passed =0;
 static void key_handle(uint8_t key_value)
@@ -399,6 +398,12 @@ static void signal_handle(uint8_t signal_value)
         default:break;
     }
 }
+
+void page_menu_exit()
+{
+  Unregister_pgood_detect_func(usb_detect_func);
+}
+
 const PAGE_HANDLE page_menu = {
 .display_func = &display_func,
 .key_handle = &key_handle,
